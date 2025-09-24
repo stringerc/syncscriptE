@@ -32,5 +32,5 @@ EXPOSE 3001
 # Make startup script executable
 RUN chmod +x server/start.sh
 
-# Start the server directly
-CMD ["sh", "-c", "cd server && npx prisma generate && npx prisma db push --accept-data-loss --skip-generate && node dist/index.js"]
+# Start the server directly with debugging
+CMD ["sh", "-c", "echo '🚀 Starting SyncScript deployment...' && cd server && echo '📦 Generating Prisma client...' && npx prisma generate && echo '🗄️ Setting up database schema...' && npx prisma db push --accept-data-loss --skip-generate && echo '✅ Database ready, starting server...' && echo '🔧 Environment check:' && echo 'PORT='$PORT && echo 'NODE_ENV='$NODE_ENV && echo 'DATABASE_URL='$(echo $DATABASE_URL | cut -c1-20)'...' && node dist/index.js"]

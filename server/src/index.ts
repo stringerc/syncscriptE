@@ -196,6 +196,8 @@ server.listen(PORT, '0.0.0.0', () => {
   logger.info(`🔗 Frontend URL: ${process.env.FRONTEND_URL || 'http://localhost:3000'}`);
   logger.info(`✅ Server ready for health checks at /health`);
   logger.info(`🌐 Server listening on 0.0.0.0:${PORT}`);
+  logger.info(`🔧 Railway PORT environment: ${process.env.PORT}`);
+  logger.info(`🔧 Actual listening port: ${PORT}`);
   
   // Give the server a moment to fully initialize
   setTimeout(() => {
