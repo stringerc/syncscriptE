@@ -32,5 +32,5 @@ EXPOSE 3001
 # Make startup script executable
 RUN chmod +x server/start.sh
 
-# Test basic functionality
-CMD ["sh", "-c", "echo 'Testing basic shell access' && node --version && ls -la server/ && echo 'Starting minimal test server...' && node server/minimal-test.js"]
+# Start the full SyncScript server
+CMD ["./server/start.sh"]
