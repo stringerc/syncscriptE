@@ -67,7 +67,7 @@ export const optionalAuth = async (
   req: AuthRequest,
   res: Response,
   next: NextFunction
-) => {
+): Promise<void> => {
   try {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1];
@@ -92,9 +92,9 @@ export const optionalAuth = async (
       req.user = user;
     }
 
-    next();
+    return next();
   } catch (error) {
     // Continue without authentication if token is invalid
-    next();
+    return next();
   }
 };

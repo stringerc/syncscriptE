@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { asyncHandler, createError } from '../middleware/errorHandler';
 import { authenticateToken, AuthRequest } from '../middleware/auth';
 import { logger } from '../utils/logger';
-import { Priority, TaskStatus } from '../../../shared/types';
+import { Priority, TaskStatus } from '../types';
 
 const router = express.Router();
 const prisma = new PrismaClient();
