@@ -32,5 +32,5 @@ EXPOSE 3001
 # Make startup script executable
 RUN chmod +x server/start.sh
 
-# Start the server
-CMD ["./server/start.sh"]
+# Start the test server
+CMD ["node", "server/test-server.js"]
