@@ -142,6 +142,7 @@ server.listen(PORT, () => {
   logger.info(`🚀 SyncScript server running on port ${PORT}`);
   logger.info(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
   logger.info(`🔗 Frontend URL: ${process.env.FRONTEND_URL || 'http://localhost:3000'}`);
+  logger.info(`✅ Server ready for health checks at /health`);
 });
 
 export { app, server, io, prisma };

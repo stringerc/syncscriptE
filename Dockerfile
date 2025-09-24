@@ -17,7 +17,10 @@ RUN cd client && npm install
 # Copy source code
 COPY . .
 
-# Build the application
+# Build the server TypeScript
+RUN cd server && npm run build
+
+# Build the client
 RUN cd client && npm run build
 
 # Expose port
