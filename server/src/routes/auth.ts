@@ -88,7 +88,7 @@ router.post('/register', asyncHandler(async (req, res) => {
   const token = jwt.sign(
     { userId: user.id, email: user.email },
     jwtSecret,
-    { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
+    { expiresIn: (process.env.JWT_EXPIRES_IN || '7d') as string }
   );
 
   logger.info('User registered successfully', { userId: user.id, email });
@@ -147,7 +147,7 @@ router.post('/login', asyncHandler(async (req, res) => {
   const token = jwt.sign(
     { userId: user.id, email: user.email },
     jwtSecret,
-    { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
+    { expiresIn: (process.env.JWT_EXPIRES_IN || '7d') as string }
   );
 
   logger.info('User logged in successfully', { userId: user.id, email });

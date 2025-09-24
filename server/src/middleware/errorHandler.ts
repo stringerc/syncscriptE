@@ -33,7 +33,8 @@ export const errorHandler = (
       case 'P2002':
         statusCode = 409;
         // Check if it's a unique constraint violation on email
-        if (error.meta?.target?.includes('email')) {
+        const target = error.meta?.target as string[] | undefined;
+        if (target && Array.isArray(target) && target.includes('email')) {
           message = 'An account with this email already exists';
         } else {
           message = 'This information is already in use';
