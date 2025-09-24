@@ -32,5 +32,5 @@ EXPOSE 3001
 # Make startup script executable
 RUN chmod +x server/start.sh
 
-# Start the full SyncScript server
-CMD ["./server/start.sh"]
+# Start the server directly
+CMD ["sh", "-c", "cd server && npx prisma generate && npx prisma db push --accept-data-loss --skip-generate && node dist/index.js"]
