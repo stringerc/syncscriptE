@@ -9,9 +9,8 @@ const getApiBaseUrl = () => {
   
   // If running on GitHub Pages, use Railway backend
   if (window.location.hostname === 'stringerc.github.io') {
-    // You need to replace this with your actual Railway domain
-    // Common Railway patterns - update this with your actual domain
-    return 'https://syncscript-production.railway.app/api'
+    // Use your actual Railway domain
+    return 'https://syncscripte-production.up.railway.app/api'
   }
   
   // Default to localhost for development
