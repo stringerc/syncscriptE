@@ -12,7 +12,8 @@
       "src": "server/src/index.ts",
       "use": "@vercel/node",
       "config": {
-        "includeFiles": ["server/**"]
+        "includeFiles": ["server/**"],
+        "maxDuration": 30
       }
     }
   ],
@@ -28,10 +29,5 @@
   ],
   "env": {
     "NODE_ENV": "production"
-  },
-  "functions": {
-    "server/src/index.ts": {
-      "maxDuration": 30
-    }
   }
 }
