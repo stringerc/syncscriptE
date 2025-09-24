@@ -28,7 +28,10 @@ export function TasksPage() {
     queryFn: async () => {
       const response = await api.get('/tasks')
       return response.data.data
-    }
+    },
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    cacheTime: 10 * 60 * 1000, // 10 minutes
+    refetchOnWindowFocus: false
   })
 
   const createTaskMutation = useMutation({
@@ -37,8 +40,8 @@ export function TasksPage() {
       return response.data
     },
     onSuccess: () => {
+      // Only invalidate tasks cache, not dashboard
       queryClient.invalidateQueries({ queryKey: ['tasks'] })
-      queryClient.invalidateQueries({ queryKey: ['dashboard'] })
       setNewTask({ title: '', description: '', priority: 'MEDIUM', estimatedDuration: 30, energyRequired: 5, tags: '' })
       setShowAddForm(false)
       toast({
@@ -61,8 +64,8 @@ export function TasksPage() {
       return response.data
     },
     onSuccess: () => {
+      // Only invalidate tasks cache, not dashboard
       queryClient.invalidateQueries({ queryKey: ['tasks'] })
-      queryClient.invalidateQueries({ queryKey: ['dashboard'] })
       toast({
         title: "Task Completed!",
         description: "Great job on completing that task."
@@ -76,8 +79,8 @@ export function TasksPage() {
       return response.data
     },
     onSuccess: () => {
+      // Only invalidate tasks cache, not dashboard
       queryClient.invalidateQueries({ queryKey: ['tasks'] })
-      queryClient.invalidateQueries({ queryKey: ['dashboard'] })
       toast({
         title: "Task Deleted",
         description: "The task has been removed successfully."

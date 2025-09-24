@@ -24,7 +24,11 @@ export function NotificationsDropdown() {
     queryFn: async () => {
       const response = await api.get('/notifications')
       return response.data.data
-    }
+    },
+    staleTime: 2 * 60 * 1000, // 2 minutes
+    cacheTime: 5 * 60 * 1000, // 5 minutes
+    refetchOnWindowFocus: false,
+    refetchOnMount: false
   })
 
   const markAsReadMutation = useMutation({

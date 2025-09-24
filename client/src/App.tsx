@@ -8,7 +8,7 @@ import { PasswordResetPage } from '@/pages/PasswordResetPage'
 import { DashboardPage } from '@/pages/DashboardPage'
 import { TasksPage } from '@/pages/TasksPage'
 import { CalendarPage } from '@/pages/CalendarPage'
-import { GoogleCalendarPage } from '@/pages/GoogleCalendarPage'
+import { GoogleCalendarPageWorking as GoogleCalendarPage } from '@/pages/GoogleCalendarPageWorking'
 import { FinancialPage } from '@/pages/FinancialPage'
 import { SettingsPage } from '@/pages/SettingsPage'
 import { ProfilePage } from '@/pages/ProfilePage'
@@ -16,17 +16,13 @@ import { AIAssistantPage } from '@/pages/AIAssistantPage'
 import { LoadingSpinner } from '@/components/ui/loading-spinner'
 
 function App() {
-  console.log('App component rendering...');
   const { user, isLoading, checkAuth } = useAuthStore()
-  console.log('App state:', { user: !!user, isLoading });
 
   useEffect(() => {
-    console.log('App useEffect - calling checkAuth');
     checkAuth()
-  }, [checkAuth])
+  }, []) // Remove checkAuth from dependencies to prevent infinite loop
 
   if (isLoading) {
-    console.log('App showing loading spinner');
     return (
       <div className="min-h-screen flex items-center justify-center">
         <LoadingSpinner size="lg" />

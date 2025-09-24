@@ -45,7 +45,10 @@ export function DashboardPage() {
     queryFn: async () => {
       const response = await api.get('/user/dashboard')
       return response.data.data
-    }
+    },
+    staleTime: 10 * 60 * 1000, // 10 minutes
+    cacheTime: 15 * 60 * 1000, // 15 minutes
+    refetchOnWindowFocus: false
   })
 
   const completeTaskMutation = useMutation({
@@ -54,7 +57,9 @@ export function DashboardPage() {
       return response.data
     },
     onSuccess: () => {
+      // Only invalidate dashboard cache, not all caches
       queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+      queryClient.invalidateQueries({ queryKey: ['tasks'] })
       toast({
         title: "Task Completed!",
         description: "Great job on completing that task."

@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge'
 import { Calendar, ExternalLink, RefreshCw, Sync, Trash2, Plus } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
+import { useAuthStore } from '@/stores/authStore'
 import api from '@/lib/api'
 
 interface GoogleCalendarIntegration {
@@ -47,44 +48,54 @@ export function GoogleCalendarPage() {
   const [syncDirection, setSyncDirection] = useState<'from_google' | 'to_google' | 'bidirectional'>('from_google')
   const { toast } = useToast()
   const queryClient = useQueryClient()
+  const { user, token } = useAuthStore()
 
   // Fetch Google Calendar integration status
-  const { data: statusData, isLoading: statusLoading } = useQuery<GoogleCalendarStatus>({
+  const { data: statusData, isLoading: statusLoading, error: statusError } = useQuery<GoogleCalendarStatus>({
     queryKey: ['google-calendar-status'],
     queryFn: async () => {
       const response = await api.get('/google-calendar/status')
       return response.data.data
-    }
+    },
+    enabled: !!user && !!token,
+    retry: false,
+    refetchOnWindowFocus: false
   })
 
   // Fetch Google Calendar auth URL
-  const { data: authData, isLoading: authLoading } = useQuery({
+  const { data: authData, isLoading: authLoading, error: authError } = useQuery({
     queryKey: ['google-calendar-auth-url'],
     queryFn: async () => {
       const response = await api.get('/google-calendar/auth-url')
       return response.data.data.authUrl
     },
-    enabled: !statusData?.connected
+    enabled: !!user && !!token && !statusData?.connected && !statusError,
+    retry: false,
+    refetchOnWindowFocus: false
   })
 
   // Fetch Google Calendar calendars
-  const { data: calendarsData, isLoading: calendarsLoading } = useQuery<GoogleCalendar[]>({
+  const { data: calendarsData, isLoading: calendarsLoading, error: calendarsError } = useQuery<GoogleCalendar[]>({
     queryKey: ['google-calendar-calendars'],
     queryFn: async () => {
       const response = await api.get('/google-calendar/calendars')
       return response.data.data
     },
-    enabled: statusData?.connected
+    enabled: !!user && !!token && statusData?.connected && !statusError,
+    retry: false,
+    refetchOnWindowFocus: false
   })
 
   // Fetch Google Calendar events
-  const { data: eventsData, isLoading: eventsLoading, refetch: refetchEvents } = useQuery<GoogleCalendarEvent[]>({
+  const { data: eventsData, isLoading: eventsLoading, refetch: refetchEvents, error: eventsError } = useQuery<GoogleCalendarEvent[]>({
     queryKey: ['google-calendar-events', selectedCalendar],
     queryFn: async () => {
       const response = await api.get(`/google-calendar/events?calendarId=${selectedCalendar}&maxResults=50`)
       return response.data.data
     },
-    enabled: statusData?.connected
+    enabled: !!user && !!token && statusData?.connected && !statusError,
+    retry: false,
+    refetchOnWindowFocus: false
   })
 
   // Connect Google Calendar mutation
@@ -184,6 +195,17 @@ export function GoogleCalendarPage() {
     }
   }, [authData])
 
+  // Debug logging
+  useEffect(() => {
+    console.log('GoogleCalendarPage Debug:', {
+      user: !!user,
+      token: !!token,
+      statusLoading,
+      statusError,
+      statusData
+    })
+  }, [user, token, statusLoading, statusError, statusData])
+
   const handleConnect = () => {
     if (authUrl) {
       window.open(authUrl, '_blank', 'width=500,height=600')
@@ -210,10 +232,77 @@ export function GoogleCalendarPage() {
     return !event.start.dateTime && !event.end.dateTime
   }
 
+  // Check if user is authenticated
+  if (!user || !token) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold">Google Calendar Integration</h1>
+            <p className="text-muted-foreground">
+              Connect and sync your Google Calendar with SyncScript
+            </p>
+          </div>
+        </div>
+        
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Calendar className="w-8 h-8 text-yellow-600" />
+            </div>
+            <h3 className="text-lg font-medium text-yellow-900 mb-2">Authentication Required</h3>
+            <p className="text-yellow-700 mb-4">
+              Please log in to access Google Calendar integration.
+            </p>
+            <Button 
+              onClick={() => window.location.href = '/auth'}
+              variant="outline"
+            >
+              Go to Login
+            </Button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   if (statusLoading) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+    )
+  }
+
+  if (statusError) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold">Google Calendar Integration</h1>
+            <p className="text-muted-foreground">
+              Connect and sync your Google Calendar with SyncScript
+            </p>
+          </div>
+        </div>
+        
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Calendar className="w-8 h-8 text-red-600" />
+            </div>
+            <h3 className="text-lg font-medium text-red-900 mb-2">Connection Error</h3>
+            <p className="text-red-700 mb-4">
+              Unable to connect to Google Calendar service. Please check your authentication.
+            </p>
+            <Button 
+              onClick={() => window.location.reload()}
+              variant="outline"
+            >
+              Retry Connection
+            </Button>
+          </div>
+        </div>
       </div>
     )
   }
@@ -252,7 +341,7 @@ export function GoogleCalendarPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {!statusData?.connected ? (
+          {!statusData?.connected || statusData === undefined ? (
             <div className="space-y-4">
               <Button 
                 onClick={handleConnect}

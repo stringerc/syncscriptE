@@ -80,7 +80,19 @@ export const useAuthStore = create<AuthStore>()(
       },
 
       checkAuth: async () => {
-        const { token } = get()
+        const { token, isLoading, user } = get()
+        
+        // Prevent multiple simultaneous calls
+        if (isLoading) {
+          return
+        }
+        
+        // If we already have a user and token, don't refetch
+        if (user && token) {
+          set({ isLoading: false })
+          return
+        }
+        
         if (!token) {
           set({ isLoading: false })
           return

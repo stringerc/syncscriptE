@@ -4,7 +4,7 @@ import { api } from '@/lib/api'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Bot, Send, User, Sparkles, Calendar, Copy, ThumbsUp, ThumbsDown, Volume2, Check, Mic, MicOff } from 'lucide-react'
+import { Bot, Send, User, Sparkles, Calendar, Copy, ThumbsUp, ThumbsDown, Volume2, Check, Mic, MicOff, X, ChevronDown, ChevronUp, Plus, Trash2, MessageSquare } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 
 interface ChatMessage {
@@ -12,6 +12,14 @@ interface ChatMessage {
   role: 'user' | 'assistant'
   content: string
   timestamp: string
+}
+
+interface Chat {
+  id: string
+  title: string
+  messages: ChatMessage[]
+  createdAt: string
+  updatedAt: string
 }
 
 // Extend Window interface for speech recognition
@@ -23,42 +31,69 @@ declare global {
 }
 
 export function AIAssistantPage() {
-  // Load chat history from localStorage
-  const [messages, setMessages] = useState<ChatMessage[]>(() => {
-    const saved = localStorage.getItem('syncscript-chat-history')
+  // Load chats from localStorage
+  const [chats, setChats] = useState<Chat[]>(() => {
+    const saved = localStorage.getItem('syncscript-chats')
     if (saved) {
       try {
         return JSON.parse(saved)
       } catch {
-        return [{
+        return []
+      }
+    }
+    return []
+  })
+
+  // Current active chat
+  const [currentChatId, setCurrentChatId] = useState<string>(() => {
+    const saved = localStorage.getItem('syncscript-current-chat-id')
+    return saved || ''
+  })
+
+  // Get current chat messages
+  const currentChat = chats.find(chat => chat.id === currentChatId)
+  const messages = currentChat?.messages || []
+
+  // Initialize with default chat if none exist
+  useEffect(() => {
+    if (chats.length === 0) {
+      const defaultChat: Chat = {
+        id: 'default',
+        title: 'New Chat',
+        messages: [{
           id: '1',
           role: 'assistant',
           content: "Hello! I'm your SyncScript AI assistant. I can help you with task prioritization, scheduling suggestions, productivity tips, and more. What would you like to know?",
           timestamp: new Date().toISOString()
-        }]
+        }],
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
       }
+      setChats([defaultChat])
+      setCurrentChatId('default')
     }
-    return [{
-      id: '1',
-      role: 'assistant',
-      content: "Hello! I'm your SyncScript AI assistant. I can help you with task prioritization, scheduling suggestions, productivity tips, and more. What would you like to know?",
-      timestamp: new Date().toISOString()
-    }]
-  })
+  }, [chats.length])
   const [inputMessage, setInputMessage] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [copiedMessages, setCopiedMessages] = useState<Set<string>>(new Set())
   const [feedback, setFeedback] = useState<Record<string, 'up' | 'down' | null>>({})
   const [isListening, setIsListening] = useState(false)
   const [speechSupported, setSpeechSupported] = useState(false)
+  const [showAICapabilities, setShowAICapabilities] = useState(true)
+  const [isAICapabilitiesCollapsed, setIsAICapabilitiesCollapsed] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const { toast } = useToast()
   const queryClient = useQueryClient()
 
-  // Save chat history to localStorage whenever messages change
+  // Save chats to localStorage whenever chats change
   useEffect(() => {
-    localStorage.setItem('syncscript-chat-history', JSON.stringify(messages))
-  }, [messages])
+    localStorage.setItem('syncscript-chats', JSON.stringify(chats))
+  }, [chats])
+
+  // Save current chat ID to localStorage
+  useEffect(() => {
+    localStorage.setItem('syncscript-current-chat-id', currentChatId)
+  }, [currentChatId])
 
   const chatMutation = useMutation({
     mutationFn: async (message: string) => {
@@ -76,7 +111,17 @@ export function AIAssistantPage() {
         content: displayMessage,
         timestamp: data.data.timestamp
       }
-      setMessages(prev => [...prev, assistantMessage])
+      
+      // Update the current chat with the new message
+      setChats(prev => prev.map(chat => 
+        chat.id === currentChatId 
+          ? {
+              ...chat,
+              messages: [...chat.messages, assistantMessage],
+              updatedAt: new Date().toISOString()
+            }
+          : chat
+      ))
       setIsLoading(false)
       
       // Check if the response contains event creation instructions
@@ -246,7 +291,17 @@ export function AIAssistantPage() {
       timestamp: new Date().toISOString()
     }
 
-    setMessages(prev => [...prev, userMessage])
+    // Update the current chat with the user message
+    setChats(prev => prev.map(chat => 
+      chat.id === currentChatId 
+        ? {
+            ...chat,
+            messages: [...chat.messages, userMessage],
+            updatedAt: new Date().toISOString()
+          }
+        : chat
+    ))
+    
     setInputMessage('')
     setIsLoading(true)
     chatMutation.mutate(inputMessage)
@@ -384,6 +439,65 @@ export function AIAssistantPage() {
     }
   }
 
+  const createNewChat = () => {
+    const newChat: Chat = {
+      id: Date.now().toString(),
+      title: 'New Chat',
+      messages: [{
+        id: '1',
+        role: 'assistant',
+        content: "Hello! I'm your SyncScript AI assistant. I can help you with task prioritization, scheduling suggestions, productivity tips, and more. What would you like to know?",
+        timestamp: new Date().toISOString()
+      }],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    }
+    
+    setChats(prev => [newChat, ...prev])
+    setCurrentChatId(newChat.id)
+    toast({
+      title: "New Chat Created",
+      description: "You can now start a new conversation."
+    })
+  }
+
+  const deleteChat = (chatId: string) => {
+    if (chats.length <= 1) {
+      toast({
+        title: "Cannot Delete",
+        description: "You must have at least one chat.",
+        variant: "destructive"
+      })
+      return
+    }
+
+    setChats(prev => {
+      const newChats = prev.filter(chat => chat.id !== chatId)
+      // If we're deleting the current chat, switch to the first remaining chat
+      if (chatId === currentChatId) {
+        setCurrentChatId(newChats[0].id)
+      }
+      return newChats
+    })
+    
+    toast({
+      title: "Chat Deleted",
+      description: "The chat has been removed."
+    })
+  }
+
+  const switchChat = (chatId: string) => {
+    setCurrentChatId(chatId)
+  }
+
+  const updateChatTitle = (chatId: string, newTitle: string) => {
+    setChats(prev => prev.map(chat => 
+      chat.id === chatId 
+        ? { ...chat, title: newTitle, updatedAt: new Date().toISOString() }
+        : chat
+    ))
+  }
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
@@ -416,20 +530,35 @@ export function AIAssistantPage() {
         </div>
       </div>
 
-      <div className="max-w-4xl mx-auto">
+      <div className="flex gap-6">
+        {/* Main Chat Area */}
+        <div className="flex-1">
         {/* Chat Interface */}
         <div>
-          <Card className="h-[600px] flex flex-col">
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center space-x-2">
-                <Sparkles className="w-5 h-5 text-primary" />
-                <span>Chat with AI</span>
-              </CardTitle>
-              <CardDescription>
-                Ask me anything about your tasks, schedule, or productivity
-              </CardDescription>
+          <Card className="min-h-[600px] max-h-[calc(100vh-200px)] flex flex-col">
+            <CardHeader className="pb-3 flex-shrink-0">
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center space-x-2">
+                    <Sparkles className="w-5 h-5 text-primary" />
+                    <span>Chat with AI</span>
+                  </CardTitle>
+                  <CardDescription>
+                    Ask me anything about your tasks, schedule, or productivity
+                  </CardDescription>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={createNewChat}
+                  className="flex items-center space-x-2"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span className="hidden sm:inline">New Chat</span>
+                </Button>
+              </div>
             </CardHeader>
-            <CardContent className="flex-1 flex flex-col p-0">
+            <CardContent className="flex-1 flex flex-col p-0 min-h-0">
               {/* Messages */}
               <div className="flex-1 overflow-y-auto p-4 space-y-4">
                 {messages.map((message) => (
@@ -559,7 +688,7 @@ export function AIAssistantPage() {
               )}
 
               {/* Input */}
-              <div className="border-t p-4">
+              <div className="border-t p-4 flex-shrink-0">
                 <div className="flex space-x-2">
                   <Input
                     value={inputMessage}
@@ -610,40 +739,287 @@ export function AIAssistantPage() {
           </Card>
         </div>
 
-        {/* AI Capabilities */}
-        <Card className="mt-6">
+        </div>
+
+        {/* Sidebar */}
+        <div className="w-72 lg:w-80 flex-shrink-0 hidden md:block space-y-4">
+          {/* Chat Management */}
+          <Card className="sticky top-6">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-lg flex items-center">
+                  <MessageSquare className="w-5 h-5 mr-2" />
+                  Chats
+                </CardTitle>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={createNewChat}
+                  className="h-8 px-2"
+                >
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-2 max-h-[300px] overflow-y-auto">
+              {chats.map((chat) => (
+                <div
+                  key={chat.id}
+                  className={`flex items-center justify-between p-2 rounded-lg cursor-pointer transition-colors ${
+                    chat.id === currentChatId 
+                      ? 'bg-primary text-primary-foreground' 
+                      : 'hover:bg-accent'
+                  }`}
+                  onClick={() => switchChat(chat.id)}
+                >
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-medium truncate">
+                      {chat.title}
+                    </div>
+                    <div className="text-xs opacity-70 truncate">
+                      {chat.messages.length > 1 
+                        ? `${chat.messages.length - 1} messages`
+                        : 'New chat'
+                      }
+                    </div>
+                  </div>
+                  {chats.length > 1 && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        if (confirm('Are you sure you want to delete this chat?')) {
+                          deleteChat(chat.id)
+                        }
+                      }}
+                      className="h-6 w-6 p-0 hover:bg-destructive hover:text-destructive-foreground"
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  )}
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+
+          {/* AI Capabilities */}
+          {showAICapabilities && (
+            <Card className="sticky top-6">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-lg">AI Capabilities</CardTitle>
+                  <div className="flex items-center space-x-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setIsAICapabilitiesCollapsed(!isAICapabilitiesCollapsed)}
+                      className="h-8 w-8 p-0"
+                    >
+                      {isAICapabilitiesCollapsed ? (
+                        <ChevronDown className="h-4 w-4" />
+                      ) : (
+                        <ChevronUp className="h-4 w-4" />
+                      )}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setShowAICapabilities(false)}
+                      className="h-8 w-8 p-0"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              </CardHeader>
+              {!isAICapabilitiesCollapsed && (
+                <CardContent>
+                  <div className="space-y-3 text-sm">
+                    <div className="flex items-center space-x-2">
+                      <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                      <span>Task prioritization</span>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                      <span>Calendar event creation</span>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                      <span>Schedule optimization</span>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                      <span>Energy level analysis</span>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                      <span>Productivity tips</span>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
+                      <span>Budget planning (coming soon)</span>
+                    </div>
+                  </div>
+                </CardContent>
+              )}
+            </Card>
+          )}
+
+          {/* Show AI Capabilities Button */}
+          {!showAICapabilities && (
+            <div className="sticky top-6">
+              <Button
+                variant="outline"
+                onClick={() => setShowAICapabilities(true)}
+                className="w-full flex items-center space-x-2"
+              >
+                <Sparkles className="w-4 h-4" />
+                <span>Show AI Capabilities</span>
+              </Button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Mobile Chat Management and AI Capabilities - appears below chat on small screens */}
+      <div className="md:hidden mt-6 space-y-4">
+        {/* Mobile Chat Management */}
+        <Card>
           <CardHeader>
-            <CardTitle className="text-lg">AI Capabilities</CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-lg flex items-center">
+                <MessageSquare className="w-5 h-5 mr-2" />
+                Chats
+              </CardTitle>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={createNewChat}
+                className="flex items-center space-x-2"
+              >
+                <Plus className="h-4 w-4" />
+                <span>New</span>
+              </Button>
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
-              <div className="flex items-center space-x-2">
-                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                <span>Task prioritization</span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                <span>Calendar event creation</span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                <span>Schedule optimization</span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                <span>Energy level analysis</span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                <span>Productivity tips</span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
-                <span>Budget planning (coming soon)</span>
-              </div>
+            <div className="space-y-2">
+              {chats.map((chat) => (
+                <div
+                  key={chat.id}
+                  className={`flex items-center justify-between p-3 rounded-lg cursor-pointer transition-colors ${
+                    chat.id === currentChatId 
+                      ? 'bg-primary text-primary-foreground' 
+                      : 'hover:bg-accent'
+                  }`}
+                  onClick={() => switchChat(chat.id)}
+                >
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-medium truncate">
+                      {chat.title}
+                    </div>
+                    <div className="text-xs opacity-70 truncate">
+                      {chat.messages.length > 1 
+                        ? `${chat.messages.length - 1} messages`
+                        : 'New chat'
+                      }
+                    </div>
+                  </div>
+                  {chats.length > 1 && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        if (confirm('Are you sure you want to delete this chat?')) {
+                          deleteChat(chat.id)
+                        }
+                      }}
+                      className="h-8 w-8 p-0 hover:bg-destructive hover:text-destructive-foreground"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+              ))}
             </div>
           </CardContent>
         </Card>
+
+        {/* Mobile AI Capabilities */}
+        {showAICapabilities ? (
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-lg">AI Capabilities</CardTitle>
+                <div className="flex items-center space-x-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setIsAICapabilitiesCollapsed(!isAICapabilitiesCollapsed)}
+                    className="h-8 w-8 p-0"
+                  >
+                    {isAICapabilitiesCollapsed ? (
+                      <ChevronDown className="h-4 w-4" />
+                    ) : (
+                      <ChevronUp className="h-4 w-4" />
+                    )}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowAICapabilities(false)}
+                    className="h-8 w-8 p-0"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            </CardHeader>
+            {!isAICapabilitiesCollapsed && (
+              <CardContent>
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div className="flex items-center space-x-2">
+                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                    <span>Task prioritization</span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                    <span>Calendar event creation</span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                    <span>Schedule optimization</span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                    <span>Energy level analysis</span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                    <span>Productivity tips</span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
+                    <span>Budget planning (coming soon)</span>
+                  </div>
+                </div>
+              </CardContent>
+            )}
+          </Card>
+        ) : (
+          <div className="flex justify-center">
+            <Button
+              variant="outline"
+              onClick={() => setShowAICapabilities(true)}
+              className="flex items-center space-x-2"
+            >
+              <Sparkles className="w-4 h-4" />
+              <span>Show AI Capabilities</span>
+            </Button>
+          </div>
+        )}
       </div>
     </div>
   )

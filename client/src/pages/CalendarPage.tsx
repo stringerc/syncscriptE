@@ -28,7 +28,10 @@ export function CalendarPage() {
     queryFn: async () => {
       const response = await api.get('/calendar')
       return response.data.data
-    }
+    },
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    cacheTime: 10 * 60 * 1000, // 10 minutes
+    refetchOnWindowFocus: false
   })
 
   const createEventMutation = useMutation({
@@ -37,8 +40,8 @@ export function CalendarPage() {
       return response.data
     },
     onSuccess: () => {
+      // Only invalidate events cache, not dashboard
       queryClient.invalidateQueries({ queryKey: ['events'] })
-      queryClient.invalidateQueries({ queryKey: ['dashboard'] })
       setNewEvent({ title: '', description: '', startTime: '', endTime: '', location: '', budgetImpact: 0 })
       setShowAddForm(false)
       toast({
@@ -61,8 +64,8 @@ export function CalendarPage() {
       return response.data
     },
     onSuccess: () => {
+      // Only invalidate events cache, not dashboard
       queryClient.invalidateQueries({ queryKey: ['events'] })
-      queryClient.invalidateQueries({ queryKey: ['dashboard'] })
       toast({
         title: "Event Deleted",
         description: "The event has been removed successfully."

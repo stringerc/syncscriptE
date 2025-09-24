@@ -13,6 +13,8 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/stores/authStore'
+import { useQueryClient } from '@tanstack/react-query'
+import api from '@/lib/api'
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
@@ -29,6 +31,68 @@ const navigation = [
 
 export function Sidebar() {
   const { user } = useAuthStore()
+  const queryClient = useQueryClient()
+
+  const prefetchData = (href: string) => {
+    if (!user) return
+
+    // Only prefetch if data is not already cached or is stale
+    const shouldPrefetch = (queryKey: string[]) => {
+      const query = queryClient.getQueryData(queryKey)
+      return !query || queryClient.getQueryState(queryKey)?.isStale
+    }
+
+    switch (href) {
+      case '/dashboard':
+        if (shouldPrefetch(['dashboard'])) {
+          queryClient.prefetchQuery({
+            queryKey: ['dashboard'],
+            queryFn: async () => {
+              const response = await api.get('/user/dashboard')
+              return response.data.data
+            },
+            staleTime: 10 * 60 * 1000,
+          })
+        }
+        break
+      case '/tasks':
+        if (shouldPrefetch(['tasks'])) {
+          queryClient.prefetchQuery({
+            queryKey: ['tasks'],
+            queryFn: async () => {
+              const response = await api.get('/tasks')
+              return response.data.data
+            },
+            staleTime: 10 * 60 * 1000,
+          })
+        }
+        break
+      case '/calendar':
+        if (shouldPrefetch(['events'])) {
+          queryClient.prefetchQuery({
+            queryKey: ['events'],
+            queryFn: async () => {
+              const response = await api.get('/calendar')
+              return response.data.data
+            },
+            staleTime: 10 * 60 * 1000,
+          })
+        }
+        break
+      case '/google-calendar':
+        if (shouldPrefetch(['google-calendar-status'])) {
+          queryClient.prefetchQuery({
+            queryKey: ['google-calendar-status'],
+            queryFn: async () => {
+              const response = await api.get('/google-calendar/status')
+              return response.data.data
+            },
+            staleTime: 10 * 60 * 1000,
+          })
+        }
+        break
+    }
+  }
 
   return (
     <div className="w-64 bg-card border-r border-border flex flex-col">
@@ -70,6 +134,7 @@ export function Sidebar() {
           <NavLink
             key={item.name}
             to={item.href}
+            onMouseEnter={() => prefetchData(item.href)}
             className={({ isActive }) =>
               cn(
                 'flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors',

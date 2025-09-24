@@ -7,7 +7,6 @@ interface LayoutProps {
 }
 
 export function Layout({ children }: LayoutProps) {
-  console.log('Layout component rendering...');
   return (
     <div className="min-h-screen bg-background">
       <div className="flex h-screen">

@@ -14,11 +14,9 @@ import {
 } from '@/components/ui/dropdown-menu'
 
 export function Header() {
-  console.log('Header component rendering...');
   const { user, logout } = useAuthStore()
   const [searchQuery, setSearchQuery] = useState('')
   const navigate = useNavigate()
-  console.log('Header hooks initialized, navigate function:', typeof navigate);
 
   return (
     <header className="bg-card border-b border-border px-6 py-4">
@@ -57,10 +55,7 @@ export function Header() {
               variant="ghost" 
               size="icon"
               className="hover:bg-accent hover:text-accent-foreground cursor-pointer"
-              onClick={() => {
-                console.log('Profile button clicked - navigating to profile');
-                navigate('/profile');
-              }}
+              onClick={() => navigate('/profile')}
               title="Go to Profile"
             >
               <User className="w-5 h-5" />
@@ -70,10 +65,7 @@ export function Header() {
             <Button 
               variant="ghost" 
               size="icon" 
-              onClick={() => {
-                console.log('Logout clicked');
-                logout();
-              }}
+              onClick={() => logout()}
               title="Logout"
             >
               <LogOut className="w-5 h-5" />

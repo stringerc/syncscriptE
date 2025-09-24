@@ -43,7 +43,7 @@ export class GoogleCalendarService {
     this.oauth2Client = new google.auth.OAuth2(
       process.env.GOOGLE_CLIENT_ID,
       process.env.GOOGLE_CLIENT_SECRET,
-      process.env.GOOGLE_REDIRECT_URI || 'http://localhost:3000/auth/google/callback'
+      process.env.GOOGLE_REDIRECT_URI || 'http://localhost:3000/google-calendar'
     );
 
     this.oauth2Client.setCredentials({
@@ -62,7 +62,7 @@ export class GoogleCalendarService {
     const oauth2Client = new google.auth.OAuth2(
       process.env.GOOGLE_CLIENT_ID,
       process.env.GOOGLE_CLIENT_SECRET,
-      process.env.GOOGLE_REDIRECT_URI || 'http://localhost:3000/auth/google/callback'
+      process.env.GOOGLE_REDIRECT_URI || 'http://localhost:3000/google-calendar'
     );
 
     const scopes = [
@@ -84,7 +84,7 @@ export class GoogleCalendarService {
     const oauth2Client = new google.auth.OAuth2(
       process.env.GOOGLE_CLIENT_ID,
       process.env.GOOGLE_CLIENT_SECRET,
-      process.env.GOOGLE_REDIRECT_URI || 'http://localhost:3000/auth/google/callback'
+      process.env.GOOGLE_REDIRECT_URI || 'http://localhost:3000/google-calendar'
     );
 
     try {
@@ -231,8 +231,16 @@ export class GoogleCalendarService {
     created: number;
     updated: number;
     errors: number;
+    createdEvents: Array<{ title: string; startTime: string; endTime: string }>;
+    updatedEvents: Array<{ title: string; startTime: string; endTime: string }>;
   }> {
-    const stats = { created: 0, updated: 0, errors: 0 };
+    const stats = { 
+      created: 0, 
+      updated: 0, 
+      errors: 0,
+      createdEvents: [] as Array<{ title: string; startTime: string; endTime: string }>,
+      updatedEvents: [] as Array<{ title: string; startTime: string; endTime: string }>
+    };
 
     try {
       // Get events from Google Calendar
@@ -279,6 +287,11 @@ export class GoogleCalendarService {
               data: eventData
             });
             stats.updated++;
+            stats.updatedEvents.push({
+              title: eventData.title,
+              startTime: startTime.toISOString(),
+              endTime: endTime.toISOString()
+            });
           } else {
             // Create new event
             await prisma.event.create({
@@ -288,6 +301,11 @@ export class GoogleCalendarService {
               }
             });
             stats.created++;
+            stats.createdEvents.push({
+              title: eventData.title,
+              startTime: startTime.toISOString(),
+              endTime: endTime.toISOString()
+            });
           }
         } catch (error) {
           logger.error('Error syncing individual event:', error);

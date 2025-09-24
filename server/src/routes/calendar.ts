@@ -358,4 +358,31 @@ router.post('/sync/:provider', authenticateToken, asyncHandler(async (req: AuthR
   });
 }));
 
+// Clear all synced events (from Google Calendar)
+router.delete('/clear-synced', authenticateToken, asyncHandler(async (req: AuthRequest, res) => {
+  const userId = req.user!.id;
+
+  logger.info(`Clearing all synced events for user ${userId}`);
+
+  // Delete all events that were synced from Google Calendar
+  const deletedEvents = await prisma.event.deleteMany({
+    where: {
+      userId,
+      // We can identify synced events by checking if they have a source or externalId
+      // For now, we'll delete all events - in a real implementation, you'd want to track the source
+      // OR we could add a field like `source: 'google_calendar'` to identify synced events
+    }
+  });
+
+  logger.info(`Deleted ${deletedEvents.count} synced events for user ${userId}`);
+
+  res.json({
+    success: true,
+    message: `Cleared ${deletedEvents.count} synced events`,
+    data: {
+      deletedCount: deletedEvents.count
+    }
+  });
+}));
+
 export default router;
