@@ -124,7 +124,12 @@ router.post('/', authenticateToken, asyncHandler(async (req: AuthRequest, res) =
 
   const task = await prisma.task.create({
     data: {
-      ...taskData,
+      title: taskData.title,
+      description: taskData.description,
+      priority: taskData.priority,
+      estimatedDuration: taskData.estimatedDuration,
+      energyRequired: taskData.energyRequired,
+      budgetImpact: taskData.budgetImpact,
       userId: req.user!.id,
       dueDate: taskData.dueDate ? new Date(taskData.dueDate) : null,
       tags: taskData.tags || null,
