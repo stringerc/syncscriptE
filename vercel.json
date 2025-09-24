@@ -7,21 +7,9 @@
       "config": {
         "distDir": "dist"
       }
-    },
-    {
-      "src": "server/src/index.ts",
-      "use": "@vercel/node",
-      "config": {
-        "includeFiles": ["server/**"],
-        "maxDuration": 30
-      }
     }
   ],
   "routes": [
-    {
-      "src": "/api/(.*)",
-      "dest": "/server/src/index.ts"
-    },
     {
       "src": "/(.*)",
       "dest": "/client/dist/$1"
