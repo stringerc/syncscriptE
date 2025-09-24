@@ -1,0 +1,22 @@
+# Ignore Docker files
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# Ignore development files
+node_modules/
+.env.local
+.env.development
+*.log
+
+# Ignore client build (we're only deploying server)
+client/dist/
+client/node_modules/
+
+# Ignore git files
+.git/
+.gitignore
+
+# Ignore documentation
+*.md
+docs/
