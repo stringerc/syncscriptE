@@ -252,10 +252,16 @@ router.post('/logout', authenticateToken, asyncHandler(async (req: AuthRequest, 
 // Refresh token
 router.post('/refresh', authenticateToken, asyncHandler(async (req: AuthRequest, res) => {
   // Generate new token
+  const jwtSecret = process.env.JWT_SECRET;
+  if (!jwtSecret) {
+    throw new Error('JWT_SECRET not configured');
+  }
+  
+  // @ts-ignore - JWT signing type issue
   const token = jwt.sign(
     { userId: req.user!.id, email: req.user!.email },
-    process.env.JWT_SECRET!,
-    { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
+    jwtSecret,
+    { expiresIn: '7d' }
   );
 
   res.json({
