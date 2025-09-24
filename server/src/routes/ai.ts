@@ -96,7 +96,7 @@ Only extract clear, actionable items. Be conservative - better to miss something
         userId: req.user!.id,
         content,
         source,
-        extractedTasks: []
+        extractedTasks: null
       }
     });
 
@@ -116,7 +116,7 @@ Only extract clear, actionable items. Be conservative - better to miss something
             budgetImpact: taskData.budgetImpact,
             aiGenerated: true,
             extractedFrom: conversation.id,
-            tags: []
+            tags: null
           }
         });
         createdTasks.push(task);
@@ -126,7 +126,7 @@ Only extract clear, actionable items. Be conservative - better to miss something
       await prisma.conversation.update({
         where: { id: conversation.id },
         data: {
-          extractedTasks: createdTasks.map(t => t.id)
+          extractedTasks: createdTasks.map(t => t.id).join(',')
         }
       });
     }

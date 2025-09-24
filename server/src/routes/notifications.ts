@@ -98,7 +98,11 @@ router.post('/', authenticateToken, asyncHandler(async (req: AuthRequest, res) =
 
   const notification = await prisma.notification.create({
     data: {
-      ...notificationData,
+      type: notificationData.type,
+      title: notificationData.title,
+      message: notificationData.message,
+      actionUrl: notificationData.actionUrl,
+      metadata: notificationData.metadata ? JSON.stringify(notificationData.metadata) : null,
       userId: req.user!.id
     }
   });

@@ -115,7 +115,11 @@ router.post('/', authenticateToken, asyncHandler(async (req: AuthRequest, res) =
 
   const event = await prisma.event.create({
     data: {
-      ...eventData,
+      title: eventData.title,
+      description: eventData.description,
+      location: eventData.location,
+      budgetImpact: eventData.budgetImpact,
+      isAllDay: eventData.isAllDay,
       userId: req.user!.id,
       startTime,
       endTime

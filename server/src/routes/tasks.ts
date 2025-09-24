@@ -130,7 +130,7 @@ router.post('/', authenticateToken, asyncHandler(async (req: AuthRequest, res) =
       tags: taskData.tags || null,
       subtasks: {
         create: taskData.subtasks.map((subtask, index) => ({
-          ...subtask,
+          title: subtask.title,
           order: index
         }))
       }

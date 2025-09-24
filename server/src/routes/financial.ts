@@ -62,7 +62,11 @@ router.post('/accounts', authenticateToken, asyncHandler(async (req: AuthRequest
 
   const account = await prisma.financialAccount.create({
     data: {
-      ...accountData,
+      plaidItemId: accountData.plaidItemId,
+      accountId: accountData.accountId,
+      accountName: accountData.accountName,
+      accountType: accountData.accountType,
+      balance: accountData.balance,
       userId: req.user!.id
     }
   });
@@ -298,11 +302,12 @@ router.get('/analytics', authenticateToken, asyncHandler(async (req: AuthRequest
   // Calculate spending by category (using tags)
   const categorySpending: { [key: string]: number } = {};
   taskSpending.forEach(task => {
-    if (task.tags.length === 0) {
+    const tags = task.tags ? task.tags.split(',') : [];
+    if (tags.length === 0) {
       categorySpending['uncategorized'] = (categorySpending['uncategorized'] || 0) + (task.budgetImpact || 0);
     } else {
-      task.tags.forEach(tag => {
-        categorySpending[tag] = (categorySpending[tag] || 0) + (task.budgetImpact || 0);
+      tags.forEach(tag => {
+        categorySpending[tag.trim()] = (categorySpending[tag.trim()] || 0) + (task.budgetImpact || 0);
       });
     }
   });
@@ -388,11 +393,12 @@ router.get('/recommendations', authenticateToken, asyncHandler(async (req: AuthR
   // Category analysis
   const categorySpending: { [key: string]: number } = {};
   recentTasks.forEach(task => {
-    if (task.tags.length === 0) {
+    const tags = task.tags ? task.tags.split(',') : [];
+    if (tags.length === 0) {
       categorySpending['uncategorized'] = (categorySpending['uncategorized'] || 0) + (task.budgetImpact || 0);
     } else {
-      task.tags.forEach(tag => {
-        categorySpending[tag] = (categorySpending[tag] || 0) + (task.budgetImpact || 0);
+      tags.forEach(tag => {
+        categorySpending[tag.trim()] = (categorySpending[tag.trim()] || 0) + (task.budgetImpact || 0);
       });
     }
   });
