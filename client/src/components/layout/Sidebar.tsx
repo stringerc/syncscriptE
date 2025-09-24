@@ -36,11 +36,12 @@ export function Sidebar() {
   const prefetchData = (href: string) => {
     if (!user) return
 
-    // Only prefetch if data is not already cached or is stale
-    const shouldPrefetch = (queryKey: string[]) => {
-      const query = queryClient.getQueryData(queryKey)
-      return !query || queryClient.getQueryState(queryKey)?.isStale
-    }
+        // Only prefetch if data is not already cached or is stale
+        const shouldPrefetch = (queryKey: string[]) => {
+          const query = queryClient.getQueryData(queryKey)
+          const queryState = queryClient.getQueryState(queryKey)
+          return !query || (queryState && queryState.dataUpdatedAt < Date.now() - 5 * 60 * 1000)
+        }
 
     switch (href) {
       case '/dashboard':
