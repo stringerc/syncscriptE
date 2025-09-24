@@ -14,15 +14,21 @@ This guide will help you deploy SyncScript to Railway in just a few clicks!
 2. **Choose**: `stringerc/syncscriptE`
 3. **Click**: "Deploy Now"
 
-### Step 3: Configure Environment Variables
+### Step 3: Add PostgreSQL Database
+1. **In your Railway project**: Click "New" → "Database" → "PostgreSQL"
+2. **Wait for database to be created** (takes ~30 seconds)
+3. **Note**: Railway automatically provides the DATABASE_URL environment variable
+4. **The database will be automatically connected to your app**
+
+### Step 4: Configure Environment Variables
 Railway will automatically detect your project structure. Now add these environment variables:
 
 1. **Go to**: Project Settings → Variables
 2. **Add these variables**:
 
 ```bash
-# Database
-DATABASE_URL=file:./dev.db
+# Database (Railway will provide PostgreSQL URL automatically)
+DATABASE_URL=postgresql://postgres:password@hostname:port/database
 
 # Authentication
 JWT_SECRET=your_super_secret_jwt_key_minimum_32_characters_long

@@ -20,11 +20,17 @@ COPY . .
 # Build the server TypeScript
 RUN cd server && npm run build
 
+# Generate Prisma client
+RUN cd server && npx prisma generate
+
 # Build the client
 RUN cd client && npm run build
 
 # Expose port
 EXPOSE 3001
 
+# Make startup script executable
+RUN chmod +x server/start.sh
+
 # Start the server
-CMD ["npm", "run", "start"]
+CMD ["./server/start.sh"]
