@@ -36,6 +36,14 @@ const io = new Server(server, {
 const prisma = new PrismaClient();
 const PORT = process.env.PORT || 3001;
 
+// Log the port being used
+logger.info(`🔧 Using port: ${PORT}`);
+logger.info(`🔧 Environment variables:`, {
+  PORT: process.env.PORT,
+  NODE_ENV: process.env.NODE_ENV,
+  DATABASE_URL: process.env.DATABASE_URL ? 'SET' : 'NOT SET'
+});
+
 // Security middleware
 app.use(helmet());
 app.use(cors({
@@ -162,16 +170,23 @@ process.on('SIGINT', async () => {
 });
 
 // Start server
-server.listen(PORT, () => {
+server.listen(PORT, '0.0.0.0', () => {
   logger.info(`🚀 SyncScript server running on port ${PORT}`);
   logger.info(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
   logger.info(`🔗 Frontend URL: ${process.env.FRONTEND_URL || 'http://localhost:3000'}`);
   logger.info(`✅ Server ready for health checks at /health`);
+  logger.info(`🌐 Server listening on 0.0.0.0:${PORT}`);
   
   // Give the server a moment to fully initialize
   setTimeout(() => {
     logger.info(`🎯 Server fully initialized and ready to serve requests`);
   }, 2000);
+});
+
+// Handle server errors
+server.on('error', (error: any) => {
+  logger.error('Server error:', error);
+  process.exit(1);
 });
 
 export { app, server, io, prisma };
