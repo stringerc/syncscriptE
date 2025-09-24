@@ -1,11 +1,20 @@
-const express = require('express');
-const app = express();
-const PORT = parseInt(process.env.PORT || '3001', 10);
+console.log('🚀 Starting test server...');
 
-console.log('🔧 Environment variables:');
-console.log('PORT:', process.env.PORT);
-console.log('NODE_ENV:', process.env.NODE_ENV);
-console.log('Parsed PORT:', PORT);
+try {
+  const express = require('express');
+  console.log('✅ Express loaded successfully');
+  
+  const app = express();
+  const PORT = parseInt(process.env.PORT || '3001', 10);
+
+  console.log('🔧 Environment variables:');
+  console.log('PORT:', process.env.PORT);
+  console.log('NODE_ENV:', process.env.NODE_ENV);
+  console.log('Parsed PORT:', PORT);
+} catch (error) {
+  console.error('❌ Error loading Express:', error);
+  process.exit(1);
+}
 
 // Simple health check
 app.get('/health', (req, res) => {
