@@ -17,8 +17,8 @@ const getApiBaseUrl = () => {
       'https://syncscript-production.up.railway.app/api'
     ]
     
-    // For now, return the most likely one - you'll need to update this with your actual domain
-    return 'https://syncscript-production.railway.app/api'
+     // Use your actual Railway domain
+     return 'https://syncscripte-production.up.railway.app/api'
   }
   
   // Default to localhost for development
