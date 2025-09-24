@@ -17,6 +17,11 @@ client/node_modules/
 .git/
 .gitignore
 
-# Ignore documentation
-*.md
+# Ignore documentation (keep essential ones)
 docs/
+
+# Ignore test files
+**/*.test.js
+**/*.test.ts
+**/*.spec.js
+**/*.spec.ts
