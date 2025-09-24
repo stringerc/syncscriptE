@@ -46,9 +46,11 @@ export function DashboardPage() {
       const response = await api.get('/user/dashboard')
       return response.data.data
     },
-    staleTime: 10 * 60 * 1000, // 10 minutes
-        gcTime: 15 * 60 * 1000, // 15 minutes
-    refetchOnWindowFocus: false
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes
+    refetchOnWindowFocus: false,
+    retry: 2, // Only retry twice on failure
+    retryDelay: 1000 // Wait 1 second between retries
   })
 
   const completeTaskMutation = useMutation({
@@ -146,21 +148,133 @@ export function DashboardPage() {
     navigate('/calendar')
   }
 
-  if (isLoading) {
+  if (isLoading && !dashboardData) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <LoadingSpinner size="lg" />
+      <div className="space-y-6">
+        {/* Welcome Section Skeleton */}
+        <div className="flex items-center justify-between">
+          <div className="space-y-2">
+            <div className="h-8 w-64 bg-muted animate-pulse rounded" />
+            <div className="h-4 w-96 bg-muted animate-pulse rounded" />
+          </div>
+          <div className="h-6 w-24 bg-muted animate-pulse rounded" />
+        </div>
+
+        {/* Quick Stats Skeleton */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {[1, 2, 3, 4].map((i) => (
+            <Card key={i}>
+              <CardHeader className="space-y-2">
+                <div className="h-4 w-24 bg-muted animate-pulse rounded" />
+              </CardHeader>
+              <CardContent>
+                <div className="h-8 w-12 bg-muted animate-pulse rounded mb-2" />
+                <div className="h-3 w-20 bg-muted animate-pulse rounded" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+
+        {/* Content Skeleton */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {[1, 2].map((i) => (
+            <Card key={i}>
+              <CardHeader className="space-y-2">
+                <div className="h-6 w-32 bg-muted animate-pulse rounded" />
+                <div className="h-4 w-48 bg-muted animate-pulse rounded" />
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {[1, 2, 3].map((j) => (
+                  <div key={j} className="p-3 rounded-lg border">
+                    <div className="h-4 w-3/4 bg-muted animate-pulse rounded mb-2" />
+                    <div className="h-3 w-1/2 bg-muted animate-pulse rounded" />
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       </div>
     )
   }
 
-  if (error) {
+  if (error && !dashboardData) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-center">
-          <AlertCircle className="w-12 h-12 text-destructive mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-foreground mb-2">Error Loading Dashboard</h3>
-          <p className="text-muted-foreground">Please try refreshing the page</p>
+      <div className="space-y-6">
+        {/* Welcome Section */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-foreground">
+              Welcome back, User!
+            </h1>
+            <p className="text-muted-foreground mt-1">
+              Here's what's happening with your life management today
+            </p>
+          </div>
+          <div className="flex items-center space-x-2">
+            <Zap className="w-5 h-5 text-primary" />
+            <span className="text-sm font-medium">Energy: 5/10</span>
+          </div>
+        </div>
+
+        {/* Error Message */}
+        <Card className="border-destructive/50 bg-destructive/5">
+          <CardContent className="pt-6">
+            <div className="flex items-center space-x-2 text-destructive">
+              <AlertCircle className="w-5 h-5" />
+              <span className="font-medium">Unable to load dashboard data</span>
+            </div>
+            <p className="text-sm text-muted-foreground mt-2">
+              Some features may not be available. Please check your connection and try refreshing the page.
+            </p>
+          </CardContent>
+        </Card>
+
+        {/* Empty State */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Today's Tasks</CardTitle>
+              <CheckSquare className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">-</div>
+              <p className="text-xs text-muted-foreground">Unable to load</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Upcoming Events</CardTitle>
+              <Calendar className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">-</div>
+              <p className="text-xs text-muted-foreground">Unable to load</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Active Streaks</CardTitle>
+              <Target className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">-</div>
+              <p className="text-xs text-muted-foreground">Unable to load</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Notifications</CardTitle>
+              <AlertCircle className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">-</div>
+              <p className="text-xs text-muted-foreground">Unable to load</p>
+            </CardContent>
+          </Card>
         </div>
       </div>
     )
