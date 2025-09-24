@@ -39,9 +39,11 @@ export function AuthPage() {
         })
       }
     } catch (error: any) {
+      // Use the error from the auth store, or fallback to the thrown error
+      const errorMessage = error.response?.data?.error || error.message || "Something went wrong. Please try again."
       toast({
         title: "Authentication Error",
-        description: error.message || "Something went wrong. Please try again.",
+        description: errorMessage,
         variant: "destructive"
       })
     }

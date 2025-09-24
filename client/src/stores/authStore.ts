@@ -43,11 +43,13 @@ export const useAuthStore = create<AuthStore>()(
           // Set token in API client
           api.defaults.headers.common['Authorization'] = `Bearer ${token}`
         } catch (error: any) {
+          const errorMessage = error.response?.data?.error || 'Login failed'
           set({ 
-            error: error.response?.data?.error || 'Login failed', 
+            error: errorMessage, 
             isLoading: false 
           })
-          throw error
+          // Throw a custom error with the clean message
+          throw new Error(errorMessage)
         }
       },
 
@@ -62,11 +64,13 @@ export const useAuthStore = create<AuthStore>()(
           // Set token in API client
           api.defaults.headers.common['Authorization'] = `Bearer ${token}`
         } catch (error: any) {
+          const errorMessage = error.response?.data?.error || 'Registration failed'
           set({ 
-            error: error.response?.data?.error || 'Registration failed', 
+            error: errorMessage, 
             isLoading: false 
           })
-          throw error
+          // Throw a custom error with the clean message
+          throw new Error(errorMessage)
         }
       },
 
@@ -104,11 +108,13 @@ export const useAuthStore = create<AuthStore>()(
           await api.post('/auth/forgot-password', { email })
           set({ isLoading: false })
         } catch (error: any) {
+          const errorMessage = error.response?.data?.error || 'Failed to send reset email'
           set({ 
-            error: error.response?.data?.error || 'Failed to send reset email', 
+            error: errorMessage, 
             isLoading: false 
           })
-          throw error
+          // Throw a custom error with the clean message
+          throw new Error(errorMessage)
         }
       },
 
@@ -118,11 +124,13 @@ export const useAuthStore = create<AuthStore>()(
           await api.post('/auth/reset-password', { token, password })
           set({ isLoading: false })
         } catch (error: any) {
+          const errorMessage = error.response?.data?.error || 'Failed to reset password'
           set({ 
-            error: error.response?.data?.error || 'Failed to reset password', 
+            error: errorMessage, 
             isLoading: false 
           })
-          throw error
+          // Throw a custom error with the clean message
+          throw new Error(errorMessage)
         }
       }
     }),

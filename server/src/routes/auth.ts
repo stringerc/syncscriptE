@@ -7,6 +7,7 @@ import { z } from 'zod';
 import { asyncHandler, createError } from '../middleware/errorHandler';
 import { authenticateToken, AuthRequest } from '../middleware/auth';
 import { logger } from '../utils/logger';
+import { sendPasswordResetEmail, sendEmailVerificationEmail } from '../utils/emailService';
 
 const router = express.Router();
 const prisma = new PrismaClient();
@@ -51,15 +52,6 @@ const verifyEmailSchema = z.object({
 router.post('/register', asyncHandler(async (req, res) => {
   const { email, password, name } = registerSchema.parse(req.body);
 
-  // Check if user already exists
-  const existingUser = await prisma.user.findUnique({
-    where: { email }
-  });
-
-  if (existingUser) {
-    throw createError('User with this email already exists', 409);
-  }
-
   // Hash password
   const hashedPassword = await bcrypt.hash(password, 12);
 
@@ -96,13 +88,26 @@ router.post('/register', asyncHandler(async (req, res) => {
 
   logger.info('User registered successfully', { userId: user.id, email });
 
+  // Send email verification email
+  try {
+    await sendEmailVerificationEmail(email, emailVerificationToken);
+    logger.info('Email verification sent', { userId: user.id, email });
+  } catch (error) {
+    logger.warn('Failed to send email verification', { 
+      userId: user.id, 
+      email, 
+      error: error instanceof Error ? error.message : 'Unknown error' 
+    });
+    // Don't fail registration if email sending fails
+  }
+
   res.status(201).json({
     success: true,
     data: {
       user,
       token
     },
-    message: 'User registered successfully'
+    message: 'User registered successfully. Please check your email to verify your account.'
   });
 }));
 
@@ -306,19 +311,25 @@ router.post('/forgot-password', asyncHandler(async (req, res) => {
     }
   });
 
-  // TODO: Send email with reset link
-  // For now, we'll log the token for development
-  logger.info('Password reset token generated', { 
-    userId: user.id, 
-    email: user.email,
-    resetToken: resetToken 
-  });
+  // Send password reset email
+  try {
+    await sendPasswordResetEmail(user.email, resetToken);
+    logger.info('Password reset email sent successfully', { 
+      userId: user.id, 
+      email: user.email 
+    });
+  } catch (error) {
+    logger.error('Failed to send password reset email', { 
+      userId: user.id, 
+      email: user.email,
+      error: error instanceof Error ? error.message : 'Unknown error' 
+    });
+    // Still return success to user for security (don't reveal if email sending failed)
+  }
 
   res.json({
     success: true,
-    message: 'If an account with that email exists, a password reset link has been sent.',
-    // Remove this in production - only for development
-    ...(process.env.NODE_ENV === 'development' && { resetToken })
+    message: 'If an account with that email exists, a password reset link has been sent.'
   });
 }));
 
@@ -432,19 +443,25 @@ router.post('/resend-verification', asyncHandler(async (req, res) => {
     }
   });
 
-  // TODO: Send email with verification link
-  // For now, we'll log the token for development
-  logger.info('Email verification token generated', { 
-    userId: user.id, 
-    email: user.email,
-    verificationToken: emailVerificationToken 
-  });
+  // Send email verification email
+  try {
+    await sendEmailVerificationEmail(user.email, emailVerificationToken);
+    logger.info('Email verification email sent successfully', { 
+      userId: user.id, 
+      email: user.email 
+    });
+  } catch (error) {
+    logger.error('Failed to send email verification email', { 
+      userId: user.id, 
+      email: user.email,
+      error: error instanceof Error ? error.message : 'Unknown error' 
+    });
+    // Still return success to user for security
+  }
 
   res.json({
     success: true,
-    message: 'If an account with that email exists and is unverified, a verification email has been sent.',
-    // Remove this in production - only for development
-    ...(process.env.NODE_ENV === 'development' && { verificationToken: emailVerificationToken })
+    message: 'If an account with that email exists and is unverified, a verification email has been sent.'
   });
 }));
 

@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { Prisma } from '@prisma/client';
+import { ZodError } from 'zod';
 import { logger } from '../utils/logger';
 
 export interface AppError extends Error {
@@ -31,7 +32,12 @@ export const errorHandler = (
     switch (error.code) {
       case 'P2002':
         statusCode = 409;
-        message = 'Resource already exists';
+        // Check if it's a unique constraint violation on email
+        if (error.meta?.target?.includes('email')) {
+          message = 'An account with this email already exists';
+        } else {
+          message = 'This information is already in use';
+        }
         break;
       case 'P2025':
         statusCode = 404;
@@ -51,6 +57,29 @@ export const errorHandler = (
   if (error instanceof Prisma.PrismaClientValidationError) {
     statusCode = 400;
     message = 'Invalid data provided';
+  }
+
+  // Handle Zod validation errors
+  if (error instanceof ZodError) {
+    statusCode = 400;
+    const firstError = error.errors[0];
+    
+    // Customize messages based on the field and error type
+    if (firstError.path[0] === 'password') {
+      if (firstError.code === 'too_small') {
+        message = 'Password must be at least 8 characters long';
+      } else if (firstError.code === 'invalid_string' && firstError.validation === 'regex') {
+        message = 'Password must contain at least one uppercase letter, one lowercase letter, and one number';
+      } else {
+        message = 'Password does not meet requirements';
+      }
+    } else if (firstError.path[0] === 'email') {
+      message = 'Please enter a valid email address';
+    } else if (firstError.path[0] === 'name') {
+      message = 'Name is required';
+    } else {
+      message = firstError.message;
+    }
   }
 
   // Handle JWT errors
