@@ -1,6 +1,27 @@
 import axios from 'axios'
 
-const API_BASE_URL = (import.meta as any).env?.VITE_API_URL || 'http://localhost:3001/api'
+// Dynamic API URL detection for different environments
+const getApiBaseUrl = () => {
+  // If environment variable is set, use it
+  if ((import.meta as any).env?.VITE_API_URL) {
+    return (import.meta as any).env.VITE_API_URL
+  }
+  
+  // If running on GitHub Pages, use Railway backend
+  if (window.location.hostname === 'stringerc.github.io') {
+    // You need to replace this with your actual Railway domain
+    // Common Railway patterns - update this with your actual domain
+    return 'https://syncscript-production.railway.app/api'
+  }
+  
+  // Default to localhost for development
+  return 'http://localhost:3001/api'
+}
+
+const API_BASE_URL = getApiBaseUrl()
+
+// Log the API URL for debugging
+console.log('🔗 API Base URL:', API_BASE_URL)
 
 export const api = axios.create({
   baseURL: API_BASE_URL,
