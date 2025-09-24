@@ -64,13 +64,37 @@ app.use((req, res, next) => {
   next();
 });
 
-// Health check endpoint
+// Simple health check endpoint (no database dependency)
 app.get('/health', (req, res) => {
-  res.json({ 
+  res.status(200).json({ 
     status: 'healthy', 
     timestamp: new Date().toISOString(),
-    version: '1.0.0'
+    version: '1.0.0',
+    uptime: process.uptime()
   });
+});
+
+// Detailed health check endpoint (includes database check)
+app.get('/health/detailed', async (req, res) => {
+  try {
+    // Test database connection
+    await prisma.$queryRaw`SELECT 1`;
+    
+    res.status(200).json({ 
+      status: 'healthy', 
+      database: 'connected',
+      timestamp: new Date().toISOString(),
+      version: '1.0.0',
+      uptime: process.uptime()
+    });
+  } catch (error) {
+    res.status(503).json({ 
+      status: 'unhealthy', 
+      database: 'disconnected',
+      error: 'Database connection failed',
+      timestamp: new Date().toISOString()
+    });
+  }
 });
 
 // API health check endpoint
@@ -143,6 +167,11 @@ server.listen(PORT, () => {
   logger.info(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
   logger.info(`🔗 Frontend URL: ${process.env.FRONTEND_URL || 'http://localhost:3000'}`);
   logger.info(`✅ Server ready for health checks at /health`);
+  
+  // Give the server a moment to fully initialize
+  setTimeout(() => {
+    logger.info(`🎯 Server fully initialized and ready to serve requests`);
+  }, 2000);
 });
 
 export { app, server, io, prisma };
