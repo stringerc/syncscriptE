@@ -72,6 +72,26 @@ app.use((req, res, next) => {
   next();
 });
 
+// Root endpoint
+app.get('/', (req, res) => {
+  res.json({
+    message: 'SyncScript API Server',
+    status: 'running',
+    version: '1.0.0',
+    timestamp: new Date().toISOString(),
+    endpoints: {
+      health: '/health',
+      api: '/api',
+      auth: '/api/auth',
+      tasks: '/api/tasks',
+      calendar: '/api/calendar',
+      ai: '/api/ai',
+      googleCalendar: '/api/google-calendar'
+    },
+    documentation: 'https://github.com/stringerc/syncscriptE'
+  });
+});
+
 // Simple health check endpoint (no database dependency)
 app.get('/health', (req, res) => {
   res.status(200).json({ 
