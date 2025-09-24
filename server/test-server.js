@@ -1,63 +1,48 @@
-console.log('🚀 Starting test server...');
+// Simple test server to debug Railway deployment
+const express = require('express');
+const app = express();
+const PORT = process.env.PORT || 3001;
 
-try {
-  const express = require('express');
-  console.log('✅ Express loaded successfully');
-  
-  const app = express();
-  const PORT = parseInt(process.env.PORT || '3001', 10);
+console.log('🔧 Environment check:');
+console.log('PORT:', process.env.PORT);
+console.log('NODE_ENV:', process.env.NODE_ENV);
+console.log('DATABASE_URL:', process.env.DATABASE_URL ? 'SET' : 'NOT SET');
+console.log('JWT_SECRET:', process.env.JWT_SECRET ? 'SET' : 'NOT SET');
 
-  console.log('🔧 Environment variables:');
-  console.log('PORT:', process.env.PORT);
-  console.log('NODE_ENV:', process.env.NODE_ENV);
-  console.log('Parsed PORT:', PORT);
-} catch (error) {
-  console.error('❌ Error loading Express:', error);
-  process.exit(1);
-}
-
-// Simple health check
-app.get('/health', (req, res) => {
-  console.log('📊 Health check requested');
-  res.status(200).json({ 
-    status: 'healthy', 
-    timestamp: new Date().toISOString(),
-    version: '1.0.0-test',
-    port: PORT
-  });
-});
-
-// Add a root endpoint for testing
 app.get('/', (req, res) => {
-  res.json({ 
+  res.json({
     message: 'SyncScript Test Server',
     status: 'running',
-    port: PORT,
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
+    environment: {
+      PORT: process.env.PORT,
+      NODE_ENV: process.env.NODE_ENV,
+      hasDatabaseUrl: !!process.env.DATABASE_URL,
+      hasJwtSecret: !!process.env.JWT_SECRET
+    }
   });
 });
 
-// Start server
+app.get('/health', (req, res) => {
+  res.json({
+    status: 'healthy',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime()
+  });
+});
+
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Test server running on port ${PORT}`);
   console.log(`🌐 Server listening on 0.0.0.0:${PORT}`);
-  console.log(`✅ Health check available at /health`);
-  console.log(`✅ Root endpoint available at /`);
 });
 
-// Handle errors
-app.on('error', (error) => {
-  console.error('❌ Server error:', error);
-  process.exit(1);
-});
-
-// Handle uncaught exceptions
+// Handle server errors
 process.on('uncaughtException', (error) => {
-  console.error('❌ Uncaught Exception:', error);
+  console.error('Uncaught Exception:', error);
   process.exit(1);
 });
 
 process.on('unhandledRejection', (reason, promise) => {
-  console.error('❌ Unhandled Rejection at:', promise, 'reason:', reason);
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
   process.exit(1);
 });
