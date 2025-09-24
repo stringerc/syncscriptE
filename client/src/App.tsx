@@ -8,6 +8,7 @@ import { PasswordResetPage } from '@/pages/PasswordResetPage'
 import { DashboardPage } from '@/pages/DashboardPage'
 import { TasksPage } from '@/pages/TasksPage'
 import { CalendarPage } from '@/pages/CalendarPage'
+import { GoogleCalendarPage } from '@/pages/GoogleCalendarPage'
 import { FinancialPage } from '@/pages/FinancialPage'
 import { SettingsPage } from '@/pages/SettingsPage'
 import { ProfilePage } from '@/pages/ProfilePage'
@@ -51,6 +52,7 @@ function App() {
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/tasks" element={<TasksPage />} />
         <Route path="/calendar" element={<CalendarPage />} />
+        <Route path="/google-calendar" element={<GoogleCalendarPage />} />
         <Route path="/financial" element={<FinancialPage />} />
         <Route path="/ai-assistant" element={<AIAssistantPage />} />
         <Route path="/settings" element={<SettingsPage />} />
