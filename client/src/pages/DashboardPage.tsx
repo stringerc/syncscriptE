@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { memo, useMemo, useCallback, useState } from 'react'
+import { memo, useMemo, useCallback, useState, useEffect } from 'react'
 import { api } from '@/lib/api'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -18,7 +18,12 @@ import {
   Trophy,
   Trash2,
   Sparkles,
-  Eye
+  Eye,
+  Cloud,
+  Sun,
+  CloudRain,
+  CloudSnow,
+  Wind
 } from 'lucide-react'
 import { formatDate, formatTime, formatCurrency, getPriorityColor } from '@/lib/utils'
 import { EventModal } from '@/components/EventModal'
@@ -120,11 +125,15 @@ const TaskItem = memo(({ task, onComplete, onDelete, onView, order, showOrder }:
 ))
 
 // Memoized event item component for performance
-const EventItem = memo(({ event, onView, onDelete }: { 
+const EventItem = memo(({ event, onView, onDelete, weatherData }: { 
   event: Event, 
   onView: (id: string) => void, 
-  onDelete: (id: string) => void 
-}) => (
+  onDelete: (id: string) => void,
+  weatherData?: { emoji: string; temperature: number; condition: string } | null
+}) => {
+  console.log('🌤️ EventItem render:', event.title, 'weatherData:', weatherData)
+  console.log('🌤️ EventItem emoji:', weatherData?.emoji)
+  return (
   <div className="flex items-center justify-between p-3 rounded-lg border bg-card">
     <div className="flex-1">
       <h4 className="font-medium text-sm">{event.title}</h4>
@@ -142,7 +151,16 @@ const EventItem = memo(({ event, onView, onDelete }: {
             {new Date(event.startTime).toLocaleDateString()} {new Date(event.startTime).toLocaleTimeString()}
           </div>
           {event.location && (
-            <span>{event.location}</span>
+            <div className="flex items-center space-x-1">
+              <span>{event.location}</span>
+              <span 
+                title={weatherData ? `${weatherData.condition}, ${weatherData.temperature}°F` : 'Weather data unavailable'}
+                className="text-lg"
+                style={{ fontSize: '16px' }}
+              >
+                {weatherData?.emoji || '🌤️'}
+              </span>
+            </div>
           )}
           {event.budgetImpact !== null && event.budgetImpact !== undefined && event.budgetImpact > 0 && (
             <div className="flex items-center space-x-1">
@@ -169,7 +187,8 @@ const EventItem = memo(({ event, onView, onDelete }: {
       </Button>
     </div>
   </div>
-))
+  )
+})
 
 export function DashboardPage() {
   const { toast } = useToast()
@@ -179,6 +198,8 @@ export function DashboardPage() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false)
+  const [eventWeatherData, setEventWeatherData] = useState<Record<string, { emoji: string; temperature: number; condition: string } | null>>({})
+  const [currentWeather, setCurrentWeather] = useState<{ emoji: string; temperature: number; condition: string; location: string } | null>(null)
 
   // Check authentication after all hooks are declared
   const authToken = localStorage.getItem('syncscript-auth')
@@ -385,6 +406,79 @@ export function DashboardPage() {
     queryClient.invalidateQueries({ queryKey: ['dashboard'] })
   }, [queryClient])
 
+  // Fetch weather data for events
+  const fetchEventWeather = useCallback(async (events: Event[]) => {
+    if (events.length === 0) return
+
+    try {
+      console.log('🌤️ Fetching weather for events:', events.map(e => ({ id: e.id, title: e.title, location: e.location })))
+      const response = await api.post('/location/events/weather', { events })
+      console.log('🌤️ Weather API response:', response.data)
+      
+      const weatherData: Record<string, { emoji: string; temperature: number; condition: string } | null> = {}
+      
+      response.data.data.eventsWithWeather.forEach((item: any) => {
+        console.log('🌤️ Weather for event:', item.eventId, item.weather)
+        console.log('🌤️ Weather emoji:', item.weather?.emoji)
+        weatherData[item.eventId] = item.weather
+      })
+      
+      console.log('🌤️ Final weather data:', weatherData)
+      setEventWeatherData(weatherData)
+    } catch (error) {
+      console.error('Failed to fetch event weather:', error)
+    }
+  }, [])
+
+  // Fetch current weather for user's location
+  const fetchCurrentWeather = useCallback(async () => {
+    try {
+      console.log('🌤️ Fetching current weather...')
+      const response = await api.get('/location/weather/current')
+      console.log('🌤️ Current weather response:', response.data)
+      
+      if (response.data.success && response.data.data.weather) {
+        const weather = response.data.data.weather
+        setCurrentWeather({
+          emoji: weather.emoji || '🌤️',
+          temperature: weather.temperature || 72,
+          condition: weather.condition || 'Unknown',
+          location: weather.location || response.data.data.location || 'Unknown'
+        })
+        console.log('🌤️ Set current weather:', { emoji: weather.emoji, temperature: weather.temperature, condition: weather.condition })
+      } else {
+        console.log('🌤️ No weather data in response, using fallback')
+        setCurrentWeather({
+          emoji: '🌤️',
+          temperature: 72,
+          condition: 'Unknown',
+          location: 'Unknown'
+        })
+      }
+    } catch (error) {
+      console.error('Failed to fetch current weather:', error)
+      // Set fallback weather
+      setCurrentWeather({
+        emoji: '🌤️',
+        temperature: 72,
+        condition: 'Unknown',
+        location: 'Unknown'
+      })
+    }
+  }, [])
+
+  // Fetch weather data when events change
+  useEffect(() => {
+    if (dashboardData?.upcomingEvents) {
+      fetchEventWeather(dashboardData.upcomingEvents)
+    }
+  }, [dashboardData?.upcomingEvents, fetchEventWeather])
+
+  // Fetch current weather on component mount
+  useEffect(() => {
+    fetchCurrentWeather()
+  }, [fetchCurrentWeather])
+
   const handleAddTask = useCallback(() => {
     navigate('/tasks')
   }, [navigate])
@@ -392,6 +486,27 @@ export function DashboardPage() {
   const handleAddEvent = useCallback(() => {
     navigate('/calendar')
   }, [navigate])
+
+  // Get weather icon component based on condition
+  const getWeatherIcon = useCallback((condition: string) => {
+    const conditionLower = condition.toLowerCase()
+    
+    if (conditionLower.includes('clear') || conditionLower.includes('sunny')) {
+      return <Sun className="w-6 h-6 text-yellow-500 animate-pulse" />
+    } else if (conditionLower.includes('cloud')) {
+      return <Cloud className="w-6 h-6 text-gray-500 animate-bounce" />
+    } else if (conditionLower.includes('rain') || conditionLower.includes('drizzle')) {
+      return <CloudRain className="w-6 h-6 text-blue-500 animate-bounce" />
+    } else if (conditionLower.includes('thunderstorm') || conditionLower.includes('storm')) {
+      return <CloudRain className="w-6 h-6 text-purple-500 animate-pulse" />
+    } else if (conditionLower.includes('snow')) {
+      return <CloudSnow className="w-6 h-6 text-blue-200 animate-bounce" />
+    } else if (conditionLower.includes('wind')) {
+      return <Wind className="w-6 h-6 text-gray-400 animate-spin" />
+    } else {
+      return <Cloud className="w-6 h-6 text-gray-500 animate-pulse" />
+    }
+  }, [])
 
   // Memoized calculations for performance - must be before any conditional returns
   const completedTasksCount = useMemo(() => 
@@ -476,9 +591,32 @@ export function DashboardPage() {
             Here's what's happening with your life management today
           </p>
         </div>
-        <div className="flex items-center space-x-2">
-          <Zap className="w-5 h-5 text-primary" />
-          <span className="text-sm font-medium">Energy: {user.energyLevel}/10</span>
+        <div className="flex items-center space-x-4">
+          {/* Current Weather Widget */}
+          {currentWeather && (
+            <div className="flex items-center space-x-2 bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 px-4 py-2 rounded-lg border">
+              <div className="relative">
+                {getWeatherIcon(currentWeather.condition)}
+                <span className="absolute -top-1 -right-1 text-lg animate-bounce">
+                  {currentWeather.emoji}
+                </span>
+              </div>
+              <div className="flex flex-col">
+                <span className="text-sm font-semibold text-blue-700 dark:text-blue-300">
+                  {currentWeather.temperature}°F
+                </span>
+                <span className="text-xs text-blue-600 dark:text-blue-400">
+                  {currentWeather.condition}
+                </span>
+              </div>
+            </div>
+          )}
+          
+          {/* Energy Level */}
+          <div className="flex items-center space-x-2">
+            <Zap className="w-5 h-5 text-primary" />
+            <span className="text-sm font-medium">Energy: {user.energyLevel}/10</span>
+          </div>
         </div>
       </div>
 
@@ -636,6 +774,7 @@ export function DashboardPage() {
                     event={event}
                     onView={handleViewEvent}
                     onDelete={handleDeleteEvent}
+                    weatherData={eventWeatherData[event.id]}
                   />
                 ))}
                 <Button 

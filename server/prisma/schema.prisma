@@ -32,6 +32,11 @@ model User {
   avatar       String?   // URL to avatar image
   dailyEnergy  EnergyLevel[]
   
+  // Location
+  currentLocation String? // Current city/location
+  homeLocation    String? // Home city/location
+  workLocation    String? // Work city/location
+  
   // Integrations
   calendarIntegrations CalendarIntegration[]
   financialAccounts    FinancialAccount[]

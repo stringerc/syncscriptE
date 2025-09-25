@@ -10,6 +10,7 @@ import { Switch } from '@/components/ui/switch'
 import { Separator } from '@/components/ui/separator'
 import { useToast } from '@/hooks/use-toast'
 import { useTheme } from '@/contexts/ThemeContext'
+import { LocationSettings } from '@/components/LocationSettings'
 import { 
   User, 
   Mail, 
@@ -469,6 +470,9 @@ export function ProfilePage() {
               </div>
             </CardContent>
           </Card>
+
+          {/* Location Settings */}
+          <LocationSettings />
         </div>
 
         {/* Sidebar */}

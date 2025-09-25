@@ -429,6 +429,9 @@ router.post('/chat', authenticateToken, asyncHandler(async (req: AuthRequest, re
 User Context:
 - Name: ${user?.name || 'User'}
 - Energy Level: ${user?.energyLevel || 'not set'} (1-10 scale)
+- Current Location: ${user?.currentLocation || 'not set'}
+- Home Location: ${user?.homeLocation || 'not set'}
+- Work Location: ${user?.workLocation || 'not set'}
 - Pending Tasks: ${user?.tasks.map(t => t.title).join(', ') || 'none'}
 - Upcoming Events: ${user?.events.map(e => e.title).join(', ') || 'none'}
 
@@ -438,6 +441,9 @@ Be helpful, proactive, and encouraging. You can:
 - Provide budgeting advice
 - Schedule optimization
 - Motivation and accountability
+- Location-aware planning and suggestions
+- Weather-based activity recommendations
+- Travel time optimization between locations
 - CREATE CALENDAR EVENTS when users ask to schedule something
 
 IMPORTANT: When a user asks you to schedule, add, or create an event/meeting/appointment, you MUST respond with TWO parts:

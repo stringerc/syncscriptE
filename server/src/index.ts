@@ -16,6 +16,7 @@ import googleCalendarRoutes from './routes/googleCalendar';
 import financialRoutes from './routes/financial';
 import aiRoutes from './routes/ai';
 import notificationRoutes from './routes/notifications';
+import locationRoutes from './routes/location';
 
 // Import middleware
 import { errorHandler } from './middleware/errorHandler';
@@ -171,6 +172,7 @@ app.use('/api/google-calendar', googleCalendarRoutes);
 app.use('/api/financial', financialRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/location', locationRoutes);
 
 // Socket.IO for real-time updates
 io.on('connection', (socket) => {

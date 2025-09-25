@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -23,6 +23,7 @@ export function CalendarPage() {
   const [showPastEvents, setShowPastEvents] = useState(false)
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [eventWeatherData, setEventWeatherData] = useState<Record<string, { emoji: string; temperature: number; condition: string } | null>>({})
 
   const { toast } = useToast()
   const queryClient = useQueryClient()
@@ -131,6 +132,36 @@ export function CalendarPage() {
       setIsModalOpen(false)
       setSelectedEvent(null)
     }
+
+    // Fetch weather data for events
+    const fetchEventWeather = useCallback(async (events: Event[]) => {
+      if (events.length === 0) return
+
+      try {
+        console.log('🌤️ CalendarPage: Fetching weather for events:', events.map(e => ({ id: e.id, title: e.title, location: e.location })))
+        const response = await api.post('/location/events/weather', { events })
+        console.log('🌤️ CalendarPage: Weather API response:', response.data)
+        
+        const weatherData: Record<string, { emoji: string; temperature: number; condition: string } | null> = {}
+        
+        response.data.data.eventsWithWeather.forEach((item: any) => {
+          console.log('🌤️ CalendarPage: Weather for event:', item.eventId, item.weather)
+          weatherData[item.eventId] = item.weather
+        })
+        
+        console.log('🌤️ CalendarPage: Final weather data:', weatherData)
+        setEventWeatherData(weatherData)
+      } catch (error) {
+        console.error('Failed to fetch event weather:', error)
+      }
+    }, [])
+
+    // Fetch weather data when events change
+    useEffect(() => {
+      if (events) {
+        fetchEventWeather(events)
+      }
+    }, [events, fetchEventWeather])
 
   if (isLoading) {
     return (
@@ -306,6 +337,11 @@ export function CalendarPage() {
                           <div className="flex items-center space-x-1">
                             <MapPin className="w-3 h-3" />
                             <span>{event.location}</span>
+                            {eventWeatherData[event.id]?.emoji && (
+                              <span title={`${eventWeatherData[event.id]?.condition}, ${eventWeatherData[event.id]?.temperature}°F`}>
+                                {eventWeatherData[event.id]?.emoji}
+                              </span>
+                            )}
                           </div>
                         )}
                         {event.budgetImpact !== null && event.budgetImpact !== undefined && event.budgetImpact > 0 && (
