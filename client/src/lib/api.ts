@@ -7,10 +7,10 @@ const getApiBaseUrl = () => {
     return (import.meta as any).env.VITE_API_URL
   }
   
-  // If running on GitHub Pages, use Render.com backend
+  // If running on GitHub Pages, use Cloudflare tunnel backend
   if (window.location.hostname === 'stringerc.github.io') {
-    console.log('🌐 Running on GitHub Pages - using Render.com backend')
-    return 'https://syncscript-backend.onrender.com/api'
+    console.log('🌐 Running on GitHub Pages - using Cloudflare tunnel backend')
+    return 'https://ceremony-profession-metric-thereby.trycloudflare.com/api'
   }
   
   // If running on Cloudflare tunnel, use the tunnel domain for API calls
