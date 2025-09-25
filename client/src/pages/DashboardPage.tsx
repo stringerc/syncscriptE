@@ -49,7 +49,7 @@ interface DashboardData {
 // Memoized task item component for performance
 const TaskItem = memo(({ task, onComplete, onDelete, onView, order, showOrder, events }: { 
   task: Task, 
-  onComplete: (id: string) => void, 
+  onComplete: (id: string) => void,
   onDelete: (id: string) => void,
   onView: (id: string) => void,
   order?: number,
@@ -429,15 +429,112 @@ export function DashboardPage() {
   }, [])
 
   const handleTaskUpdated = useCallback((updatedTask: Task) => {
+    console.log('🎯 DashboardPage: handleTaskUpdated called with:', updatedTask)
     setSelectedTask(updatedTask)
     queryClient.invalidateQueries({ queryKey: ['dashboard'] })
     queryClient.refetchQueries({ queryKey: ['dashboard'] }) // Force immediate refetch
+    
+    // If this was a prep task that was completed, refresh the preparation tasks for the related event
+    const relatedEventId = updatedTask.eventId
+    if (relatedEventId && updatedTask.status === 'COMPLETED') {
+      console.log('🎯 DashboardPage: Refreshing prep tasks for event:', relatedEventId)
+      // Clear the cached preparation tasks data
+      localStorage.removeItem('prep-tasks-last-fetch')
+      
+      // Refetch preparation tasks for this specific event
+      api.get(`/tasks?eventId=${relatedEventId}`)
+        .then(prepResponse => {
+          const tasks = prepResponse.data.data || []
+          
+          // Sort tasks by priority: URGENT > HIGH > MEDIUM > LOW
+          const priorityOrder = { URGENT: 4, HIGH: 3, MEDIUM: 2, LOW: 1 }
+          const sortedTasks = tasks.sort((a: any, b: any) => {
+            const aPriority = priorityOrder[a.priority] || 0
+            const bPriority = priorityOrder[b.priority] || 0
+            return bPriority - aPriority
+          })
+          
+          setEventPreparationTasks(prev => ({
+            ...prev,
+            [relatedEventId]: sortedTasks
+          }))
+        })
+        .catch(error => {
+          console.error('Failed to refresh preparation tasks:', error)
+        })
+    }
   }, [queryClient])
 
   const handleTaskDeleted = useCallback((taskId: string) => {
     queryClient.invalidateQueries({ queryKey: ['dashboard'] })
     queryClient.refetchQueries({ queryKey: ['dashboard'] }) // Force immediate refetch
   }, [queryClient])
+
+  const handleCompleteTask = useCallback(async (taskId: string) => {
+    try {
+      console.log('🎯 DashboardPage: Completing task:', taskId)
+      console.log('🎯 DashboardPage: Making API call to:', `/tasks/${taskId}/status`)
+      console.log('🎯 DashboardPage: Request payload:', { status: 'COMPLETED' })
+      
+      const response = await api.patch(`/tasks/${taskId}/status`, { status: 'COMPLETED' })
+      console.log('🎯 DashboardPage: Task completion response:', response.data)
+      
+      toast({
+        title: "Task Completed!",
+        description: "Great job completing this task!"
+      })
+      
+      // Find the completed task to check if it's a prep task
+      const completedTask = dashboardData?.todayTasks.find(t => t.id === taskId)
+      const relatedEventId = completedTask?.eventId
+      
+      // Invalidate and refetch dashboard data
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+      queryClient.refetchQueries({ queryKey: ['dashboard'] })
+      
+      // If this was a prep task, also refresh the preparation tasks for the related event
+      if (relatedEventId) {
+        console.log('🎯 DashboardPage: Refreshing prep tasks for event:', relatedEventId)
+        // Clear the cached preparation tasks data
+        localStorage.removeItem('prep-tasks-last-fetch')
+        
+        // Refetch preparation tasks for this specific event
+        try {
+          const prepResponse = await api.get(`/tasks?eventId=${relatedEventId}`)
+          const tasks = prepResponse.data.data || []
+          
+          // Sort tasks by priority: URGENT > HIGH > MEDIUM > LOW
+          const priorityOrder = { URGENT: 4, HIGH: 3, MEDIUM: 2, LOW: 1 }
+          const sortedTasks = tasks.sort((a: any, b: any) => {
+            const aPriority = priorityOrder[a.priority] || 0
+            const bPriority = priorityOrder[b.priority] || 0
+            return bPriority - aPriority
+          })
+          
+          setEventPreparationTasks(prev => ({
+            ...prev,
+            [relatedEventId]: sortedTasks
+          }))
+        } catch (error) {
+          console.error('Failed to refresh preparation tasks:', error)
+        }
+      }
+    } catch (error: any) {
+      console.error('🎯 DashboardPage: Task completion failed:', error)
+      console.error('🎯 DashboardPage: Error details:', {
+        message: error.message,
+        code: error.code,
+        response: error.response?.data,
+        status: error.response?.status,
+        url: error.config?.url
+      })
+      toast({
+        title: "Failed to Complete Task",
+        description: error.response?.data?.error || error.message || "Failed to complete task",
+        variant: "destructive"
+      })
+    }
+  }, [queryClient, toast, dashboardData?.todayTasks])
 
   // Fetch weather data for events
   const fetchEventWeather = useCallback(async (events: Event[]) => {
@@ -475,13 +572,13 @@ export function DashboardPage() {
   }, [])
 
   // Fetch preparation tasks for events (with caching)
-  const fetchEventPreparationTasks = useCallback(async (events: Event[]) => {
+  const fetchEventPreparationTasks = useCallback(async (events: Event[], forceRefresh = false) => {
     if (events.length === 0) return
 
     // Check if we already have recent preparation tasks data (within last 5 minutes)
     const lastFetch = localStorage.getItem('prep-tasks-last-fetch')
     const now = Date.now()
-    if (lastFetch && (now - parseInt(lastFetch)) < 5 * 60 * 1000) {
+    if (!forceRefresh && lastFetch && (now - parseInt(lastFetch)) < 5 * 60 * 1000) {
       console.log('📋 Using cached preparation tasks data')
       return
     }
@@ -588,7 +685,7 @@ export function DashboardPage() {
     if (dashboardData?.upcomingEvents) {
       const timer = setTimeout(() => {
         fetchEventWeather(dashboardData.upcomingEvents)
-        fetchEventPreparationTasks(dashboardData.upcomingEvents)
+        fetchEventPreparationTasks(dashboardData.upcomingEvents, true) // Force refresh to get latest data
       }, 500) // Wait 500ms before fetching to avoid rapid calls
       
       return () => clearTimeout(timer)
@@ -1218,7 +1315,11 @@ export function DashboardPage() {
               <div className="space-y-3">
                 {todayTasks
                   .sort((a, b) => {
-                    // Sort by priority: URGENT > HIGH > MEDIUM > LOW
+                    // First sort by status: incomplete tasks first, then completed
+                    if (a.status === 'COMPLETED' && b.status !== 'COMPLETED') return 1
+                    if (a.status !== 'COMPLETED' && b.status === 'COMPLETED') return -1
+                    
+                    // Then sort by priority: URGENT > HIGH > MEDIUM > LOW
                     const priorityOrder = { URGENT: 4, HIGH: 3, MEDIUM: 2, LOW: 1 }
                     return priorityOrder[b.priority] - priorityOrder[a.priority]
                   })
@@ -1227,6 +1328,7 @@ export function DashboardPage() {
                     <TaskItem
                       key={task.id}
                       task={task}
+                      onComplete={handleCompleteTask}
                       onDelete={handleDeleteTask}
                       onView={handleViewTask}
                       order={index + 1}

@@ -264,7 +264,6 @@ router.get('/dashboard', authenticateToken, asyncHandler(async (req: AuthRequest
     prisma.task.findMany({
       where: {
         userId: req.user!.id,
-        status: { not: 'COMPLETED' },
         OR: [
           { dueDate: { gte: today, lt: tomorrow } },
           { scheduledAt: { gte: today, lt: tomorrow } },
@@ -273,6 +272,7 @@ router.get('/dashboard', authenticateToken, asyncHandler(async (req: AuthRequest
       },
       include: { subtasks: true },
       orderBy: [
+        { status: 'asc' }, // Show completed tasks last
         { priority: 'desc' },
         { dueDate: 'asc' }
       ],

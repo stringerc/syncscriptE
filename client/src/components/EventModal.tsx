@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { Button } from '@/components/ui/button'
@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { useToast } from '@/hooks/use-toast'
 import { ConfirmationModal } from '@/components/ConfirmationModal'
-import { X, Save, Trash2, Calendar, Clock, MapPin, DollarSign, Sparkles, Plus, CheckCircle, Circle } from 'lucide-react'
+import { X, Save, Trash2, Calendar, Clock, MapPin, DollarSign, Sparkles, Plus, CheckCircle, Circle, Edit3, Eye } from 'lucide-react'
 
 interface Event {
   id: string
@@ -44,8 +44,13 @@ export function EventModal({ event, isOpen, onClose, onEventUpdated }: EventModa
   const { data: preparationTasks, refetch: refetchPreparationTasks } = useQuery({
     queryKey: ['preparationTasks', event?.id],
     queryFn: async () => {
-      if (!event) return []
+      if (!event) {
+        console.log('🎯 EventModal: No event, returning empty tasks')
+        return []
+      }
+      console.log('🎯 EventModal: Fetching preparation tasks for event:', event.id)
       const response = await api.get(`/tasks?eventId=${event.id}`)
+      console.log('🎯 EventModal: Preparation tasks response:', response.data.data)
       return response.data.data || []
     },
     enabled: !!event && isOpen,
@@ -55,6 +60,7 @@ export function EventModal({ event, isOpen, onClose, onEventUpdated }: EventModa
   // Initialize form data when event changes
   useEffect(() => {
     if (event) {
+      console.log('🎯 EventModal: Event changed, initializing form data for:', event.title)
       setFormData({
         title: event.title,
         description: event.description || '',
@@ -64,8 +70,19 @@ export function EventModal({ event, isOpen, onClose, onEventUpdated }: EventModa
         budgetImpact: event.budgetImpact || 0
       })
       setIsEditing(false)
+      // Reset preparation task management state
+      setEditingTaskId(null)
+      setShowAddTaskForm(false)
+      setNewTaskTitle('')
+      setNewTaskDescription('')
+      setNewTaskPriority('MEDIUM')
     }
   }, [event])
+
+  // Debug edit mode state
+  useEffect(() => {
+    console.log('🎯 EventModal: Edit mode changed to:', isEditing)
+  }, [isEditing])
 
   const updateEventMutation = useMutation({
     mutationFn: async (data: Partial<Event>) => {
@@ -149,6 +166,13 @@ export function EventModal({ event, isOpen, onClose, onEventUpdated }: EventModa
   const [showTaskSelection, setShowTaskSelection] = useState(false)
   const [selectedTasks, setSelectedTasks] = useState<Set<string>>(new Set())
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  
+  // Preparation task management
+  const [editingTaskId, setEditingTaskId] = useState<string | null>(null)
+  const [newTaskTitle, setNewTaskTitle] = useState('')
+  const [newTaskDescription, setNewTaskDescription] = useState('')
+  const [newTaskPriority, setNewTaskPriority] = useState<'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT'>('MEDIUM')
+  const [showAddTaskForm, setShowAddTaskForm] = useState(false)
 
   const generatePreparationTasksMutation = useMutation({
     mutationFn: async () => {
@@ -199,6 +223,93 @@ export function EventModal({ event, isOpen, onClose, onEventUpdated }: EventModa
     }
   })
 
+  // Create new preparation task
+  const createPrepTaskMutation = useMutation({
+    mutationFn: async (taskData: { title: string; description: string; priority: string }) => {
+      if (!event) throw new Error('No event to add task to')
+      const response = await api.post('/tasks', {
+        title: taskData.title,
+        description: taskData.description,
+        priority: taskData.priority,
+        eventId: event.id,
+        status: 'PENDING'
+      })
+      return response.data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tasks'] })
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+      queryClient.invalidateQueries({ queryKey: ['preparationTasks', event?.id] })
+      refetchPreparationTasks()
+      toast({
+        title: "Task Added!",
+        description: "Preparation task has been added successfully"
+      })
+      setNewTaskTitle('')
+      setNewTaskDescription('')
+      setNewTaskPriority('MEDIUM')
+      setShowAddTaskForm(false)
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Failed to Add Task",
+        description: error.response?.data?.error || "Failed to add preparation task",
+        variant: "destructive"
+      })
+    }
+  })
+
+  // Update preparation task
+  const updatePrepTaskMutation = useMutation({
+    mutationFn: async ({ taskId, data }: { taskId: string; data: any }) => {
+      const response = await api.put(`/tasks/${taskId}`, data)
+      return response.data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tasks'] })
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+      queryClient.invalidateQueries({ queryKey: ['preparationTasks', event?.id] })
+      refetchPreparationTasks()
+      toast({
+        title: "Task Updated!",
+        description: "Preparation task has been updated successfully"
+      })
+      setEditingTaskId(null)
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Failed to Update Task",
+        description: error.response?.data?.error || "Failed to update preparation task",
+        variant: "destructive"
+      })
+    }
+  })
+
+  // Delete preparation task
+  const deletePrepTaskMutation = useMutation({
+    mutationFn: async (taskId: string) => {
+      const response = await api.delete(`/tasks/${taskId}`)
+      return response.data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tasks'] })
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+      queryClient.invalidateQueries({ queryKey: ['preparationTasks', event?.id] })
+      refetchPreparationTasks()
+      toast({
+        title: "Task Deleted!",
+        description: "Preparation task has been deleted successfully"
+      })
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Failed to Delete Task",
+        description: error.response?.data?.error || "Failed to delete preparation task",
+        variant: "destructive"
+      })
+    }
+  })
+
   const handleSave = () => {
     if (!formData.title.trim()) {
       toast({
@@ -237,6 +348,60 @@ export function EventModal({ event, isOpen, onClose, onEventUpdated }: EventModa
   const handleConfirmDelete = () => {
     deleteEventMutation.mutate()
     setShowDeleteConfirm(false)
+  }
+
+  // Preparation task handlers
+  const handleAddPrepTask = () => {
+    if (!newTaskTitle.trim()) {
+      toast({
+        title: "Error",
+        description: "Task title is required",
+        variant: "destructive"
+      })
+      return
+    }
+    createPrepTaskMutation.mutate({
+      title: newTaskTitle,
+      description: newTaskDescription,
+      priority: newTaskPriority
+    })
+  }
+
+  const handleEditPrepTask = (task: any) => {
+    setEditingTaskId(task.id)
+    setNewTaskTitle(task.title)
+    setNewTaskDescription(task.description || '')
+    setNewTaskPriority(task.priority)
+  }
+
+  const handleUpdatePrepTask = () => {
+    if (!newTaskTitle.trim()) {
+      toast({
+        title: "Error",
+        description: "Task title is required",
+        variant: "destructive"
+      })
+      return
+    }
+    updatePrepTaskMutation.mutate({
+      taskId: editingTaskId!,
+      data: {
+        title: newTaskTitle,
+        description: newTaskDescription,
+        priority: newTaskPriority
+      }
+    })
+  }
+
+  const handleCancelEdit = () => {
+    setEditingTaskId(null)
+    setNewTaskTitle('')
+    setNewTaskDescription('')
+    setNewTaskPriority('MEDIUM')
+  }
+
+  const handleDeletePrepTask = (taskId: string) => {
+    deletePrepTaskMutation.mutate(taskId)
   }
 
   if (!isOpen || !event) return null
@@ -348,27 +513,6 @@ export function EventModal({ event, isOpen, onClose, onEventUpdated }: EventModa
                 {event.description && (
                   <p className="text-muted-foreground mt-2">{event.description}</p>
                 )}
-                
-                {/* Preparation Tasks */}
-                {preparationTasks && preparationTasks.length > 0 && (
-                  <div className="mt-4">
-                    <h4 className="text-sm font-medium text-muted-foreground mb-2">Preparation Tasks:</h4>
-                    <ul className="space-y-1">
-                      {preparationTasks.map((task: any) => (
-                        <li key={task.id} className="flex items-center space-x-2 text-sm">
-                          {task.status === 'COMPLETED' ? (
-                            <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
-                          ) : (
-                            <Circle className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                          )}
-                          <span className={task.status === 'COMPLETED' ? 'line-through text-muted-foreground' : ''}>
-                            {task.title}
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
               </div>
 
               <div className="space-y-3">
@@ -395,6 +539,195 @@ export function EventModal({ event, isOpen, onClose, onEventUpdated }: EventModa
               </div>
             </div>
           )}
+
+          {/* Preparation Tasks - Always visible */}
+          <div className="mt-4">
+            <div className="flex items-center justify-between mb-2">
+              <h4 className="text-sm font-medium text-muted-foreground">Preparation Tasks:</h4>
+              {console.log('🎯 EventModal: Rendering preparation tasks section, isEditing:', isEditing, 'showAddTaskForm:', showAddTaskForm, 'editingTaskId:', editingTaskId)}
+              {isEditing && !showAddTaskForm && !editingTaskId && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    console.log('🎯 EventModal: Add Prep button clicked')
+                    setShowAddTaskForm(true)
+                  }}
+                  className="text-xs hover:bg-blue-50 hover:border-blue-300"
+                >
+                  <Plus className="w-3 h-3 mr-1" />
+                  Add Prep
+                </Button>
+              )}
+            </div>
+            
+            {/* Add New Task Form - Only in Edit Mode */}
+            {isEditing && showAddTaskForm && !editingTaskId && (
+              <div className="border rounded-lg p-3 mb-3 bg-muted/50">
+                <div className="space-y-2">
+                  <Input
+                    placeholder="Task title"
+                    value={newTaskTitle}
+                    onChange={(e) => setNewTaskTitle(e.target.value)}
+                    className="text-sm"
+                  />
+                  <Textarea
+                    placeholder="Task description (optional)"
+                    value={newTaskDescription}
+                    onChange={(e) => setNewTaskDescription(e.target.value)}
+                    rows={2}
+                    className="text-sm"
+                  />
+                  <div className="flex items-center space-x-2">
+                    <Label className="text-xs">Priority:</Label>
+                    <select
+                      value={newTaskPriority}
+                      onChange={(e) => setNewTaskPriority(e.target.value as any)}
+                      className="text-xs border rounded px-2 py-1"
+                    >
+                      <option value="LOW">Low</option>
+                      <option value="MEDIUM">Medium</option>
+                      <option value="HIGH">High</option>
+                      <option value="URGENT">Urgent</option>
+                    </select>
+                  </div>
+                  <div className="flex space-x-2">
+                    <Button
+                      size="sm"
+                      onClick={handleAddPrepTask}
+                      disabled={createPrepTaskMutation.isPending}
+                      className="text-xs"
+                    >
+                      {createPrepTaskMutation.isPending ? 'Adding...' : 'Add Task'}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        setShowAddTaskForm(false)
+                        setNewTaskTitle('')
+                        setNewTaskDescription('')
+                        setNewTaskPriority('MEDIUM')
+                      }}
+                      className="text-xs"
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Edit Task Form - Only in Edit Mode */}
+            {isEditing && editingTaskId && (
+              <div className="border rounded-lg p-3 mb-3 bg-muted/50">
+                <div className="space-y-2">
+                  <Input
+                    placeholder="Task title"
+                    value={newTaskTitle}
+                    onChange={(e) => setNewTaskTitle(e.target.value)}
+                    className="text-sm"
+                  />
+                  <Textarea
+                    placeholder="Task description (optional)"
+                    value={newTaskDescription}
+                    onChange={(e) => setNewTaskDescription(e.target.value)}
+                    rows={2}
+                    className="text-sm"
+                  />
+                  <div className="flex items-center space-x-2">
+                    <Label className="text-xs">Priority:</Label>
+                    <select
+                      value={newTaskPriority}
+                      onChange={(e) => setNewTaskPriority(e.target.value as any)}
+                      className="text-xs border rounded px-2 py-1"
+                    >
+                      <option value="LOW">Low</option>
+                      <option value="MEDIUM">Medium</option>
+                      <option value="HIGH">High</option>
+                      <option value="URGENT">Urgent</option>
+                    </select>
+                  </div>
+                  <div className="flex space-x-2">
+                    <Button
+                      size="sm"
+                      onClick={handleUpdatePrepTask}
+                      disabled={updatePrepTaskMutation.isPending}
+                      className="text-xs"
+                    >
+                      {updatePrepTaskMutation.isPending ? 'Updating...' : 'Update Task'}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={handleCancelEdit}
+                      className="text-xs"
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Tasks List */}
+            {console.log('🎯 EventModal: Rendering tasks list, preparationTasks:', preparationTasks, 'length:', preparationTasks?.length, 'isEditing:', isEditing)}
+            {preparationTasks && preparationTasks.length > 0 ? (
+              <ul className="space-y-1">
+                {preparationTasks
+                  .sort((a: any, b: any) => {
+                    const priorityOrder = { URGENT: 4, HIGH: 3, MEDIUM: 2, LOW: 1 }
+                    return priorityOrder[b.priority] - priorityOrder[a.priority]
+                  })
+                  .map((task: any) => (
+                  <li key={task.id} className="flex items-center space-x-2 text-sm">
+                    {task.status === 'COMPLETED' ? (
+                      <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
+                    ) : (
+                      <Circle className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                    )}
+                    <span className={`flex-1 ${task.status === 'COMPLETED' ? 'line-through text-muted-foreground' : ''}`}>
+                      {task.title}
+                    </span>
+                    {/* Edit/Delete buttons only show in edit mode */}
+                    {console.log('🎯 EventModal: Rendering task buttons for task:', task.title, 'isEditing:', isEditing)}
+                    {isEditing && (
+                      <div className="flex space-x-1">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => {
+                            console.log('🎯 EventModal: Edit task button clicked for:', task.title)
+                            handleEditPrepTask(task)
+                          }}
+                          disabled={editingTaskId === task.id}
+                          className="h-6 w-6 p-0 hover:bg-gray-100"
+                          title="Edit task"
+                        >
+                          <Edit3 className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => {
+                            console.log('🎯 EventModal: Delete task button clicked for:', task.title)
+                            handleDeletePrepTask(task.id)
+                          }}
+                          disabled={deletePrepTaskMutation.isPending}
+                          className="h-6 w-6 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                          title="Delete task"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-sm text-muted-foreground italic">No preparation tasks yet</p>
+            )}
+          </div>
         </div>
 
         {/* Task Selection Section */}

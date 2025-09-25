@@ -120,10 +120,13 @@ export function TaskModal({ task, isOpen, onClose, onTaskUpdated, onTaskDeleted 
   const completeTaskMutation = useMutation({
     mutationFn: async () => {
       if (!task) throw new Error('No task to complete')
+      console.log('🎯 TaskModal: Calling API to complete task:', task.id)
       const response = await api.patch(`/tasks/${task.id}/status`, { status: 'COMPLETED' })
+      console.log('🎯 TaskModal: API response:', response.data)
       return response.data
     },
     onSuccess: (data) => {
+      console.log('🎯 TaskModal: Task completion successful:', data)
       toast({
         title: "Task Completed!",
         description: "Great job completing this task!"
@@ -133,6 +136,7 @@ export function TaskModal({ task, isOpen, onClose, onTaskUpdated, onTaskDeleted 
       onTaskUpdated?.(data.data)
     },
     onError: (error: any) => {
+      console.error('🎯 TaskModal: Task completion failed:', error)
       toast({
         title: "Failed to Complete Task",
         description: error.response?.data?.error || "Failed to complete task",
@@ -243,6 +247,7 @@ export function TaskModal({ task, isOpen, onClose, onTaskUpdated, onTaskDeleted 
   }
 
   const handleComplete = () => {
+    console.log('🎯 TaskModal: Complete button clicked for task:', task?.id, task?.title)
     completeTaskMutation.mutate()
   }
 
@@ -574,7 +579,10 @@ export function TaskModal({ task, isOpen, onClose, onTaskUpdated, onTaskDeleted 
                 </Button>
                 {task.status !== 'COMPLETED' && (
                   <Button
-                    onClick={handleComplete}
+                    onClick={() => {
+                      console.log('🎯 BUTTON CLICKED: Complete Task button clicked!')
+                      handleComplete()
+                    }}
                     disabled={completeTaskMutation.isPending}
                     className="bg-green-600 hover:bg-green-700"
                     size="sm"
