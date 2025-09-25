@@ -10,7 +10,7 @@ const getApiBaseUrl = () => {
   // If running on GitHub Pages, use Cloudflare tunnel backend
   if (window.location.hostname === 'stringerc.github.io') {
     console.log('🌐 Running on GitHub Pages - using Cloudflare tunnel backend')
-    return 'https://ages-postcards-hair-console.trycloudflare.com/api'
+    return 'https://location-printed-competitions-leads.trycloudflare.com/api'
   }
   
   // If running on Cloudflare tunnel, use the tunnel domain for API calls
