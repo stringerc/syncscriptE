@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { LoadingSpinner } from '@/components/ui/loading-spinner'
 import { useToast } from '@/hooks/use-toast'
 import { useNavigate } from 'react-router-dom'
+import { useAuthStore } from '@/stores/authStore'
 import { 
   CheckSquare, 
   Calendar, 
@@ -244,6 +245,7 @@ export function DashboardPage() {
   const { toast } = useToast()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
+  const { token, user: authUser } = useAuthStore()
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
@@ -251,9 +253,12 @@ export function DashboardPage() {
   const [eventWeatherData, setEventWeatherData] = useState<Record<string, { emoji: string; temperature: number; condition: string } | null>>({})
   const [currentWeather, setCurrentWeather] = useState<{ emoji: string; temperature: number; condition: string; location: string } | null>(null)
   const [eventPreparationTasks, setEventPreparationTasks] = useState<Record<string, any[]>>({})
+  const [isHydrated, setIsHydrated] = useState(false)
 
-  // Check authentication after all hooks are declared
-  const authToken = localStorage.getItem('syncscript-auth')
+  // Wait for Zustand store to hydrate from localStorage
+  useEffect(() => {
+    setIsHydrated(true)
+  }, [])
 
   const { data: dashboardData, isLoading, error } = useQuery<DashboardData>({
     queryKey: ['dashboard'],
@@ -261,36 +266,14 @@ export function DashboardPage() {
       const response = await api.get('/user/dashboard')
       return response.data.data
     },
-    staleTime: 30 * 1000, // 30 seconds for local development (faster updates)
+    staleTime: 0, // Always consider data stale for immediate updates
     gcTime: 5 * 60 * 1000, // 5 minutes
-    refetchOnWindowFocus: false,
+    refetchOnWindowFocus: true, // Refetch when window gains focus
     retry: 1, // Only retry once for faster error handling
     retryDelay: 500, // Faster retry
-    enabled: !!localStorage.getItem('syncscript-auth') // Only run if user is authenticated
+    enabled: !!token && isHydrated // Only run if user is authenticated and store is hydrated
   })
 
-  const completeTaskMutation = useMutation({
-    mutationFn: async (taskId: string) => {
-      const response = await api.patch(`/tasks/${taskId}/complete`)
-      return response.data
-    },
-    onSuccess: () => {
-      // Only invalidate dashboard cache, not all caches
-      queryClient.invalidateQueries({ queryKey: ['dashboard'] })
-      queryClient.invalidateQueries({ queryKey: ['tasks'] })
-      toast({
-        title: "Task Completed!",
-        description: "Great job on completing that task."
-      })
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Error",
-        description: error.response?.data?.error || "Failed to complete task",
-        variant: "destructive"
-      })
-    }
-  })
 
   const deleteEventMutation = useMutation({
     mutationFn: async (eventId: string) => {
@@ -387,9 +370,6 @@ export function DashboardPage() {
     }
   })
 
-  const handleCompleteTask = useCallback((taskId: string) => {
-    completeTaskMutation.mutate(taskId)
-  }, [completeTaskMutation])
 
   const handleDeleteTask = useCallback((taskId: string) => {
     if (confirm('Are you sure you want to delete this task? This action cannot be undone.')) {
@@ -451,10 +431,12 @@ export function DashboardPage() {
   const handleTaskUpdated = useCallback((updatedTask: Task) => {
     setSelectedTask(updatedTask)
     queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+    queryClient.refetchQueries({ queryKey: ['dashboard'] }) // Force immediate refetch
   }, [queryClient])
 
   const handleTaskDeleted = useCallback((taskId: string) => {
     queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+    queryClient.refetchQueries({ queryKey: ['dashboard'] }) // Force immediate refetch
   }, [queryClient])
 
   // Fetch weather data for events
@@ -492,7 +474,21 @@ export function DashboardPage() {
       await Promise.all(events.map(async (event) => {
         try {
           const response = await api.get(`/tasks?eventId=${event.id}`)
-          preparationTasksData[event.id] = response.data.data || []
+          const tasks = response.data.data || []
+          
+          console.log(`🔍 Preparation tasks for event ${event.title}:`, tasks.map(t => ({ title: t.title, priority: t.priority })))
+          
+          // Sort tasks by priority: URGENT > HIGH > MEDIUM > LOW
+          const priorityOrder = { URGENT: 4, HIGH: 3, MEDIUM: 2, LOW: 1 }
+          const sortedTasks = tasks.sort((a: any, b: any) => {
+            const aPriority = priorityOrder[a.priority] || 0
+            const bPriority = priorityOrder[b.priority] || 0
+            return bPriority - aPriority
+          })
+          
+          console.log(`📋 Sorted preparation tasks for event ${event.title}:`, sortedTasks.map(t => ({ title: t.title, priority: t.priority })))
+          
+          preparationTasksData[event.id] = sortedTasks
         } catch (error) {
           console.error(`Failed to fetch preparation tasks for event ${event.id}:`, error)
           preparationTasksData[event.id] = []
@@ -505,8 +501,16 @@ export function DashboardPage() {
     }
   }, [])
 
-  // Fetch current weather for user's location
+  // Fetch current weather for user's location (with caching)
   const fetchCurrentWeather = useCallback(async () => {
+    // Check if we already have recent weather data (within last 5 minutes)
+    const lastFetch = localStorage.getItem('weather-last-fetch')
+    const now = Date.now()
+    if (lastFetch && (now - parseInt(lastFetch)) < 5 * 60 * 1000) {
+      console.log('🌤️ Using cached weather data')
+      return
+    }
+
     try {
       console.log('🌤️ Fetching current weather...')
       const response = await api.get('/location/weather/current')
@@ -520,6 +524,8 @@ export function DashboardPage() {
           condition: weather.condition || 'Unknown',
           location: weather.location || response.data.data.location || 'Unknown'
         })
+        // Cache the fetch time
+        localStorage.setItem('weather-last-fetch', now.toString())
         console.log('🌤️ Set current weather:', { emoji: weather.emoji, temperature: weather.temperature, condition: weather.condition })
       } else {
         console.log('🌤️ No weather data in response, using fallback')
@@ -542,17 +548,25 @@ export function DashboardPage() {
     }
   }, [])
 
-  // Fetch weather data when events change
+  // Fetch weather data when events change (with debouncing)
   useEffect(() => {
     if (dashboardData?.upcomingEvents) {
-      fetchEventWeather(dashboardData.upcomingEvents)
-      fetchEventPreparationTasks(dashboardData.upcomingEvents)
+      const timer = setTimeout(() => {
+        fetchEventWeather(dashboardData.upcomingEvents)
+        fetchEventPreparationTasks(dashboardData.upcomingEvents)
+      }, 500) // Wait 500ms before fetching to avoid rapid calls
+      
+      return () => clearTimeout(timer)
     }
   }, [dashboardData?.upcomingEvents, fetchEventWeather, fetchEventPreparationTasks])
 
-  // Fetch current weather on component mount
+  // Fetch current weather on component mount (with debouncing)
   useEffect(() => {
-    fetchCurrentWeather()
+    const timer = setTimeout(() => {
+      fetchCurrentWeather()
+    }, 1000) // Wait 1 second before fetching to avoid rapid calls
+    
+    return () => clearTimeout(timer)
   }, [fetchCurrentWeather])
 
   const handleAddTask = useCallback(() => {
@@ -569,6 +583,66 @@ export function DashboardPage() {
     
     if (conditionLower.includes('clear') || conditionLower.includes('sunny')) {
       return <Sun className="w-6 h-6 text-yellow-500 animate-pulse" />
+    } else if (conditionLower.includes('mist') || conditionLower.includes('fog') || conditionLower.includes('haze') || conditionLower.includes('clouds')) {
+      return (
+        <div className="relative w-6 h-6">
+          <svg className="w-full h-full" viewBox="0 0 24 24" fill="none">
+            <defs>
+              <filter id="mist-blur" x="-100%" y="-100%" width="300%" height="300%">
+                <feGaussianBlur stdDeviation="2" result="blur"/>
+                <feColorMatrix type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 0.3 0" result="fade"/>
+              </filter>
+              <radialGradient id="mist-wisp" cx="50%" cy="50%" r="50%">
+                <stop offset="0%" stopColor="#F3F4F6" stopOpacity="0.8"/>
+                <stop offset="30%" stopColor="#E5E7EB" stopOpacity="0.6"/>
+                <stop offset="70%" stopColor="#D1D5DB" stopOpacity="0.4"/>
+                <stop offset="100%" stopColor="#9CA3AF" stopOpacity="0.2"/>
+              </radialGradient>
+            </defs>
+            
+            {/* Flowing mist wisps - irregular, organic shapes */}
+            <path d="M4 8 Q8 4 12 8 Q16 12 20 8 Q18 14 14 16 Q10 18 6 14 Q4 12 4 8" 
+                  fill="url(#mist-wisp)" 
+                  filter="url(#mist-blur)"
+                  opacity="0.7">
+              <animateTransform attributeName="transform" type="translate" values="0,0; 1,0; 0,0" dur="8s" repeatCount="indefinite"/>
+              <animate attributeName="opacity" values="0.7;0.4;0.7" dur="6s" repeatCount="indefinite"/>
+            </path>
+            
+            <path d="M6 12 Q10 8 14 12 Q18 16 22 12 Q20 18 16 20 Q12 22 8 18 Q6 16 6 12" 
+                  fill="url(#mist-wisp)" 
+                  filter="url(#mist-blur)"
+                  opacity="0.5">
+              <animateTransform attributeName="transform" type="translate" values="0,0; -1,0; 0,0" dur="7s" repeatCount="indefinite"/>
+              <animate attributeName="opacity" values="0.5;0.2;0.5" dur="5s" repeatCount="indefinite"/>
+            </path>
+            
+            <path d="M2 16 Q6 12 10 16 Q14 20 18 16 Q16 22 12 24 Q8 26 4 22 Q2 20 2 16" 
+                  fill="url(#mist-wisp)" 
+                  filter="url(#mist-blur)"
+                  opacity="0.6">
+              <animateTransform attributeName="transform" type="translate" values="0,0; 0.5,0; 0,0" dur="9s" repeatCount="indefinite"/>
+              <animate attributeName="opacity" values="0.6;0.3;0.6" dur="7s" repeatCount="indefinite"/>
+            </path>
+            
+            {/* Small drifting particles */}
+            <circle cx="8" cy="6" r="1" fill="#D1D5DB" opacity="0.4" filter="url(#mist-blur)">
+              <animate attributeName="cx" values="8;12;8" dur="10s" repeatCount="indefinite"/>
+              <animate attributeName="opacity" values="0.4;0.1;0.4" dur="8s" repeatCount="indefinite"/>
+            </circle>
+            
+            <circle cx="16" cy="18" r="0.8" fill="#E5E7EB" opacity="0.3" filter="url(#mist-blur)">
+              <animate attributeName="cx" values="16;14;16" dur="12s" repeatCount="indefinite"/>
+              <animate attributeName="opacity" values="0.3;0.1;0.3" dur="9s" repeatCount="indefinite"/>
+            </circle>
+            
+            <circle cx="20" cy="10" r="0.6" fill="#F3F4F6" opacity="0.5" filter="url(#mist-blur)">
+              <animate attributeName="cx" values="20;18;20" dur="11s" repeatCount="indefinite"/>
+              <animate attributeName="opacity" values="0.5;0.2;0.5" dur="6s" repeatCount="indefinite"/>
+            </circle>
+          </svg>
+        </div>
+      )
     } else if (conditionLower.includes('cloud')) {
       return <Cloud className="w-6 h-6 text-gray-500 animate-bounce" />
     } else if (conditionLower.includes('rain') || conditionLower.includes('drizzle')) {
@@ -580,7 +654,7 @@ export function DashboardPage() {
     } else if (conditionLower.includes('wind')) {
       return <Wind className="w-6 h-6 text-gray-400 animate-spin" />
     } else {
-      return <Cloud className="w-6 h-6 text-gray-500 animate-pulse" />
+      return <Sun className="w-6 h-6 text-yellow-400 animate-pulse" />
     }
   }, [])
 
@@ -600,10 +674,34 @@ export function DashboardPage() {
     [dashboardData?.activeStreaks]
   )
 
+  // Wait for hydration before checking authentication
+  if (!isHydrated) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <LoadingSpinner size="lg" />
+          <p className="mt-4 text-muted-foreground">Initializing...</p>
+        </div>
+      </div>
+    )
+  }
+
   // Check authentication after all hooks are declared
-  if (!authToken) {
-    navigate('/auth')
-    return null
+  if (!token) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <AlertCircle className="w-12 h-12 text-destructive mx-auto mb-4" />
+          <h3 className="text-lg font-semibold text-foreground mb-2">Not Authenticated</h3>
+          <p className="text-muted-foreground mb-4">
+            You need to be logged in to access the dashboard.
+          </p>
+          <Button onClick={() => navigate('/auth')}>
+            Go to Login
+          </Button>
+        </div>
+      </div>
+    )
   }
 
   if (isLoading) {
@@ -651,7 +749,16 @@ export function DashboardPage() {
   }
 
   // Conditional return after all hooks
-  if (!dashboardData) return null
+  if (!dashboardData) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <LoadingSpinner size="lg" />
+          <p className="mt-4 text-muted-foreground">Loading dashboard...</p>
+        </div>
+      </div>
+    )
+  }
 
   const { user, todayTasks, upcomingEvents, recentAchievements, activeStreaks, unreadNotifications } = dashboardData
 
@@ -673,9 +780,6 @@ export function DashboardPage() {
             <div className="flex items-center space-x-2 bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 px-4 py-2 rounded-lg border">
               <div className="relative">
                 {getWeatherIcon(currentWeather.condition)}
-                <span className="absolute -top-1 -right-1 text-lg animate-bounce">
-                  {currentWeather.emoji}
-                </span>
               </div>
               <div className="flex flex-col">
                 <span className="text-sm font-semibold text-blue-700 dark:text-blue-300">
@@ -690,7 +794,85 @@ export function DashboardPage() {
           
           {/* Energy Level */}
           <div className="flex items-center space-x-2">
-            <Zap className="w-5 h-5 text-primary" />
+            <div className="relative">
+              <Zap className="w-5 h-5 text-primary" />
+              {/* Dynamic lightning bolts based on energy level */}
+              {user.energyLevel >= 7 && (
+                <>
+                  {/* High energy lightning bolts */}
+                  <svg className="absolute -top-1 -right-1 w-3 h-3 text-blue-400 animate-ping opacity-75" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M7 2v11h3v9l7-12h-4l2-8z" />
+                  </svg>
+                  <svg className="absolute -top-1 -right-1 w-2 h-2 text-blue-300 animate-pulse" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M7 2v11h3v9l7-12h-4l2-8z" />
+                  </svg>
+                  {user.energyLevel >= 8 && (
+                    <>
+                      <svg className="absolute top-0 -left-1 w-2.5 h-2.5 text-blue-400 animate-ping opacity-60" style={{ animationDelay: '0.5s' }} viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M7 2v11h3v9l7-12h-4l2-8z" />
+                      </svg>
+                      <svg className="absolute -bottom-1 right-0 w-2 h-2 text-blue-500 animate-pulse" style={{ animationDelay: '1s' }} viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M7 2v11h3v9l7-12h-4l2-8z" />
+                      </svg>
+                    </>
+                  )}
+                  {user.energyLevel >= 9 && (
+                    <>
+                      <svg className="absolute -top-2 left-1 w-2 h-2 text-blue-400 animate-ping opacity-50" style={{ animationDelay: '1.5s' }} viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M7 2v11h3v9l7-12h-4l2-8z" />
+                      </svg>
+                      <svg className="absolute bottom-0 -left-1 w-2.5 h-2.5 text-blue-300 animate-pulse" style={{ animationDelay: '2s' }} viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M7 2v11h3v9l7-12h-4l2-8z" />
+                      </svg>
+                    </>
+                  )}
+                  {user.energyLevel >= 10 && (
+                    <>
+                      <svg className="absolute -top-2 -right-2 w-3 h-3 text-blue-400 animate-ping opacity-70" style={{ animationDelay: '0.3s' }} viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M7 2v11h3v9l7-12h-4l2-8z" />
+                      </svg>
+                      <svg className="absolute top-1 -right-2 w-2 h-2 text-blue-500 animate-pulse" style={{ animationDelay: '1.2s' }} viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M7 2v11h3v9l7-12h-4l2-8z" />
+                      </svg>
+                      <svg className="absolute -bottom-2 left-1 w-2.5 h-2.5 text-blue-400 animate-ping opacity-60" style={{ animationDelay: '0.8s' }} viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M7 2v11h3v9l7-12h-4l2-8z" />
+                      </svg>
+                    </>
+                  )}
+                </>
+              )}
+              {user.energyLevel >= 4 && user.energyLevel < 7 && (
+                <>
+                  {/* Medium energy lightning bolts */}
+                  <svg className="absolute -top-1 -right-1 w-2.5 h-2.5 text-blue-400 animate-pulse opacity-60" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M7 2v11h3v9l7-12h-4l2-8z" />
+                  </svg>
+                  {user.energyLevel >= 5 && (
+                    <svg className="absolute top-0 -left-1 w-2 h-2 text-blue-500 animate-ping opacity-50" style={{ animationDelay: '1s' }} viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M7 2v11h3v9l7-12h-4l2-8z" />
+                    </svg>
+                  )}
+                  {user.energyLevel >= 6 && (
+                    <svg className="absolute -bottom-1 right-0 w-2 h-2 text-blue-400 animate-pulse" style={{ animationDelay: '1.5s' }} viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M7 2v11h3v9l7-12h-4l2-8z" />
+                    </svg>
+                  )}
+                </>
+              )}
+              {user.energyLevel >= 1 && user.energyLevel < 4 && (
+                <>
+                  {/* Low energy lightning bolts */}
+                  <svg className="absolute -top-1 -right-1 w-2 h-2 text-blue-400 animate-pulse opacity-40" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M7 2v11h3v9l7-12h-4l2-8z" />
+                  </svg>
+                  {user.energyLevel >= 2 && (
+                    <svg className="absolute top-0 -left-1 w-1.5 h-1.5 text-blue-500 animate-ping opacity-30" style={{ animationDelay: '2s' }} viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M7 2v11h3v9l7-12h-4l2-8z" />
+                    </svg>
+                  )}
+                </>
+              )}
+            </div>
             <span className="text-sm font-medium">Energy: {user.energyLevel}/10</span>
           </div>
         </div>
@@ -801,7 +983,6 @@ export function DashboardPage() {
                     <TaskItem
                       key={task.id}
                       task={task}
-                      onComplete={handleCompleteTask}
                       onDelete={handleDeleteTask}
                       onView={handleViewTask}
                       order={index + 1}
