@@ -34,16 +34,22 @@ export const useAuthStore = create<AuthStore>()(
 
       // Actions
       login: async (email: string, password: string) => {
+        console.log('🔐 AuthStore: Starting login for:', email)
+        console.log('🔐 AuthStore: API Base URL:', api.defaults.baseURL)
         set({ isLoading: true, error: null })
         try {
           const response = await api.post('/auth/login', { email, password })
+          console.log('🔐 AuthStore: Login response:', response.data)
           const { user, token } = response.data.data
           
           set({ user, token, isLoading: false })
           
           // Set token in API client
           api.defaults.headers.common['Authorization'] = `Bearer ${token}`
+          console.log('🔐 AuthStore: Login successful for:', email)
         } catch (error: any) {
+          console.error('🔐 AuthStore: Login error:', error)
+          console.error('🔐 AuthStore: Error response:', error.response?.data)
           const errorMessage = error.response?.data?.error || 'Login failed'
           set({ 
             error: errorMessage, 
@@ -55,16 +61,22 @@ export const useAuthStore = create<AuthStore>()(
       },
 
       register: async (email: string, password: string, name?: string) => {
+        console.log('🔐 AuthStore: Starting registration for:', email)
+        console.log('🔐 AuthStore: API Base URL:', api.defaults.baseURL)
         set({ isLoading: true, error: null })
         try {
           const response = await api.post('/auth/register', { email, password, name })
+          console.log('🔐 AuthStore: Registration response:', response.data)
           const { user, token } = response.data.data
           
           set({ user, token, isLoading: false })
           
           // Set token in API client
           api.defaults.headers.common['Authorization'] = `Bearer ${token}`
+          console.log('🔐 AuthStore: Registration successful for:', email)
         } catch (error: any) {
+          console.error('🔐 AuthStore: Registration error:', error)
+          console.error('🔐 AuthStore: Error response:', error.response?.data)
           const errorMessage = error.response?.data?.error || 'Registration failed'
           set({ 
             error: errorMessage, 
@@ -83,30 +95,39 @@ export const useAuthStore = create<AuthStore>()(
       checkAuth: async () => {
         const { token, isLoading, user } = get()
         
+        console.log('🔐 AuthStore: checkAuth called', { hasToken: !!token, isLoading, hasUser: !!user })
+        
         // Prevent multiple simultaneous calls
         if (isLoading) {
+          console.log('🔐 AuthStore: Already loading, skipping checkAuth')
           return
         }
         
         // If we already have a user and token, don't refetch
         if (user && token) {
+          console.log('🔐 AuthStore: Already have user and token, skipping checkAuth')
           set({ isLoading: false })
           return
         }
         
         if (!token) {
+          console.log('🔐 AuthStore: No token, skipping checkAuth')
           set({ isLoading: false })
           return
         }
 
+        console.log('🔐 AuthStore: Proceeding with checkAuth')
         set({ isLoading: true })
         try {
           // Set token in API client
           api.defaults.headers.common['Authorization'] = `Bearer ${token}`
           
+          console.log('🔐 AuthStore: Making checkAuth request to /auth/me')
           const response = await api.get('/auth/me')
+          console.log('🔐 AuthStore: checkAuth response:', response.data)
           set({ user: response.data.data, isLoading: false })
         } catch (error) {
+          console.error('🔐 AuthStore: checkAuth error:', error)
           // Token is invalid, clear it
           set({ user: null, token: null, isLoading: false })
           delete api.defaults.headers.common['Authorization']

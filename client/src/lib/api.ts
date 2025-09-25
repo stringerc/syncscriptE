@@ -7,11 +7,20 @@ const getApiBaseUrl = () => {
     return (import.meta as any).env.VITE_API_URL
   }
   
-  // If running on GitHub Pages, show helpful message
+  // If running on GitHub Pages, use demo mode (no backend)
   if (window.location.hostname === 'stringerc.github.io') {
-    // For now, show a helpful error message
-    console.error('🚨 Backend not available on GitHub Pages. Please run locally for full functionality.')
-    return 'https://syncscript-production.up.railway.app/api'
+    console.log('🌐 Running in demo mode - using mock data')
+    return 'DEMO_MODE'
+  }
+  
+  // If running on Cloudflare tunnel, use the tunnel domain for API calls
+  if (window.location.hostname.includes('.trycloudflare.com')) {
+    return `https://${window.location.hostname}/api`
+  }
+  
+  // If running on local network IP, use the same IP for API calls
+  if (window.location.hostname === '192.168.1.246') {
+    return 'http://192.168.1.246:3001/api'
   }
   
   // Default to localhost for development
@@ -23,17 +32,45 @@ const API_BASE_URL = getApiBaseUrl()
 // Log the API URL for debugging
 console.log('🔗 API Base URL:', API_BASE_URL)
 console.log('🌐 Current hostname:', window.location.hostname)
+console.log('🔗 Full URL being used:', API_BASE_URL)
+
+// Validate the base URL
+if (API_BASE_URL === '/api' || API_BASE_URL === 'api') {
+  console.error('❌ Invalid base URL detected:', API_BASE_URL)
+  console.log('🔧 Forcing correct base URL for IP 192.168.1.246')
+  const correctedUrl = 'http://192.168.1.246:3001/api'
+  console.log('🔧 Corrected URL:', correctedUrl)
+}
+
+// Force correct base URL for debugging
+let finalBaseURL = API_BASE_URL
+if (API_BASE_URL === '/api' || API_BASE_URL === 'api' || !API_BASE_URL.includes('://')) {
+  console.log('🔧 Forcing correct base URL due to invalid detection')
+  finalBaseURL = 'http://192.168.1.246:3001/api'
+  console.log('🔧 Final base URL:', finalBaseURL)
+}
 
 export const api = axios.create({
-  baseURL: API_BASE_URL,
+  baseURL: finalBaseURL,
   headers: {
     'Content-Type': 'application/json',
   },
 })
 
+console.log('🔗 Final API instance baseURL:', api.defaults.baseURL)
+
 // Request interceptor
 api.interceptors.request.use(
   (config) => {
+    console.log('🔗 API Request:', config.method?.toUpperCase(), config.baseURL + config.url)
+    console.log('🔗 Request config:', {
+      method: config.method,
+      url: config.url,
+      baseURL: config.baseURL,
+      fullURL: config.baseURL + config.url,
+      data: config.data
+    })
+    
     // Add auth token if available
     const token = localStorage.getItem('syncscript-auth')
     if (token) {
@@ -41,14 +78,18 @@ api.interceptors.request.use(
         const authData = JSON.parse(token)
         if (authData.state?.token) {
           config.headers.Authorization = `Bearer ${authData.state.token}`
+          console.log('🔐 Auth token added to request')
         }
       } catch (error) {
-        // Invalid token format, ignore
+        console.log('🔐 Invalid token format:', error)
       }
+    } else {
+      console.log('🔐 No auth token found')
     }
     return config
   },
   (error) => {
+    console.error('🔗 API Request Error:', error)
     return Promise.reject(error)
   }
 )
@@ -56,9 +97,11 @@ api.interceptors.request.use(
 // Response interceptor
 api.interceptors.response.use(
   (response) => {
+    console.log('✅ API Response:', response.status, response.config.url)
     return response
   },
   (error) => {
+    console.error('❌ API Error:', error.response?.status, error.config?.url, error.response?.data)
     if (error.response?.status === 401) {
       // Unauthorized - clear auth data
       localStorage.removeItem('syncscript-auth')

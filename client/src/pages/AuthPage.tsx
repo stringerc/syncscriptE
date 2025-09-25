@@ -22,23 +22,29 @@ export function AuthPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    console.log('🔐 AuthPage: handleSubmit called', { isLogin, email: formData.email, hasPassword: !!formData.password })
     clearError()
 
     try {
       if (isLogin) {
+        console.log('🔐 AuthPage: Calling login function')
         await login(formData.email, formData.password)
+        console.log('🔐 AuthPage: Login successful')
         toast({
           title: "Welcome back!",
           description: "You've successfully logged in to SyncScript."
         })
       } else {
+        console.log('🔐 AuthPage: Calling register function')
         await register(formData.email, formData.password, formData.name)
+        console.log('🔐 AuthPage: Registration successful')
         toast({
           title: "Welcome to SyncScript!",
           description: "Your account has been created successfully."
         })
       }
     } catch (error: any) {
+      console.error('🔐 AuthPage: Authentication error:', error)
       // Use the error from the auth store, or fallback to the thrown error
       const errorMessage = error.response?.data?.error || error.message || "Something went wrong. Please try again."
       toast({

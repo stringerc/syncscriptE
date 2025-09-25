@@ -75,7 +75,7 @@ router.get('/profile', authenticateToken, asyncHandler(async (req: AuthRequest, 
     isEmailVerified: user.emailVerified || false,
     preferences: {
       notifications: user.settings?.emailNotifications ?? true,
-      darkMode: user.settings?.darkMode ?? false,
+      darkMode: false,
       timezone: user.timezone || 'UTC'
     }
   };

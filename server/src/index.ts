@@ -59,21 +59,18 @@ const allowedOrigins = [
   process.env.FRONTEND_URL || "http://localhost:3000",
   "https://stringerc.github.io",
   "https://stringerc.github.io/syncscriptE",
-  "http://localhost:3000"
+  "http://localhost:3000",
+  "https://syncscript-local.loca.lt" // LocalTunnel
 ];
 
+// Allow all Cloudflare tunnel domains
+const isCloudflareTunnel = (origin: string) => {
+  return origin.includes('.trycloudflare.com');
+};
+
+// Temporarily allow all origins for testing
 app.use(cors({
-  origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) return callback(null, true);
-    
-    if (allowedOrigins.indexOf(origin) !== -1) {
-      callback(null, true);
-    } else {
-      logger.warn(`CORS blocked origin: ${origin}`);
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
+  origin: true, // Allow all origins temporarily
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']

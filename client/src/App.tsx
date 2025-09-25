@@ -16,13 +16,28 @@ import { AIAssistantPage } from '@/pages/AIAssistantPage'
 import { VerifyEmailPage } from '@/pages/VerifyEmailPage'
 import { LoadingSpinner } from '@/components/ui/loading-spinner'
 import { ThemeProvider } from '@/contexts/ThemeContext'
+import DemoMode from '@/components/DemoMode'
+import { api } from '@/lib/api'
 
 function AppContent() {
   const { user, isLoading, checkAuth } = useAuthStore()
 
+  // Check if we're in demo mode (GitHub Pages without working backend)
+  const isDemoMode = api.defaults.baseURL === 'DEMO_MODE'
+
   useEffect(() => {
-    checkAuth()
-  }, []) // Remove checkAuth from dependencies to prevent infinite loop
+    if (!isDemoMode) {
+      console.log('🔐 App: Skipping checkAuth for debugging')
+      // checkAuth() // Temporarily disabled for debugging
+    } else {
+      console.log('🔐 App: Demo mode, skipping checkAuth')
+    }
+  }, [isDemoMode]) // Remove checkAuth from dependencies to prevent infinite loop
+
+  // Show demo mode for GitHub Pages
+  if (isDemoMode) {
+    return <DemoMode />
+  }
 
   if (isLoading) {
     return (

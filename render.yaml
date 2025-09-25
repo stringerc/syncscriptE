@@ -1,0 +1,42 @@
+services:
+  - type: web
+    name: syncscript-backend
+    env: node
+    buildCommand: cd server && npm install && npm run build && npx prisma generate
+    startCommand: cd server && npx prisma db push && npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: syncscript-db
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: FRONTEND_URL
+        value: https://syncscript-frontend.onrender.com
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: EMAIL_USER
+        sync: false
+      - key: EMAIL_APP_PASSWORD
+        sync: false
+      - key: PLAID_CLIENT_ID
+        sync: false
+      - key: PLAID_SECRET
+        sync: false
+      - key: PLAID_ENVIRONMENT
+        value: sandbox
+
+  - type: static
+    name: syncscript-frontend
+    buildCommand: cd client && npm install && npm run build
+    staticPublishPath: ./client/dist
+    envVars:
+      - key: VITE_API_URL
+        value: https://syncscript-backend.onrender.com/api
+
+databases:
+  - name: syncscript-db
+    databaseName: syncscript
+    user: syncscript

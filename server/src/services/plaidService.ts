@@ -1,4 +1,4 @@
-import { PlaidApi, PlaidEnvironments, Configuration, LinkTokenCreateRequest, LinkTokenCreateResponse, ItemPublicTokenExchangeRequest, ItemPublicTokenExchangeResponse, AccountsGetRequest, AccountsGetResponse, TransactionsGetRequest, TransactionsGetResponse } from 'plaid';
+import { PlaidApi, PlaidEnvironments, Configuration, LinkTokenCreateRequest, LinkTokenCreateResponse, ItemPublicTokenExchangeRequest, ItemPublicTokenExchangeResponse, AccountsGetRequest, AccountsGetResponse, TransactionsGetRequest, TransactionsGetResponse, Products, CountryCode } from 'plaid';
 import { logger } from '../utils/logger';
 
 // Plaid configuration
@@ -61,8 +61,8 @@ export class PlaidService {
           client_user_id: userId,
         },
         client_name: 'SyncScript',
-        products: ['transactions'],
-        country_codes: ['US'],
+        products: [Products.Transactions],
+        country_codes: [CountryCode.Us],
         language: 'en',
         // Remove webhook for now to test if that's causing issues
         // webhook: process.env.PLAID_WEBHOOK_URL || 'https://your-domain.com/webhook/plaid',
@@ -77,7 +77,7 @@ export class PlaidService {
         environment: PLAID_ENV
       });
       
-      let response: LinkTokenCreateResponse;
+      let response: any;
       try {
         response = await plaidClient.linkTokenCreate(request);
         logger.info('Plaid API call successful', { userId });
@@ -93,20 +93,20 @@ export class PlaidService {
       
       logger.info('Plaid API response received', { 
         userId, 
-        responseKeys: Object.keys(response),
-        response: response,
-        linkToken: response.link_token,
-        hasLinkToken: !!response.link_token
+        responseKeys: Object.keys(response.data),
+        response: response.data,
+        linkToken: response.data.link_token,
+        hasLinkToken: !!response.data.link_token
       });
       
-      if (!response.link_token) {
-        logger.error('No link_token in Plaid response', { response });
+      if (!response.data.link_token) {
+        logger.error('No link_token in Plaid response', { response: response.data });
         throw new Error('No link_token received from Plaid');
       }
       
-      logger.info('Link token created successfully', { userId, linkToken: response.link_token.substring(0, 20) + '...' });
+      logger.info('Link token created successfully', { userId, linkToken: response.data.link_token.substring(0, 20) + '...' });
       
-      return response.link_token;
+      return response.data.link_token;
     } catch (error: any) {
       logger.error('Failed to create link token - Full Error Details', { 
         error: error.message,
@@ -133,11 +133,11 @@ export class PlaidService {
         public_token: publicToken,
       };
 
-      const response: ItemPublicTokenExchangeResponse = await plaidClient.itemPublicTokenExchange(request);
+      const response: any = await plaidClient.itemPublicTokenExchange(request);
       
-      logger.info('Public token exchanged', { accessToken: response.access_token });
+      logger.info('Public token exchanged', { accessToken: response.data.access_token });
       
-      return response.access_token;
+      return response.data.access_token;
     } catch (error: any) {
       logger.error('Failed to exchange public token', { error: error.message });
       throw new Error(`Failed to exchange public token: ${error.message}`);
@@ -153,14 +153,14 @@ export class PlaidService {
         access_token: accessToken,
       };
 
-      const response: AccountsGetResponse = await plaidClient.accountsGet(request);
+      const response: any = await plaidClient.accountsGet(request);
       
       logger.info('Accounts retrieved', { 
-        accountCount: response.accounts.length,
+        accountCount: response.data.accounts.length,
         accessToken: accessToken.substring(0, 10) + '...'
       });
       
-      return response.accounts.map(account => ({
+      return response.data.accounts.map(account => ({
         accountId: account.account_id,
         name: account.name,
         type: account.type,
@@ -185,18 +185,18 @@ export class PlaidService {
     try {
       const request: TransactionsGetRequest = {
         access_token: accessToken,
-        start_date: startDate,
-        end_date: endDate,
+        start_date: startDate.toISOString().split('T')[0],
+        end_date: endDate.toISOString().split('T')[0],
       };
 
-      const response: TransactionsGetResponse = await plaidClient.transactionsGet(request);
+      const response: any = await plaidClient.transactionsGet(request);
       
       logger.info('Transactions retrieved', { 
-        transactionCount: response.transactions.length,
+        transactionCount: response.data.transactions.length,
         accessToken: accessToken.substring(0, 10) + '...'
       });
       
-      return response.transactions.map(transaction => ({
+      return response.data.transactions.map(transaction => ({
         transactionId: transaction.transaction_id,
         accountId: transaction.account_id,
         amount: transaction.amount,
@@ -204,7 +204,7 @@ export class PlaidService {
         name: transaction.name,
         merchantName: transaction.merchant_name,
         category: transaction.category,
-        subcategory: transaction.subcategory,
+        subcategory: transaction.category?.[1] || null,
         accountOwner: transaction.account_owner,
         pending: transaction.pending,
         isoCurrencyCode: transaction.iso_currency_code,

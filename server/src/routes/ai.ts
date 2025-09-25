@@ -608,7 +608,7 @@ router.post('/events/:eventId/prepare', authenticateToken, asyncHandler(async (r
     End Time: ${event.endTime}
     Location: ${event.location || 'No location specified'}
     Budget Impact: ${event.budgetImpact || 'No budget impact specified'}
-    Event Type: ${event.type || 'General event'}`;
+    Event Type: General event`;
 
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
