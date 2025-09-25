@@ -5,7 +5,8 @@
       "src": "server/package.json",
       "use": "@vercel/node",
       "config": {
-        "includeFiles": ["server/**"]
+        "includeFiles": ["server/**"],
+        "maxDuration": 30
       }
     }
   ],
@@ -25,10 +26,5 @@
   ],
   "env": {
     "NODE_ENV": "production"
-  },
-  "functions": {
-    "server/dist/index.js": {
-      "maxDuration": 30
-    }
   }
 }
