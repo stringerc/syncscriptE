@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { useToast } from '@/hooks/use-toast'
 import { ConfirmationModal } from '@/components/ConfirmationModal'
-import { X, Save, Trash2, Calendar, Clock, MapPin, DollarSign, Sparkles, Plus } from 'lucide-react'
+import { X, Save, Trash2, Calendar, Clock, MapPin, DollarSign, Sparkles, Plus, CheckCircle, Circle } from 'lucide-react'
 
 interface Event {
   id: string
@@ -38,6 +38,18 @@ export function EventModal({ event, isOpen, onClose, onEventUpdated }: EventModa
     endTime: '',
     location: '',
     budgetImpact: 0
+  })
+
+  // Fetch preparation tasks for this event
+  const { data: preparationTasks, refetch: refetchPreparationTasks } = useQuery({
+    queryKey: ['preparationTasks', event?.id],
+    queryFn: async () => {
+      if (!event) return []
+      const response = await api.get(`/tasks?eventId=${event.id}`)
+      return response.data.data || []
+    },
+    enabled: !!event && isOpen,
+    refetchInterval: 5000, // Refetch every 5 seconds to get real-time updates
   })
 
   // Initialize form data when event changes
@@ -175,6 +187,8 @@ export function EventModal({ event, isOpen, onClose, onEventUpdated }: EventModa
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['tasks'] })
       queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+      queryClient.invalidateQueries({ queryKey: ['preparationTasks', event?.id] })
+      refetchPreparationTasks()
       toast({
         title: "Tasks Added!",
         description: `Added ${data.count} preparation tasks to your task list`
@@ -333,6 +347,27 @@ export function EventModal({ event, isOpen, onClose, onEventUpdated }: EventModa
                 <h3 className="text-lg font-semibold">{event.title}</h3>
                 {event.description && (
                   <p className="text-muted-foreground mt-2">{event.description}</p>
+                )}
+                
+                {/* Preparation Tasks */}
+                {preparationTasks && preparationTasks.length > 0 && (
+                  <div className="mt-4">
+                    <h4 className="text-sm font-medium text-muted-foreground mb-2">Preparation Tasks:</h4>
+                    <ul className="space-y-1">
+                      {preparationTasks.map((task: any) => (
+                        <li key={task.id} className="flex items-center space-x-2 text-sm">
+                          {task.status === 'COMPLETED' ? (
+                            <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
+                          ) : (
+                            <Circle className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                          )}
+                          <span className={task.status === 'COMPLETED' ? 'line-through text-muted-foreground' : ''}>
+                            {task.title}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
                 )}
               </div>
 

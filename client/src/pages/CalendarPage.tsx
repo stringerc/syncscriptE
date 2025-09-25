@@ -24,6 +24,8 @@ export function CalendarPage() {
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [eventWeatherData, setEventWeatherData] = useState<Record<string, { emoji: string; temperature: number; condition: string } | null>>({})
+  const [eventPreparationTasks, setEventPreparationTasks] = useState<Record<string, any[]>>({})
+  const [expandedEvents, setExpandedEvents] = useState<Set<string>>(new Set())
 
   const { toast } = useToast()
   const queryClient = useQueryClient()
@@ -133,6 +135,18 @@ export function CalendarPage() {
       setSelectedEvent(null)
     }
 
+    const toggleEventExpansion = (eventId: string) => {
+      setExpandedEvents(prev => {
+        const newSet = new Set(prev)
+        if (newSet.has(eventId)) {
+          newSet.delete(eventId)
+        } else {
+          newSet.add(eventId)
+        }
+        return newSet
+      })
+    }
+
     // Fetch weather data for events
     const fetchEventWeather = useCallback(async (events: Event[]) => {
       if (events.length === 0) return
@@ -156,12 +170,37 @@ export function CalendarPage() {
       }
     }, [])
 
-    // Fetch weather data when events change
+    // Fetch preparation tasks for events
+    const fetchEventPreparationTasks = useCallback(async (events: Event[]) => {
+      if (events.length === 0) return
+
+      try {
+        const preparationTasksData: Record<string, any[]> = {}
+        
+        // Fetch preparation tasks for each event
+        await Promise.all(events.map(async (event) => {
+          try {
+            const response = await api.get(`/tasks?eventId=${event.id}`)
+            preparationTasksData[event.id] = response.data.data || []
+          } catch (error) {
+            console.error(`Failed to fetch preparation tasks for event ${event.id}:`, error)
+            preparationTasksData[event.id] = []
+          }
+        }))
+        
+        setEventPreparationTasks(preparationTasksData)
+      } catch (error) {
+        console.error('Failed to fetch event preparation tasks:', error)
+      }
+    }, [])
+
+    // Fetch weather data and preparation tasks when events change
     useEffect(() => {
       if (events) {
         fetchEventWeather(events)
+        fetchEventPreparationTasks(events)
       }
-    }, [events, fetchEventWeather])
+    }, [events, fetchEventWeather, fetchEventPreparationTasks])
 
   if (isLoading) {
     return (
@@ -325,6 +364,41 @@ export function CalendarPage() {
                           {event.description}
                         </p>
                       )}
+                      
+                      {/* Preparation Tasks */}
+                      {eventPreparationTasks[event.id] && eventPreparationTasks[event.id].length > 0 && (
+                        <div className="mt-2 mb-2">
+                          <div className="text-xs text-muted-foreground mb-1">Prep tasks:</div>
+                          <div className="space-y-1">
+                            {(expandedEvents.has(event.id) ? eventPreparationTasks[event.id] : eventPreparationTasks[event.id].slice(0, 3))
+                              .sort((a: any, b: any) => {
+                                const priorityOrder = { URGENT: 4, HIGH: 3, MEDIUM: 2, LOW: 1 }
+                                return (priorityOrder[b.priority as keyof typeof priorityOrder] || 0) - (priorityOrder[a.priority as keyof typeof priorityOrder] || 0)
+                              })
+                              .map((task: any) => (
+                              <div 
+                                key={task.id} 
+                                className={`text-xs text-muted-foreground transition-all duration-200 ${
+                                  task.status === 'COMPLETED' 
+                                    ? 'line-through text-green-600' 
+                                    : ''
+                                }`}
+                              >
+                                {task.status === 'COMPLETED' ? '✓' : '•'} {task.title}
+                              </div>
+                            ))}
+                            {eventPreparationTasks[event.id].length > 3 && (
+                              <button
+                                onClick={() => toggleEventExpansion(event.id)}
+                                className="text-xs text-blue-600 hover:text-blue-800 underline cursor-pointer transition-colors duration-200"
+                              >
+                                {expandedEvents.has(event.id) ? 'Show less' : `+${eventPreparationTasks[event.id].length - 3} more`}
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                      
                       <div className="flex items-center space-x-4 mt-2 text-xs text-muted-foreground">
                         <div className="flex items-center space-x-1">
                           <Clock className="w-3 h-3" />

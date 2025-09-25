@@ -41,6 +41,7 @@ const querySchema = z.object({
   priority: z.nativeEnum(Priority).optional(),
   tags: z.string().optional(), // comma-separated tags
   search: z.string().optional(),
+  eventId: z.string().optional(), // filter by event ID
   sortBy: z.enum(['createdAt', 'dueDate', 'priority', 'title']).default('createdAt'),
   sortOrder: z.enum(['asc', 'desc']).default('desc')
 });
@@ -48,7 +49,7 @@ const querySchema = z.object({
 // Get all tasks with filtering and pagination
 router.get('/', authenticateToken, asyncHandler(async (req: AuthRequest, res) => {
   const query = querySchema.parse(req.query);
-  const { page, limit, status, priority, tags, search, sortBy, sortOrder } = query;
+  const { page, limit, status, priority, tags, search, eventId, sortBy, sortOrder } = query;
 
   const skip = (page - 1) * limit;
   const tagArray = tags ? tags.split(',').map(t => t.trim()) : undefined;
@@ -59,6 +60,7 @@ router.get('/', authenticateToken, asyncHandler(async (req: AuthRequest, res) =>
 
   if (status) where.status = status;
   if (priority) where.priority = priority;
+  if (eventId) where.eventId = eventId;
   if (tagArray && tagArray.length > 0) {
     where.tags = { hasSome: tagArray };
   }

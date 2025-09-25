@@ -46,91 +46,106 @@ interface DashboardData {
 }
 
 // Memoized task item component for performance
-const TaskItem = memo(({ task, onComplete, onDelete, onView, order, showOrder }: { 
+const TaskItem = memo(({ task, onComplete, onDelete, onView, order, showOrder, events }: { 
   task: Task, 
   onComplete: (id: string) => void, 
   onDelete: (id: string) => void,
   onView: (id: string) => void,
   order?: number,
-  showOrder?: boolean
-}) => (
-  <div className="flex items-center justify-between p-3 rounded-lg border bg-card">
-    <div className="flex-1">
-      <div className="flex items-center space-x-2">
-        {showOrder && order && (
-          <div className="flex items-center justify-center w-6 h-6 rounded-full bg-primary text-primary-foreground text-xs font-bold">
-            {order}
-          </div>
+  showOrder?: boolean,
+  events?: Event[]
+}) => {
+  const relatedEvent = events?.find(event => event.id === task.eventId)
+  
+  return (
+    <div className="flex items-center justify-between p-3 rounded-lg border bg-card">
+      <div className="flex-1">
+        <div className="flex items-center space-x-2">
+          {showOrder && order && (
+            <div className="flex items-center justify-center w-6 h-6 rounded-full bg-primary text-primary-foreground text-xs font-bold">
+              {order}
+            </div>
+          )}
+          <h4 className="font-medium text-sm">{task.title}</h4>
+          <span className={`px-2 py-1 rounded-full text-xs ${getPriorityColor(task.priority)}`}>
+            {task.priority}
+          </span>
+        </div>
+        {task.description && (
+          <p className="text-xs text-muted-foreground mt-1">
+            {task.description}
+          </p>
         )}
-        <h4 className="font-medium text-sm">{task.title}</h4>
-        <span className={`px-2 py-1 rounded-full text-xs ${getPriorityColor(task.priority)}`}>
-          {task.priority}
-        </span>
+        <div className="flex items-center space-x-4 mt-2 text-xs text-muted-foreground">
+          {task.estimatedDuration && (
+            <div className="flex items-center space-x-1">
+              <Clock className="w-3 h-3" />
+              <span>{task.estimatedDuration}m</span>
+            </div>
+          )}
+          {task.budgetImpact && (
+            <div className="flex items-center space-x-1">
+              <DollarSign className="w-3 h-3" />
+              <span>{formatCurrency(task.budgetImpact)}</span>
+            </div>
+          )}
+        </div>
       </div>
-      {task.description && (
-        <p className="text-xs text-muted-foreground mt-1">
-          {task.description}
-        </p>
-      )}
-      <div className="flex items-center space-x-4 mt-2 text-xs text-muted-foreground">
-        {task.estimatedDuration && (
-          <div className="flex items-center space-x-1">
-            <Clock className="w-3 h-3" />
-            <span>{task.estimatedDuration}m</span>
-          </div>
-        )}
-        {task.budgetImpact && (
-          <div className="flex items-center space-x-1">
-            <DollarSign className="w-3 h-3" />
-            <span>{formatCurrency(task.budgetImpact)}</span>
+      <div className="flex flex-col items-end space-y-2">
+        <div className="flex space-x-2">
+          {/* View Button */}
+          <Button 
+            size="sm" 
+            variant="outline"
+            onClick={() => onView(task.id)}
+            title="View task details"
+          >
+            <Eye className="w-4 h-4" />
+          </Button>
+          
+          {/* Complete Button */}
+          {task.status !== 'COMPLETED' && (
+            <Button 
+              size="sm" 
+              variant="default"
+              onClick={() => onComplete(task.id)}
+              className="bg-green-600 hover:bg-green-700"
+              title="Complete task"
+            >
+              <CheckSquare className="w-4 h-4" />
+            </Button>
+          )}
+          
+          {/* Delete Button */}
+          <Button 
+            size="sm" 
+            variant="destructive"
+            onClick={() => onDelete(task.id)}
+            title="Delete task"
+          >
+            <Trash2 className="w-4 h-4" />
+          </Button>
+        </div>
+        {relatedEvent && (
+          <div className="text-xs text-blue-600">
+            Prep for: {relatedEvent.title}
           </div>
         )}
       </div>
     </div>
-    <div className="flex space-x-2">
-      {/* View Button */}
-      <Button 
-        size="sm" 
-        variant="outline"
-        onClick={() => onView(task.id)}
-        title="View task details"
-      >
-        <Eye className="w-4 h-4" />
-      </Button>
-      
-      {/* Complete Button */}
-      {task.status !== 'COMPLETED' && (
-        <Button 
-          size="sm" 
-          variant="default"
-          onClick={() => onComplete(task.id)}
-          className="bg-green-600 hover:bg-green-700"
-          title="Complete task"
-        >
-          <CheckSquare className="w-4 h-4" />
-        </Button>
-      )}
-      
-      {/* Delete Button */}
-      <Button 
-        size="sm" 
-        variant="destructive"
-        onClick={() => onDelete(task.id)}
-        title="Delete task"
-      >
-        <Trash2 className="w-4 h-4" />
-      </Button>
-    </div>
-  </div>
-))
+  )
+})
 
 // Memoized event item component for performance
-const EventItem = memo(({ event, onView, onDelete, weatherData }: { 
+const EventItem = memo(({ event, onView, onDelete, weatherData, preparationTasks }: { 
   event: Event, 
   onView: (id: string) => void, 
   onDelete: (id: string) => void,
-  weatherData?: { emoji: string; temperature: number; condition: string } | null
+  weatherData?: { emoji: string; temperature: number; condition: string } | null,
+  preparationTasks?: any[]
 }) => {
+  const [showAllTasks, setShowAllTasks] = useState(false)
+  
   console.log('🌤️ EventItem render:', event.title, 'weatherData:', weatherData)
   console.log('🌤️ EventItem emoji:', weatherData?.emoji)
   return (
@@ -142,6 +157,41 @@ const EventItem = memo(({ event, onView, onDelete, weatherData }: {
           {event.description}
         </p>
       )}
+      
+      {/* Preparation Tasks */}
+      {preparationTasks && preparationTasks.length > 0 && (
+        <div className="mt-2">
+          <div className="text-xs text-muted-foreground mb-1">Prep tasks:</div>
+          <div className="space-y-1">
+            {(showAllTasks ? preparationTasks : preparationTasks.slice(0, 3))
+              .sort((a: any, b: any) => {
+                const priorityOrder = { URGENT: 4, HIGH: 3, MEDIUM: 2, LOW: 1 }
+                return (priorityOrder[b.priority as keyof typeof priorityOrder] || 0) - (priorityOrder[a.priority as keyof typeof priorityOrder] || 0)
+              })
+              .map((task: any) => (
+              <div 
+                key={task.id} 
+                className={`text-xs text-muted-foreground transition-all duration-200 ${
+                  task.status === 'COMPLETED' 
+                    ? 'line-through text-green-600' 
+                    : ''
+                }`}
+              >
+                {task.status === 'COMPLETED' ? '✓' : '•'} {task.title}
+              </div>
+            ))}
+            {preparationTasks.length > 3 && (
+              <button
+                onClick={() => setShowAllTasks(!showAllTasks)}
+                className="text-xs text-blue-600 hover:text-blue-800 underline cursor-pointer transition-colors duration-200"
+              >
+                {showAllTasks ? 'Show less' : `+${preparationTasks.length - 3} more`}
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+      
         <div className="flex items-center space-x-4 mt-2 text-xs text-muted-foreground">
           <div className="flex items-center space-x-1">
             <Clock className="w-3 h-3" />
@@ -200,6 +250,7 @@ export function DashboardPage() {
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false)
   const [eventWeatherData, setEventWeatherData] = useState<Record<string, { emoji: string; temperature: number; condition: string } | null>>({})
   const [currentWeather, setCurrentWeather] = useState<{ emoji: string; temperature: number; condition: string; location: string } | null>(null)
+  const [eventPreparationTasks, setEventPreparationTasks] = useState<Record<string, any[]>>({})
 
   // Check authentication after all hooks are declared
   const authToken = localStorage.getItem('syncscript-auth')
@@ -430,6 +481,30 @@ export function DashboardPage() {
     }
   }, [])
 
+  // Fetch preparation tasks for events
+  const fetchEventPreparationTasks = useCallback(async (events: Event[]) => {
+    if (events.length === 0) return
+
+    try {
+      const preparationTasksData: Record<string, any[]> = {}
+      
+      // Fetch preparation tasks for each event
+      await Promise.all(events.map(async (event) => {
+        try {
+          const response = await api.get(`/tasks?eventId=${event.id}`)
+          preparationTasksData[event.id] = response.data.data || []
+        } catch (error) {
+          console.error(`Failed to fetch preparation tasks for event ${event.id}:`, error)
+          preparationTasksData[event.id] = []
+        }
+      }))
+      
+      setEventPreparationTasks(preparationTasksData)
+    } catch (error) {
+      console.error('Failed to fetch event preparation tasks:', error)
+    }
+  }, [])
+
   // Fetch current weather for user's location
   const fetchCurrentWeather = useCallback(async () => {
     try {
@@ -471,8 +546,9 @@ export function DashboardPage() {
   useEffect(() => {
     if (dashboardData?.upcomingEvents) {
       fetchEventWeather(dashboardData.upcomingEvents)
+      fetchEventPreparationTasks(dashboardData.upcomingEvents)
     }
-  }, [dashboardData?.upcomingEvents, fetchEventWeather])
+  }, [dashboardData?.upcomingEvents, fetchEventWeather, fetchEventPreparationTasks])
 
   // Fetch current weather on component mount
   useEffect(() => {
@@ -730,6 +806,7 @@ export function DashboardPage() {
                       onView={handleViewTask}
                       order={index + 1}
                       showOrder={true}
+                      events={dashboardData?.upcomingEvents}
                     />
                   ))}
                 {todayTasks.length > 5 && (
@@ -775,6 +852,7 @@ export function DashboardPage() {
                     onView={handleViewEvent}
                     onDelete={handleDeleteEvent}
                     weatherData={eventWeatherData[event.id]}
+                    preparationTasks={eventPreparationTasks[event.id]}
                   />
                 ))}
                 <Button 
