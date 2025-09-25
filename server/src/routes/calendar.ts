@@ -14,7 +14,7 @@ const createEventSchema = z.object({
   description: z.string().optional(),
   startTime: z.string().datetime(),
   endTime: z.string().datetime(),
-  location: z.string().optional(),
+  location: z.string().nullable().optional(),
   isAllDay: z.boolean().default(false),
   budgetImpact: z.number().optional()
 });
@@ -50,20 +50,24 @@ router.get('/', authenticateToken, asyncHandler(async (req: AuthRequest, res) =>
   if (!startDate && !endDate && !includePast) {
     const now = new Date();
     
-    // TEMPORARILY DISABLED: Complex timezone filtering causing errors
-    // TODO: Fix the timezone handling properly
-    // For now, show all events so the user can see their data
+    // Get today's date in local timezone (start of day)
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
     
-    logger.info('Temporarily showing all events due to timezone issues', { 
+    // Convert to UTC for database comparison
+    const todayUTC = new Date(today.toISOString());
+    
+    where.startTime = { 
+      gte: todayUTC
+    };
+    
+    logger.info('Filtering events to show only today and future', { 
       currentTime: now.toISOString(),
       currentTimeLocal: now.toLocaleString(),
+      todayUTC: todayUTC.toISOString(),
       userId: req.user!.id,
-      includePast: false,
-      note: "Timezone filtering disabled temporarily"
+      includePast: false
     });
-    
-    // Don't apply any time filtering for now
-    // where.startTime = { gte: now };
   } else {
     where.startTime = {};
     if (startDate) where.startTime.gte = new Date(startDate);

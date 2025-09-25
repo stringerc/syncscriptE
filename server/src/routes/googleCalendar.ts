@@ -20,7 +20,7 @@ const createGoogleEventSchema = z.object({
   description: z.string().optional(),
   startTime: z.string().datetime(),
   endTime: z.string().datetime(),
-  location: z.string().optional(),
+  location: z.string().nullable().optional(),
   calendarId: z.string().default('primary')
 });
 

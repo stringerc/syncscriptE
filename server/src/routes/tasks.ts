@@ -18,6 +18,8 @@ const createTaskSchema = z.object({
   estimatedDuration: z.number().min(0).optional(),
   energyRequired: z.number().min(1).max(10).optional(),
   budgetImpact: z.number().optional(),
+  notes: z.string().optional(),
+  location: z.string().optional(),
   tags: z.string().optional(),
   subtasks: z.array(z.object({
     title: z.string().min(1, 'Subtask title is required'),
@@ -277,6 +279,61 @@ router.patch('/:id/complete', authenticateToken, asyncHandler(async (req: AuthRe
     success: true,
     data: updatedTask,
     message: 'Task completed successfully'
+  });
+}));
+
+// Update task status
+router.patch('/:id/status', authenticateToken, asyncHandler(async (req: AuthRequest, res) => {
+  const { id } = req.params;
+  const { status } = req.body;
+
+  // Validate status
+  if (!Object.values(TaskStatus).includes(status)) {
+    throw createError('Invalid status', 400);
+  }
+
+  const task = await prisma.task.findFirst({
+    where: {
+      id,
+      userId: req.user!.id
+    }
+  });
+
+  if (!task) {
+    throw createError('Task not found', 404);
+  }
+
+  const updateData: any = { status };
+  
+  // Set completedAt when marking as completed
+  if (status === TaskStatus.COMPLETED) {
+    updateData.completedAt = new Date();
+  }
+  
+  // Clear completedAt when changing from completed to another status
+  if (task.status === TaskStatus.COMPLETED && status !== TaskStatus.COMPLETED) {
+    updateData.completedAt = null;
+  }
+
+  const updatedTask = await prisma.task.update({
+    where: { id },
+    data: updateData,
+    include: {
+      subtasks: { orderBy: { order: 'asc' } }
+    }
+  });
+
+  logger.info('Task status updated', { 
+    userId: req.user!.id, 
+    taskId: id, 
+    oldStatus: task.status, 
+    newStatus: status 
+  });
+
+  res.json({
+    success: true,
+    data: updatedTask,
+    message: `Task status updated to ${status}`
   });
 }));
 

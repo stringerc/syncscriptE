@@ -141,9 +141,15 @@ model Task {
   scheduledAt       DateTime?
   completedAt       DateTime?
   
+  // Additional fields
+  notes             String?  // User notes for the task
+  location          String?  // Location where task should be performed
+  
   // Relationships
   tags              String?  // Store as comma-separated string
   subtasks          Subtask[]
+  eventId           String?  // Link to event for preparation tasks
+  event             Event?   @relation(fields: [eventId], references: [id], onDelete: SetNull)
   
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -187,6 +193,7 @@ model Event {
   updatedAt DateTime @updatedAt
   
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  preparationTasks Task[] // Tasks generated for this event
 
   @@map("events")
 }

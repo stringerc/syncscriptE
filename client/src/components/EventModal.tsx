@@ -6,7 +6,8 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { useToast } from '@/hooks/use-toast'
-import { X, Save, Trash2, Calendar, Clock, MapPin, DollarSign } from 'lucide-react'
+import { ConfirmationModal } from '@/components/ConfirmationModal'
+import { X, Save, Trash2, Calendar, Clock, MapPin, DollarSign, Sparkles, Plus } from 'lucide-react'
 
 interface Event {
   id: string
@@ -104,6 +105,86 @@ export function EventModal({ event, isOpen, onClose, onEventUpdated }: EventModa
     }
   })
 
+  const addToGoogleCalendarMutation = useMutation({
+    mutationFn: async () => {
+      if (!event) throw new Error('No event to add to Google Calendar')
+      const response = await api.post('/google-calendar/events', {
+        title: event.title,
+        description: event.description,
+        startTime: event.startTime,
+        endTime: event.endTime,
+        location: event.location || undefined,
+        calendarId: 'primary'
+      })
+      return response.data
+    },
+    onSuccess: () => {
+      toast({
+        title: "Added to Google Calendar",
+        description: "The event has been successfully added to your Google Calendar."
+      })
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Failed to Add to Google Calendar",
+        description: error.response?.data?.error || "Failed to add event to Google Calendar",
+        variant: "destructive"
+      })
+    }
+  })
+
+  const [generatedTasks, setGeneratedTasks] = useState<any[]>([])
+  const [showTaskSelection, setShowTaskSelection] = useState(false)
+  const [selectedTasks, setSelectedTasks] = useState<Set<string>>(new Set())
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+
+  const generatePreparationTasksMutation = useMutation({
+    mutationFn: async () => {
+      if (!event) throw new Error('No event to generate tasks for')
+      const response = await api.post(`/ai/events/${event.id}/prepare`)
+      return response.data
+    },
+    onSuccess: (data) => {
+      if (data.data.tasks && data.data.tasks.length > 0) {
+        setGeneratedTasks(data.data.tasks)
+        setSelectedTasks(new Set(data.data.tasks.map((task: any) => task.id)))
+        setShowTaskSelection(true)
+      } else {
+        toast({
+          title: "No Tasks Generated",
+          description: "AI couldn't generate preparation tasks for this event",
+          variant: "destructive"
+        })
+      }
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Generation Failed",
+        description: error.response?.data?.error || "Failed to generate preparation tasks",
+        variant: "destructive"
+      })
+    }
+  })
+
+  const addSelectedTasksMutation = useMutation({
+    mutationFn: async () => {
+      const tasksToAdd = generatedTasks.filter(task => selectedTasks.has(task.id))
+      // Tasks are already created in the database, just need to refresh the UI
+      return { success: true, count: tasksToAdd.length }
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['tasks'] })
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+      toast({
+        title: "Tasks Added!",
+        description: `Added ${data.count} preparation tasks to your task list`
+      })
+      setShowTaskSelection(false)
+      setGeneratedTasks([])
+      setSelectedTasks(new Set())
+    }
+  })
+
   const handleSave = () => {
     if (!formData.title.trim()) {
       toast({
@@ -136,9 +217,12 @@ export function EventModal({ event, isOpen, onClose, onEventUpdated }: EventModa
   }
 
   const handleDelete = () => {
-    if (confirm('Are you sure you want to delete this event? This action cannot be undone.')) {
-      deleteEventMutation.mutate()
-    }
+    setShowDeleteConfirm(true)
+  }
+
+  const handleConfirmDelete = () => {
+    deleteEventMutation.mutate()
+    setShowDeleteConfirm(false)
   }
 
   if (!isOpen || !event) return null
@@ -278,22 +362,132 @@ export function EventModal({ event, isOpen, onClose, onEventUpdated }: EventModa
           )}
         </div>
 
+        {/* Task Selection Section */}
+        {showTaskSelection && (
+          <div className="border-t p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold">Generated Preparation Tasks</h3>
+              <div className="flex space-x-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setSelectedTasks(new Set(generatedTasks.map(task => task.id)))}
+                >
+                  Select All
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setSelectedTasks(new Set())}
+                >
+                  Select None
+                </Button>
+              </div>
+            </div>
+            
+            <div className="space-y-3 max-h-60 overflow-y-auto">
+              {generatedTasks.map((task) => (
+                <div key={task.id} className="flex items-start space-x-3 p-3 border rounded-lg">
+                  <input
+                    type="checkbox"
+                    checked={selectedTasks.has(task.id)}
+                    onChange={(e) => {
+                      const newSelected = new Set(selectedTasks)
+                      if (e.target.checked) {
+                        newSelected.add(task.id)
+                      } else {
+                        newSelected.delete(task.id)
+                      }
+                      setSelectedTasks(newSelected)
+                    }}
+                    className="mt-1"
+                  />
+                  <div className="flex-1">
+                    <div className="flex items-center space-x-2 mb-1">
+                      <h4 className="font-medium">{task.title}</h4>
+                      <span className={`px-2 py-1 text-xs rounded-full ${
+                        task.priority === 'HIGH' ? 'bg-red-100 text-red-800' :
+                        task.priority === 'MEDIUM' ? 'bg-yellow-100 text-yellow-800' :
+                        'bg-green-100 text-green-800'
+                      }`}>
+                        {task.priority}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        {task.estimatedDuration}min
+                      </span>
+                    </div>
+                    <p className="text-sm text-muted-foreground">{task.description}</p>
+                    {task.tags && (
+                      <span className="text-xs text-blue-600 mt-1 inline-block">
+                        #{task.tags}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+            
+            <div className="flex justify-end space-x-2 mt-4">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowTaskSelection(false)
+                  setGeneratedTasks([])
+                  setSelectedTasks(new Set())
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={() => addSelectedTasksMutation.mutate()}
+                disabled={selectedTasks.size === 0 || addSelectedTasksMutation.isPending}
+              >
+                Add {selectedTasks.size} Selected Tasks
+              </Button>
+            </div>
+          </div>
+        )}
+
         {/* Footer */}
         <div className="flex items-center justify-between p-6 border-t">
-          <div>
+          <div className="flex space-x-2">
             {!isEditing && (
-              <Button
-                variant="destructive"
-                size="sm"
-                onClick={handleDelete}
-                disabled={deleteEventMutation.isPending}
-              >
-                <Trash2 className="w-4 h-4 mr-2" />
-                {deleteEventMutation.isPending ? 'Deleting...' : 'Delete Event'}
-              </Button>
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => generatePreparationTasksMutation.mutate()}
+                  disabled={generatePreparationTasksMutation.isPending}
+                >
+                  <Sparkles className="w-4 h-4 mr-2" />
+                  {generatePreparationTasksMutation.isPending ? 'Generating...' : 'Generate Prep Tasks'}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleDelete}
+                  disabled={deleteEventMutation.isPending}
+                  className="border-red-200 text-red-700 hover:bg-red-50 hover:border-red-300"
+                >
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  {deleteEventMutation.isPending ? 'Deleting...' : 'Delete Event'}
+                </Button>
+              </>
             )}
           </div>
           <div className="flex space-x-2">
+            {!isEditing && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => addToGoogleCalendarMutation.mutate()}
+                disabled={addToGoogleCalendarMutation.isPending}
+                className="bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-200"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                {addToGoogleCalendarMutation.isPending ? 'Adding...' : 'Add to Google Calendar'}
+              </Button>
+            )}
             {isEditing && (
               <>
                 <Button
@@ -314,6 +508,19 @@ export function EventModal({ event, isOpen, onClose, onEventUpdated }: EventModa
           </div>
         </div>
       </div>
+
+      {/* Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={showDeleteConfirm}
+        onClose={() => setShowDeleteConfirm(false)}
+        onConfirm={handleConfirmDelete}
+        title="Delete Event"
+        message="Are you sure you want to delete this event? This action cannot be undone."
+        confirmText="Delete Event"
+        cancelText="Cancel"
+        variant="danger"
+        isLoading={deleteEventMutation.isPending}
+      />
     </div>
   )
 }

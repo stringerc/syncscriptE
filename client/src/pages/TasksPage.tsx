@@ -4,9 +4,10 @@ import { api } from '@/lib/api'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { CheckSquare, Plus, Clock, DollarSign, Zap, Trash2 } from 'lucide-react'
+import { CheckSquare, Plus, Clock, DollarSign, Zap, Trash2, Eye } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { formatDate, formatDuration, formatCurrency, getPriorityColor } from '@/lib/utils'
+import { TaskModal } from '@/components/TaskModal'
 import { Task, Priority } from '@/shared/types'
 
 export function TasksPage() {
@@ -19,6 +20,8 @@ export function TasksPage() {
     tags: ''
   })
   const [showAddForm, setShowAddForm] = useState(false)
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null)
+  const [isTaskModalOpen, setIsTaskModalOpen] = useState(false)
 
   const { toast } = useToast()
   const queryClient = useQueryClient()
@@ -95,6 +98,35 @@ export function TasksPage() {
     }
   })
 
+  const updateTaskStatusMutation = useMutation({
+    mutationFn: async ({ taskId, status }: { taskId: string, status: string }) => {
+      console.log('Updating task status:', { taskId, status })
+      try {
+        const response = await api.patch(`/tasks/${taskId}/status`, { status })
+        console.log('Status update response:', response.data)
+        return response.data
+      } catch (error) {
+        console.error('Status update error:', error)
+        throw error
+      }
+    },
+    onSuccess: (data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['tasks'] })
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+      toast({
+        title: "Status Updated!",
+        description: `Task status changed to ${variables.status.replace('_', ' ').toLowerCase()}`
+      })
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.response?.data?.error || "Failed to update task status",
+        variant: "destructive"
+      })
+    }
+  })
+
   const handleCreateTask = () => {
     if (!newTask.title.trim()) {
       toast({
@@ -115,6 +147,33 @@ export function TasksPage() {
     if (confirm('Are you sure you want to delete this task? This action cannot be undone.')) {
       deleteTaskMutation.mutate(taskId)
     }
+  }
+
+  const handleStatusChange = (taskId: string, newStatus: string) => {
+    console.log('🔄 handleStatusChange called:', { taskId, newStatus })
+    updateTaskStatusMutation.mutate({ taskId, status: newStatus })
+  }
+
+  const handleViewTask = (taskId: string) => {
+    const task = tasks?.find(t => t.id === taskId)
+    if (task) {
+      setSelectedTask(task)
+      setIsTaskModalOpen(true)
+    }
+  }
+
+  const handleCloseTaskModal = () => {
+    setIsTaskModalOpen(false)
+    setSelectedTask(null)
+  }
+
+  const handleTaskUpdated = (updatedTask: Task) => {
+    setSelectedTask(updatedTask)
+    queryClient.invalidateQueries({ queryKey: ['tasks'] })
+  }
+
+  const handleTaskDeleted = (taskId: string) => {
+    queryClient.invalidateQueries({ queryKey: ['tasks'] })
   }
 
   if (isLoading) {
@@ -227,7 +286,7 @@ export function TasksPage() {
             <span>Your Tasks</span>
           </CardTitle>
           <CardDescription>
-            {tasks?.length || 0} tasks total
+            {tasks?.length || 0} tasks total, ordered by priority (1 = highest priority)
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -247,13 +306,22 @@ export function TasksPage() {
             </div>
           ) : (
             <div className="space-y-3">
-              {tasks?.map((task) => (
+              {tasks
+                ?.sort((a, b) => {
+                  // Sort by priority: URGENT > HIGH > MEDIUM > LOW
+                  const priorityOrder = { URGENT: 4, HIGH: 3, MEDIUM: 2, LOW: 1 }
+                  return priorityOrder[b.priority] - priorityOrder[a.priority]
+                })
+                .map((task, index) => (
                 <div
                   key={task.id}
                   className="flex items-center justify-between p-4 rounded-lg border bg-card"
                 >
                   <div className="flex-1">
                     <div className="flex items-center space-x-2 mb-2">
+                      <div className="flex items-center justify-center w-6 h-6 rounded-full bg-primary text-primary-foreground text-xs font-bold">
+                        {index + 1}
+                      </div>
                       <h4 className="font-medium text-sm">{task.title}</h4>
                       <span className={`px-2 py-1 rounded-full text-xs ${getPriorityColor(task.priority)}`}>
                         {task.priority}
@@ -294,19 +362,37 @@ export function TasksPage() {
                     </div>
                   </div>
                   <div className="flex space-x-2">
+                    {/* Status Toggle Buttons */}
+                    {/* View Button */}
+                    <Button 
+                      size="sm" 
+                      variant="outline"
+                      onClick={() => handleViewTask(task.id)}
+                      title="View task details"
+                    >
+                      <Eye className="w-4 h-4" />
+                    </Button>
+                    
+                    {/* Complete Button */}
                     {task.status !== 'COMPLETED' && (
                       <Button 
                         size="sm" 
-                        variant="outline"
+                        variant="default"
                         onClick={() => handleCompleteTask(task.id)}
+                        disabled={completeTaskMutation.isPending}
+                        className="bg-green-600 hover:bg-green-700"
+                        title="Complete task"
                       >
-                        Complete
+                        <CheckSquare className="w-4 h-4" />
                       </Button>
                     )}
+                    
+                    {/* Delete Button */}
                     <Button 
                       size="sm" 
                       variant="destructive"
                       onClick={() => handleDeleteTask(task.id)}
+                      title="Delete task"
                     >
                       <Trash2 className="w-4 h-4" />
                     </Button>
@@ -317,6 +403,14 @@ export function TasksPage() {
           )}
         </CardContent>
       </Card>
+      
+      <TaskModal
+        task={selectedTask}
+        isOpen={isTaskModalOpen}
+        onClose={handleCloseTaskModal}
+        onTaskUpdated={handleTaskUpdated}
+        onTaskDeleted={handleTaskDeleted}
+      />
     </div>
   )
 }

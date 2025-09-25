@@ -280,9 +280,15 @@ router.get('/dashboard', authenticateToken, asyncHandler(async (req: AuthRequest
     }),
       prisma.event.findMany({
         where: {
-          userId: req.user!.id
-          // TEMPORARILY DISABLED: Complex timezone filtering causing errors
-          // TODO: Fix timezone handling properly
+          userId: req.user!.id,
+          // Apply same date-based filtering as calendar route
+          startTime: {
+            gte: (() => {
+              const today = new Date();
+              today.setHours(0, 0, 0, 0);
+              return new Date(today.toISOString());
+            })()
+          }
         },
         orderBy: { startTime: 'asc' },
         take: 5

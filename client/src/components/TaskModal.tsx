@@ -1,0 +1,645 @@
+import { useState, useEffect } from 'react'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { api } from '@/lib/api'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
+import { useToast } from '@/hooks/use-toast'
+import { ConfirmationModal } from '@/components/ConfirmationModal'
+import { 
+  X, 
+  Save, 
+  Trash2, 
+  CheckSquare, 
+  MapPin, 
+  Clock, 
+  Calendar,
+  Sparkles,
+  AlertCircle
+} from 'lucide-react'
+import { Task, Priority, TaskStatus } from '@/shared/types'
+
+interface TaskModalProps {
+  task: Task | null
+  isOpen: boolean
+  onClose: () => void
+  onTaskUpdated?: (task: Task) => void
+  onTaskDeleted?: (taskId: string) => void
+}
+
+interface CalendarSuggestion {
+  suggestedTime: string
+  suggestedEndTime: string
+  reasoning: string
+  conflicts: string[]
+}
+
+export function TaskModal({ task, isOpen, onClose, onTaskUpdated, onTaskDeleted }: TaskModalProps) {
+  const { toast } = useToast()
+  const queryClient = useQueryClient()
+  const [isEditing, setIsEditing] = useState(false)
+  const [formData, setFormData] = useState({
+    title: '',
+    description: '',
+    notes: '',
+    location: '',
+    priority: 'MEDIUM' as Priority,
+    estimatedDuration: 30
+  })
+  const [calendarSuggestion, setCalendarSuggestion] = useState<CalendarSuggestion | null>(null)
+  const [showCalendarSuggestion, setShowCalendarSuggestion] = useState(false)
+  const [suggestedNotes, setSuggestedNotes] = useState<string[]>([])
+  const [showNotesSuggestion, setShowNotesSuggestion] = useState(false)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+
+  // Initialize form data when task changes
+  useEffect(() => {
+    if (task) {
+      setFormData({
+        title: task.title,
+        description: task.description || '',
+        notes: task.notes || '',
+        location: task.location || '',
+        priority: task.priority,
+        estimatedDuration: task.estimatedDuration || 30
+      })
+    }
+  }, [task])
+
+  const updateTaskMutation = useMutation({
+    mutationFn: async (data: any) => {
+      if (!task) throw new Error('No task to update')
+      const response = await api.put(`/tasks/${task.id}`, data)
+      return response.data
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "Task Updated",
+        description: "Task has been updated successfully"
+      })
+      queryClient.invalidateQueries({ queryKey: ['tasks'] })
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+      onTaskUpdated?.(data.data)
+      setIsEditing(false)
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Update Failed",
+        description: error.response?.data?.error || "Failed to update task",
+        variant: "destructive"
+      })
+    }
+  })
+
+  const deleteTaskMutation = useMutation({
+    mutationFn: async () => {
+      if (!task) throw new Error('No task to delete')
+      const response = await api.delete(`/tasks/${task.id}`)
+      return response.data
+    },
+    onSuccess: () => {
+      toast({
+        title: "Task Deleted",
+        description: "Task has been deleted successfully"
+      })
+      queryClient.invalidateQueries({ queryKey: ['tasks'] })
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+      onTaskDeleted?.(task!.id)
+      onClose()
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Delete Failed",
+        description: error.response?.data?.error || "Failed to delete task",
+        variant: "destructive"
+      })
+    }
+  })
+
+  const completeTaskMutation = useMutation({
+    mutationFn: async () => {
+      if (!task) throw new Error('No task to complete')
+      const response = await api.patch(`/tasks/${task.id}/status`, { status: 'COMPLETED' })
+      return response.data
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "Task Completed!",
+        description: "Great job completing this task!"
+      })
+      queryClient.invalidateQueries({ queryKey: ['tasks'] })
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+      onTaskUpdated?.(data.data)
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Failed to Complete Task",
+        description: error.response?.data?.error || "Failed to complete task",
+        variant: "destructive"
+      })
+    }
+  })
+
+  const suggestCalendarEventMutation = useMutation({
+    mutationFn: async () => {
+      if (!task) throw new Error('No task to suggest calendar event for')
+      const response = await api.post(`/ai/tasks/${task.id}/suggest-calendar`, {
+        taskTitle: task.title,
+        taskDescription: task.description,
+        estimatedDuration: task.estimatedDuration,
+        location: task.location,
+        notes: task.notes
+      })
+      return response.data
+    },
+    onSuccess: (data) => {
+      setCalendarSuggestion(data.data.suggestion)
+      setShowCalendarSuggestion(true)
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Suggestion Failed",
+        description: error.response?.data?.error || "Failed to generate calendar suggestion",
+        variant: "destructive"
+      })
+    }
+  })
+
+  const createCalendarEventMutation = useMutation({
+    mutationFn: async (suggestion: CalendarSuggestion) => {
+      if (!task) throw new Error('No task to create calendar event for')
+      
+      // Create the calendar event
+      const eventResponse = await api.post('/calendar', {
+        title: task.title,
+        description: task.description,
+        startTime: suggestion.suggestedTime,
+        endTime: suggestion.suggestedEndTime,
+        location: task.location || undefined,
+        budgetImpact: task.budgetImpact || 0
+      })
+      
+      // Delete the task since it's now converted to an event
+      await api.delete(`/tasks/${task.id}`)
+      
+      return eventResponse.data
+    },
+    onSuccess: () => {
+      toast({
+        title: "Calendar Event Created!",
+        description: "The task has been converted to a calendar event and removed from your tasks"
+      })
+      queryClient.invalidateQueries({ queryKey: ['calendar'] })
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+      queryClient.invalidateQueries({ queryKey: ['tasks'] })
+      setShowCalendarSuggestion(false)
+      setCalendarSuggestion(null)
+      // Close the modal since the task is now converted to an event
+      onClose()
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Failed to Create Event",
+        description: error.response?.data?.error || "Failed to create calendar event",
+        variant: "destructive"
+      })
+    }
+  })
+
+  const suggestNotesMutation = useMutation({
+    mutationFn: async () => {
+      if (!task) throw new Error('No task to suggest notes for')
+      const response = await api.post(`/ai/tasks/${task.id}/suggest-notes`, {
+        taskTitle: task.title,
+        taskDescription: task.description
+      })
+      return response.data
+    },
+    onSuccess: (data) => {
+      setSuggestedNotes(data.data.suggestedNotes)
+      setShowNotesSuggestion(true)
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Suggestion Failed",
+        description: error.response?.data?.error || "Failed to generate notes suggestion",
+        variant: "destructive"
+      })
+    }
+  })
+
+  const handleSave = () => {
+    updateTaskMutation.mutate(formData)
+  }
+
+  const handleDelete = () => {
+    setShowDeleteConfirm(true)
+  }
+
+  const handleConfirmDelete = () => {
+    deleteTaskMutation.mutate()
+    setShowDeleteConfirm(false)
+  }
+
+  const handleComplete = () => {
+    completeTaskMutation.mutate()
+  }
+
+  const handleEdit = () => {
+    setIsEditing(true)
+  }
+
+  const handleClose = () => {
+    setIsEditing(false)
+    setShowCalendarSuggestion(false)
+    setCalendarSuggestion(null)
+    onClose()
+  }
+
+  const handleSuggestCalendar = () => {
+    suggestCalendarEventMutation.mutate()
+  }
+
+  const handleCreateCalendarEvent = () => {
+    if (calendarSuggestion) {
+      createCalendarEventMutation.mutate(calendarSuggestion)
+    }
+  }
+
+  const handleSuggestNotes = () => {
+    suggestNotesMutation.mutate()
+  }
+
+  const handleRegenerateNotes = () => {
+    suggestNotesMutation.mutate()
+  }
+
+  const handleDeleteNotes = () => {
+    setSuggestedNotes([])
+    setShowNotesSuggestion(false)
+  }
+
+  const handleUseSuggestedNotes = () => {
+    const combinedNotes = suggestedNotes.join('\n\n')
+    setFormData({ ...formData, notes: formData.notes ? `${formData.notes}\n\n${combinedNotes}` : combinedNotes })
+    setShowNotesSuggestion(false)
+  }
+
+  if (!task) return null
+
+  return (
+    <div className={`fixed inset-0 z-50 flex items-center justify-center bg-black/50 ${isOpen ? '' : 'hidden'}`}>
+      <div className="bg-background rounded-lg shadow-xl w-full max-w-2xl mx-4 max-h-[90vh] flex flex-col">
+        {/* Header */}
+        <div className="flex items-center justify-between p-6 border-b">
+          <h2 className="text-2xl font-bold">{isEditing ? 'Edit Task' : 'Task Details'}</h2>
+          <Button variant="ghost" size="icon" onClick={handleClose}>
+            <X className="w-5 h-5" />
+          </Button>
+        </div>
+
+        {/* Content */}
+        <div className="p-6 flex-1 overflow-y-auto">
+          {isEditing ? (
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="title">Title</Label>
+                <Input
+                  id="title"
+                  value={formData.title}
+                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="description">Description</Label>
+                <Textarea
+                  id="description"
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  rows={3}
+                />
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <Label htmlFor="notes">Notes</Label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleSuggestNotes}
+                    disabled={suggestNotesMutation.isPending}
+                  >
+                    <Sparkles className="w-4 h-4 mr-2" />
+                    {suggestNotesMutation.isPending ? 'Generating...' : 'AI Suggest Notes'}
+                  </Button>
+                </div>
+                <Textarea
+                  id="notes"
+                  value={formData.notes}
+                  onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                  placeholder="Add your personal notes about this task..."
+                  rows={3}
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="location">Location</Label>
+                <Input
+                  id="location"
+                  value={formData.location}
+                  onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                  placeholder="Where should this task be performed?"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="priority">Priority</Label>
+                  <select
+                    id="priority"
+                    value={formData.priority}
+                    onChange={(e) => setFormData({ ...formData, priority: e.target.value as Priority })}
+                    className="w-full p-2 border rounded-md"
+                  >
+                    <option value="LOW">Low</option>
+                    <option value="MEDIUM">Medium</option>
+                    <option value="HIGH">High</option>
+                    <option value="URGENT">Urgent</option>
+                  </select>
+                </div>
+
+                <div>
+                  <Label htmlFor="duration">Estimated Duration (minutes)</Label>
+                  <Input
+                    id="duration"
+                    type="number"
+                    value={formData.estimatedDuration}
+                    onChange={(e) => setFormData({ ...formData, estimatedDuration: parseInt(e.target.value) || 30 })}
+                  />
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div>
+              <div className="mb-4">
+                <h3 className="text-lg font-semibold">{task.title}</h3>
+                {task.description && (
+                  <p className="text-muted-foreground mt-2">{task.description}</p>
+                )}
+              </div>
+
+              <div className="space-y-3">
+                <div className="flex items-center space-x-2">
+                  <span className={`px-2 py-1 text-xs rounded-full ${
+                    task.priority === 'URGENT' ? 'bg-red-100 text-red-800' :
+                    task.priority === 'HIGH' ? 'bg-orange-100 text-orange-800' :
+                    task.priority === 'MEDIUM' ? 'bg-yellow-100 text-yellow-800' :
+                    'bg-green-100 text-green-800'
+                  }`}>
+                    {task.priority}
+                  </span>
+                  <span className={`px-2 py-1 text-xs rounded-full ${
+                    task.status === 'COMPLETED' ? 'bg-green-100 text-green-800' :
+                    task.status === 'IN_PROGRESS' ? 'bg-blue-100 text-blue-800' :
+                    'bg-gray-100 text-gray-800'
+                  }`}>
+                    {task.status}
+                  </span>
+                </div>
+
+                {task.estimatedDuration && (
+                  <div className="flex items-center space-x-2">
+                    <Clock className="w-4 h-4 text-muted-foreground" />
+                    <span className="text-sm">{task.estimatedDuration} minutes</span>
+                  </div>
+                )}
+
+                {task.location && (
+                  <div className="flex items-center space-x-2">
+                    <MapPin className="w-4 h-4 text-muted-foreground" />
+                    <span className="text-sm">{task.location}</span>
+                  </div>
+                )}
+
+                {task.notes && (
+                  <div className="mt-4">
+                    <h4 className="font-medium mb-2">Notes</h4>
+                    <p className="text-sm text-muted-foreground bg-muted p-3 rounded-md">
+                      {task.notes}
+                    </p>
+                  </div>
+                )}
+
+                {task.dueDate && (
+                  <div className="flex items-center space-x-2">
+                    <Calendar className="w-4 h-4 text-muted-foreground" />
+                    <span className="text-sm">Due: {new Date(task.dueDate).toLocaleDateString()}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Calendar Suggestion Section */}
+        {showCalendarSuggestion && calendarSuggestion && (
+          <div className="border-t p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold">AI Calendar Suggestion</h3>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowCalendarSuggestion(false)}
+              >
+                <X className="w-4 h-4" />
+              </Button>
+            </div>
+            
+            <div className="space-y-3 p-4 bg-blue-50 rounded-lg">
+              <div className="flex items-center space-x-2">
+                <Calendar className="w-4 h-4 text-blue-600" />
+                <span className="font-medium">
+                  {new Date(calendarSuggestion.suggestedTime).toLocaleString()} - 
+                  {new Date(calendarSuggestion.suggestedEndTime).toLocaleString()}
+                </span>
+              </div>
+              
+              <p className="text-sm text-blue-800">
+                <strong>Reasoning:</strong> {calendarSuggestion.reasoning}
+              </p>
+              
+              {calendarSuggestion.conflicts.length > 0 && (
+                <div className="flex items-start space-x-2">
+                  <AlertCircle className="w-4 h-4 text-orange-600 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-medium text-orange-800">Potential conflicts:</p>
+                    <ul className="text-sm text-orange-700 list-disc list-inside">
+                      {calendarSuggestion.conflicts.map((conflict, index) => (
+                        <li key={index}>{conflict}</li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              )}
+            </div>
+            
+            <div className="flex justify-end space-x-2 mt-4">
+              <Button
+                variant="outline"
+                onClick={() => setShowCalendarSuggestion(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleCreateCalendarEvent}
+                disabled={createCalendarEventMutation.isPending}
+              >
+                {createCalendarEventMutation.isPending ? 'Creating...' : 'Create Calendar Event'}
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Notes Suggestion Section */}
+        {showNotesSuggestion && suggestedNotes.length > 0 && (
+          <div className="border-t p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold">AI Suggested Notes</h3>
+              <div className="flex space-x-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleRegenerateNotes}
+                  disabled={suggestNotesMutation.isPending}
+                >
+                  <Sparkles className="w-4 h-4 mr-2" />
+                  {suggestNotesMutation.isPending ? 'Regenerating...' : 'Regenerate'}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleDeleteNotes}
+                >
+                  <X className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
+            
+            <div className="space-y-3 p-4 bg-green-50 rounded-lg">
+              <div className="space-y-2">
+                {suggestedNotes.map((note, index) => (
+                  <div key={index} className="flex items-start space-x-2">
+                    <div className="flex items-center justify-center w-5 h-5 rounded-full bg-green-200 text-green-800 text-xs font-bold mt-0.5">
+                      {index + 1}
+                    </div>
+                    <p className="text-sm text-green-800">{note}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+            
+            <div className="flex justify-end space-x-2 mt-4">
+              <Button
+                variant="outline"
+                onClick={handleDeleteNotes}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleUseSuggestedNotes}
+                className="bg-green-600 hover:bg-green-700"
+              >
+                Use These Notes
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Footer */}
+        <div className="flex items-center justify-between p-6 border-t">
+          <div className="flex space-x-2">
+            {!isEditing && (
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleSuggestCalendar}
+                  disabled={suggestCalendarEventMutation.isPending}
+                >
+                  <Sparkles className="w-4 h-4 mr-2" />
+                  {suggestCalendarEventMutation.isPending ? 'Analyzing...' : 'Suggest Calendar Event'}
+                </Button>
+                {task.status !== 'COMPLETED' && (
+                  <Button
+                    onClick={handleComplete}
+                    disabled={completeTaskMutation.isPending}
+                    className="bg-green-600 hover:bg-green-700"
+                    size="sm"
+                  >
+                    <CheckSquare className="w-4 h-4 mr-2" />
+                    {completeTaskMutation.isPending ? 'Completing...' : 'Complete Task'}
+                  </Button>
+                )}
+              </>
+            )}
+          </div>
+          <div className="flex space-x-2">
+            {!isEditing && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleDelete}
+                disabled={deleteTaskMutation.isPending}
+                className="border-red-200 text-red-700 hover:bg-red-50 hover:border-red-300"
+              >
+                <Trash2 className="w-4 h-4 mr-2" />
+                {deleteTaskMutation.isPending ? 'Deleting...' : 'Delete Task'}
+              </Button>
+            )}
+            {isEditing && (
+              <>
+                <Button
+                  variant="outline"
+                  onClick={() => setIsEditing(false)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleSave}
+                  disabled={updateTaskMutation.isPending}
+                >
+                  <Save className="w-4 h-4 mr-2" />
+                  {updateTaskMutation.isPending ? 'Saving...' : 'Save Changes'}
+                </Button>
+              </>
+            )}
+            {!isEditing && (
+              <Button
+                variant="outline"
+                onClick={handleEdit}
+              >
+                Edit Task
+              </Button>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={showDeleteConfirm}
+        onClose={() => setShowDeleteConfirm(false)}
+        onConfirm={handleConfirmDelete}
+        title="Delete Task"
+        message="Are you sure you want to delete this task? This action cannot be undone."
+        confirmText="Delete Task"
+        cancelText="Cancel"
+        variant="danger"
+        isLoading={deleteTaskMutation.isPending}
+      />
+    </div>
+  )
+}

@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { asyncHandler, createError } from '../middleware/errorHandler';
 import { authenticateToken, AuthRequest } from '../middleware/auth';
 import { logger } from '../utils/logger';
+import { PlaidService } from '../services/plaidService';
 
 const router = express.Router();
 const prisma = new PrismaClient();
@@ -440,6 +441,177 @@ router.get('/recommendations', authenticateToken, asyncHandler(async (req: AuthR
       }
     }
   });
+}));
+
+// Plaid Integration Routes
+
+// Create link token for Plaid Link
+router.post('/plaid/link-token', authenticateToken, asyncHandler(async (req: AuthRequest, res) => {
+  try {
+    const linkToken = await PlaidService.createLinkToken(req.user!.id);
+    
+    logger.info('Sending response', { 
+      linkToken: linkToken ? linkToken.substring(0, 20) + '...' : 'undefined',
+      userId: req.user!.id 
+    });
+    
+    res.json({
+      success: true,
+      data: { linkToken },
+      message: 'Link token created successfully'
+    });
+  } catch (error: any) {
+    logger.error('Failed to create link token', { error: error.message, userId: req.user!.id });
+    throw createError('Failed to create link token', 500);
+  }
+}));
+
+// Exchange public token for access token and create accounts
+router.post('/plaid/exchange-token', authenticateToken, asyncHandler(async (req: AuthRequest, res) => {
+  const { publicToken } = req.body;
+  
+  if (!publicToken) {
+    throw createError('Public token is required', 400);
+  }
+
+  try {
+    // Exchange public token for access token
+    const accessToken = await PlaidService.exchangePublicToken(publicToken);
+    
+    // Get accounts from Plaid
+    const plaidAccounts = await PlaidService.getAccounts(accessToken);
+    
+    // Create financial accounts in database
+    const createdAccounts = [];
+    for (const plaidAccount of plaidAccounts) {
+      const account = await prisma.financialAccount.create({
+        data: {
+          plaidItemId: accessToken, // Store access token as item ID for now
+          accountId: plaidAccount.accountId,
+          accountName: plaidAccount.name,
+          accountType: plaidAccount.type,
+          balance: plaidAccount.balance,
+          userId: req.user!.id,
+          isActive: true
+        }
+      });
+      createdAccounts.push(account);
+    }
+    
+    logger.info('Plaid accounts created', { 
+      userId: req.user!.id, 
+      accountCount: createdAccounts.length 
+    });
+    
+    res.json({
+      success: true,
+      data: {
+        accounts: createdAccounts,
+        accessToken: accessToken.substring(0, 10) + '...' // Return masked token
+      },
+      message: 'Accounts connected successfully'
+    });
+  } catch (error: any) {
+    logger.error('Failed to exchange token', { error: error.message, userId: req.user!.id });
+    throw createError('Failed to connect accounts', 500);
+  }
+}));
+
+// Get transactions from Plaid
+router.get('/plaid/transactions', authenticateToken, asyncHandler(async (req: AuthRequest, res) => {
+  const { startDate, endDate, accountId } = req.query;
+  
+  if (!startDate || !endDate) {
+    throw createError('Start date and end date are required', 400);
+  }
+
+  try {
+    // Get user's financial accounts to find access token
+    const accounts = await prisma.financialAccount.findMany({
+      where: { 
+        userId: req.user!.id,
+        isActive: true
+      }
+    });
+
+    if (accounts.length === 0) {
+      throw createError('No connected accounts found', 404);
+    }
+
+    // For now, use the first account's access token
+    // In a real implementation, you'd store access tokens separately
+    const accessToken = accounts[0].plaidItemId;
+    
+    const transactions = await PlaidService.getTransactions(
+      accessToken,
+      new Date(startDate as string),
+      new Date(endDate as string)
+    );
+
+    // Filter by account if specified
+    const filteredTransactions = accountId 
+      ? transactions.filter(t => t.accountId === accountId)
+      : transactions;
+
+    res.json({
+      success: true,
+      data: {
+        transactions: filteredTransactions,
+        count: filteredTransactions.length
+      }
+    });
+  } catch (error: any) {
+    logger.error('Failed to get transactions', { error: error.message, userId: req.user!.id });
+    throw createError('Failed to get transactions', 500);
+  }
+}));
+
+// Update account balances
+router.post('/plaid/update-balances', authenticateToken, asyncHandler(async (req: AuthRequest, res) => {
+  try {
+    const accounts = await prisma.financialAccount.findMany({
+      where: { 
+        userId: req.user!.id,
+        isActive: true
+      }
+    });
+
+    if (accounts.length === 0) {
+      throw createError('No connected accounts found', 404);
+    }
+
+    const updatedAccounts = [];
+    for (const account of accounts) {
+      try {
+        const newBalance = await PlaidService.getAccountBalance(account.plaidItemId, account.accountId);
+        
+        const updatedAccount = await prisma.financialAccount.update({
+          where: { id: account.id },
+          data: { balance: newBalance }
+        });
+        
+        updatedAccounts.push(updatedAccount);
+      } catch (error: any) {
+        logger.error('Failed to update balance for account', { 
+          error: error.message, 
+          accountId: account.id 
+        });
+        // Continue with other accounts
+      }
+    }
+
+    res.json({
+      success: true,
+      data: {
+        updatedAccounts,
+        count: updatedAccounts.length
+      },
+      message: 'Account balances updated successfully'
+    });
+  } catch (error: any) {
+    logger.error('Failed to update balances', { error: error.message, userId: req.user!.id });
+    throw createError('Failed to update balances', 500);
+  }
 }));
 
 export default router;

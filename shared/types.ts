@@ -26,6 +26,8 @@ export interface Task {
   extractedFrom?: string;
   scheduledAt?: string;
   completedAt?: string;
+  notes?: string;
+  location?: string;
   tags: string[];
   subtasks: Subtask[];
   createdAt: string;

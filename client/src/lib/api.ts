@@ -34,15 +34,23 @@ api.interceptors.request.use(
   (config) => {
     // Add auth token if available
     const token = localStorage.getItem('syncscript-auth')
+    console.log('🔐 Auth token from localStorage:', token)
     if (token) {
       try {
         const authData = JSON.parse(token)
+        console.log('🔐 Parsed auth data:', authData)
         if (authData.state?.token) {
           config.headers.Authorization = `Bearer ${authData.state.token}`
+          console.log('🔐 Authorization header set:', config.headers.Authorization)
+        } else {
+          console.log('🔐 No token found in auth data')
         }
       } catch (error) {
+        console.log('🔐 Error parsing auth token:', error)
         // Invalid token format, ignore
       }
+    } else {
+      console.log('🔐 No auth token found in localStorage')
     }
     return config
   },

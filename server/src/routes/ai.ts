@@ -310,19 +310,21 @@ User Context:
 - Upcoming events: ${user?._count.events || 0}
 
 Tasks to prioritize:
-${tasks.map(t => `- ${t.title} (${t.priority}, ${t.estimatedDuration || 'unknown'} min, energy: ${t.energyRequired || 'unknown'})`).join('\n')}
+${tasks.map(t => `- ID: ${t.id} | ${t.title} (${t.priority}, ${t.estimatedDuration || 'unknown'} min, energy: ${t.energyRequired || 'unknown'})`).join('\n')}
 
 Return prioritized tasks in this JSON format:
 {
   "prioritizedTasks": [
     {
-      "taskId": "task-id",
+      "taskId": "EXACT_TASK_ID_FROM_ABOVE",
       "priority": "LOW|MEDIUM|HIGH|URGENT",
       "reasoning": "Why this priority was assigned",
       "suggestedOrder": 1
     }
   ]
 }
+
+IMPORTANT: Use the exact task IDs provided above. Do not create new IDs.
 
 Consider urgency, importance, energy requirements, and user context.`;
 
@@ -345,27 +347,45 @@ Consider urgency, importance, energy requirements, and user context.`;
     // Update task priorities
     const updatedTasks = [];
     for (const item of prioritizedData.prioritizedTasks) {
-      const task = await prisma.task.update({
-        where: { id: item.taskId },
-        data: { priority: item.priority },
-        include: { subtasks: true }
-      });
-      updatedTasks.push({
-        ...task,
-        reasoning: item.reasoning,
-        suggestedOrder: item.suggestedOrder
-      });
+      try {
+        const task = await prisma.task.update({
+          where: { id: item.taskId },
+          data: { priority: item.priority },
+          include: { subtasks: true }
+        });
+        updatedTasks.push({
+          ...task,
+          reasoning: item.reasoning,
+          suggestedOrder: item.suggestedOrder
+        });
+      } catch (updateError: any) {
+        logger.error('Failed to update task priority', { 
+          taskId: item.taskId, 
+          error: updateError.message,
+          userId: req.user!.id 
+        });
+        // Continue with other tasks instead of failing completely
+      }
+    }
+
+    if (updatedTasks.length === 0) {
+      throw createError('No tasks could be updated. Please check if the task IDs are valid.', 400);
     }
 
     logger.info('Tasks prioritized successfully', {
       userId: req.user!.id,
-      tasksPrioritized: updatedTasks.length
+      tasksPrioritized: updatedTasks.length,
+      totalRequested: prioritizedData.prioritizedTasks.length
     });
 
     res.json({
       success: true,
-      data: updatedTasks,
-      message: `Prioritized ${updatedTasks.length} tasks`
+      data: {
+        updatedTasks,
+        totalRequested: prioritizedData.prioritizedTasks.length,
+        successfullyUpdated: updatedTasks.length
+      },
+      message: `Prioritized ${updatedTasks.length} out of ${prioritizedData.prioritizedTasks.length} tasks`
     });
 
   } catch (error) {
@@ -519,6 +539,388 @@ router.post('/create-event', authenticateToken, asyncHandler(async (req: AuthReq
   } catch (error) {
     logger.error('AI event creation error', { error: error instanceof Error ? error.message : 'Unknown error' });
     throw createError('Failed to create event', 500);
+  }
+}));
+
+// Generate preparation tasks for an event
+router.post('/events/:eventId/prepare', authenticateToken, asyncHandler(async (req: AuthRequest, res) => {
+  const { eventId } = req.params;
+  const userId = req.user!.id;
+
+  if (!openai) {
+    throw createError('AI service not available', 500);
+  }
+
+  try {
+    // Get the event details
+    const event = await prisma.event.findFirst({
+      where: {
+        id: eventId,
+        userId: userId
+      }
+    });
+
+    if (!event) {
+      throw createError('Event not found', 404);
+    }
+
+    // Create AI prompt for event preparation
+    const systemPrompt = `You are an AI assistant that helps users prepare for events by generating relevant preparation tasks. 
+    Based on the event details provided, generate 3-5 specific, actionable preparation tasks that would help the user be ready for this event.
+    
+    Consider factors like:
+    - Event type and nature
+    - Duration and timing
+    - Location and travel requirements
+    - Materials or items needed
+    - Preparation time required
+    - Budget considerations
+    
+    Return your response as a JSON array of tasks, where each task has:
+    - title: A clear, actionable task title
+    - description: Detailed description of what needs to be done
+    - priority: HIGH, MEDIUM, or LOW based on importance and urgency
+    - estimatedDuration: Estimated time in minutes (e.g., 30, 60, 120)
+    - category: Relevant category like "logistics", "materials", "research", "communication", etc.
+    
+    Example format:
+    [
+      {
+        "title": "Book transportation to venue",
+        "description": "Research and book appropriate transportation method to get to the event location on time",
+        "priority": "HIGH",
+        "estimatedDuration": 15,
+        "category": "logistics"
+      }
+    ]`;
+
+    const userPrompt = `Generate preparation tasks for this event:
+    
+    Event Title: ${event.title}
+    Description: ${event.description || 'No description provided'}
+    Start Time: ${event.startTime}
+    End Time: ${event.endTime}
+    Location: ${event.location || 'No location specified'}
+    Budget Impact: ${event.budgetImpact || 'No budget impact specified'}
+    Event Type: ${event.type || 'General event'}`;
+
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt }
+      ],
+      temperature: 0.7,
+      max_tokens: 1000
+    });
+
+    const response = completion.choices[0]?.message?.content;
+    if (!response) {
+      throw createError('No response from AI', 500);
+    }
+
+    let preparationTasks;
+    try {
+      preparationTasks = JSON.parse(response);
+    } catch (parseError) {
+      logger.error('Failed to parse AI response', { response, error: parseError });
+      throw createError('Invalid AI response format', 500);
+    }
+
+    // Validate the response format
+    if (!Array.isArray(preparationTasks)) {
+      throw createError('AI response must be an array of tasks', 500);
+    }
+
+    // Create tasks in the database
+    const createdTasks = [];
+    for (const taskData of preparationTasks) {
+      try {
+        const task = await prisma.task.create({
+          data: {
+            title: taskData.title,
+            description: taskData.description,
+            priority: taskData.priority || Priority.MEDIUM,
+            status: TaskStatus.PENDING,
+            userId: userId,
+            tags: taskData.category || 'preparation',
+            estimatedDuration: taskData.estimatedDuration || 30,
+            aiGenerated: true,
+            // Link to the event
+            eventId: eventId
+          }
+        });
+        createdTasks.push(task);
+      } catch (taskError) {
+        logger.error('Failed to create preparation task', { taskData, error: taskError });
+        // Continue with other tasks even if one fails
+      }
+    }
+
+    logger.info('Event preparation tasks generated', { 
+      userId, 
+      eventId, 
+      tasksCreated: createdTasks.length,
+      totalRequested: preparationTasks.length 
+    });
+
+    res.json({
+      success: true,
+      data: {
+        tasks: createdTasks,
+        totalCreated: createdTasks.length,
+        totalRequested: preparationTasks.length
+      },
+      message: `Generated ${createdTasks.length} preparation tasks for "${event.title}"`
+    });
+
+  } catch (error) {
+    logger.error('AI event preparation error', { error: error instanceof Error ? error.message : 'Unknown error' });
+    throw createError('Failed to generate preparation tasks', 500);
+  }
+}));
+
+// Suggest calendar event for a task
+router.post('/tasks/:taskId/suggest-calendar', authenticateToken, asyncHandler(async (req: AuthRequest, res) => {
+  const { taskId } = req.params;
+  const userId = req.user!.id;
+  const { taskTitle, taskDescription, estimatedDuration, location, notes } = req.body;
+
+  if (!openai) {
+    throw createError('AI service not available', 500);
+  }
+
+  try {
+    // Get user's existing events for the next 7 days
+    const now = new Date();
+    const nextWeek = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+    
+    const existingEvents = await prisma.event.findMany({
+      where: {
+        userId: userId,
+        startTime: {
+          gte: now,
+          lte: nextWeek
+        }
+      },
+      orderBy: {
+        startTime: 'asc'
+      }
+    });
+
+    // Get user's timezone and energy patterns
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        dailyEnergy: {
+          where: {
+            date: {
+              gte: new Date(now.getFullYear(), now.getMonth(), now.getDate())
+            }
+          },
+          orderBy: { date: 'asc' }
+        }
+      }
+    });
+
+    // Create AI prompt for calendar suggestion
+    const systemPrompt = `You are an AI assistant that helps users schedule tasks optimally by suggesting the best time slots for calendar events.
+
+    Based on the task details and user's existing schedule, suggest the optimal time slot for this task.
+    
+    Consider these factors:
+    - Task type and nature (work, personal, errands, etc.)
+    - Estimated duration
+    - Location requirements
+    - User's energy patterns (morning person vs evening person)
+    - Existing calendar events and travel time between locations
+    - Time of day preferences for different task types
+    - Buffer time between events (minimum 15-30 minutes)
+    
+    Return your response as JSON with this exact format:
+    {
+      "suggestedTime": "YYYY-MM-DDTHH:MM:SS.000Z",
+      "suggestedEndTime": "YYYY-MM-DDTHH:MM:SS.000Z", 
+      "reasoning": "Detailed explanation of why this time was chosen",
+      "conflicts": ["List any potential conflicts or considerations"]
+    }
+    
+    IMPORTANT: 
+    - Use UTC timezone for the suggested times
+    - Ensure suggestedEndTime is exactly estimatedDuration minutes after suggestedTime
+    - Consider travel time if location differs from existing events
+    - Suggest realistic times (avoid late night for work tasks, early morning for social events)
+    - Account for weekends vs weekdays
+    - Include buffer time between events`;
+
+    const userPrompt = `Suggest optimal calendar timing for this task:
+    
+    Task: ${taskTitle}
+    Description: ${taskDescription || 'No description provided'}
+    Estimated Duration: ${estimatedDuration} minutes
+    Location: ${location || 'No location specified'}
+    Notes: ${notes || 'No additional notes'}
+    
+    Current time: ${now.toISOString()}
+    User timezone: ${user?.timezone || 'UTC'}
+    
+    Existing events in the next 7 days:
+    ${existingEvents.map(event => 
+      `- ${event.title}: ${new Date(event.startTime).toLocaleString()} to ${new Date(event.endTime).toLocaleString()} at ${event.location || 'No location'}`
+    ).join('\n')}
+    
+    User's energy patterns (if available):
+    ${user?.dailyEnergy.map(energy => 
+      `Date ${energy.date.toLocaleDateString()}: Energy level ${energy.level}/10`
+    ).join('\n') || 'No energy data available'}`;
+
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt }
+      ],
+      temperature: 0.7,
+      max_tokens: 1000
+    });
+
+    const response = completion.choices[0]?.message?.content;
+    if (!response) {
+      throw createError('No response from AI', 500);
+    }
+
+    let suggestion;
+    try {
+      // Extract JSON from markdown code blocks if present
+      let jsonString = response.trim();
+      if (jsonString.startsWith('```json')) {
+        jsonString = jsonString.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+      } else if (jsonString.startsWith('```')) {
+        jsonString = jsonString.replace(/^```\s*/, '').replace(/\s*```$/, '');
+      }
+      
+      suggestion = JSON.parse(jsonString);
+    } catch (parseError) {
+      logger.error('Failed to parse AI response', { response, error: parseError });
+      throw createError('Invalid AI response format', 500);
+    }
+
+    // Validate the response format
+    if (!suggestion.suggestedTime || !suggestion.suggestedEndTime || !suggestion.reasoning) {
+      throw createError('AI response missing required fields', 500);
+    }
+
+    logger.info('Calendar suggestion generated', { 
+      userId, 
+      taskId, 
+      suggestedTime: suggestion.suggestedTime,
+      reasoning: suggestion.reasoning
+    });
+
+    res.json({
+      success: true,
+      data: {
+        suggestion: suggestion
+      },
+      message: `Generated calendar suggestion for "${taskTitle}"`
+    });
+
+  } catch (error) {
+    logger.error('AI calendar suggestion error', { error: error instanceof Error ? error.message : 'Unknown error' });
+    throw createError('Failed to generate calendar suggestion', 500);
+  }
+}));
+
+// Suggest notes for a task
+router.post('/tasks/:taskId/suggest-notes', authenticateToken, asyncHandler(async (req: AuthRequest, res) => {
+  const { taskId } = req.params;
+  const userId = req.user!.id;
+  const { taskTitle, taskDescription } = req.body;
+
+  if (!openai) {
+    throw createError('AI service not available', 500);
+  }
+
+  try {
+    // Create AI prompt for notes suggestion
+    const systemPrompt = `You are an AI assistant that helps users create helpful notes for their tasks.
+
+    Based on the task title and description, generate 3-5 practical, actionable notes that would help the user complete this task effectively.
+    
+    Consider these factors:
+    - Task type and nature (work, personal, errands, etc.)
+    - Potential challenges or considerations
+    - Preparation steps or materials needed
+    - Important reminders or tips
+    - Context-specific advice
+    
+    Return your response as JSON with this exact format:
+    {
+      "suggestedNotes": [
+        "First practical note",
+        "Second helpful note", 
+        "Third actionable note",
+        "Fourth consideration",
+        "Fifth tip or reminder"
+      ]
+    }
+    
+    IMPORTANT: 
+    - Keep notes concise but informative (1-2 sentences each)
+    - Make them actionable and practical
+    - Focus on things that would genuinely help with task completion
+    - Avoid generic advice - be specific to the task`;
+
+    const userPrompt = `Generate helpful notes for this task:
+    
+    Task Title: ${taskTitle}
+    Description: ${taskDescription || 'No description provided'}`;
+
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt }
+      ],
+      temperature: 0.7,
+      max_tokens: 500
+    });
+
+    const response = completion.choices[0]?.message?.content;
+    if (!response) {
+      throw createError('No response from AI', 500);
+    }
+
+    let suggestion;
+    try {
+      suggestion = JSON.parse(response);
+    } catch (parseError) {
+      logger.error('Failed to parse AI response', { response, error: parseError });
+      throw createError('Invalid AI response format', 500);
+    }
+
+    // Validate the response format
+    if (!suggestion.suggestedNotes || !Array.isArray(suggestion.suggestedNotes)) {
+      throw createError('AI response missing required fields', 500);
+    }
+
+    logger.info('Notes suggestion generated', { 
+      userId, 
+      taskId, 
+      notesCount: suggestion.suggestedNotes.length
+    });
+
+    res.json({
+      success: true,
+      data: {
+        suggestedNotes: suggestion.suggestedNotes
+      },
+      message: `Generated ${suggestion.suggestedNotes.length} note suggestions`
+    });
+
+  } catch (error) {
+    logger.error('AI notes suggestion error', { error: error instanceof Error ? error.message : 'Unknown error' });
+    throw createError('Failed to generate notes suggestion', 500);
   }
 }));
 

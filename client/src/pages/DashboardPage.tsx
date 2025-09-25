@@ -16,10 +16,13 @@ import {
   Clock,
   AlertCircle,
   Trophy,
-  Trash2
+  Trash2,
+  Sparkles,
+  Eye
 } from 'lucide-react'
 import { formatDate, formatTime, formatCurrency, getPriorityColor } from '@/lib/utils'
 import { EventModal } from '@/components/EventModal'
+import { TaskModal } from '@/components/TaskModal'
 import { Task, Event, Achievement, Streak, Notification } from '@/shared/types'
 
 interface DashboardData {
@@ -38,14 +41,22 @@ interface DashboardData {
 }
 
 // Memoized task item component for performance
-const TaskItem = memo(({ task, onComplete, onDelete }: { 
+const TaskItem = memo(({ task, onComplete, onDelete, onView, order, showOrder }: { 
   task: Task, 
   onComplete: (id: string) => void, 
-  onDelete: (id: string) => void 
+  onDelete: (id: string) => void,
+  onView: (id: string) => void,
+  order?: number,
+  showOrder?: boolean
 }) => (
   <div className="flex items-center justify-between p-3 rounded-lg border bg-card">
     <div className="flex-1">
       <div className="flex items-center space-x-2">
+        {showOrder && order && (
+          <div className="flex items-center justify-center w-6 h-6 rounded-full bg-primary text-primary-foreground text-xs font-bold">
+            {order}
+          </div>
+        )}
         <h4 className="font-medium text-sm">{task.title}</h4>
         <span className={`px-2 py-1 rounded-full text-xs ${getPriorityColor(task.priority)}`}>
           {task.priority}
@@ -72,17 +83,35 @@ const TaskItem = memo(({ task, onComplete, onDelete }: {
       </div>
     </div>
     <div className="flex space-x-2">
+      {/* View Button */}
       <Button 
         size="sm" 
         variant="outline"
-        onClick={() => onComplete(task.id)}
+        onClick={() => onView(task.id)}
+        title="View task details"
       >
-        Complete
+        <Eye className="w-4 h-4" />
       </Button>
+      
+      {/* Complete Button */}
+      {task.status !== 'COMPLETED' && (
+        <Button 
+          size="sm" 
+          variant="default"
+          onClick={() => onComplete(task.id)}
+          className="bg-green-600 hover:bg-green-700"
+          title="Complete task"
+        >
+          <CheckSquare className="w-4 h-4" />
+        </Button>
+      )}
+      
+      {/* Delete Button */}
       <Button 
         size="sm" 
         variant="destructive"
         onClick={() => onDelete(task.id)}
+        title="Delete task"
       >
         <Trash2 className="w-4 h-4" />
       </Button>
@@ -104,21 +133,24 @@ const EventItem = memo(({ event, onView, onDelete }: {
           {event.description}
         </p>
       )}
-      <div className="flex items-center space-x-4 mt-2 text-xs text-muted-foreground">
-        <div className="flex items-center space-x-1">
-          <Clock className="w-3 h-3" />
-          <span>{formatTime(event.startTime)}</span>
-        </div>
-        {event.location && (
-          <span>{event.location}</span>
-        )}
-        {event.budgetImpact !== null && event.budgetImpact !== undefined && event.budgetImpact > 0 && (
+        <div className="flex items-center space-x-4 mt-2 text-xs text-muted-foreground">
           <div className="flex items-center space-x-1">
-            <DollarSign className="w-3 h-3" />
-            <span>{formatCurrency(event.budgetImpact)}</span>
+            <Clock className="w-3 h-3" />
+            <span>{formatTime(event.startTime)}</span>
           </div>
-        )}
-      </div>
+          <div className="text-xs text-gray-500">
+            {new Date(event.startTime).toLocaleDateString()} {new Date(event.startTime).toLocaleTimeString()}
+          </div>
+          {event.location && (
+            <span>{event.location}</span>
+          )}
+          {event.budgetImpact !== null && event.budgetImpact !== undefined && event.budgetImpact > 0 && (
+            <div className="flex items-center space-x-1">
+              <DollarSign className="w-3 h-3" />
+              <span>{formatCurrency(event.budgetImpact)}</span>
+            </div>
+          )}
+        </div>
     </div>
     <div className="flex space-x-2">
       <Button 
@@ -145,6 +177,8 @@ export function DashboardPage() {
   const queryClient = useQueryClient()
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null)
+  const [isTaskModalOpen, setIsTaskModalOpen] = useState(false)
 
   // Check authentication after all hooks are declared
   const authToken = localStorage.getItem('syncscript-auth')
@@ -230,6 +264,57 @@ export function DashboardPage() {
     }
   })
 
+  const updateTaskStatusMutation = useMutation({
+    mutationFn: async ({ taskId, status }: { taskId: string, status: string }) => {
+      console.log('Updating task status:', { taskId, status })
+      try {
+        const response = await api.patch(`/tasks/${taskId}/status`, { status })
+        console.log('Status update response:', response.data)
+        return response.data
+      } catch (error) {
+        console.error('Status update error:', error)
+        throw error
+      }
+    },
+    onSuccess: (data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+      queryClient.invalidateQueries({ queryKey: ['tasks'] })
+      toast({
+        title: "Status Updated!",
+        description: `Task status changed to ${variables.status.replace('_', ' ').toLowerCase()}`
+      })
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.response?.data?.error || "Failed to update task status",
+        variant: "destructive"
+      })
+    }
+  })
+
+  const prioritizeTasksMutation = useMutation({
+    mutationFn: async (taskIds: string[]) => {
+      const response = await api.post('/ai/prioritize-tasks', { taskIds })
+      return response.data
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+      queryClient.invalidateQueries({ queryKey: ['tasks'] })
+      toast({
+        title: "Tasks Prioritized!",
+        description: `AI has prioritized ${data.data.successfullyUpdated} out of ${data.data.totalRequested} tasks using the Eisenhower Matrix.`
+      })
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.response?.data?.error || "Failed to prioritize tasks",
+        variant: "destructive"
+      })
+    }
+  })
+
   const handleCompleteTask = useCallback((taskId: string) => {
     completeTaskMutation.mutate(taskId)
   }, [completeTaskMutation])
@@ -240,11 +325,30 @@ export function DashboardPage() {
     }
   }, [deleteTaskMutation])
 
+  const handleStatusChange = useCallback((taskId: string, newStatus: string) => {
+    console.log('🔄 Dashboard handleStatusChange called:', { taskId, newStatus })
+    updateTaskStatusMutation.mutate({ taskId, status: newStatus })
+  }, [updateTaskStatusMutation])
+
   const handleDeleteEvent = useCallback((eventId: string) => {
     if (confirm('Are you sure you want to delete this event? This action cannot be undone.')) {
       deleteEventMutation.mutate(eventId)
     }
   }, [deleteEventMutation])
+
+  const handlePrioritizeTasks = useCallback(() => {
+    if (!dashboardData?.todayTasks || dashboardData.todayTasks.length === 0) {
+      toast({
+        title: "No Tasks to Prioritize",
+        description: "You don't have any tasks to prioritize right now.",
+        variant: "destructive"
+      })
+      return
+    }
+
+    const taskIds = dashboardData.todayTasks.map(task => task.id)
+    prioritizeTasksMutation.mutate(taskIds)
+  }, [dashboardData?.todayTasks, prioritizeTasksMutation, toast])
 
   const handleViewEvent = useCallback((eventId: string) => {
     const event = dashboardData?.upcomingEvents.find(e => e.id === eventId)
@@ -259,6 +363,28 @@ export function DashboardPage() {
     setSelectedEvent(null)
   }, [])
 
+  const handleViewTask = useCallback((taskId: string) => {
+    const task = dashboardData?.todayTasks.find(t => t.id === taskId)
+    if (task) {
+      setSelectedTask(task)
+      setIsTaskModalOpen(true)
+    }
+  }, [dashboardData?.todayTasks])
+
+  const handleCloseTaskModal = useCallback(() => {
+    setIsTaskModalOpen(false)
+    setSelectedTask(null)
+  }, [])
+
+  const handleTaskUpdated = useCallback((updatedTask: Task) => {
+    setSelectedTask(updatedTask)
+    queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+  }, [queryClient])
+
+  const handleTaskDeleted = useCallback((taskId: string) => {
+    queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+  }, [queryClient])
+
   const handleAddTask = useCallback(() => {
     navigate('/tasks')
   }, [navigate])
@@ -266,6 +392,22 @@ export function DashboardPage() {
   const handleAddEvent = useCallback(() => {
     navigate('/calendar')
   }, [navigate])
+
+  // Memoized calculations for performance - must be before any conditional returns
+  const completedTasksCount = useMemo(() => 
+    dashboardData?.todayTasks?.filter(t => t.status === 'COMPLETED').length || 0, 
+    [dashboardData?.todayTasks]
+  )
+  
+  const nextEventTitle = useMemo(() => 
+    dashboardData?.upcomingEvents?.[0]?.title || 'None', 
+    [dashboardData?.upcomingEvents]
+  )
+  
+  const longestStreak = useMemo(() => 
+    Math.max(...(dashboardData?.activeStreaks?.map(s => s.count) || []), 0), 
+    [dashboardData?.activeStreaks]
+  )
 
   // Check authentication after all hooks are declared
   if (!authToken) {
@@ -316,22 +458,6 @@ export function DashboardPage() {
       </div>
     )
   }
-
-  // Memoized calculations for performance - must be before any conditional returns
-  const completedTasksCount = useMemo(() => 
-    dashboardData?.todayTasks?.filter(t => t.status === 'COMPLETED').length || 0, 
-    [dashboardData?.todayTasks]
-  )
-  
-  const nextEventTitle = useMemo(() => 
-    dashboardData?.upcomingEvents?.[0]?.title || 'None', 
-    [dashboardData?.upcomingEvents]
-  )
-  
-  const longestStreak = useMemo(() => 
-    Math.max(...(dashboardData?.activeStreaks?.map(s => s.count) || []), 0), 
-    [dashboardData?.activeStreaks]
-  )
 
   // Conditional return after all hooks
   if (!dashboardData) return null
@@ -415,13 +541,29 @@ export function DashboardPage() {
         {/* Today's Tasks */}
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center space-x-2">
-              <CheckSquare className="w-5 h-5" />
-              <span>Today's Tasks</span>
-            </CardTitle>
-            <CardDescription>
-              Your tasks for today, prioritized by AI
-            </CardDescription>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center space-x-2">
+                  <CheckSquare className="w-5 h-5" />
+                  <span>Today's Tasks</span>
+                </CardTitle>
+                <CardDescription>
+                  Your tasks for today, ordered by AI priority (1 = highest priority)
+                </CardDescription>
+              </div>
+              {todayTasks.length > 0 && (
+                <Button 
+                  size="sm" 
+                  variant="outline"
+                  onClick={handlePrioritizeTasks}
+                  disabled={prioritizeTasksMutation.isPending}
+                  className="flex items-center space-x-2"
+                >
+                  <Sparkles className="w-4 h-4" />
+                  <span>{prioritizeTasksMutation.isPending ? 'Prioritizing...' : 'Prioritize'}</span>
+                </Button>
+              )}
+            </div>
           </CardHeader>
           <CardContent>
             {todayTasks.length === 0 ? (
@@ -434,16 +576,30 @@ export function DashboardPage() {
               </div>
             ) : (
               <div className="space-y-3">
-                {todayTasks.slice(0, 5).map((task) => (
-                  <TaskItem
-                    key={task.id}
-                    task={task}
-                    onComplete={handleCompleteTask}
-                    onDelete={handleDeleteTask}
-                  />
-                ))}
+                {todayTasks
+                  .sort((a, b) => {
+                    // Sort by priority: URGENT > HIGH > MEDIUM > LOW
+                    const priorityOrder = { URGENT: 4, HIGH: 3, MEDIUM: 2, LOW: 1 }
+                    return priorityOrder[b.priority] - priorityOrder[a.priority]
+                  })
+                  .slice(0, 5)
+                  .map((task, index) => (
+                    <TaskItem
+                      key={task.id}
+                      task={task}
+                      onComplete={handleCompleteTask}
+                      onDelete={handleDeleteTask}
+                      onView={handleViewTask}
+                      order={index + 1}
+                      showOrder={true}
+                    />
+                  ))}
                 {todayTasks.length > 5 && (
-                  <Button variant="ghost" className="w-full mt-2">
+                  <Button 
+                    variant="ghost" 
+                    className="w-full mt-2"
+                    onClick={() => navigate('/tasks')}
+                  >
                     View All Tasks ({todayTasks.length})
                   </Button>
                 )}
@@ -482,11 +638,13 @@ export function DashboardPage() {
                     onDelete={handleDeleteEvent}
                   />
                 ))}
-                {upcomingEvents.length > 5 && (
-                  <Button variant="ghost" className="w-full mt-2">
-                    View All Events ({upcomingEvents.length})
-                  </Button>
-                )}
+                <Button 
+                  variant="ghost" 
+                  className="w-full mt-2"
+                  onClick={() => navigate('/calendar')}
+                >
+                  View All Events {upcomingEvents.length > 0 && `(${upcomingEvents.length})`}
+                </Button>
               </div>
             )}
           </CardContent>
@@ -543,6 +701,14 @@ export function DashboardPage() {
           queryClient.invalidateQueries({ queryKey: ['dashboard'] })
           queryClient.invalidateQueries({ queryKey: ['events'] })
         }}
+      />
+      
+      <TaskModal
+        task={selectedTask}
+        isOpen={isTaskModalOpen}
+        onClose={handleCloseTaskModal}
+        onTaskUpdated={handleTaskUpdated}
+        onTaskDeleted={handleTaskDeleted}
       />
     </div>
   )
