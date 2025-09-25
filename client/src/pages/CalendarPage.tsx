@@ -8,6 +8,7 @@ import { Calendar, Plus, Clock, MapPin, DollarSign, Trash2 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { formatDate, formatTime, formatCurrency } from '@/lib/utils'
 import { Event } from '@/shared/types'
+import { EventModal } from '@/components/EventModal'
 
 export function CalendarPage() {
   const [newEvent, setNewEvent] = useState({
@@ -19,18 +20,25 @@ export function CalendarPage() {
     budgetImpact: 0
   })
   const [showAddForm, setShowAddForm] = useState(false)
+  const [showPastEvents, setShowPastEvents] = useState(false)
+  const [selectedEvent, setSelectedEvent] = useState<Event | null>(null)
+  const [isModalOpen, setIsModalOpen] = useState(false)
 
   const { toast } = useToast()
   const queryClient = useQueryClient()
 
   const { data: events, isLoading } = useQuery<Event[]>({
-    queryKey: ['events'],
+    queryKey: ['events', showPastEvents],
     queryFn: async () => {
-      const response = await api.get('/calendar')
+      const params = new URLSearchParams()
+      if (showPastEvents) {
+        params.append('includePast', 'true')
+      }
+      const response = await api.get(`/calendar?${params.toString()}`)
       return response.data.data
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
-        gcTime: 10 * 60 * 1000, // 10 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes
     refetchOnWindowFocus: false
   })
 
@@ -97,14 +105,32 @@ export function CalendarPage() {
       })
       return
     }
-    createEventMutation.mutate(newEvent)
+    
+    // Convert datetime-local strings to proper ISO datetime strings
+    const eventData = {
+      ...newEvent,
+      startTime: new Date(newEvent.startTime).toISOString(),
+      endTime: new Date(newEvent.endTime).toISOString()
+    }
+    
+    createEventMutation.mutate(eventData)
   }
 
-  const handleDeleteEvent = (eventId: string) => {
-    if (confirm('Are you sure you want to delete this event? This action cannot be undone.')) {
-      deleteEventMutation.mutate(eventId)
+    const handleDeleteEvent = (eventId: string) => {
+      if (confirm('Are you sure you want to delete this event? This action cannot be undone.')) {
+        deleteEventMutation.mutate(eventId)
+      }
     }
-  }
+
+    const handleViewEvent = (event: Event) => {
+      setSelectedEvent(event)
+      setIsModalOpen(true)
+    }
+
+    const handleCloseModal = () => {
+      setIsModalOpen(false)
+      setSelectedEvent(null)
+    }
 
   if (isLoading) {
     return (
@@ -170,28 +196,29 @@ export function CalendarPage() {
                 />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium mb-2">Location</label>
-                <Input
-                  value={newEvent.location}
-                  onChange={(e) => setNewEvent({ ...newEvent, location: e.target.value })}
-                  placeholder="Enter location"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-2">Budget Impact ($)</label>
-                <Input
-                  type="number"
-                  value={newEvent.budgetImpact}
-                  onChange={(e) => setNewEvent({ ...newEvent, budgetImpact: parseFloat(e.target.value) || 0 })}
-                  placeholder="0"
-                />
-              </div>
+            <div>
+              <label className="block text-sm font-medium mb-2">Location</label>
+              <Input
+                value={newEvent.location}
+                onChange={(e) => setNewEvent({ ...newEvent, location: e.target.value })}
+                placeholder="Enter event location"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-2">Budget Impact</label>
+              <Input
+                type="number"
+                value={newEvent.budgetImpact}
+                onChange={(e) => setNewEvent({ ...newEvent, budgetImpact: parseFloat(e.target.value) || 0 })}
+                placeholder="Enter budget impact amount"
+              />
             </div>
             <div className="flex space-x-2">
-              <Button onClick={handleCreateEvent} disabled={createEventMutation.isPending}>
-                {createEventMutation.isPending ? "Creating..." : "Create Event"}
+              <Button 
+                onClick={handleCreateEvent}
+                disabled={createEventMutation.isPending}
+              >
+                {createEventMutation.isPending ? 'Creating...' : 'Create Event'}
               </Button>
               <Button variant="outline" onClick={() => setShowAddForm(false)}>
                 Cancel
@@ -203,13 +230,24 @@ export function CalendarPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
-            <Calendar className="w-5 h-5" />
-            <span>Your Events</span>
-          </CardTitle>
-          <CardDescription>
-            {events?.length || 0} events scheduled
-          </CardDescription>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center space-x-2">
+                <Calendar className="w-5 h-5" />
+                <span>Your Events</span>
+              </CardTitle>
+              <CardDescription>
+                {events?.length || 0} events scheduled
+              </CardDescription>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowPastEvents(!showPastEvents)}
+            >
+              {showPastEvents ? 'Hide Past Events' : 'Show Past Events'}
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           {events && events.length === 0 ? (
@@ -228,62 +266,86 @@ export function CalendarPage() {
             </div>
           ) : (
             <div className="space-y-3">
-              {events?.map((event) => (
-                <div
-                  key={event.id}
-                  className="flex items-center justify-between p-4 rounded-lg border bg-card"
-                >
-                  <div className="flex-1">
-                    <div className="flex items-center space-x-2 mb-2">
-                      <h4 className="font-medium text-sm">{event.title}</h4>
-                      {event.aiGenerated && (
-                        <span className="px-2 py-1 rounded-full text-xs bg-blue-50 text-blue-600">
-                          AI Generated
-                        </span>
-                      )}
-                    </div>
-                    {event.description && (
-                      <p className="text-xs text-muted-foreground mb-2">
-                        {event.description}
-                      </p>
-                    )}
-                    <div className="flex items-center space-x-4 text-xs text-muted-foreground">
-                      <div className="flex items-center space-x-1">
-                        <Clock className="w-3 h-3" />
-                        <span>{formatTime(event.startTime)} - {formatTime(event.endTime)}</span>
+              {events?.map((event) => {
+                const isPastEvent = new Date(event.startTime) < new Date()
+                return (
+                  <div
+                    key={event.id}
+                    className={`flex items-center justify-between p-4 rounded-lg border bg-card ${
+                      isPastEvent ? 'opacity-60' : ''
+                    }`}
+                  >
+                    <div className="flex-1">
+                      <div className="flex items-center space-x-2 mb-2">
+                        <h4 className="font-medium text-sm">{event.title}</h4>
+                        {isPastEvent && (
+                          <span className="px-2 py-1 rounded-full text-xs bg-gray-100 text-gray-600">
+                            Past Event
+                          </span>
+                        )}
+                        {event.aiGenerated && (
+                          <span className="px-2 py-1 rounded-full text-xs bg-blue-50 text-blue-600">
+                            AI Generated
+                          </span>
+                        )}
                       </div>
-                      {event.location && (
-                        <div className="flex items-center space-x-1">
-                          <MapPin className="w-3 h-3" />
-                          <span>{event.location}</span>
-                        </div>
+                      {event.description && (
+                        <p className="text-xs text-muted-foreground mb-2">
+                          {event.description}
+                        </p>
                       )}
-                      {event.budgetImpact && event.budgetImpact > 0 && (
+                      <div className="flex items-center space-x-4 mt-2 text-xs text-muted-foreground">
                         <div className="flex items-center space-x-1">
-                          <DollarSign className="w-3 h-3" />
-                          <span>{formatCurrency(event.budgetImpact)}</span>
+                          <Clock className="w-3 h-3" />
+                          <span>{formatTime(event.startTime)}</span>
                         </div>
-                      )}
+                        {event.location && (
+                          <div className="flex items-center space-x-1">
+                            <MapPin className="w-3 h-3" />
+                            <span>{event.location}</span>
+                          </div>
+                        )}
+                        {event.budgetImpact !== null && event.budgetImpact !== undefined && event.budgetImpact > 0 && (
+                          <div className="flex items-center space-x-1">
+                            <DollarSign className="w-3 h-3" />
+                            <span>{formatCurrency(event.budgetImpact)}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex space-x-2">
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        onClick={() => handleViewEvent(event)}
+                      >
+                        View
+                      </Button>
+                      <Button 
+                        size="sm" 
+                        variant="destructive"
+                        onClick={() => handleDeleteEvent(event.id)}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
                     </div>
                   </div>
-                  <div className="flex space-x-2">
-                    <Button size="sm" variant="outline">
-                      View
-                    </Button>
-                    <Button 
-                      size="sm" 
-                      variant="destructive"
-                      onClick={() => handleDeleteEvent(event.id)}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           )}
         </CardContent>
-      </Card>
-    </div>
-  )
-}
+        </Card>
+
+        {/* Event Modal */}
+        <EventModal
+          event={selectedEvent}
+          isOpen={isModalOpen}
+          onClose={handleCloseModal}
+          onEventUpdated={() => {
+            queryClient.invalidateQueries({ queryKey: ['events'] })
+          }}
+        />
+      </div>
+    )
+  }

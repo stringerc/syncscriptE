@@ -23,6 +23,7 @@ export function GoogleCalendarPageWorking() {
   const [authUrl, setAuthUrl] = useState<string>('')
   const [isOAuthCallback, setIsOAuthCallback] = useState(false)
   const [lastSyncResults, setLastSyncResults] = useState<any>(null)
+  const [showPastEvents, setShowPastEvents] = useState(false)
   const { toast } = useToast()
   const queryClient = useQueryClient()
   const { user, token } = useAuthStore()
@@ -101,10 +102,14 @@ export function GoogleCalendarPageWorking() {
 
   // Fetch recently synced events
   const { data: syncedEvents, isLoading: syncedEventsLoading, refetch: refetchSyncedEvents } = useQuery({
-    queryKey: ['google-calendar-synced-events'],
+    queryKey: ['google-calendar-synced-events', showPastEvents],
     queryFn: async () => {
       try {
-        const response = await api.get('/calendar')
+        const params = new URLSearchParams()
+        if (showPastEvents) {
+          params.append('includePast', 'true')
+        }
+        const response = await api.get(`/calendar?${params.toString()}`)
         return response.data.data
       } catch (error) {
         throw error
@@ -599,6 +604,13 @@ export function GoogleCalendarPageWorking() {
                 Recently Synced Events
               </div>
               <div className="flex space-x-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowPastEvents(!showPastEvents)}
+                >
+                  {showPastEvents ? 'Hide Past Events' : 'Show Past Events'}
+                </Button>
                 <Button 
                   onClick={() => refetchSyncedEvents()}
                   variant="outline"
@@ -641,11 +653,23 @@ export function GoogleCalendarPageWorking() {
                   Found {syncedEvents.length} synced event{syncedEvents.length !== 1 ? 's' : ''}
                 </div>
                 <div className="space-y-3">
-                  {syncedEvents.map((event: any) => (
-                    <div key={event.id} className="flex items-center justify-between p-4 border border-border rounded-lg hover:bg-accent/50 transition-colors">
+                  {syncedEvents.map((event: any) => {
+                    const isPastEvent = new Date(event.startTime) < new Date()
+                    return (
+                      <div 
+                        key={event.id} 
+                        className={`flex items-center justify-between p-4 border border-border rounded-lg hover:bg-accent/50 transition-colors ${
+                          isPastEvent ? 'opacity-60' : ''
+                        }`}
+                      >
                       <div className="flex-1">
                         <div className="flex items-center space-x-2 mb-2">
                           <h4 className="font-medium text-foreground">{event.title}</h4>
+                          {isPastEvent && (
+                            <span className="px-2 py-1 rounded-full text-xs bg-gray-100 text-gray-600">
+                              Past Event
+                            </span>
+                          )}
                           {event.location && (
                             <div className="flex items-center text-sm text-muted-foreground">
                               <MapPin className="w-3 h-3 mr-1" />
@@ -675,7 +699,8 @@ export function GoogleCalendarPageWorking() {
                         <Trash2 className="w-4 h-4" />
                       </Button>
                     </div>
-                  ))}
+                    )
+                  })}
                 </div>
               </div>
             ) : (

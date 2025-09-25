@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { memo, useMemo, useCallback, useState } from 'react'
 import { api } from '@/lib/api'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -18,6 +19,7 @@ import {
   Trash2
 } from 'lucide-react'
 import { formatDate, formatTime, formatCurrency, getPriorityColor } from '@/lib/utils'
+import { EventModal } from '@/components/EventModal'
 import { Task, Event, Achievement, Streak, Notification } from '@/shared/types'
 
 interface DashboardData {
@@ -35,10 +37,117 @@ interface DashboardData {
   unreadNotifications: Notification[]
 }
 
+// Memoized task item component for performance
+const TaskItem = memo(({ task, onComplete, onDelete }: { 
+  task: Task, 
+  onComplete: (id: string) => void, 
+  onDelete: (id: string) => void 
+}) => (
+  <div className="flex items-center justify-between p-3 rounded-lg border bg-card">
+    <div className="flex-1">
+      <div className="flex items-center space-x-2">
+        <h4 className="font-medium text-sm">{task.title}</h4>
+        <span className={`px-2 py-1 rounded-full text-xs ${getPriorityColor(task.priority)}`}>
+          {task.priority}
+        </span>
+      </div>
+      {task.description && (
+        <p className="text-xs text-muted-foreground mt-1">
+          {task.description}
+        </p>
+      )}
+      <div className="flex items-center space-x-4 mt-2 text-xs text-muted-foreground">
+        {task.estimatedDuration && (
+          <div className="flex items-center space-x-1">
+            <Clock className="w-3 h-3" />
+            <span>{task.estimatedDuration}m</span>
+          </div>
+        )}
+        {task.budgetImpact && (
+          <div className="flex items-center space-x-1">
+            <DollarSign className="w-3 h-3" />
+            <span>{formatCurrency(task.budgetImpact)}</span>
+          </div>
+        )}
+      </div>
+    </div>
+    <div className="flex space-x-2">
+      <Button 
+        size="sm" 
+        variant="outline"
+        onClick={() => onComplete(task.id)}
+      >
+        Complete
+      </Button>
+      <Button 
+        size="sm" 
+        variant="destructive"
+        onClick={() => onDelete(task.id)}
+      >
+        <Trash2 className="w-4 h-4" />
+      </Button>
+    </div>
+  </div>
+))
+
+// Memoized event item component for performance
+const EventItem = memo(({ event, onView, onDelete }: { 
+  event: Event, 
+  onView: (id: string) => void, 
+  onDelete: (id: string) => void 
+}) => (
+  <div className="flex items-center justify-between p-3 rounded-lg border bg-card">
+    <div className="flex-1">
+      <h4 className="font-medium text-sm">{event.title}</h4>
+      {event.description && (
+        <p className="text-xs text-muted-foreground mt-1">
+          {event.description}
+        </p>
+      )}
+      <div className="flex items-center space-x-4 mt-2 text-xs text-muted-foreground">
+        <div className="flex items-center space-x-1">
+          <Clock className="w-3 h-3" />
+          <span>{formatTime(event.startTime)}</span>
+        </div>
+        {event.location && (
+          <span>{event.location}</span>
+        )}
+        {event.budgetImpact !== null && event.budgetImpact !== undefined && event.budgetImpact > 0 && (
+          <div className="flex items-center space-x-1">
+            <DollarSign className="w-3 h-3" />
+            <span>{formatCurrency(event.budgetImpact)}</span>
+          </div>
+        )}
+      </div>
+    </div>
+    <div className="flex space-x-2">
+      <Button 
+        size="sm" 
+        variant="outline"
+        onClick={() => onView(event.id)}
+      >
+        View
+      </Button>
+      <Button 
+        size="sm" 
+        variant="destructive"
+        onClick={() => onDelete(event.id)}
+      >
+        <Trash2 className="w-4 h-4" />
+      </Button>
+    </div>
+  </div>
+))
+
 export function DashboardPage() {
   const { toast } = useToast()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
+  const [selectedEvent, setSelectedEvent] = useState<Event | null>(null)
+  const [isModalOpen, setIsModalOpen] = useState(false)
+
+  // Check authentication after all hooks are declared
+  const authToken = localStorage.getItem('syncscript-auth')
 
   const { data: dashboardData, isLoading, error } = useQuery<DashboardData>({
     queryKey: ['dashboard'],
@@ -46,9 +155,12 @@ export function DashboardPage() {
       const response = await api.get('/user/dashboard')
       return response.data.data
     },
-    staleTime: 10 * 60 * 1000, // 10 minutes
-        gcTime: 15 * 60 * 1000, // 15 minutes
-    refetchOnWindowFocus: false
+    staleTime: 30 * 1000, // 30 seconds for local development (faster updates)
+    gcTime: 5 * 60 * 1000, // 5 minutes
+    refetchOnWindowFocus: false,
+    retry: 1, // Only retry once for faster error handling
+    retryDelay: 500, // Faster retry
+    enabled: !!localStorage.getItem('syncscript-auth') // Only run if user is authenticated
   })
 
   const completeTaskMutation = useMutation({
@@ -118,32 +230,47 @@ export function DashboardPage() {
     }
   })
 
-  const handleCompleteTask = (taskId: string) => {
+  const handleCompleteTask = useCallback((taskId: string) => {
     completeTaskMutation.mutate(taskId)
-  }
+  }, [completeTaskMutation])
 
-  const handleDeleteTask = (taskId: string) => {
+  const handleDeleteTask = useCallback((taskId: string) => {
     if (confirm('Are you sure you want to delete this task? This action cannot be undone.')) {
       deleteTaskMutation.mutate(taskId)
     }
-  }
+  }, [deleteTaskMutation])
 
-  const handleDeleteEvent = (eventId: string) => {
+  const handleDeleteEvent = useCallback((eventId: string) => {
     if (confirm('Are you sure you want to delete this event? This action cannot be undone.')) {
       deleteEventMutation.mutate(eventId)
     }
-  }
+  }, [deleteEventMutation])
 
-  const handleViewEvent = (eventId: string) => {
-    navigate(`/calendar?event=${eventId}`)
-  }
+  const handleViewEvent = useCallback((eventId: string) => {
+    const event = dashboardData?.upcomingEvents.find(e => e.id === eventId)
+    if (event) {
+      setSelectedEvent(event)
+      setIsModalOpen(true)
+    }
+  }, [dashboardData?.upcomingEvents])
 
-  const handleAddTask = () => {
+  const handleCloseModal = useCallback(() => {
+    setIsModalOpen(false)
+    setSelectedEvent(null)
+  }, [])
+
+  const handleAddTask = useCallback(() => {
     navigate('/tasks')
-  }
+  }, [navigate])
 
-  const handleAddEvent = () => {
+  const handleAddEvent = useCallback(() => {
     navigate('/calendar')
+  }, [navigate])
+
+  // Check authentication after all hooks are declared
+  if (!authToken) {
+    navigate('/auth')
+    return null
   }
 
   if (isLoading) {
@@ -155,17 +282,58 @@ export function DashboardPage() {
   }
 
   if (error) {
+    // Check if it's an authentication error
+    const isAuthError = error?.response?.status === 401 || error?.message?.includes('token')
+    
+    if (isAuthError) {
+      // Redirect to login page
+      navigate('/auth')
+      return null
+    }
+    
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-center">
           <AlertCircle className="w-12 h-12 text-destructive mx-auto mb-4" />
           <h3 className="text-lg font-semibold text-foreground mb-2">Error Loading Dashboard</h3>
-          <p className="text-muted-foreground">Please try refreshing the page</p>
+          <p className="text-muted-foreground">
+            {error?.response?.data?.error || error?.message || 'Please try refreshing the page'}
+          </p>
+          <div className="mt-2 space-x-2">
+            <Button 
+              onClick={() => window.location.reload()}
+            >
+              Refresh Page
+            </Button>
+            <Button 
+              variant="outline"
+              onClick={() => navigate('/auth')}
+            >
+              Go to Login
+            </Button>
+          </div>
         </div>
       </div>
     )
   }
 
+  // Memoized calculations for performance - must be before any conditional returns
+  const completedTasksCount = useMemo(() => 
+    dashboardData?.todayTasks?.filter(t => t.status === 'COMPLETED').length || 0, 
+    [dashboardData?.todayTasks]
+  )
+  
+  const nextEventTitle = useMemo(() => 
+    dashboardData?.upcomingEvents?.[0]?.title || 'None', 
+    [dashboardData?.upcomingEvents]
+  )
+  
+  const longestStreak = useMemo(() => 
+    Math.max(...(dashboardData?.activeStreaks?.map(s => s.count) || []), 0), 
+    [dashboardData?.activeStreaks]
+  )
+
+  // Conditional return after all hooks
   if (!dashboardData) return null
 
   const { user, todayTasks, upcomingEvents, recentAchievements, activeStreaks, unreadNotifications } = dashboardData
@@ -198,7 +366,7 @@ export function DashboardPage() {
           <CardContent>
             <div className="text-2xl font-bold">{todayTasks.length}</div>
             <p className="text-xs text-muted-foreground">
-              {todayTasks.filter(t => t.status === 'COMPLETED').length} completed
+              {completedTasksCount} completed
             </p>
           </CardContent>
         </Card>
@@ -211,7 +379,7 @@ export function DashboardPage() {
           <CardContent>
             <div className="text-2xl font-bold">{upcomingEvents.length}</div>
             <p className="text-xs text-muted-foreground">
-              Next: {upcomingEvents[0]?.title || 'None'}
+              Next: {nextEventTitle}
             </p>
           </CardContent>
         </Card>
@@ -224,7 +392,7 @@ export function DashboardPage() {
           <CardContent>
             <div className="text-2xl font-bold">{activeStreaks.length}</div>
             <p className="text-xs text-muted-foreground">
-              Longest: {Math.max(...activeStreaks.map(s => s.count), 0)} days
+              Longest: {longestStreak} days
             </p>
           </CardContent>
         </Card>
@@ -267,54 +435,12 @@ export function DashboardPage() {
             ) : (
               <div className="space-y-3">
                 {todayTasks.slice(0, 5).map((task) => (
-                  <div
+                  <TaskItem
                     key={task.id}
-                    className="flex items-center justify-between p-3 rounded-lg border bg-card"
-                  >
-                    <div className="flex-1">
-                      <div className="flex items-center space-x-2">
-                        <h4 className="font-medium text-sm">{task.title}</h4>
-                        <span className={`px-2 py-1 rounded-full text-xs ${getPriorityColor(task.priority)}`}>
-                          {task.priority}
-                        </span>
-                      </div>
-                      {task.description && (
-                        <p className="text-xs text-muted-foreground mt-1">
-                          {task.description}
-                        </p>
-                      )}
-                      <div className="flex items-center space-x-4 mt-2 text-xs text-muted-foreground">
-                        {task.estimatedDuration && (
-                          <div className="flex items-center space-x-1">
-                            <Clock className="w-3 h-3" />
-                            <span>{task.estimatedDuration}m</span>
-                          </div>
-                        )}
-                        {task.budgetImpact && (
-                          <div className="flex items-center space-x-1">
-                            <DollarSign className="w-3 h-3" />
-                            <span>{formatCurrency(task.budgetImpact)}</span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex space-x-2">
-                      <Button 
-                        size="sm" 
-                        variant="outline"
-                        onClick={() => handleCompleteTask(task.id)}
-                      >
-                        Complete
-                      </Button>
-                      <Button 
-                        size="sm" 
-                        variant="destructive"
-                        onClick={() => handleDeleteTask(task.id)}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </div>
+                    task={task}
+                    onComplete={handleCompleteTask}
+                    onDelete={handleDeleteTask}
+                  />
                 ))}
                 {todayTasks.length > 5 && (
                   <Button variant="ghost" className="w-full mt-2">
@@ -349,50 +475,12 @@ export function DashboardPage() {
             ) : (
               <div className="space-y-3">
                 {upcomingEvents.slice(0, 5).map((event) => (
-                  <div
+                  <EventItem
                     key={event.id}
-                    className="flex items-center justify-between p-3 rounded-lg border bg-card"
-                  >
-                    <div className="flex-1">
-                      <h4 className="font-medium text-sm">{event.title}</h4>
-                      {event.description && (
-                        <p className="text-xs text-muted-foreground mt-1">
-                          {event.description}
-                        </p>
-                      )}
-                      <div className="flex items-center space-x-4 mt-2 text-xs text-muted-foreground">
-                        <div className="flex items-center space-x-1">
-                          <Clock className="w-3 h-3" />
-                          <span>{formatTime(event.startTime)}</span>
-                        </div>
-                        {event.location && (
-                          <span>{event.location}</span>
-                        )}
-                        {event.budgetImpact && (
-                          <div className="flex items-center space-x-1">
-                            <DollarSign className="w-3 h-3" />
-                            <span>{formatCurrency(event.budgetImpact)}</span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex space-x-2">
-                      <Button 
-                        size="sm" 
-                        variant="outline"
-                        onClick={() => handleViewEvent(event.id)}
-                      >
-                        View
-                      </Button>
-                      <Button 
-                        size="sm" 
-                        variant="destructive"
-                        onClick={() => handleDeleteEvent(event.id)}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </div>
+                    event={event}
+                    onView={handleViewEvent}
+                    onDelete={handleDeleteEvent}
+                  />
                 ))}
                 {upcomingEvents.length > 5 && (
                   <Button variant="ghost" className="w-full mt-2">
@@ -445,6 +533,17 @@ export function DashboardPage() {
           </CardContent>
         </Card>
       )}
+
+      {/* Event Modal */}
+      <EventModal
+        event={selectedEvent}
+        isOpen={isModalOpen}
+        onClose={handleCloseModal}
+        onEventUpdated={() => {
+          queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+          queryClient.invalidateQueries({ queryKey: ['events'] })
+        }}
+      />
     </div>
   )
 }

@@ -27,25 +27,53 @@ const querySchema = z.object({
   startDate: z.string().datetime().optional(),
   endDate: z.string().datetime().optional(),
   search: z.string().optional(),
+  includePast: z.string().transform(val => val === 'true').default('false'),
   sortBy: z.enum(['startTime', 'title', 'createdAt']).default('startTime'),
   sortOrder: z.enum(['asc', 'desc']).default('asc')
 });
 
 // Get all events with filtering and pagination
 router.get('/', authenticateToken, asyncHandler(async (req: AuthRequest, res) => {
-  const query = querySchema.parse(req.query);
-  const { page, limit, startDate, endDate, search, sortBy, sortOrder } = query;
+  try {
+    logger.info('Calendar API called', { userId: req.user!.id, query: req.query });
+    
+    const query = querySchema.parse(req.query);
+    const { page, limit, startDate, endDate, search, includePast, sortBy, sortOrder } = query;
 
-  const skip = (page - 1) * limit;
+    const skip = (page - 1) * limit;
 
-  const where: any = {
-    userId: req.user!.id
-  };
+    const where: any = {
+      userId: req.user!.id
+    };
 
-  if (startDate || endDate) {
+  // Default to only show future events if no date range is specified and includePast is false
+  if (!startDate && !endDate && !includePast) {
+    const now = new Date();
+    
+    // TEMPORARILY DISABLED: Complex timezone filtering causing errors
+    // TODO: Fix the timezone handling properly
+    // For now, show all events so the user can see their data
+    
+    logger.info('Temporarily showing all events due to timezone issues', { 
+      currentTime: now.toISOString(),
+      currentTimeLocal: now.toLocaleString(),
+      userId: req.user!.id,
+      includePast: false,
+      note: "Timezone filtering disabled temporarily"
+    });
+    
+    // Don't apply any time filtering for now
+    // where.startTime = { gte: now };
+  } else {
     where.startTime = {};
     if (startDate) where.startTime.gte = new Date(startDate);
     if (endDate) where.startTime.lte = new Date(endDate);
+    logger.info('Using custom date range', { 
+      startDate, 
+      endDate, 
+      includePast,
+      userId: req.user!.id
+    });
   }
 
   if (search) {
@@ -66,6 +94,24 @@ router.get('/', authenticateToken, asyncHandler(async (req: AuthRequest, res) =>
     prisma.event.count({ where })
   ]);
 
+  // Log the events being returned for debugging
+  if (events.length > 0) {
+    const now = new Date();
+    logger.info('Returning events', { 
+      count: events.length,
+      currentTime: now.toISOString(),
+      currentTimeLocal: now.toLocaleString(),
+      events: events.map(e => ({
+        id: e.id,
+        title: e.title,
+        startTime: e.startTime.toISOString(),
+        startTimeLocal: e.startTime.toLocaleString(),
+        isFuture: e.startTime > now,
+        timeDifference: e.startTime.getTime() - now.getTime()
+      }))
+    });
+  }
+
   const totalPages = Math.ceil(total / limit);
 
   res.json({
@@ -78,6 +124,10 @@ router.get('/', authenticateToken, asyncHandler(async (req: AuthRequest, res) =>
       totalPages
     }
   });
+  } catch (error) {
+    logger.error('Calendar API error', { error: error.message, stack: error.stack, userId: req.user!.id });
+    throw error;
+  }
 }));
 
 // Get event by ID

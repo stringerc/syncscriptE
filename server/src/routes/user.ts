@@ -66,19 +66,31 @@ router.get('/profile', authenticateToken, asyncHandler(async (req: AuthRequest, 
     throw createError('User not found', 404);
   }
 
-  // Remove password from response
+  // Remove password from response and format for frontend
   const { password: _, ...userWithoutPassword } = user;
+
+  // Format user data with preferences structure
+  const formattedUser = {
+    ...userWithoutPassword,
+    isEmailVerified: user.emailVerified || false,
+    preferences: {
+      notifications: user.settings?.emailNotifications ?? true,
+      darkMode: user.settings?.darkMode ?? false,
+      timezone: user.timezone || 'UTC'
+    }
+  };
 
   res.json({
     success: true,
-    data: userWithoutPassword
+    data: formattedUser
   });
 }));
 
 // Update user profile
 router.put('/profile', authenticateToken, asyncHandler(async (req: AuthRequest, res) => {
-  const updateData = updateProfileSchema.parse(req.body);
-
+  const { preferences, ...updateData } = req.body;
+  
+  // Update user data
   const user = await prisma.user.update({
     where: { id: req.user!.id },
     data: updateData,
@@ -89,15 +101,50 @@ router.put('/profile', authenticateToken, asyncHandler(async (req: AuthRequest, 
       timezone: true,
       energyLevel: true,
       createdAt: true,
-      updatedAt: true
+      updatedAt: true,
+      emailVerified: true
     }
   });
 
+  // Update preferences if provided
+  if (preferences) {
+    await prisma.userSettings.upsert({
+      where: { userId: req.user!.id },
+      update: {
+        emailNotifications: preferences.notifications
+      },
+      create: {
+        userId: req.user!.id,
+        emailNotifications: preferences.notifications,
+        pushNotifications: true,
+        smsNotifications: false,
+        aiSchedulingEnabled: true,
+        aiBudgetAdviceEnabled: true,
+        aiEnergyAdaptation: true,
+        dataSharingEnabled: false,
+        workHoursStart: '09:00',
+        workHoursEnd: '17:00',
+        breakDuration: 15
+      }
+    });
+  }
+
   logger.info('User profile updated', { userId: user.id });
+
+  // Return formatted response
+  const formattedUser = {
+    ...user,
+    isEmailVerified: user.emailVerified || false,
+    preferences: {
+      notifications: preferences?.notifications ?? true,
+      darkMode: preferences?.darkMode ?? false,
+      timezone: user.timezone || 'UTC'
+    }
+  };
 
   res.json({
     success: true,
-    data: user,
+    data: formattedUser,
     message: 'Profile updated successfully'
   });
 }));
@@ -231,14 +278,15 @@ router.get('/dashboard', authenticateToken, asyncHandler(async (req: AuthRequest
       ],
       take: 10
     }),
-    prisma.event.findMany({
-      where: {
-        userId: req.user!.id,
-        startTime: { gte: new Date() }
-      },
-      orderBy: { startTime: 'asc' },
-      take: 5
-    }),
+      prisma.event.findMany({
+        where: {
+          userId: req.user!.id
+          // TEMPORARILY DISABLED: Complex timezone filtering causing errors
+          // TODO: Fix timezone handling properly
+        },
+        orderBy: { startTime: 'asc' },
+        take: 5
+      }),
     prisma.achievement.findMany({
       where: { userId: req.user!.id },
       orderBy: { unlockedAt: 'desc' },
@@ -368,6 +416,164 @@ router.delete('/account', authenticateToken, asyncHandler(async (req: AuthReques
   res.json({
     success: true,
     message: 'Account has been permanently deleted'
+  });
+}));
+
+// Get profile statistics for profile page
+router.get('/profile/stats', authenticateToken, asyncHandler(async (req: AuthRequest, res) => {
+  const [
+    totalTasks,
+    completedTasks,
+    totalEvents,
+    currentStreak
+  ] = await Promise.all([
+    prisma.task.count({
+      where: { userId: req.user!.id }
+    }),
+    prisma.task.count({
+      where: { 
+        userId: req.user!.id,
+        status: 'COMPLETED'
+      }
+    }),
+    prisma.event.count({
+      where: { userId: req.user!.id }
+    }),
+    prisma.streak.findFirst({
+      where: { userId: req.user!.id },
+      orderBy: { count: 'desc' },
+      select: { count: true }
+    })
+  ]);
+
+  res.json({
+    success: true,
+    data: {
+      totalTasks,
+      completedTasks,
+      totalEvents,
+      streakDays: currentStreak?.count || 0
+    }
+  });
+}));
+
+// Resend email verification
+router.post('/resend-verification', authenticateToken, asyncHandler(async (req: AuthRequest, res) => {
+  const user = await prisma.user.findUnique({
+    where: { id: req.user!.id }
+  });
+
+  if (!user) {
+    throw createError('User not found', 404);
+  }
+
+  if (user.emailVerified) {
+    return res.json({
+      success: true,
+      message: 'Email is already verified'
+    });
+  }
+
+  // Generate verification token
+  const crypto = require('crypto');
+  const verificationToken = crypto.randomBytes(32).toString('hex');
+  const tokenExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+
+  // Save verification token
+  await prisma.user.update({
+    where: { id: user.id },
+    data: {
+      emailVerificationToken: verificationToken,
+      emailVerificationExpiry: tokenExpiry
+    }
+  });
+
+  // Send verification email
+  const nodemailer = require('nodemailer');
+  const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_APP_PASSWORD
+    }
+  });
+
+  const verificationUrl = `${process.env.FRONTEND_URL}/verify-email?token=${verificationToken}`;
+
+  const mailOptions = {
+    from: process.env.EMAIL_USER,
+    to: user.email,
+    subject: 'SyncScript - Verify Your Email Address',
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #333; text-align: center;">SyncScript Email Verification</h2>
+        <p>Hello ${user.name || 'there'},</p>
+        <p>Thank you for signing up for SyncScript! Please verify your email address by clicking the button below:</p>
+        <div style="text-align: center; margin: 30px 0;">
+          <a href="${verificationUrl}" style="background-color: #007bff; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; display: inline-block;">Verify Email Address</a>
+        </div>
+        <p>If the button doesn't work, you can copy and paste this link into your browser:</p>
+        <p style="word-break: break-all; color: #666;">${verificationUrl}</p>
+        <p>This verification link will expire in 24 hours.</p>
+        <p>If you didn't create an account with SyncScript, please ignore this email.</p>
+        <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
+        <p style="color: #666; font-size: 12px;">This email was sent from SyncScript. If you have any questions, please contact our support team.</p>
+      </div>
+    `
+  };
+
+  try {
+    await transporter.sendMail(mailOptions);
+    logger.info('Verification email sent', { userId: user.id, email: user.email });
+
+    res.json({
+      success: true,
+      message: 'Verification email sent successfully'
+    });
+  } catch (error) {
+    logger.error('Failed to send verification email', { userId: user.id, error: error.message });
+    throw createError('Failed to send verification email', 500);
+  }
+}));
+
+// Verify email with token
+router.post('/verify-email', asyncHandler(async (req, res) => {
+  const { token } = req.body;
+
+  if (!token) {
+    throw createError('Verification token is required', 400);
+  }
+
+  const user = await prisma.user.findFirst({
+    where: {
+      emailVerificationToken: token,
+      OR: [
+        { emailVerificationExpiry: { gt: new Date() } },
+        { emailVerificationExpiry: null } // Handle old tokens without expiry
+      ]
+    }
+  });
+
+  if (!user) {
+    throw createError('Invalid or expired verification token', 400);
+  }
+
+  // Update user to mark email as verified
+  await prisma.user.update({
+    where: { id: user.id },
+    data: {
+      emailVerified: true,
+      emailVerifiedAt: new Date(),
+      emailVerificationToken: null,
+      emailVerificationExpiry: null
+    }
+  });
+
+  logger.info('Email verified successfully', { userId: user.id, email: user.email });
+
+  res.json({
+    success: true,
+    message: 'Email verified successfully'
   });
 }));
 

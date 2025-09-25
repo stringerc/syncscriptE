@@ -13,9 +13,11 @@ import { FinancialPage } from '@/pages/FinancialPage'
 import { SettingsPage } from '@/pages/SettingsPage'
 import { ProfilePage } from '@/pages/ProfilePage'
 import { AIAssistantPage } from '@/pages/AIAssistantPage'
+import { VerifyEmailPage } from '@/pages/VerifyEmailPage'
 import { LoadingSpinner } from '@/components/ui/loading-spinner'
+import { ThemeProvider } from '@/contexts/ThemeContext'
 
-function App() {
+function AppContent() {
   const { user, isLoading, checkAuth } = useAuthStore()
 
   useEffect(() => {
@@ -36,6 +38,7 @@ function App() {
         <Route path="/auth" element={<AuthPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/reset-password" element={<PasswordResetPage />} />
+        <Route path="/verify-email" element={<VerifyEmailPage />} />
         <Route path="*" element={<Navigate to="/auth" replace />} />
       </Routes>
     )
@@ -53,9 +56,18 @@ function App() {
         <Route path="/ai-assistant" element={<AIAssistantPage />} />
         <Route path="/settings" element={<SettingsPage />} />
         <Route path="/profile" element={<ProfilePage />} />
+        <Route path="/verify-email" element={<VerifyEmailPage />} />
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
     </Layout>
+  )
+}
+
+function App() {
+  return (
+    <ThemeProvider>
+      <AppContent />
+    </ThemeProvider>
   )
 }
 
