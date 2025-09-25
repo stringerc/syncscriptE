@@ -7,7 +7,7 @@ const getApiBaseUrl = () => {
     return (import.meta as any).env.VITE_API_URL
   }
   
-  // If running on GitHub Pages, use Cloudflare tunnel backend
+  // If running on GitHub Pages, use Cloudflare tunnel backend (working)
   if (window.location.hostname === 'stringerc.github.io') {
     console.log('🌐 Running on GitHub Pages - using Cloudflare tunnel backend')
     return 'https://location-printed-competitions-leads.trycloudflare.com/api'
