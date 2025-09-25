@@ -9,6 +9,7 @@ import { Switch } from '@/components/ui/switch'
 import { Separator } from '@/components/ui/separator'
 import { useToast } from '@/hooks/use-toast'
 import { User, Bell, Shield, Palette, Save, Loader2 } from 'lucide-react'
+import { useAuthStore } from '@/stores/authStore'
 
 interface UserSettings {
   id: string
@@ -36,6 +37,7 @@ interface UserProfile {
 export function SettingsPage() {
   const { toast } = useToast()
   const queryClient = useQueryClient()
+  const { updateUser } = useAuthStore()
   const [isLoading, setIsLoading] = useState(false)
 
   // Form state
@@ -82,7 +84,7 @@ export function SettingsPage() {
       setProfileData({
         name: profile.name || '',
         timezone: profile.timezone || 'UTC',
-        energyLevel: profile.energyLevel || 5
+        energyLevel: profile.energyLevel ?? 5
       })
     }
   }, [profile])
@@ -110,8 +112,10 @@ export function SettingsPage() {
       const response = await api.put('/user/profile', data)
       return response.data
     },
-    onSuccess: () => {
+    onSuccess: (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['profile'] })
+      // Update the Zustand store with the new user data
+      updateUser(variables)
       toast({
         title: "Profile Updated",
         description: "Your profile has been updated successfully."
@@ -241,7 +245,7 @@ export function SettingsPage() {
                   min="1"
                   max="10"
                   value={profileData.energyLevel}
-                  onChange={(e) => setProfileData(prev => ({ ...prev, energyLevel: parseInt(e.target.value) || 5 }))}
+                  onChange={(e) => setProfileData(prev => ({ ...prev, energyLevel: parseInt(e.target.value) ?? 5 }))}
                 />
               </div>
 

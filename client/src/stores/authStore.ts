@@ -18,6 +18,7 @@ interface AuthActions {
   clearError: () => void
   forgotPassword: (email: string) => Promise<void>
   resetPassword: (token: string, password: string) => Promise<void>
+  updateUser: (userData: Partial<User>) => void
 }
 
 type AuthStore = AuthState & AuthActions
@@ -143,6 +144,13 @@ export const useAuthStore = create<AuthStore>()(
           })
           // Throw a custom error with the clean message
           throw new Error(errorMessage)
+        }
+      },
+
+      updateUser: (userData: Partial<User>) => {
+        const { user } = get()
+        if (user) {
+          set({ user: { ...user, ...userData } })
         }
       }
     }),

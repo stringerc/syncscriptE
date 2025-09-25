@@ -50,21 +50,13 @@ router.get('/', authenticateToken, asyncHandler(async (req: AuthRequest, res) =>
   if (!startDate && !endDate && !includePast) {
     const now = new Date();
     
-    // Get today's date in local timezone (start of day)
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    
-    // Convert to UTC for database comparison
-    const todayUTC = new Date(today.toISOString());
-    
     where.startTime = { 
-      gte: todayUTC
+      gte: now
     };
     
-    logger.info('Filtering events to show only today and future', { 
+    logger.info('Filtering events to show only future events', { 
       currentTime: now.toISOString(),
       currentTimeLocal: now.toLocaleString(),
-      todayUTC: todayUTC.toISOString(),
       userId: req.user!.id,
       includePast: false
     });

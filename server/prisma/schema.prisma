@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -11,100 +8,77 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  name      String?
-  password  String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  
-  // Authentication
-  emailVerified         Boolean?
-  emailVerifiedAt       DateTime?
-  emailVerificationToken String?
+  id                      String                @id @default(cuid())
+  email                   String                @unique
+  name                    String?
+  password                String
+  createdAt               DateTime              @default(now())
+  updatedAt               DateTime              @updatedAt
+  emailVerified           Boolean?
+  emailVerifiedAt         DateTime?
+  passwordResetToken      String?
+  passwordResetExpires    DateTime?
+  timezone                String?
+  energyLevel             Int?                  @default(5)
+  emailVerificationToken  String?
+  avatar                  String?
   emailVerificationExpiry DateTime?
-  passwordResetToken   String?
-  passwordResetExpires  DateTime?
-
-  // Profile
-  timezone     String?
-  energyLevel  Int?     @default(5) // 1-10 scale
-  avatar       String?   // URL to avatar image
-  dailyEnergy  EnergyLevel[]
-  
-  // Location
-  currentLocation String? // Current city/location
-  homeLocation    String? // Home city/location
-  workLocation    String? // Work city/location
-  
-  // Integrations
-  calendarIntegrations CalendarIntegration[]
-  financialAccounts    FinancialAccount[]
-  
-  // Data
-  tasks        Task[]
-  events       Event[]
-  conversations Conversation[]
-  notifications Notification[]
-  achievements Achievement[]
-  streaks      Streak[]
-  
-  // Settings
-  settings UserSettings?
+  currentLocation         String?
+  homeLocation            String?
+  workLocation            String?
+  achievements            Achievement[]
+  calendarIntegrations    CalendarIntegration[]
+  conversations           Conversation[]
+  dailyEnergy             EnergyLevel[]
+  events                  Event[]
+  financialAccounts       FinancialAccount[]
+  notifications           Notification[]
+  streaks                 Streak[]
+  tasks                   Task[]
+  settings                UserSettings?
 
   @@map("users")
 }
 
 model UserSettings {
-  id     String @id @default(cuid())
-  userId String @unique
-  
-  // Notification preferences
+  id                    String  @id @default(cuid())
+  userId                String  @unique
   emailNotifications    Boolean @default(true)
   pushNotifications     Boolean @default(true)
   smsNotifications      Boolean @default(false)
-  
-  // AI preferences
   aiSchedulingEnabled   Boolean @default(true)
   aiBudgetAdviceEnabled Boolean @default(true)
   aiEnergyAdaptation    Boolean @default(true)
-  
-  // Privacy
   dataSharingEnabled    Boolean @default(false)
-  
-  // Work preferences
   workHoursStart        String  @default("09:00")
   workHoursEnd          String  @default("17:00")
-  breakDuration         Int     @default(15) // minutes
-  
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  breakDuration         Int     @default(15)
+  user                  User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("user_settings")
 }
 
 model EnergyLevel {
-  id        String   @id @default(cuid())
-  userId    String
-  level     Int      // 1-10 scale
-  date      DateTime @default(now())
-  notes     String?
-  
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id     String   @id @default(cuid())
+  userId String
+  level  Int
+  date   DateTime @default(now())
+  notes  String?
+  user   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("energy_levels")
 }
 
 model CalendarIntegration {
-  id          String   @id @default(cuid())
-  userId      String
-  provider    String   // "google", "outlook", "apple"
-  accessToken String
+  id           String    @id @default(cuid())
+  userId       String
+  provider     String
+  accessToken  String
   refreshToken String?
-  expiresAt   DateTime?
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt    DateTime?
+  isActive     Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("calendar_integrations")
 }
@@ -115,103 +89,85 @@ model FinancialAccount {
   plaidItemId String
   accountId   String
   accountName String
-  accountType String   // "checking", "savings", "credit", etc.
+  accountType String
   balance     Float?
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
-  
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("financial_accounts")
 }
 
 model Task {
-  id          String   @id @default(cuid())
-  userId      String
-  title       String
-  description String?
-  priority    String @default("MEDIUM")   // "LOW", "MEDIUM", "HIGH", "URGENT"
-  status      String @default("PENDING") // "PENDING", "IN_PROGRESS", "COMPLETED", "CANCELLED", "DEFERRED"
-  dueDate     DateTime?
-  estimatedDuration Int? // minutes
-  actualDuration    Int? // minutes
-  energyRequired    Int? // 1-10 scale
-  budgetImpact      Float? // cost in dollars
-  
-  // AI-generated fields
-  aiGenerated       Boolean @default(false)
-  extractedFrom     String? // conversation ID or source
-  
-  // Scheduling
+  id                String    @id @default(cuid())
+  userId            String
+  title             String
+  description       String?
+  priority          String    @default("MEDIUM")
+  status            String    @default("PENDING")
+  dueDate           DateTime?
+  estimatedDuration Int?
+  actualDuration    Int?
+  energyRequired    Int?
+  budgetImpact      Float?
+  aiGenerated       Boolean   @default(false)
+  extractedFrom     String?
   scheduledAt       DateTime?
   completedAt       DateTime?
-  
-  // Additional fields
-  notes             String?  // User notes for the task
-  location          String?  // Location where task should be performed
-  
-  // Relationships
-  tags              String?  // Store as comma-separated string
+  tags              String?
+  eventId           String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  location          String?
+  notes             String?
+  deletedAt         DateTime?
   subtasks          Subtask[]
-  eventId           String?  // Link to event for preparation tasks
-  event             Event?   @relation(fields: [eventId], references: [id], onDelete: SetNull)
-  
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  event             Event?    @relation(fields: [eventId], references: [id])
 
   @@map("tasks")
 }
 
 model Subtask {
-  id        String   @id @default(cuid())
+  id        String  @id @default(cuid())
   taskId    String
   title     String
-  completed Boolean  @default(false)
+  completed Boolean @default(false)
   order     Int
-  
-  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  task      Task    @relation(fields: [taskId], references: [id], onDelete: Cascade)
 
   @@map("subtasks")
 }
 
 model Event {
-  id          String   @id @default(cuid())
-  userId      String
-  title       String
-  description String?
-  startTime   DateTime
-  endTime     DateTime
-  location    String?
-  isAllDay    Boolean  @default(false)
-  
-  // Calendar integration
-  calendarEventId String? // External calendar event ID
-  calendarProvider String? // "google", "outlook", "apple"
-  
-  // AI enhancements
-  aiGenerated Boolean @default(false)
-  budgetImpact Float? // estimated cost
-  
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  preparationTasks Task[] // Tasks generated for this event
+  id               String   @id @default(cuid())
+  userId           String
+  title            String
+  description      String?
+  startTime        DateTime
+  endTime          DateTime
+  location         String?
+  isAllDay         Boolean  @default(false)
+  calendarEventId  String?
+  calendarProvider String?
+  aiGenerated      Boolean  @default(false)
+  budgetImpact     Float?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  preparationTasks Task[]
 
   @@map("events")
 }
 
 model Conversation {
-  id        String   @id @default(cuid())
-  userId    String
-  content   String
-  source    String   // "chatgpt", "syncscript", "email", etc.
-  extractedTasks String? // Store as comma-separated string of task IDs
-  createdAt DateTime @default(now())
-  
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id             String   @id @default(cuid())
+  userId         String
+  content        String
+  source         String
+  extractedTasks String?
+  createdAt      DateTime @default(now())
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("conversations")
 }
@@ -219,15 +175,14 @@ model Conversation {
 model Notification {
   id        String   @id @default(cuid())
   userId    String
-  type      String   // "TASK_REMINDER", "BUDGET_ALERT", "ENERGY_ADAPTATION", etc.
+  type      String
   title     String
   message   String
   isRead    Boolean  @default(false)
   actionUrl String?
-  metadata  String?  // Store as JSON string
+  metadata  String?
   createdAt DateTime @default(now())
-  
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("notifications")
 }
@@ -235,27 +190,23 @@ model Notification {
 model Achievement {
   id          String   @id @default(cuid())
   userId      String
-  type        String   // "streak", "completion", "budget", etc.
+  type        String
   title       String
   description String
   points      Int      @default(0)
   unlockedAt  DateTime @default(now())
-  
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("achievements")
 }
 
 model Streak {
-  id        String   @id @default(cuid())
-  userId    String
-  type      String   // "daily_tasks", "budget_adherence", etc.
-  count     Int      @default(0)
-  lastDate  DateTime @default(now())
-  
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id       String   @id @default(cuid())
+  userId   String
+  type     String
+  count    Int      @default(0)
+  lastDate DateTime @default(now())
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("streaks")
 }
-
-// Enums removed for SQLite compatibility - using String types instead

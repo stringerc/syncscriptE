@@ -46,7 +46,7 @@ export function Header() {
                 {user?.name || 'User'}
               </p>
               <p className="text-xs text-muted-foreground">
-                Energy Level: {user?.energyLevel || 'Not set'}/10
+                Energy Level: {user?.energyLevel ?? 5}/10
               </p>
             </div>
             

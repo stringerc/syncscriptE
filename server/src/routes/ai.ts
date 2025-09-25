@@ -627,7 +627,15 @@ router.post('/events/:eventId/prepare', authenticateToken, asyncHandler(async (r
 
     let preparationTasks;
     try {
-      preparationTasks = JSON.parse(response);
+      // Extract JSON from markdown code blocks if present
+      let jsonString = response.trim();
+      if (jsonString.startsWith('```json')) {
+        jsonString = jsonString.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+      } else if (jsonString.startsWith('```')) {
+        jsonString = jsonString.replace(/^```\s*/, '').replace(/\s*```$/, '');
+      }
+      
+      preparationTasks = JSON.parse(jsonString);
     } catch (parseError) {
       logger.error('Failed to parse AI response', { response, error: parseError });
       throw createError('Invalid AI response format', 500);

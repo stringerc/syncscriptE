@@ -79,10 +79,7 @@ export function EventModal({ event, isOpen, onClose, onEventUpdated }: EventModa
     }
   }, [event])
 
-  // Debug edit mode state
-  useEffect(() => {
-    console.log('🎯 EventModal: Edit mode changed to:', isEditing)
-  }, [isEditing])
+  // Removed excessive logging for performance
 
   const updateEventMutation = useMutation({
     mutationFn: async (data: Partial<Event>) => {

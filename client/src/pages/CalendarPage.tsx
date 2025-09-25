@@ -152,18 +152,13 @@ export function CalendarPage() {
       if (events.length === 0) return
 
       try {
-        console.log('🌤️ CalendarPage: Fetching weather for events:', events.map(e => ({ id: e.id, title: e.title, location: e.location })))
         const response = await api.post('/location/events/weather', { events })
-        console.log('🌤️ CalendarPage: Weather API response:', response.data)
         
         const weatherData: Record<string, { emoji: string; temperature: number; condition: string } | null> = {}
         
         response.data.data.eventsWithWeather.forEach((item: any) => {
-          console.log('🌤️ CalendarPage: Weather for event:', item.eventId, item.weather)
           weatherData[item.eventId] = item.weather
         })
-        
-        console.log('🌤️ CalendarPage: Final weather data:', weatherData)
         setEventWeatherData(weatherData)
       } catch (error) {
         console.error('Failed to fetch event weather:', error)

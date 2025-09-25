@@ -43,13 +43,17 @@ const querySchema = z.object({
   search: z.string().optional(),
   eventId: z.string().optional(), // filter by event ID
   sortBy: z.enum(['createdAt', 'dueDate', 'priority', 'title']).default('createdAt'),
-  sortOrder: z.enum(['asc', 'desc']).default('desc')
+  sortOrder: z.enum(['asc', 'desc']).default('desc'),
+  includeDeleted: z.union([z.string(), z.boolean()]).optional().transform(val => {
+    if (typeof val === 'boolean') return val;
+    return val === 'true';
+  }).default(false) // include deleted tasks
 });
 
 // Get all tasks with filtering and pagination
 router.get('/', authenticateToken, asyncHandler(async (req: AuthRequest, res) => {
   const query = querySchema.parse(req.query);
-  const { page, limit, status, priority, tags, search, eventId, sortBy, sortOrder } = query;
+  const { page, limit, status, priority, tags, search, eventId, sortBy, sortOrder, includeDeleted } = query;
 
   const skip = (page - 1) * limit;
   const tagArray = tags ? tags.split(',').map(t => t.trim()) : undefined;
@@ -57,6 +61,11 @@ router.get('/', authenticateToken, asyncHandler(async (req: AuthRequest, res) =>
   const where: any = {
     userId: req.user!.id
   };
+
+  // Exclude deleted tasks by default
+  if (!includeDeleted) {
+    where.deletedAt = null;
+  }
 
   if (status) where.status = status;
   if (priority) where.priority = priority;
@@ -95,6 +104,25 @@ router.get('/', authenticateToken, asyncHandler(async (req: AuthRequest, res) =>
       total,
       totalPages
     }
+  });
+}));
+
+// Get deleted tasks (must come before /:id route)
+router.get('/deleted', authenticateToken, asyncHandler(async (req: AuthRequest, res) => {
+  const tasks = await prisma.task.findMany({
+    where: {
+      userId: req.user!.id,
+      deletedAt: { not: null }
+    },
+    include: {
+      subtasks: { orderBy: { order: 'asc' } }
+    },
+    orderBy: { deletedAt: 'desc' } // Most recently deleted first
+  });
+
+  res.json({
+    success: true,
+    data: tasks
   });
 }));
 
@@ -214,32 +242,6 @@ router.put('/:id', authenticateToken, asyncHandler(async (req: AuthRequest, res)
   });
 }));
 
-// Delete task
-router.delete('/:id', authenticateToken, asyncHandler(async (req: AuthRequest, res) => {
-  const { id } = req.params;
-
-  const task = await prisma.task.findFirst({
-    where: {
-      id,
-      userId: req.user!.id
-    }
-  });
-
-  if (!task) {
-    throw createError('Task not found', 404);
-  }
-
-  await prisma.task.delete({
-    where: { id }
-  });
-
-  logger.info('Task deleted', { userId: req.user!.id, taskId: id });
-
-  res.json({
-    success: true,
-    message: 'Task deleted successfully'
-  });
-}));
 
 // Complete task
 router.patch('/:id/complete', authenticateToken, asyncHandler(async (req: AuthRequest, res) => {
@@ -430,8 +432,42 @@ router.patch('/bulk-priority', authenticateToken, asyncHandler(async (req: AuthR
   });
 }));
 
-// Delete task
+// Soft delete task
 router.delete('/:id', authenticateToken, asyncHandler(async (req: AuthRequest, res) => {
+  const { id } = req.params;
+
+  const task = await prisma.task.findUnique({
+    where: {
+      id,
+      userId: req.user!.id,
+      deletedAt: null // Only find non-deleted tasks
+    }
+  });
+
+  if (!task) {
+    throw createError('Task not found', 404);
+  }
+
+  await prisma.task.update({
+    where: {
+      id,
+      userId: req.user!.id
+    },
+    data: {
+      deletedAt: new Date()
+    }
+  });
+
+  logger.info('Task soft deleted', { userId: req.user!.id, taskId: id });
+
+  res.json({
+    success: true,
+    message: 'Task deleted successfully'
+  });
+}));
+
+// Restore deleted task
+router.patch('/:id/restore', authenticateToken, asyncHandler(async (req: AuthRequest, res) => {
   const { id } = req.params;
 
   const task = await prisma.task.findUnique({
@@ -445,18 +481,25 @@ router.delete('/:id', authenticateToken, asyncHandler(async (req: AuthRequest, r
     throw createError('Task not found', 404);
   }
 
-  await prisma.task.delete({
+  if (!task.deletedAt) {
+    throw createError('Task is not deleted', 400);
+  }
+
+  await prisma.task.update({
     where: {
       id,
       userId: req.user!.id
+    },
+    data: {
+      deletedAt: null
     }
   });
 
-  logger.info('Task deleted', { userId: req.user!.id, taskId: id });
+  logger.info('Task restored', { userId: req.user!.id, taskId: id });
 
   res.json({
     success: true,
-    message: 'Task deleted successfully'
+    message: 'Task restored successfully'
   });
 }));
 

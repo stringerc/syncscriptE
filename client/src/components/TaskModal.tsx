@@ -49,6 +49,10 @@ export function TaskModal({ task, isOpen, onClose, onTaskUpdated, onTaskDeleted 
   })
   const [calendarSuggestion, setCalendarSuggestion] = useState<CalendarSuggestion | null>(null)
   const [showCalendarSuggestion, setShowCalendarSuggestion] = useState(false)
+  const [customEventTime, setCustomEventTime] = useState({
+    startTime: '',
+    endTime: ''
+  })
   const [suggestedNotes, setSuggestedNotes] = useState<string[]>([])
   const [showNotesSuggestion, setShowNotesSuggestion] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
@@ -159,6 +163,12 @@ export function TaskModal({ task, isOpen, onClose, onTaskUpdated, onTaskDeleted 
     },
     onSuccess: (data) => {
       setCalendarSuggestion(data.data.suggestion)
+      // Initialize custom time fields with AI suggestions
+      const suggestion = data.data.suggestion
+      setCustomEventTime({
+        startTime: new Date(suggestion.suggestedTime).toISOString().slice(0, 16), // Format for datetime-local input
+        endTime: new Date(suggestion.suggestedEndTime).toISOString().slice(0, 16)
+      })
       setShowCalendarSuggestion(true)
     },
     onError: (error: any) => {
@@ -171,15 +181,23 @@ export function TaskModal({ task, isOpen, onClose, onTaskUpdated, onTaskDeleted 
   })
 
   const createCalendarEventMutation = useMutation({
-    mutationFn: async (suggestion: CalendarSuggestion) => {
+    mutationFn: async () => {
       if (!task) throw new Error('No task to create calendar event for')
+      
+      // Use custom time if provided, otherwise fall back to AI suggestion
+      const startTime = customEventTime.startTime || calendarSuggestion?.suggestedTime
+      const endTime = customEventTime.endTime || calendarSuggestion?.suggestedEndTime
+      
+      if (!startTime || !endTime) {
+        throw new Error('Start time and end time are required')
+      }
       
       // Create the calendar event
       const eventResponse = await api.post('/calendar', {
         title: task.title,
         description: task.description,
-        startTime: suggestion.suggestedTime,
-        endTime: suggestion.suggestedEndTime,
+        startTime: new Date(startTime).toISOString(),
+        endTime: new Date(endTime).toISOString(),
         location: task.location || undefined,
         budgetImpact: task.budgetImpact || 0
       })
@@ -267,9 +285,7 @@ export function TaskModal({ task, isOpen, onClose, onTaskUpdated, onTaskDeleted 
   }
 
   const handleCreateCalendarEvent = () => {
-    if (calendarSuggestion) {
-      createCalendarEventMutation.mutate(calendarSuggestion)
-    }
+    createCalendarEventMutation.mutate()
   }
 
   const handleSuggestNotes = () => {
@@ -457,44 +473,109 @@ export function TaskModal({ task, isOpen, onClose, onTaskUpdated, onTaskDeleted 
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => setShowCalendarSuggestion(false)}
+                onClick={() => {
+                  setShowCalendarSuggestion(false)
+                  setCustomEventTime({ startTime: '', endTime: '' })
+                }}
               >
                 <X className="w-4 h-4" />
               </Button>
             </div>
             
-            <div className="space-y-3 p-4 bg-blue-50 rounded-lg">
-              <div className="flex items-center space-x-2">
-                <Calendar className="w-4 h-4 text-blue-600" />
-                <span className="font-medium">
-                  {new Date(calendarSuggestion.suggestedTime).toLocaleString()} - 
-                  {new Date(calendarSuggestion.suggestedEndTime).toLocaleString()}
-                </span>
-              </div>
-              
-              <p className="text-sm text-blue-800">
-                <strong>Reasoning:</strong> {calendarSuggestion.reasoning}
-              </p>
-              
-              {calendarSuggestion.conflicts.length > 0 && (
-                <div className="flex items-start space-x-2">
-                  <AlertCircle className="w-4 h-4 text-orange-600 mt-0.5" />
-                  <div>
-                    <p className="text-sm font-medium text-orange-800">Potential conflicts:</p>
-                    <ul className="text-sm text-orange-700 list-disc list-inside">
-                      {calendarSuggestion.conflicts.map((conflict, index) => (
-                        <li key={index}>{conflict}</li>
-                      ))}
-                    </ul>
-                  </div>
+            <div className="space-y-4 p-4 bg-blue-50 rounded-lg">
+              {/* AI Suggestion Display */}
+              <div className="space-y-2">
+                <div className="flex items-center space-x-2">
+                  <Calendar className="w-4 h-4 text-blue-600" />
+                  <span className="font-medium text-blue-800">AI Suggested Time:</span>
                 </div>
-              )}
+                <div className="text-sm text-blue-700">
+                  {new Date(calendarSuggestion.suggestedTime).toLocaleString('en-US', {
+                    weekday: 'short',
+                    month: 'short',
+                    day: 'numeric',
+                    hour: 'numeric',
+                    minute: '2-digit',
+                    hour12: true
+                  })} - {new Date(calendarSuggestion.suggestedEndTime).toLocaleString('en-US', {
+                    weekday: 'short',
+                    month: 'short',
+                    day: 'numeric',
+                    hour: 'numeric',
+                    minute: '2-digit',
+                    hour12: true
+                  })}
+                </div>
+                
+                <p className="text-sm text-blue-800">
+                  <strong>Reasoning:</strong> {calendarSuggestion.reasoning}
+                </p>
+                
+                {calendarSuggestion.conflicts.length > 0 && (
+                  <div className="flex items-start space-x-2">
+                    <AlertCircle className="w-4 h-4 text-orange-600 mt-0.5" />
+                    <div>
+                      <p className="text-sm font-medium text-orange-800">Potential conflicts:</p>
+                      <ul className="text-sm text-orange-700 list-disc list-inside">
+                        {calendarSuggestion.conflicts.map((conflict, index) => (
+                          <li key={index}>{conflict}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Custom Date/Time Input Fields */}
+              <div className="border-t border-blue-200 pt-4">
+                <div className="space-y-3">
+                  <div className="flex items-center space-x-2">
+                    <Clock className="w-4 h-4 text-blue-600" />
+                    <span className="font-medium text-blue-800">Customize Event Time:</span>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div>
+                      <Label htmlFor="startTime" className="text-sm font-medium text-blue-800">
+                        Start Time
+                      </Label>
+                      <Input
+                        id="startTime"
+                        type="datetime-local"
+                        value={customEventTime.startTime}
+                        onChange={(e) => setCustomEventTime(prev => ({ ...prev, startTime: e.target.value }))}
+                        className="mt-1"
+                      />
+                    </div>
+                    
+                    <div>
+                      <Label htmlFor="endTime" className="text-sm font-medium text-blue-800">
+                        End Time
+                      </Label>
+                      <Input
+                        id="endTime"
+                        type="datetime-local"
+                        value={customEventTime.endTime}
+                        onChange={(e) => setCustomEventTime(prev => ({ ...prev, endTime: e.target.value }))}
+                        className="mt-1"
+                      />
+                    </div>
+                  </div>
+                  
+                  <p className="text-xs text-blue-600">
+                    💡 You can modify the AI-suggested time above, or keep the original suggestion
+                  </p>
+                </div>
+              </div>
             </div>
             
             <div className="flex justify-end space-x-2 mt-4">
               <Button
                 variant="outline"
-                onClick={() => setShowCalendarSuggestion(false)}
+                onClick={() => {
+                  setShowCalendarSuggestion(false)
+                  setCustomEventTime({ startTime: '', endTime: '' })
+                }}
               >
                 Cancel
               </Button>

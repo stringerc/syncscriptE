@@ -264,6 +264,7 @@ router.get('/dashboard', authenticateToken, asyncHandler(async (req: AuthRequest
     prisma.task.findMany({
       where: {
         userId: req.user!.id,
+        deletedAt: null, // Exclude soft-deleted tasks
         OR: [
           { dueDate: { gte: today, lt: tomorrow } },
           { scheduledAt: { gte: today, lt: tomorrow } },
@@ -281,13 +282,9 @@ router.get('/dashboard', authenticateToken, asyncHandler(async (req: AuthRequest
       prisma.event.findMany({
         where: {
           userId: req.user!.id,
-          // Apply same date-based filtering as calendar route
+          // Only show future events
           startTime: {
-            gte: (() => {
-              const today = new Date();
-              today.setHours(0, 0, 0, 0);
-              return new Date(today.toISOString());
-            })()
+            gte: new Date()
           }
         },
         orderBy: { startTime: 'asc' },

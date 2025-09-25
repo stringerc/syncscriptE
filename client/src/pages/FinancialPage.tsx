@@ -155,9 +155,11 @@ export function FinancialPage() {
     }
   })
 
-  // Debug Plaid Link state
+  // Debug Plaid Link state (only log when values change)
   useEffect(() => {
-    console.log('Plaid Link state:', { linkToken, ready })
+    if (linkToken || ready) {
+      console.log('Plaid Link state:', { linkToken: linkToken ? 'present' : 'null', ready })
+    }
   }, [linkToken, ready])
 
   const handleConnectAccount = () => {

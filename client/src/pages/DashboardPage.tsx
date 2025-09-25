@@ -147,8 +147,7 @@ const EventItem = memo(({ event, onView, onDelete, weatherData, preparationTasks
 }) => {
   const [showAllTasks, setShowAllTasks] = useState(false)
   
-  console.log('🌤️ EventItem render:', event.title, 'weatherData:', weatherData)
-  console.log('🌤️ EventItem emoji:', weatherData?.emoji)
+  // Removed excessive logging for performance
   return (
   <div className="flex items-center justify-between p-3 rounded-lg border bg-card">
     <div className="flex-1">
@@ -260,19 +259,36 @@ export function DashboardPage() {
     setIsHydrated(true)
   }, [])
 
+  // Only refresh dashboard data when energy level changes (for the header display)
+  useEffect(() => {
+    const handleFocus = () => {
+      // Only invalidate queries, don't force refetch
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+    }
+    
+    window.addEventListener('focus', handleFocus)
+    
+    return () => {
+      window.removeEventListener('focus', handleFocus)
+    }
+  }, [queryClient])
+
   const { data: dashboardData, isLoading, error } = useQuery<DashboardData>({
     queryKey: ['dashboard'],
     queryFn: async () => {
       const response = await api.get('/user/dashboard')
       return response.data.data
     },
-    staleTime: 0, // Always consider data stale for immediate updates
+    staleTime: 2 * 60 * 1000, // Consider data fresh for 2 minutes
     gcTime: 5 * 60 * 1000, // 5 minutes
-    refetchOnWindowFocus: true, // Refetch when window gains focus
+    refetchOnWindowFocus: false, // Don't refetch on window focus
+    refetchOnMount: true, // Always refetch when component mounts
+    refetchInterval: 5 * 60 * 1000, // Refetch every 5 minutes instead of 30 seconds
     retry: 1, // Only retry once for faster error handling
     retryDelay: 500, // Faster retry
     enabled: !!token && isHydrated // Only run if user is authenticated and store is hydrated
   })
+
 
 
   const deleteEventMutation = useMutation({
@@ -432,7 +448,6 @@ export function DashboardPage() {
     console.log('🎯 DashboardPage: handleTaskUpdated called with:', updatedTask)
     setSelectedTask(updatedTask)
     queryClient.invalidateQueries({ queryKey: ['dashboard'] })
-    queryClient.refetchQueries({ queryKey: ['dashboard'] }) // Force immediate refetch
     
     // If this was a prep task that was completed, refresh the preparation tasks for the related event
     const relatedEventId = updatedTask.eventId
@@ -467,7 +482,6 @@ export function DashboardPage() {
 
   const handleTaskDeleted = useCallback((taskId: string) => {
     queryClient.invalidateQueries({ queryKey: ['dashboard'] })
-    queryClient.refetchQueries({ queryKey: ['dashboard'] }) // Force immediate refetch
   }, [queryClient])
 
   const handleCompleteTask = useCallback(async (taskId: string) => {
@@ -540,10 +554,10 @@ export function DashboardPage() {
   const fetchEventWeather = useCallback(async (events: Event[]) => {
     if (events.length === 0) return
 
-    // Check if we already have recent weather data (within last 10 minutes)
+    // Check if we already have recent weather data (within last 15 minutes)
     const lastFetch = localStorage.getItem('event-weather-last-fetch')
     const now = Date.now()
-    if (lastFetch && (now - parseInt(lastFetch)) < 10 * 60 * 1000) {
+    if (lastFetch && (now - parseInt(lastFetch)) < 15 * 60 * 1000) {
       console.log('🌤️ Using cached event weather data')
       return
     }
@@ -586,26 +600,25 @@ export function DashboardPage() {
     try {
       const preparationTasksData: Record<string, any[]> = {}
       
-      // Fetch preparation tasks for each event
-      await Promise.all(events.map(async (event) => {
-        try {
-          const response = await api.get(`/tasks?eventId=${event.id}`)
-          const tasks = response.data.data || []
-          
-          // Sort tasks by priority: URGENT > HIGH > MEDIUM > LOW
-          const priorityOrder = { URGENT: 4, HIGH: 3, MEDIUM: 2, LOW: 1 }
-          const sortedTasks = tasks.sort((a: any, b: any) => {
-            const aPriority = priorityOrder[a.priority] || 0
-            const bPriority = priorityOrder[b.priority] || 0
-            return bPriority - aPriority
-          })
-          
-          preparationTasksData[event.id] = sortedTasks
-        } catch (error) {
-          console.error(`Failed to fetch preparation tasks for event ${event.id}:`, error)
-          preparationTasksData[event.id] = []
-        }
-      }))
+      // Fetch all tasks at once and filter by event IDs
+      const eventIds = events.map(e => e.id)
+      const response = await api.get(`/tasks`)
+      const allTasks = response.data.data || []
+      
+      // Filter and group tasks by event ID
+      eventIds.forEach(eventId => {
+        const eventTasks = allTasks.filter((task: any) => task.eventId === eventId)
+        
+        // Sort tasks by priority: URGENT > HIGH > MEDIUM > LOW
+        const priorityOrder = { URGENT: 4, HIGH: 3, MEDIUM: 2, LOW: 1 }
+        const sortedTasks = eventTasks.sort((a: any, b: any) => {
+          const aPriority = priorityOrder[a.priority] || 0
+          const bPriority = priorityOrder[b.priority] || 0
+          return bPriority - aPriority
+        })
+        
+        preparationTasksData[eventId] = sortedTasks
+      })
       
       setEventPreparationTasks(preparationTasksData)
       
@@ -618,11 +631,11 @@ export function DashboardPage() {
 
   // Fetch current weather for user's location (with caching)
   const fetchCurrentWeather = useCallback(async () => {
-    // Check if we already have recent weather data (within last 5 minutes)
+    // Check if we already have recent weather data (within last 10 minutes)
     const lastFetch = localStorage.getItem('weather-last-fetch')
     const cachedWeather = localStorage.getItem('weather-data')
     const now = Date.now()
-    if (lastFetch && cachedWeather && (now - parseInt(lastFetch)) < 5 * 60 * 1000) {
+    if (lastFetch && cachedWeather && (now - parseInt(lastFetch)) < 10 * 60 * 1000) {
       console.log('🌤️ Using cached weather data')
       try {
         const weather = JSON.parse(cachedWeather)
@@ -711,12 +724,9 @@ export function DashboardPage() {
 
   // Get weather icon component based on condition
   const getWeatherIcon = useCallback((condition: string) => {
-    console.log('🎨 getWeatherIcon called with condition:', condition)
     const conditionLower = condition.toLowerCase()
-    console.log('🎨 conditionLower:', conditionLower)
     
     if (conditionLower.includes('clear') || conditionLower.includes('sunny')) {
-      console.log('🎨 Rendering SUNNY weather icon')
       return (
         <div className="relative w-6 h-6">
           <svg className="w-full h-full" viewBox="0 0 24 24" fill="none">
@@ -771,7 +781,6 @@ export function DashboardPage() {
         </div>
       )
     } else if (conditionLower.includes('mist') || conditionLower.includes('fog') || conditionLower.includes('haze') || conditionLower.includes('clouds')) {
-      console.log('🎨 Rendering MIST/CLOUDS weather icon')
       return (
         <div className="relative w-6 h-6">
           <svg className="w-full h-full" viewBox="0 0 24 24" fill="none">
@@ -1119,7 +1128,6 @@ export function DashboardPage() {
           {currentWeather && (
             <div className="flex items-center space-x-2 bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 px-4 py-2 rounded-lg border">
               <div className="relative">
-                {console.log('🌤️ Rendering weather icon for condition:', currentWeather.condition)}
                 {getWeatherIcon(currentWeather.condition)}
               </div>
               <div className="flex flex-col">
@@ -1136,85 +1144,117 @@ export function DashboardPage() {
           {/* Energy Level */}
           <div className="flex items-center space-x-2">
             <div className="relative">
+              {/* Original blue lightning bolt */}
               <Zap className="w-5 h-5 text-primary" />
-              {/* Dynamic lightning bolts based on energy level */}
-              {user.energyLevel >= 7 && (
+              
+              {/* Blue sparks radiating outward from the lightning bolt */}
+              {(user.energyLevel ?? 5) >= 7 && (
                 <>
-                  {/* High energy lightning bolts */}
-                  <svg className="absolute -top-1 -right-1 w-3 h-3 text-blue-400 animate-ping opacity-75" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M7 2v11h3v9l7-12h-4l2-8z" />
+                  {/* High energy sparks - radiating outward */}
+                  <svg className="absolute -top-3 -right-3 w-4 h-4 text-blue-400 animate-ping opacity-90" viewBox="0 0 24 24" fill="none">
+                    <path d="M8 2L5 8h3l-2 4 4-5h-2z" fill="currentColor" />
                   </svg>
-                  <svg className="absolute -top-1 -right-1 w-2 h-2 text-blue-300 animate-pulse" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M7 2v11h3v9l7-12h-4l2-8z" />
+                  <svg className="absolute top-2 -right-4 w-3 h-3 text-blue-500 animate-pulse opacity-80" style={{ animationDelay: '0.2s' }} viewBox="0 0 24 24" fill="none">
+                    <path d="M10 1L7 7h3l-2 3 3-4h-1z" fill="currentColor" />
                   </svg>
+                  <svg className="absolute -top-2 left-2 w-3.5 h-3.5 text-blue-400 animate-ping opacity-70" style={{ animationDelay: '0.4s' }} viewBox="0 0 24 24" fill="none">
+                    <path d="M7 3L4 9h3l-2 3 3-4h-1z" fill="currentColor" />
+                  </svg>
+                  <svg className="absolute bottom-1 -left-3 w-3 h-3 text-blue-300 animate-pulse opacity-60" style={{ animationDelay: '0.6s' }} viewBox="0 0 24 24" fill="none">
+                    <path d="M9 2L6 8h3l-2 3 3-4h-1z" fill="currentColor" />
+                  </svg>
+                  <svg className="absolute -bottom-2 right-2 w-3 h-3 text-blue-500 animate-ping opacity-80" style={{ animationDelay: '0.8s' }} viewBox="0 0 24 24" fill="none">
+                    <path d="M8 1L5 7h3l-2 3 3-4h-1z" fill="currentColor" />
+                  </svg>
+                  <svg className="absolute top-4 -left-2 w-2.5 h-2.5 text-blue-400 animate-pulse opacity-70" style={{ animationDelay: '1s' }} viewBox="0 0 24 24" fill="none">
+                    <path d="M6 2L3 8h3l-2 3 3-4h-1z" fill="currentColor" />
+                  </svg>
+                  
                   {user.energyLevel >= 8 && (
                     <>
-                      <svg className="absolute top-0 -left-1 w-2.5 h-2.5 text-blue-400 animate-ping opacity-60" style={{ animationDelay: '0.5s' }} viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M7 2v11h3v9l7-12h-4l2-8z" />
+                      <svg className="absolute top-3 -left-3 w-2.5 h-2.5 text-blue-400 animate-pulse opacity-70" style={{ animationDelay: '1.2s' }} viewBox="0 0 24 24" fill="none">
+                        <path d="M5 2L2 8h3l-2 3 3-4h-1z" fill="currentColor" />
                       </svg>
-                      <svg className="absolute -bottom-1 right-0 w-2 h-2 text-blue-500 animate-pulse" style={{ animationDelay: '1s' }} viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M7 2v11h3v9l7-12h-4l2-8z" />
+                      <svg className="absolute -bottom-3 left-1 w-3 h-3 text-blue-300 animate-ping opacity-60" style={{ animationDelay: '1.4s' }} viewBox="0 0 24 24" fill="none">
+                        <path d="M7 1L4 7h3l-2 3 3-4h-1z" fill="currentColor" />
+                      </svg>
+                      <svg className="absolute top-1 left-4 w-2 h-2 text-blue-500 animate-pulse opacity-80" style={{ animationDelay: '1.6s' }} viewBox="0 0 24 24" fill="none">
+                        <path d="M4 1L1 7h3l-2 3 3-4h-1z" fill="currentColor" />
                       </svg>
                     </>
                   )}
+                  
                   {user.energyLevel >= 9 && (
                     <>
-                      <svg className="absolute -top-2 left-1 w-2 h-2 text-blue-400 animate-ping opacity-50" style={{ animationDelay: '1.5s' }} viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M7 2v11h3v9l7-12h-4l2-8z" />
+                      <svg className="absolute -top-4 right-1 w-3 h-3 text-blue-500 animate-pulse opacity-80" style={{ animationDelay: '1.8s' }} viewBox="0 0 24 24" fill="none">
+                        <path d="M8 2L5 8h3l-2 3 3-4h-1z" fill="currentColor" />
                       </svg>
-                      <svg className="absolute bottom-0 -left-1 w-2.5 h-2.5 text-blue-300 animate-pulse" style={{ animationDelay: '2s' }} viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M7 2v11h3v9l7-12h-4l2-8z" />
+                      <svg className="absolute bottom-2 -right-2 w-2.5 h-2.5 text-blue-400 animate-ping opacity-70" style={{ animationDelay: '2s' }} viewBox="0 0 24 24" fill="none">
+                        <path d="M5 1L2 7h3l-2 3 3-4h-1z" fill="currentColor" />
+                      </svg>
+                      <svg className="absolute top-0 right-4 w-2 h-2 text-blue-300 animate-pulse opacity-60" style={{ animationDelay: '2.2s' }} viewBox="0 0 24 24" fill="none">
+                        <path d="M4 2L1 8h3l-2 3 3-4h-1z" fill="currentColor" />
                       </svg>
                     </>
                   )}
-                  {user.energyLevel >= 10 && (
+                  
+                  {(user.energyLevel ?? 5) >= 10 && (
                     <>
-                      <svg className="absolute -top-2 -right-2 w-3 h-3 text-blue-400 animate-ping opacity-70" style={{ animationDelay: '0.3s' }} viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M7 2v11h3v9l7-12h-4l2-8z" />
+                      <svg className="absolute top-1 left-5 w-3 h-3 text-blue-300 animate-pulse opacity-90" style={{ animationDelay: '2.4s' }} viewBox="0 0 24 24" fill="none">
+                        <path d="M7 2L4 8h3l-2 3 3-4h-1z" fill="currentColor" />
                       </svg>
-                      <svg className="absolute top-1 -right-2 w-2 h-2 text-blue-500 animate-pulse" style={{ animationDelay: '1.2s' }} viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M7 2v11h3v9l7-12h-4l2-8z" />
+                      <svg className="absolute -bottom-4 right-3 w-3.5 h-3.5 text-blue-500 animate-ping opacity-70" style={{ animationDelay: '2.6s' }} viewBox="0 0 24 24" fill="none">
+                        <path d="M8 1L5 7h3l-2 3 3-4h-1z" fill="currentColor" />
                       </svg>
-                      <svg className="absolute -bottom-2 left-1 w-2.5 h-2.5 text-blue-400 animate-ping opacity-60" style={{ animationDelay: '0.8s' }} viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M7 2v11h3v9l7-12h-4l2-8z" />
+                      <svg className="absolute -top-3 -left-2 w-2.5 h-2.5 text-blue-400 animate-pulse opacity-80" style={{ animationDelay: '2.8s' }} viewBox="0 0 24 24" fill="none">
+                        <path d="M5 2L2 8h3l-2 3 3-4h-1z" fill="currentColor" />
+                      </svg>
+                      <svg className="absolute bottom-0 left-5 w-2 h-2 text-blue-300 animate-ping opacity-60" style={{ animationDelay: '3s' }} viewBox="0 0 24 24" fill="none">
+                        <path d="M4 1L1 7h3l-2 3 3-4h-1z" fill="currentColor" />
                       </svg>
                     </>
                   )}
                 </>
               )}
-              {user.energyLevel >= 4 && user.energyLevel < 7 && (
+              
+              {(user.energyLevel ?? 5) >= 4 && (user.energyLevel ?? 5) < 7 && (
                 <>
-                  {/* Medium energy lightning bolts */}
-                  <svg className="absolute -top-1 -right-1 w-2.5 h-2.5 text-blue-400 animate-pulse opacity-60" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M7 2v11h3v9l7-12h-4l2-8z" />
+                  {/* Medium energy sparks */}
+                  <svg className="absolute -top-2 -right-2 w-3 h-3 text-blue-400 animate-pulse opacity-70" viewBox="0 0 24 24" fill="none">
+                    <path d="M7 2L4 8h3l-2 3 3-4h-1z" fill="currentColor" />
                   </svg>
-                  {user.energyLevel >= 5 && (
-                    <svg className="absolute top-0 -left-1 w-2 h-2 text-blue-500 animate-ping opacity-50" style={{ animationDelay: '1s' }} viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M7 2v11h3v9l7-12h-4l2-8z" />
-                    </svg>
-                  )}
-                  {user.energyLevel >= 6 && (
-                    <svg className="absolute -bottom-1 right-0 w-2 h-2 text-blue-400 animate-pulse" style={{ animationDelay: '1.5s' }} viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M7 2v11h3v9l7-12h-4l2-8z" />
-                    </svg>
-                  )}
+                  <svg className="absolute top-1 -left-2 w-2.5 h-2.5 text-blue-500 animate-ping opacity-60" style={{ animationDelay: '1s' }} viewBox="0 0 24 24" fill="none">
+                    <path d="M6 1L3 7h3l-2 3 3-4h-1z" fill="currentColor" />
+                  </svg>
+                  <svg className="absolute -bottom-2 right-1 w-2.5 h-2.5 text-blue-400 animate-pulse opacity-50" style={{ animationDelay: '1.5s' }} viewBox="0 0 24 24" fill="none">
+                    <path d="M7 2L4 8h3l-2 3 3-4h-1z" fill="currentColor" />
+                  </svg>
+                  <svg className="absolute top-3 left-1 w-2 h-2 text-blue-300 animate-ping opacity-40" style={{ animationDelay: '2s' }} viewBox="0 0 24 24" fill="none">
+                    <path d="M5 1L2 7h3l-2 3 3-4h-1z" fill="currentColor" />
+                  </svg>
                 </>
               )}
-              {user.energyLevel >= 1 && user.energyLevel < 4 && (
+              
+              {(user.energyLevel ?? 5) >= 1 && (user.energyLevel ?? 5) < 4 && (
                 <>
-                  {/* Low energy lightning bolts */}
-                  <svg className="absolute -top-1 -right-1 w-2 h-2 text-blue-400 animate-pulse opacity-40" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M7 2v11h3v9l7-12h-4l2-8z" />
+                  {/* Low energy sparks */}
+                  <svg className="absolute -top-1 -right-1 w-2.5 h-2.5 text-blue-400 animate-pulse opacity-50" viewBox="0 0 24 24" fill="none">
+                    <path d="M6 2L3 8h3l-2 3 3-4h-1z" fill="currentColor" />
                   </svg>
-                  {user.energyLevel >= 2 && (
-                    <svg className="absolute top-0 -left-1 w-1.5 h-1.5 text-blue-500 animate-ping opacity-30" style={{ animationDelay: '2s' }} viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M7 2v11h3v9l7-12h-4l2-8z" />
+                  {(user.energyLevel ?? 5) >= 2 && (
+                    <svg className="absolute top-1 -left-1 w-2 h-2 text-blue-500 animate-ping opacity-40" style={{ animationDelay: '2s' }} viewBox="0 0 24 24" fill="none">
+                      <path d="M5 1L2 7h3l-2 3 3-4h-1z" fill="currentColor" />
+                    </svg>
+                  )}
+                  {(user.energyLevel ?? 5) >= 3 && (
+                    <svg className="absolute -bottom-1 right-1 w-1.5 h-1.5 text-blue-400 animate-pulse opacity-30" style={{ animationDelay: '3s' }} viewBox="0 0 24 24" fill="none">
+                      <path d="M4 1L1 7h3l-2 3 3-4h-1z" fill="currentColor" />
                     </svg>
                   )}
                 </>
               )}
             </div>
-            <span className="text-sm font-medium">Energy: {user.energyLevel}/10</span>
+            <span className="text-sm font-medium">Energy: {user.energyLevel ?? 5}/10</span>
           </div>
         </div>
       </div>
@@ -1227,7 +1267,7 @@ export function DashboardPage() {
             <CheckSquare className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{todayTasks.length}</div>
+            <div className="text-2xl font-bold">{todayTasks.filter(task => task.status !== 'COMPLETED').length}</div>
             <p className="text-xs text-muted-foreground">
               {completedTasksCount} completed
             </p>
@@ -1314,12 +1354,9 @@ export function DashboardPage() {
             ) : (
               <div className="space-y-3">
                 {todayTasks
+                  .filter(task => task.status !== 'COMPLETED')
                   .sort((a, b) => {
-                    // First sort by status: incomplete tasks first, then completed
-                    if (a.status === 'COMPLETED' && b.status !== 'COMPLETED') return 1
-                    if (a.status !== 'COMPLETED' && b.status === 'COMPLETED') return -1
-                    
-                    // Then sort by priority: URGENT > HIGH > MEDIUM > LOW
+                    // Sort by priority: URGENT > HIGH > MEDIUM > LOW
                     const priorityOrder = { URGENT: 4, HIGH: 3, MEDIUM: 2, LOW: 1 }
                     return priorityOrder[b.priority] - priorityOrder[a.priority]
                   })
@@ -1336,13 +1373,13 @@ export function DashboardPage() {
                       events={dashboardData?.upcomingEvents}
                     />
                   ))}
-                {todayTasks.length > 5 && (
+                {todayTasks.filter(task => task.status !== 'COMPLETED').length > 5 && (
                   <Button 
                     variant="ghost" 
                     className="w-full mt-2"
                     onClick={() => navigate('/tasks')}
                   >
-                    View All Tasks ({todayTasks.length})
+                    View All Tasks ({todayTasks.filter(task => task.status !== 'COMPLETED').length})
                   </Button>
                 )}
               </div>
