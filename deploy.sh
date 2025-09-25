@@ -1,47 +1,34 @@
 #!/bin/bash
 
-# SyncScript Deployment Script
-# This script helps you deploy SyncScript to Vercel
+# SyncScript GitHub Pages Deployment Script
+echo "🚀 Deploying SyncScript to GitHub Pages..."
 
-echo "🚀 SyncScript Deployment Helper"
-echo "================================"
+# Build the frontend
+echo "📦 Building frontend..."
+cd client
+npm run build
 
-# Check if Vercel CLI is installed
-if ! command -v vercel &> /dev/null; then
-    echo "📦 Installing Vercel CLI..."
-    npm install -g vercel
-fi
+# Copy built files to a temporary directory
+echo "📁 Preparing files for deployment..."
+cd ..
+mkdir -p deploy
+cp -r client/dist/* deploy/
 
-# Check if user is logged in to Vercel
-if ! vercel whoami &> /dev/null; then
-    echo "🔐 Please log in to Vercel:"
-    vercel login
-fi
+# Create a simple index.html redirect for the root
+echo '<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>SyncScript - AI-Powered Life Management</title>
+    <meta http-equiv="refresh" content="0; url=/syncscriptE/">
+</head>
+<body>
+    <p>Redirecting to <a href="/syncscriptE/">SyncScript</a>...</p>
+</body>
+</html>' > deploy/index.html
 
-echo "📋 Pre-deployment checklist:"
-echo "1. ✅ Code pushed to GitHub"
-echo "2. ✅ Environment variables ready"
-echo "3. ✅ Database configured"
-echo ""
-
-read -p "Are you ready to deploy? (y/n): " -n 1 -r
-echo ""
-
-if [[ $REPLY =~ ^[Yy]$ ]]; then
-    echo "🚀 Starting deployment..."
-    
-    # Deploy to Vercel
-    vercel --prod
-    
-    echo ""
-    echo "🎉 Deployment complete!"
-    echo "📝 Don't forget to:"
-    echo "   - Update environment variables in Vercel dashboard"
-    echo "   - Update GOOGLE_REDIRECT_URI with your new domain"
-    echo "   - Test all functionality"
-    echo ""
-    echo "📊 Monitor your deployment at: https://vercel.com/dashboard"
-else
-    echo "❌ Deployment cancelled"
-    echo "💡 Run this script again when you're ready!"
-fi
+echo "✅ Deployment files ready in ./deploy directory"
+echo "📋 Next steps:"
+echo "1. Copy the contents of ./deploy to your GitHub Pages repository"
+echo "2. Or manually upload the files to your GitHub Pages site"
+echo "3. Your site will be available at: https://stringerc.github.io/syncscriptE/"
