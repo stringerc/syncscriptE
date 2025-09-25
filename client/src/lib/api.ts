@@ -7,10 +7,10 @@ const getApiBaseUrl = () => {
     return (import.meta as any).env.VITE_API_URL
   }
   
-  // If running on GitHub Pages, use Railway backend
+  // If running on GitHub Pages, try Vercel backend first, then Railway
   if (window.location.hostname === 'stringerc.github.io') {
-    // Use your actual Railway domain
-    return 'https://syncscripte-production.up.railway.app/api'
+    // Try Vercel backend first (more reliable)
+    return 'https://syncscript-backend.vercel.app/api'
   }
   
   // Default to localhost for development
