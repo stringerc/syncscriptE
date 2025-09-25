@@ -7,8 +7,10 @@ const getApiBaseUrl = () => {
     return (import.meta as any).env.VITE_API_URL
   }
   
-  // If running on GitHub Pages, use Railway backend (more reliable)
+  // If running on GitHub Pages, show helpful message
   if (window.location.hostname === 'stringerc.github.io') {
+    // For now, show a helpful error message
+    console.error('🚨 Backend not available on GitHub Pages. Please run locally for full functionality.')
     return 'https://syncscript-production.up.railway.app/api'
   }
   
