@@ -523,10 +523,17 @@ export function DashboardPage() {
   const fetchCurrentWeather = useCallback(async () => {
     // Check if we already have recent weather data (within last 5 minutes)
     const lastFetch = localStorage.getItem('weather-last-fetch')
+    const cachedWeather = localStorage.getItem('weather-data')
     const now = Date.now()
-    if (lastFetch && (now - parseInt(lastFetch)) < 5 * 60 * 1000) {
+    if (lastFetch && cachedWeather && (now - parseInt(lastFetch)) < 5 * 60 * 1000) {
       console.log('🌤️ Using cached weather data')
-      return
+      try {
+        const weather = JSON.parse(cachedWeather)
+        setCurrentWeather(weather)
+        return
+      } catch (error) {
+        console.error('Failed to parse cached weather data:', error)
+      }
     }
 
     try {
@@ -536,33 +543,43 @@ export function DashboardPage() {
       
       if (response.data.success && response.data.data.weather) {
         const weather = response.data.data.weather
-        setCurrentWeather({
+        const weatherData = {
           emoji: weather.emoji || '🌤️',
           temperature: weather.temperature || 72,
           condition: weather.condition || 'Unknown',
           location: weather.location || response.data.data.location || 'Unknown'
-        })
-        // Cache the fetch time
+        }
+        setCurrentWeather(weatherData)
+        // Cache the weather data and fetch time
+        localStorage.setItem('weather-data', JSON.stringify(weatherData))
         localStorage.setItem('weather-last-fetch', now.toString())
         console.log('🌤️ Set current weather:', { emoji: weather.emoji, temperature: weather.temperature, condition: weather.condition })
       } else {
         console.log('🌤️ No weather data in response, using fallback')
-        setCurrentWeather({
+        const fallbackWeather = {
           emoji: '🌤️',
           temperature: 72,
           condition: 'Unknown',
           location: 'Unknown'
-        })
+        }
+        setCurrentWeather(fallbackWeather)
+        // Cache the fallback weather data
+        localStorage.setItem('weather-data', JSON.stringify(fallbackWeather))
+        localStorage.setItem('weather-last-fetch', now.toString())
       }
     } catch (error) {
       console.error('Failed to fetch current weather:', error)
       // Set fallback weather
-      setCurrentWeather({
+      const fallbackWeather = {
         emoji: '🌤️',
         temperature: 72,
         condition: 'Unknown',
         location: 'Unknown'
-      })
+      }
+      setCurrentWeather(fallbackWeather)
+      // Cache the fallback weather data
+      localStorage.setItem('weather-data', JSON.stringify(fallbackWeather))
+      localStorage.setItem('weather-last-fetch', now.toString())
     }
   }, [])
 
@@ -597,82 +614,290 @@ export function DashboardPage() {
 
   // Get weather icon component based on condition
   const getWeatherIcon = useCallback((condition: string) => {
+    console.log('🎨 getWeatherIcon called with condition:', condition)
     const conditionLower = condition.toLowerCase()
+    console.log('🎨 conditionLower:', conditionLower)
     
     if (conditionLower.includes('clear') || conditionLower.includes('sunny')) {
-      return <Sun className="w-6 h-6 text-yellow-500 animate-pulse" />
-    } else if (conditionLower.includes('mist') || conditionLower.includes('fog') || conditionLower.includes('haze') || conditionLower.includes('clouds')) {
+      console.log('🎨 Rendering SUNNY weather icon')
       return (
         <div className="relative w-6 h-6">
           <svg className="w-full h-full" viewBox="0 0 24 24" fill="none">
             <defs>
-              <filter id="mist-blur" x="-100%" y="-100%" width="300%" height="300%">
-                <feGaussianBlur stdDeviation="2" result="blur"/>
-                <feColorMatrix type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 0.3 0" result="fade"/>
-              </filter>
-              <radialGradient id="mist-wisp" cx="50%" cy="50%" r="50%">
-                <stop offset="0%" stopColor="#F3F4F6" stopOpacity="0.8"/>
-                <stop offset="30%" stopColor="#E5E7EB" stopOpacity="0.6"/>
-                <stop offset="70%" stopColor="#D1D5DB" stopOpacity="0.4"/>
-                <stop offset="100%" stopColor="#9CA3AF" stopOpacity="0.2"/>
+              <radialGradient id="sun-gradient" cx="50%" cy="50%" r="50%">
+                <stop offset="0%" stopColor="#FEF3C7" stopOpacity="1"/>
+                <stop offset="50%" stopColor="#F59E0B" stopOpacity="0.8"/>
+                <stop offset="100%" stopColor="#D97706" stopOpacity="0.6"/>
               </radialGradient>
+              <filter id="sun-glow">
+                <feGaussianBlur stdDeviation="1" result="coloredBlur"/>
+                <feMerge> 
+                  <feMergeNode in="coloredBlur"/>
+                  <feMergeNode in="SourceGraphic"/>
+                </feMerge>
+              </filter>
             </defs>
             
-            {/* Flowing mist wisps - irregular, organic shapes */}
-            <path d="M4 8 Q8 4 12 8 Q16 12 20 8 Q18 14 14 16 Q10 18 6 14 Q4 12 4 8" 
-                  fill="url(#mist-wisp)" 
-                  filter="url(#mist-blur)"
-                  opacity="0.7">
-              <animateTransform attributeName="transform" type="translate" values="0,0; 1,0; 0,0" dur="8s" repeatCount="indefinite"/>
-              <animate attributeName="opacity" values="0.7;0.4;0.7" dur="6s" repeatCount="indefinite"/>
-            </path>
+            {/* Sun rays */}
+            <g stroke="#F59E0B" strokeWidth="1" opacity="0.8">
+              <line x1="12" y1="2" x2="12" y2="4">
+                <animate attributeName="opacity" values="0.8;0.4;0.8" dur="3s" repeatCount="indefinite"/>
+              </line>
+              <line x1="12" y1="20" x2="12" y2="22">
+                <animate attributeName="opacity" values="0.8;0.4;0.8" dur="3s" repeatCount="indefinite"/>
+              </line>
+              <line x1="2" y1="12" x2="4" y2="12">
+                <animate attributeName="opacity" values="0.8;0.4;0.8" dur="3s" repeatCount="indefinite"/>
+              </line>
+              <line x1="20" y1="12" x2="22" y2="12">
+                <animate attributeName="opacity" values="0.8;0.4;0.8" dur="3s" repeatCount="indefinite"/>
+              </line>
+              <line x1="4.24" y1="4.24" x2="5.66" y2="5.66">
+                <animate attributeName="opacity" values="0.8;0.4;0.8" dur="3s" repeatCount="indefinite"/>
+              </line>
+              <line x1="18.34" y1="18.34" x2="19.76" y2="19.76">
+                <animate attributeName="opacity" values="0.8;0.4;0.8" dur="3s" repeatCount="indefinite"/>
+              </line>
+              <line x1="19.76" y1="4.24" x2="18.34" y2="5.66">
+                <animate attributeName="opacity" values="0.8;0.4;0.8" dur="3s" repeatCount="indefinite"/>
+              </line>
+              <line x1="5.66" y1="18.34" x2="4.24" y2="19.76">
+                <animate attributeName="opacity" values="0.8;0.4;0.8" dur="3s" repeatCount="indefinite"/>
+              </line>
+            </g>
             
-            <path d="M6 12 Q10 8 14 12 Q18 16 22 12 Q20 18 16 20 Q12 22 8 18 Q6 16 6 12" 
-                  fill="url(#mist-wisp)" 
-                  filter="url(#mist-blur)"
-                  opacity="0.5">
-              <animateTransform attributeName="transform" type="translate" values="0,0; -1,0; 0,0" dur="7s" repeatCount="indefinite"/>
-              <animate attributeName="opacity" values="0.5;0.2;0.5" dur="5s" repeatCount="indefinite"/>
-            </path>
+            {/* Sun center */}
+            <circle cx="12" cy="12" r="4" fill="url(#sun-gradient)" filter="url(#sun-glow)">
+              <animate attributeName="r" values="4;4.2;4" dur="4s" repeatCount="indefinite"/>
+            </circle>
+          </svg>
+        </div>
+      )
+    } else if (conditionLower.includes('mist') || conditionLower.includes('fog') || conditionLower.includes('haze') || conditionLower.includes('clouds')) {
+      console.log('🎨 Rendering MIST/CLOUDS weather icon')
+      return (
+        <div className="relative w-6 h-6">
+          <svg className="w-full h-full" viewBox="0 0 24 24" fill="none">
+            {/* Simple mist cloud with visible elements */}
+            <ellipse cx="8" cy="8" rx="4" ry="2" fill="#E2E8F0" opacity="0.8">
+              <animateTransform attributeName="transform" type="translate" values="0,0; 2,0; 0,0" dur="6s" repeatCount="indefinite"/>
+              <animate attributeName="opacity" values="0.8;0.4;0.8" dur="4s" repeatCount="indefinite"/>
+            </ellipse>
             
-            <path d="M2 16 Q6 12 10 16 Q14 20 18 16 Q16 22 12 24 Q8 26 4 22 Q2 20 2 16" 
-                  fill="url(#mist-wisp)" 
-                  filter="url(#mist-blur)"
-                  opacity="0.6">
-              <animateTransform attributeName="transform" type="translate" values="0,0; 0.5,0; 0,0" dur="9s" repeatCount="indefinite"/>
-              <animate attributeName="opacity" values="0.6;0.3;0.6" dur="7s" repeatCount="indefinite"/>
-            </path>
+            <ellipse cx="16" cy="12" rx="3" ry="1.5" fill="#CBD5E1" opacity="0.6">
+              <animateTransform attributeName="transform" type="translate" values="0,0; -1,0; 0,0" dur="5s" repeatCount="indefinite"/>
+              <animate attributeName="opacity" values="0.6;0.3;0.6" dur="3s" repeatCount="indefinite"/>
+            </ellipse>
             
-            {/* Small drifting particles */}
-            <circle cx="8" cy="6" r="1" fill="#D1D5DB" opacity="0.4" filter="url(#mist-blur)">
-              <animate attributeName="cx" values="8;12;8" dur="10s" repeatCount="indefinite"/>
-              <animate attributeName="opacity" values="0.4;0.1;0.4" dur="8s" repeatCount="indefinite"/>
+            <ellipse cx="12" cy="16" rx="3.5" ry="1.8" fill="#94A3B8" opacity="0.7">
+              <animateTransform attributeName="transform" type="translate" values="0,0; 1.5,0; 0,0" dur="7s" repeatCount="indefinite"/>
+              <animate attributeName="opacity" values="0.7;0.3;0.7" dur="5s" repeatCount="indefinite"/>
+            </ellipse>
+            
+            {/* Small mist particles */}
+            <circle cx="6" cy="6" r="0.8" fill="#64748B" opacity="0.6">
+              <animate attributeName="cx" values="6;10;6" dur="8s" repeatCount="indefinite"/>
+              <animate attributeName="opacity" values="0.6;0.2;0.6" dur="6s" repeatCount="indefinite"/>
             </circle>
             
-            <circle cx="16" cy="18" r="0.8" fill="#E5E7EB" opacity="0.3" filter="url(#mist-blur)">
-              <animate attributeName="cx" values="16;14;16" dur="12s" repeatCount="indefinite"/>
-              <animate attributeName="opacity" values="0.3;0.1;0.3" dur="9s" repeatCount="indefinite"/>
-            </circle>
-            
-            <circle cx="20" cy="10" r="0.6" fill="#F3F4F6" opacity="0.5" filter="url(#mist-blur)">
-              <animate attributeName="cx" values="20;18;20" dur="11s" repeatCount="indefinite"/>
-              <animate attributeName="opacity" values="0.5;0.2;0.5" dur="6s" repeatCount="indefinite"/>
+            <circle cx="18" cy="14" r="0.6" fill="#475569" opacity="0.5">
+              <animate attributeName="cx" values="18;16;18" dur="9s" repeatCount="indefinite"/>
+              <animate attributeName="opacity" values="0.5;0.2;0.5" dur="7s" repeatCount="indefinite"/>
             </circle>
           </svg>
         </div>
       )
     } else if (conditionLower.includes('cloud')) {
-      return <Cloud className="w-6 h-6 text-gray-500 animate-bounce" />
+      console.log('🎨 Rendering CLOUD weather icon')
+      return (
+        <div className="relative w-6 h-6">
+          <svg className="w-full h-full" viewBox="0 0 24 24" fill="none">
+            <defs>
+              <radialGradient id="cloud-gradient" cx="50%" cy="50%" r="50%">
+                <stop offset="0%" stopColor="#F9FAFB" stopOpacity="1"/>
+                <stop offset="50%" stopColor="#E5E7EB" stopOpacity="0.8"/>
+                <stop offset="100%" stopColor="#9CA3AF" stopOpacity="0.6"/>
+              </radialGradient>
+            </defs>
+            
+            {/* Cloud with gentle floating animation */}
+            <path d="M18 10c0-3.3-2.7-6-6-6s-6 2.7-6 6c-1.1 0-2 .9-2 2s.9 2 2 2h12c1.1 0 2-.9 2-2s-.9-2-2-2z" 
+                  fill="url(#cloud-gradient)">
+              <animateTransform attributeName="transform" type="translate" values="0,0; 0,-1; 0,0" dur="6s" repeatCount="indefinite"/>
+            </path>
+            
+            {/* Small cloud particles floating around */}
+            <circle cx="6" cy="8" r="1" fill="#D1D5DB" opacity="0.6">
+              <animate attributeName="cx" values="6;8;6" dur="8s" repeatCount="indefinite"/>
+              <animate attributeName="opacity" values="0.6;0.3;0.6" dur="5s" repeatCount="indefinite"/>
+            </circle>
+            
+            <circle cx="18" cy="12" r="0.8" fill="#E5E7EB" opacity="0.5">
+              <animate attributeName="cx" values="18;16;18" dur="7s" repeatCount="indefinite"/>
+              <animate attributeName="opacity" values="0.5;0.2;0.5" dur="6s" repeatCount="indefinite"/>
+            </circle>
+          </svg>
+        </div>
+      )
     } else if (conditionLower.includes('rain') || conditionLower.includes('drizzle')) {
-      return <CloudRain className="w-6 h-6 text-blue-500 animate-bounce" />
+      console.log('🎨 Rendering RAIN weather icon')
+      return (
+        <div className="relative w-6 h-6">
+          <svg className="w-full h-full" viewBox="0 0 24 24" fill="none">
+            <defs>
+              <radialGradient id="rain-cloud-gradient" cx="50%" cy="50%" r="50%">
+                <stop offset="0%" stopColor="#F3F4F6" stopOpacity="1"/>
+                <stop offset="50%" stopColor="#9CA3AF" stopOpacity="0.8"/>
+                <stop offset="100%" stopColor="#6B7280" stopOpacity="0.6"/>
+              </radialGradient>
+            </defs>
+            
+            {/* Rain cloud */}
+            <path d="M18 10c0-3.3-2.7-6-6-6s-6 2.7-6 6c-1.1 0-2 .9-2 2s.9 2 2 2h12c1.1 0 2-.9 2-2s-.9-2-2-2z" 
+                  fill="url(#rain-cloud-gradient)">
+              <animateTransform attributeName="transform" type="translate" values="0,0; 0,-0.5; 0,0" dur="4s" repeatCount="indefinite"/>
+            </path>
+            
+            {/* Animated rain drops */}
+            <g stroke="#3B82F6" strokeWidth="1" opacity="0.8">
+              <line x1="8" y1="14" x2="8" y2="18">
+                <animate attributeName="y2" values="18;22;18" dur="1s" repeatCount="indefinite"/>
+                <animate attributeName="opacity" values="0.8;0.4;0.8" dur="1s" repeatCount="indefinite"/>
+              </line>
+              <line x1="12" y1="14" x2="12" y2="20">
+                <animate attributeName="y2" values="20;24;20" dur="1.2s" repeatCount="indefinite"/>
+                <animate attributeName="opacity" values="0.8;0.4;0.8" dur="1.2s" repeatCount="indefinite"/>
+              </line>
+              <line x1="16" y1="14" x2="16" y2="19">
+                <animate attributeName="y2" values="19;23;19" dur="0.8s" repeatCount="indefinite"/>
+                <animate attributeName="opacity" values="0.8;0.4;0.8" dur="0.8s" repeatCount="indefinite"/>
+              </line>
+            </g>
+          </svg>
+        </div>
+      )
     } else if (conditionLower.includes('thunderstorm') || conditionLower.includes('storm')) {
-      return <CloudRain className="w-6 h-6 text-purple-500 animate-pulse" />
+      return (
+        <div className="relative w-6 h-6">
+          <svg className="w-full h-full" viewBox="0 0 24 24" fill="none">
+            <defs>
+              <radialGradient id="storm-cloud-gradient" cx="50%" cy="50%" r="50%">
+                <stop offset="0%" stopColor="#E5E7EB" stopOpacity="1"/>
+                <stop offset="50%" stopColor="#6B7280" stopOpacity="0.8"/>
+                <stop offset="100%" stopColor="#374151" stopOpacity="0.6"/>
+              </radialGradient>
+            </defs>
+            
+            {/* Storm cloud */}
+            <path d="M18 10c0-3.3-2.7-6-6-6s-6 2.7-6 6c-1.1 0-2 .9-2 2s.9 2 2 2h12c1.1 0 2-.9 2-2s-.9-2-2-2z" 
+                  fill="url(#storm-cloud-gradient)">
+              <animateTransform attributeName="transform" type="translate" values="0,0; 0,-1; 0,0" dur="3s" repeatCount="indefinite"/>
+            </path>
+            
+            {/* Lightning bolt */}
+            <path d="M12 14l-2 4h2l-1 2 3-4h-2z" fill="#FCD34D" opacity="0.9">
+              <animate attributeName="opacity" values="0.9;0.3;0.9" dur="0.5s" repeatCount="indefinite"/>
+            </path>
+            
+            {/* Heavy rain */}
+            <g stroke="#1E40AF" strokeWidth="1.5" opacity="0.9">
+              <line x1="7" y1="14" x2="7" y2="22">
+                <animate attributeName="y2" values="22;24;22" dur="0.6s" repeatCount="indefinite"/>
+              </line>
+              <line x1="11" y1="14" x2="11" y2="22">
+                <animate attributeName="y2" values="22;24;22" dur="0.7s" repeatCount="indefinite"/>
+              </line>
+              <line x1="15" y1="14" x2="15" y2="22">
+                <animate attributeName="y2" values="22;24;22" dur="0.5s" repeatCount="indefinite"/>
+              </line>
+              <line x1="19" y1="14" x2="19" y2="22">
+                <animate attributeName="y2" values="22;24;22" dur="0.8s" repeatCount="indefinite"/>
+              </line>
+            </g>
+          </svg>
+        </div>
+      )
     } else if (conditionLower.includes('snow')) {
-      return <CloudSnow className="w-6 h-6 text-blue-200 animate-bounce" />
+      return (
+        <div className="relative w-6 h-6">
+          <svg className="w-full h-full" viewBox="0 0 24 24" fill="none">
+            <defs>
+              <radialGradient id="snow-cloud-gradient" cx="50%" cy="50%" r="50%">
+                <stop offset="0%" stopColor="#F8FAFC" stopOpacity="1"/>
+                <stop offset="50%" stopColor="#E2E8F0" stopOpacity="0.8"/>
+                <stop offset="100%" stopColor="#94A3B8" stopOpacity="0.6"/>
+              </radialGradient>
+            </defs>
+            
+            {/* Snow cloud */}
+            <path d="M18 10c0-3.3-2.7-6-6-6s-6 2.7-6 6c-1.1 0-2 .9-2 2s.9 2 2 2h12c1.1 0 2-.9 2-2s-.9-2-2-2z" 
+                  fill="url(#snow-cloud-gradient)">
+              <animateTransform attributeName="transform" type="translate" values="0,0; 0,-0.5; 0,0" dur="5s" repeatCount="indefinite"/>
+            </path>
+            
+            {/* Snowflakes */}
+            <g fill="#E0E7FF" opacity="0.8">
+              <circle cx="8" cy="16" r="0.5">
+                <animate attributeName="cy" values="16;22;16" dur="3s" repeatCount="indefinite"/>
+                <animate attributeName="opacity" values="0.8;0.2;0.8" dur="3s" repeatCount="indefinite"/>
+              </circle>
+              <circle cx="12" cy="18" r="0.4">
+                <animate attributeName="cy" values="18;24;18" dur="2.5s" repeatCount="indefinite"/>
+                <animate attributeName="opacity" values="0.8;0.2;0.8" dur="2.5s" repeatCount="indefinite"/>
+              </circle>
+              <circle cx="16" cy="17" r="0.6">
+                <animate attributeName="cy" values="17;23;17" dur="3.5s" repeatCount="indefinite"/>
+                <animate attributeName="opacity" values="0.8;0.2;0.8" dur="3.5s" repeatCount="indefinite"/>
+              </circle>
+            </g>
+          </svg>
+        </div>
+      )
     } else if (conditionLower.includes('wind')) {
-      return <Wind className="w-6 h-6 text-gray-400 animate-spin" />
+      return (
+        <div className="relative w-6 h-6">
+          <svg className="w-full h-full" viewBox="0 0 24 24" fill="none">
+            <defs>
+              <filter id="wind-blur">
+                <feGaussianBlur stdDeviation="0.5"/>
+              </filter>
+            </defs>
+            
+            {/* Wind lines */}
+            <g stroke="#9CA3AF" strokeWidth="1" opacity="0.7" filter="url(#wind-blur)">
+              <path d="M2 8 Q6 6 10 8 Q14 10 18 8 Q20 7 22 8">
+                <animate attributeName="d" values="M2 8 Q6 6 10 8 Q14 10 18 8 Q20 7 22 8;M2 8 Q6 10 10 8 Q14 6 18 8 Q20 9 22 8;M2 8 Q6 6 10 8 Q14 10 18 8 Q20 7 22 8" dur="2s" repeatCount="indefinite"/>
+              </path>
+              <path d="M2 12 Q6 10 10 12 Q14 14 18 12 Q20 11 22 12">
+                <animate attributeName="d" values="M2 12 Q6 10 10 12 Q14 14 18 12 Q20 11 22 12;M2 12 Q6 14 10 12 Q14 10 18 12 Q20 13 22 12;M2 12 Q6 10 10 12 Q14 14 18 12 Q20 11 22 12" dur="2.5s" repeatCount="indefinite"/>
+              </path>
+              <path d="M2 16 Q6 14 10 16 Q14 18 18 16 Q20 15 22 16">
+                <animate attributeName="d" values="M2 16 Q6 14 10 16 Q14 18 18 16 Q20 15 22 16;M2 16 Q6 18 10 16 Q14 14 18 16 Q20 17 22 16;M2 16 Q6 14 10 16 Q14 18 18 16 Q20 15 22 16" dur="3s" repeatCount="indefinite"/>
+              </path>
+            </g>
+          </svg>
+        </div>
+      )
     } else {
-      return <Sun className="w-6 h-6 text-yellow-400 animate-pulse" />
+      // Default sunny weather
+      console.log('🎨 Rendering DEFAULT weather icon')
+      return (
+        <div className="relative w-6 h-6">
+          <svg className="w-full h-full" viewBox="0 0 24 24" fill="none">
+            <defs>
+              <radialGradient id="default-sun-gradient" cx="50%" cy="50%" r="50%">
+                <stop offset="0%" stopColor="#FEF3C7" stopOpacity="1"/>
+                <stop offset="50%" stopColor="#F59E0B" stopOpacity="0.8"/>
+                <stop offset="100%" stopColor="#D97706" stopOpacity="0.6"/>
+              </radialGradient>
+            </defs>
+            
+            <circle cx="12" cy="12" r="4" fill="url(#default-sun-gradient)">
+              <animate attributeName="r" values="4;4.2;4" dur="4s" repeatCount="indefinite"/>
+            </circle>
+          </svg>
+        </div>
+      )
     }
   }, [])
 
@@ -797,6 +1022,7 @@ export function DashboardPage() {
           {currentWeather && (
             <div className="flex items-center space-x-2 bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 px-4 py-2 rounded-lg border">
               <div className="relative">
+                {console.log('🌤️ Rendering weather icon for condition:', currentWeather.condition)}
                 {getWeatherIcon(currentWeather.condition)}
               </div>
               <div className="flex flex-col">
