@@ -37,6 +37,18 @@ export function TasksPage() {
     refetchOnWindowFocus: false
   })
 
+  // Fetch events to show which event prep tasks are associated with
+  const { data: events } = useQuery({
+    queryKey: ['events'],
+    queryFn: async () => {
+      const response = await api.get('/calendar')
+      return response.data.data
+    },
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes
+    refetchOnWindowFocus: false
+  })
+
   const createTaskMutation = useMutation({
     mutationFn: async (taskData: any) => {
       const response = await api.post('/tasks', taskData)
@@ -312,93 +324,108 @@ export function TasksPage() {
                   const priorityOrder = { URGENT: 4, HIGH: 3, MEDIUM: 2, LOW: 1 }
                   return priorityOrder[b.priority] - priorityOrder[a.priority]
                 })
-                .map((task, index) => (
-                <div
-                  key={task.id}
-                  className="flex items-center justify-between p-4 rounded-lg border bg-card"
-                >
-                  <div className="flex-1">
-                    <div className="flex items-center space-x-2 mb-2">
-                      <div className="flex items-center justify-center w-6 h-6 rounded-full bg-primary text-primary-foreground text-xs font-bold">
-                        {index + 1}
+                .map((task, index) => {
+                  // Find the related event for prep tasks
+                  const relatedEvent = events?.find(event => event.id === task.eventId)
+                  
+                  return (
+                    <div
+                      key={task.id}
+                      className="flex items-center justify-between p-4 rounded-lg border bg-card"
+                    >
+                      <div className="flex-1">
+                        <div className="flex items-center space-x-2 mb-2">
+                          <div className="flex items-center justify-center w-6 h-6 rounded-full bg-primary text-primary-foreground text-xs font-bold">
+                            {index + 1}
+                          </div>
+                          <h4 className="font-medium text-sm">{task.title}</h4>
+                          <span className={`px-2 py-1 rounded-full text-xs ${getPriorityColor(task.priority)}`}>
+                            {task.priority}
+                          </span>
+                          <span className={`px-2 py-1 rounded-full text-xs ${
+                            task.status === 'COMPLETED' ? 'text-green-600 bg-green-50' : 'text-gray-600 bg-gray-50'
+                          }`}>
+                            {task.status}
+                          </span>
+                        </div>
+                        {task.description && (
+                          <p className="text-xs text-muted-foreground mb-2">
+                            {task.description}
+                          </p>
+                        )}
+                        <div className="flex items-center space-x-4 text-xs text-muted-foreground">
+                          {task.estimatedDuration && (
+                            <div className="flex items-center space-x-1">
+                              <Clock className="w-3 h-3" />
+                              <span>{formatDuration(task.estimatedDuration)}</span>
+                            </div>
+                          )}
+                          {task.energyRequired && (
+                            <div className="flex items-center space-x-1">
+                              <Zap className="w-3 h-3" />
+                              <span>{task.energyRequired}/10</span>
+                            </div>
+                          )}
+                          {task.budgetImpact && (
+                            <div className="flex items-center space-x-1">
+                              <DollarSign className="w-3 h-3" />
+                              <span>{formatCurrency(task.budgetImpact)}</span>
+                            </div>
+                          )}
+                          {task.dueDate && (
+                            <span>Due: {formatDate(task.dueDate)}</span>
+                          )}
+                        </div>
                       </div>
-                      <h4 className="font-medium text-sm">{task.title}</h4>
-                      <span className={`px-2 py-1 rounded-full text-xs ${getPriorityColor(task.priority)}`}>
-                        {task.priority}
-                      </span>
-                      <span className={`px-2 py-1 rounded-full text-xs ${
-                        task.status === 'COMPLETED' ? 'text-green-600 bg-green-50' : 'text-gray-600 bg-gray-50'
-                      }`}>
-                        {task.status}
-                      </span>
+                      <div className="flex flex-col items-end space-y-2">
+                        <div className="flex space-x-2">
+                          {/* Status Toggle Buttons */}
+                          {/* View Button */}
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            onClick={() => handleViewTask(task.id)}
+                            title="View task details"
+                          >
+                            <Eye className="w-4 h-4" />
+                          </Button>
+                          
+                          {/* Complete Button */}
+                          {task.status !== 'COMPLETED' && (
+                            <Button 
+                              size="sm" 
+                              variant="default"
+                              onClick={() => handleCompleteTask(task.id)}
+                              disabled={completeTaskMutation.isPending}
+                              className="bg-green-600 hover:bg-green-700"
+                              title="Complete task"
+                            >
+                              <CheckSquare className="w-4 h-4" />
+                            </Button>
+                          )}
+                          
+                          {/* Delete Button */}
+                          <Button 
+                            size="sm" 
+                            variant="destructive"
+                            onClick={() => handleDeleteTask(task.id)}
+                            title="Delete task"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                        
+                        {/* Event indicator for prep tasks */}
+                        {relatedEvent && (
+                          <div className="text-xs text-blue-600">
+                            Prep for: {relatedEvent.title}
+                          </div>
+                        )}
+                      </div>
                     </div>
-                    {task.description && (
-                      <p className="text-xs text-muted-foreground mb-2">
-                        {task.description}
-                      </p>
-                    )}
-                    <div className="flex items-center space-x-4 text-xs text-muted-foreground">
-                      {task.estimatedDuration && (
-                        <div className="flex items-center space-x-1">
-                          <Clock className="w-3 h-3" />
-                          <span>{formatDuration(task.estimatedDuration)}</span>
-                        </div>
-                      )}
-                      {task.energyRequired && (
-                        <div className="flex items-center space-x-1">
-                          <Zap className="w-3 h-3" />
-                          <span>{task.energyRequired}/10</span>
-                        </div>
-                      )}
-                      {task.budgetImpact && (
-                        <div className="flex items-center space-x-1">
-                          <DollarSign className="w-3 h-3" />
-                          <span>{formatCurrency(task.budgetImpact)}</span>
-                        </div>
-                      )}
-                      {task.dueDate && (
-                        <span>Due: {formatDate(task.dueDate)}</span>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex space-x-2">
-                    {/* Status Toggle Buttons */}
-                    {/* View Button */}
-                    <Button 
-                      size="sm" 
-                      variant="outline"
-                      onClick={() => handleViewTask(task.id)}
-                      title="View task details"
-                    >
-                      <Eye className="w-4 h-4" />
-                    </Button>
-                    
-                    {/* Complete Button */}
-                    {task.status !== 'COMPLETED' && (
-                      <Button 
-                        size="sm" 
-                        variant="default"
-                        onClick={() => handleCompleteTask(task.id)}
-                        disabled={completeTaskMutation.isPending}
-                        className="bg-green-600 hover:bg-green-700"
-                        title="Complete task"
-                      >
-                        <CheckSquare className="w-4 h-4" />
-                      </Button>
-                    )}
-                    
-                    {/* Delete Button */}
-                    <Button 
-                      size="sm" 
-                      variant="destructive"
-                      onClick={() => handleDeleteTask(task.id)}
-                      title="Delete task"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </div>
-              ))}
+                  )
+                })
+              }
             </div>
           )}
         </CardContent>

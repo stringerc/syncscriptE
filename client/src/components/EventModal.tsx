@@ -421,7 +421,15 @@ export function EventModal({ event, isOpen, onClose, onEventUpdated }: EventModa
             </div>
             
             <div className="space-y-3 max-h-60 overflow-y-auto">
-              {generatedTasks.map((task) => (
+              {generatedTasks
+                .sort((a, b) => {
+                  // Sort by priority: URGENT > HIGH > MEDIUM > LOW
+                  const priorityOrder = { URGENT: 4, HIGH: 3, MEDIUM: 2, LOW: 1 }
+                  const aPriority = priorityOrder[a.priority] || 0
+                  const bPriority = priorityOrder[b.priority] || 0
+                  return bPriority - aPriority
+                })
+                .map((task) => (
                 <div key={task.id} className="flex items-start space-x-3 p-3 border rounded-lg">
                   <input
                     type="checkbox"

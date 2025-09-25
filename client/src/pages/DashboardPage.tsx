@@ -476,8 +476,6 @@ export function DashboardPage() {
           const response = await api.get(`/tasks?eventId=${event.id}`)
           const tasks = response.data.data || []
           
-          console.log(`🔍 Preparation tasks for event ${event.title}:`, tasks.map(t => ({ title: t.title, priority: t.priority })))
-          
           // Sort tasks by priority: URGENT > HIGH > MEDIUM > LOW
           const priorityOrder = { URGENT: 4, HIGH: 3, MEDIUM: 2, LOW: 1 }
           const sortedTasks = tasks.sort((a: any, b: any) => {
@@ -485,8 +483,6 @@ export function DashboardPage() {
             const bPriority = priorityOrder[b.priority] || 0
             return bPriority - aPriority
           })
-          
-          console.log(`📋 Sorted preparation tasks for event ${event.title}:`, sortedTasks.map(t => ({ title: t.title, priority: t.priority })))
           
           preparationTasksData[event.id] = sortedTasks
         } catch (error) {
