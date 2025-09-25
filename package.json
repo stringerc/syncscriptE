@@ -17,7 +17,9 @@
     "test:server": "cd server && npm test",
     "test:client": "cd client && npm test",
     "install:all": "npm install && cd server && npm install && cd ../client && npm install",
-    "postinstall": "cd server && npm install"
+    "postinstall": "cd server && npm install",
+    "predeploy": "cd client && npm run build",
+    "deploy": "gh-pages -d client/dist"
   },
   "keywords": [
     "productivity",
@@ -30,6 +32,7 @@
   "author": "SyncScript Team",
   "license": "MIT",
   "devDependencies": {
-    "concurrently": "^8.2.2"
+    "concurrently": "^8.2.2",
+    "gh-pages": "^6.3.0"
   }
 }
