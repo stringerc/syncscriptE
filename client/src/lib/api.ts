@@ -7,10 +7,10 @@ const getApiBaseUrl = () => {
     return (import.meta as any).env.VITE_API_URL
   }
   
-  // If running on GitHub Pages, use demo mode (no backend)
+  // If running on GitHub Pages, use Render.com backend
   if (window.location.hostname === 'stringerc.github.io') {
-    console.log('🌐 Running in demo mode - using mock data')
-    return 'DEMO_MODE'
+    console.log('🌐 Running on GitHub Pages - using Render.com backend')
+    return 'https://syncscript-backend.onrender.com/api'
   }
   
   // If running on Cloudflare tunnel, use the tunnel domain for API calls
