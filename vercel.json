@@ -2,7 +2,7 @@
   "version": 2,
   "builds": [
     {
-      "src": "server/package.json",
+      "src": "server/index.ts",
       "use": "@vercel/node",
       "config": {
         "includeFiles": ["server/**"],
@@ -13,15 +13,15 @@
   "routes": [
     {
       "src": "/api/(.*)",
-      "dest": "/server/dist/index.js"
+      "dest": "/server/index.ts"
     },
     {
       "src": "/health",
-      "dest": "/server/dist/index.js"
+      "dest": "/server/index.ts"
     },
     {
       "src": "/(.*)",
-      "dest": "/server/dist/index.js"
+      "dest": "/server/index.ts"
     }
   ],
   "env": {
