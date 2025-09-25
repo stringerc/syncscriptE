@@ -7,10 +7,9 @@ const getApiBaseUrl = () => {
     return (import.meta as any).env.VITE_API_URL
   }
   
-  // If running on GitHub Pages, try Vercel backend first, then Railway
+  // If running on GitHub Pages, use Railway backend (more reliable)
   if (window.location.hostname === 'stringerc.github.io') {
-    // Try Vercel backend first (more reliable)
-    return 'https://syncscript-backend.vercel.app/api'
+    return 'https://syncscript-production.up.railway.app/api'
   }
   
   // Default to localhost for development
@@ -19,10 +18,9 @@ const getApiBaseUrl = () => {
 
 const API_BASE_URL = getApiBaseUrl()
 
-// Log the API URL for debugging (only in development)
-if (import.meta.env.DEV) {
-  console.log('🔗 API Base URL:', API_BASE_URL)
-}
+// Log the API URL for debugging
+console.log('🔗 API Base URL:', API_BASE_URL)
+console.log('🌐 Current hostname:', window.location.hostname)
 
 export const api = axios.create({
   baseURL: API_BASE_URL,
