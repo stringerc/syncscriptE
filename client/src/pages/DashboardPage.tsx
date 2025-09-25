@@ -443,6 +443,14 @@ export function DashboardPage() {
   const fetchEventWeather = useCallback(async (events: Event[]) => {
     if (events.length === 0) return
 
+    // Check if we already have recent weather data (within last 10 minutes)
+    const lastFetch = localStorage.getItem('event-weather-last-fetch')
+    const now = Date.now()
+    if (lastFetch && (now - parseInt(lastFetch)) < 10 * 60 * 1000) {
+      console.log('🌤️ Using cached event weather data')
+      return
+    }
+
     try {
       console.log('🌤️ Fetching weather for events:', events.map(e => ({ id: e.id, title: e.title, location: e.location })))
       const response = await api.post('/location/events/weather', { events })
@@ -458,14 +466,25 @@ export function DashboardPage() {
       
       console.log('🌤️ Final weather data:', weatherData)
       setEventWeatherData(weatherData)
+      
+      // Cache the fetch time
+      localStorage.setItem('event-weather-last-fetch', now.toString())
     } catch (error) {
       console.error('Failed to fetch event weather:', error)
     }
   }, [])
 
-  // Fetch preparation tasks for events
+  // Fetch preparation tasks for events (with caching)
   const fetchEventPreparationTasks = useCallback(async (events: Event[]) => {
     if (events.length === 0) return
+
+    // Check if we already have recent preparation tasks data (within last 5 minutes)
+    const lastFetch = localStorage.getItem('prep-tasks-last-fetch')
+    const now = Date.now()
+    if (lastFetch && (now - parseInt(lastFetch)) < 5 * 60 * 1000) {
+      console.log('📋 Using cached preparation tasks data')
+      return
+    }
 
     try {
       const preparationTasksData: Record<string, any[]> = {}
@@ -492,6 +511,9 @@ export function DashboardPage() {
       }))
       
       setEventPreparationTasks(preparationTasksData)
+      
+      // Cache the fetch time
+      localStorage.setItem('prep-tasks-last-fetch', now.toString())
     } catch (error) {
       console.error('Failed to fetch event preparation tasks:', error)
     }
