@@ -256,96 +256,28 @@ export function Header() {
                   } : {}}
                 />
 
-                {/* Blue Energy Streaks - Super Saiyan signature effect */}
+                {/* Super Saiyan Ground-Breaking Effects - Original inspiration */}
                 {(user?.energyLevel ?? 5) >= 3 && (
                   <>
-                    {/* Blue energy streaks moving upward diagonally */}
-                    {Array.from({ length: Math.min(Math.floor(((user?.energyLevel ?? 5) - 2) * 1.5), 8) }, (_, i) => {
-                      const startX = -8 + (i * 3);
-                      const startY = 8 + (i * 2);
-                      const endX = startX + 12 + ((user?.energyLevel ?? 5) * 2);
-                      const endY = startY - 20 - ((user?.energyLevel ?? 5) * 3);
-                      const size = 1.0 + ((user?.energyLevel ?? 5) * 0.15);
-                      const opacity = 0.8 + ((user?.energyLevel ?? 5) * 0.02);
-                      const animationSpeed = 2.0 - ((user?.energyLevel ?? 5) * 0.1);
-
-                      return (
-                        <div
-                          key={`streak-${i}`}
-                          className="absolute"
+                    <div className="absolute -bottom-8 left-0 w-full h-8 overflow-hidden">
+                      {/* Ground pieces flying up - Super Saiyan style */}
+                      {Array.from({ length: Math.min(Math.floor(((user?.energyLevel ?? 5) - 2) * 2), 12) }, (_, i) => (
+                        <div 
+                          key={i}
+                          className={`absolute bottom-0 bg-gradient-to-t from-yellow-800 to-yellow-500 rounded-sm`}
                           style={{
-                            left: `${startX}px`,
-                            top: `${startY}px`,
-                            width: `${size * 2}rem`,
-                            height: `${size * 0.2}rem`,
-                            background: 'linear-gradient(90deg, transparent, #3b82f6, #1d4ed8, #3b82f6, transparent)',
-                            opacity: opacity,
-                            animation: `pulse ${animationSpeed}s ease-in-out infinite`,
-                            animationDelay: `${i * 0.1}s`,
-                            transform: `rotate(${-15 - (i * 5)}deg)`,
-                            filter: 'drop-shadow(0 0 4px rgba(59, 130, 246, 0.8))',
-                            zIndex: 10,
-                            borderRadius: '50%'
+                            left: `${3 + (i * 4)}px`,
+                            width: `${0.4 + (i % 3) * 0.2}rem`,
+                            height: `${0.4 + (i % 3) * 0.2}rem`,
+                            animation: `bounce ${1.2 - ((user?.energyLevel ?? 5) * 0.08)}s ease-in-out infinite`,
+                            animationDelay: `${i * 0.08}s`
                           }}
                         >
-                          {/* Inner streak */}
-                          <div 
-                            className="absolute inset-0"
-                            style={{
-                              background: 'linear-gradient(90deg, transparent, #60a5fa, #3b82f6, #60a5fa, transparent)',
-                              borderRadius: '50%',
-                              opacity: 0.8
-                            }}
-                          ></div>
+                          {/* Inner glow effect */}
+                          <div className="w-full h-full bg-gradient-to-t from-yellow-600 to-yellow-300 rounded-sm opacity-80"></div>
                         </div>
-                      );
-                    })}
-
-                    {/* Additional blue streaks for higher levels */}
-                    {(user?.energyLevel ?? 5) >= 6 && (
-                      <>
-                        {Array.from({ length: Math.min(Math.floor(((user?.energyLevel ?? 5) - 5) * 2), 6) }, (_, i) => {
-                          const startX = -12 + (i * 4);
-                          const startY = 12 + (i * 3);
-                          const endX = startX + 16 + ((user?.energyLevel ?? 5) * 2);
-                          const endY = startY - 25 - ((user?.energyLevel ?? 5) * 3);
-                          const size = 1.4 + ((user?.energyLevel ?? 5) * 0.2);
-                          const opacity = 0.7 + ((user?.energyLevel ?? 5) * 0.02);
-                          const animationSpeed = 1.8 - ((user?.energyLevel ?? 5) * 0.1);
-
-                          return (
-                            <div
-                              key={`streak-outer-${i}`}
-                              className="absolute"
-                              style={{
-                                left: `${startX}px`,
-                                top: `${startY}px`,
-                                width: `${size * 2.5}rem`,
-                                height: `${size * 0.15}rem`,
-                                background: 'linear-gradient(90deg, transparent, #60a5fa, #3b82f6, #1d4ed8, #3b82f6, #60a5fa, transparent)',
-                                opacity: opacity,
-                                animation: `pulse ${animationSpeed}s ease-in-out infinite`,
-                                animationDelay: `${i * 0.08}s`,
-                                transform: `rotate(${-20 - (i * 8)}deg)`,
-                                filter: 'drop-shadow(0 0 6px rgba(59, 130, 246, 1))',
-                                zIndex: 10,
-                                borderRadius: '50%'
-                              }}
-                            >
-                              {/* Inner streak */}
-                              <div 
-                                className="absolute inset-0"
-                                style={{
-                                  background: 'linear-gradient(90deg, transparent, #93c5fd, #60a5fa, #3b82f6, #60a5fa, #93c5fd, transparent)',
-                                  borderRadius: '50%',
-                                  opacity: 0.9
-                                }}
-                              ></div>
-                            </div>
-                          );
-                        })}
-                      </>
-                    )}
+                      ))}
+                    </div>
                   </>
                 )}
 
@@ -371,8 +303,7 @@ export function Header() {
                             top: `${y}px`,
                             width: `${size}rem`,
                             height: `${size}rem`,
-                            animation: `ping ${animationSpeed}s cubic-bezier(0, 0, 0.2, 1) infinite`,
-                            animationDelay: `${i * 0.05}s`,
+                            animation: `ping ${animationSpeed}s cubic-bezier(0, 0, 0.2, 1) infinite ${i * 0.05}s`,
                             opacity: opacity
                           }}
                           viewBox="0 0 24 24" 
@@ -404,8 +335,7 @@ export function Header() {
                                 top: `${y}px`,
                                 width: `${size}rem`,
                                 height: `${size}rem`,
-                                animation: `ping ${animationSpeed}s cubic-bezier(0, 0, 0.2, 1) infinite`,
-                                animationDelay: `${i * 0.03}s`,
+                                animation: `ping ${animationSpeed}s cubic-bezier(0, 0, 0.2, 1) infinite ${i * 0.03}s`,
                                 opacity: opacity,
                                 filter: (user?.energyLevel ?? 5) >= 9 ? 'drop-shadow(0 0 4px rgba(255, 255, 0, 0.6))' : 'none'
                               }}
@@ -439,8 +369,7 @@ export function Header() {
                                 top: `${y}px`,
                                 width: `${size}rem`,
                                 height: `${size}rem`,
-                                animation: `ping 0.8s cubic-bezier(0, 0, 0.2, 1) infinite`,
-                                animationDelay: `${i * 0.05}s`,
+                                animation: `ping 0.8s cubic-bezier(0, 0, 0.2, 1) infinite ${i * 0.05}s`,
                                 opacity: opacity,
                                 filter: 'drop-shadow(0 0 8px rgba(255, 255, 0, 0.8))'
                               }}
