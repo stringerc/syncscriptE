@@ -206,12 +206,12 @@ const GamificationPage: React.FC = () => {
               <ScrollArea className="h-64">
                 <div className="space-y-3">
                   {achievements?.slice(0, 5).map((achievement: any) => (
-                    <div key={achievement.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                    <div key={achievement.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
                       <div className="text-2xl">{achievement.icon || '🏆'}</div>
                       <div className="flex-1">
-                        <h4 className="font-medium">{achievement.title}</h4>
-                        <p className="text-sm text-gray-600">{achievement.description}</p>
-                        <p className="text-xs text-gray-500">
+                        <h4 className="font-medium text-gray-900 text-base">{achievement.title}</h4>
+                        <p className="text-sm text-gray-600 mt-1">{achievement.description}</p>
+                        <p className="text-xs text-gray-500 mt-1">
                           +{achievement.points} points • {new Date(achievement.unlockedAt).toLocaleDateString()}
                         </p>
                       </div>
@@ -393,11 +393,15 @@ const GamificationPage: React.FC = () => {
               ) : (
                 <div className="grid gap-4">
                   {dailyChallenges?.map((challenge: any) => (
-                    <div key={challenge.id} className="flex items-center gap-4 p-4 border rounded-lg hover:bg-gray-50 transition-colors">
+                    <div 
+                      key={challenge.id} 
+                      className="flex items-center gap-4 p-4 border rounded-lg hover:bg-gray-50 transition-colors group cursor-pointer"
+                      title={`${challenge.title}: ${challenge.description}`}
+                    >
                       <div className="text-3xl">{challenge.icon}</div>
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-1">
-                          <h4 className="font-medium">{challenge.title}</h4>
+                          <h4 className="font-medium text-gray-900 group-hover:text-blue-600 transition-colors">{challenge.title}</h4>
                           <Badge variant={challenge.difficulty === 'easy' ? 'default' : challenge.difficulty === 'medium' ? 'secondary' : 'destructive'}>
                             {challenge.difficulty}
                           </Badge>
