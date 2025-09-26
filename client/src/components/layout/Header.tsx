@@ -154,30 +154,6 @@ export function Header() {
             {/* Energy Animation - Combined Super Saiyan + God Level - only show if not on dashboard */}
             {!isDashboard && (
               <div className="relative">
-                {/* Ground-breaking effects - Super Saiyan style */}
-                {(user?.energyLevel ?? 5) >= 3 && (
-                  <>
-                    <div className="absolute -bottom-8 left-0 w-full h-8 overflow-hidden">
-                      {/* Ground pieces - more dramatic at higher levels */}
-                      {Array.from({ length: Math.min(Math.floor(((user?.energyLevel ?? 5) - 2) * 2), 12) }, (_, i) => (
-                        <div 
-                          key={i}
-                          className={`absolute bottom-0 bg-gradient-to-t from-yellow-800 to-yellow-500 rounded-sm animate-bounce`}
-                          style={{
-                            left: `${3 + (i * 4)}px`,
-                            width: `${0.4 + (i % 3) * 0.2}rem`,
-                            height: `${0.4 + (i % 3) * 0.2}rem`,
-                            animationDelay: `${i * 0.08}s`,
-                            animationDuration: `${1.2 - ((user?.energyLevel ?? 5) * 0.08)}s`
-                          }}
-                        >
-                          {/* Inner glow effect */}
-                          <div className="w-full h-full bg-gradient-to-t from-yellow-600 to-yellow-300 rounded-sm opacity-80"></div>
-                        </div>
-                      ))}
-                    </div>
-                  </>
-                )}
 
                 {/* Multi-layered Energy Aura - God Level progression */}
                 <div className="relative">
@@ -259,7 +235,6 @@ export function Header() {
                 {/* Super Saiyan Ground-Breaking Effects - Original inspiration */}
                 {(user?.energyLevel ?? 5) >= 3 && (
                   <>
-                    {console.log('🌍 Rendering ground effects for energy level:', user?.energyLevel ?? 5)}
                     <div className="absolute -bottom-4 left-0 w-full h-6 overflow-hidden">
                       {/* Ground pieces flying up - Super Saiyan style */}
                       {Array.from({ length: Math.min(Math.floor(((user?.energyLevel ?? 5) - 2) * 2), 12) }, (_, i) => (
