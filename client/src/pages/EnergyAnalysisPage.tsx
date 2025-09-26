@@ -46,6 +46,8 @@ const EnergyAnalysisPage: React.FC = () => {
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const queryClient = useQueryClient()
 
+  console.log('EnergyAnalysisPage: Component rendered')
+
   // Energy analysis query
   const { data: energyData, isLoading, error } = useQuery<EnergyAnalysis>({
     queryKey: ['energy-analysis'],
@@ -80,9 +82,12 @@ const EnergyAnalysisPage: React.FC = () => {
   })
 
   const handleAnalyze = async () => {
+    console.log('EnergyAnalysisPage: Analyze button clicked')
     setIsAnalyzing(true)
     try {
+      console.log('EnergyAnalysisPage: Starting energy analysis...')
       await queryClient.fetchQuery({ queryKey: ['energy-analysis'] })
+      console.log('EnergyAnalysisPage: Energy analysis completed')
     } catch (error) {
       console.error('Energy analysis failed:', error)
     } finally {
