@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { LoadingSpinner } from '@/components/ui/loading-spinner'
 import { useToast } from '@/hooks/use-toast'
 import { useNavigate } from 'react-router-dom'
+import { useAuthStore } from '@/stores/authStore'
 import { useAnimation } from '@/contexts/AnimationContext'
 import { 
   CheckSquare, 
