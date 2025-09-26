@@ -1319,7 +1319,8 @@ export function DashboardPage() {
                           height: `${size}rem`,
                           animationDelay: `${i * 0.1}s`,
                           animationDuration: `${animationSpeed}s`,
-                          opacity: opacity
+                          opacity: opacity,
+                          zIndex: -1
                         }}
                         viewBox="0 0 24 24" 
                         fill="none"

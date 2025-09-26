@@ -291,7 +291,8 @@ export function Header() {
                             width: `${size}rem`,
                             height: `${size}rem`,
                             animation: `ping ${animationSpeed}s cubic-bezier(0, 0, 0.2, 1) infinite ${i * 0.05}s`,
-                            opacity: opacity
+                            opacity: opacity,
+                            zIndex: -1
                           }}
                           viewBox="0 0 24 24" 
                           fill="none"
@@ -324,7 +325,8 @@ export function Header() {
                                 height: `${size}rem`,
                                 animation: `ping ${animationSpeed}s cubic-bezier(0, 0, 0.2, 1) infinite ${i * 0.03}s`,
                                 opacity: opacity,
-                                filter: (user?.energyLevel ?? 5) >= 9 ? 'drop-shadow(0 0 4px rgba(255, 255, 0, 0.6))' : 'none'
+                                filter: (user?.energyLevel ?? 5) >= 9 ? 'drop-shadow(0 0 4px rgba(255, 255, 0, 0.6))' : 'none',
+                                zIndex: -1
                               }}
                               viewBox="0 0 24 24" 
                               fill="none"
@@ -358,7 +360,8 @@ export function Header() {
                                 height: `${size}rem`,
                                 animation: `ping 0.8s cubic-bezier(0, 0, 0.2, 1) infinite ${i * 0.05}s`,
                                 opacity: opacity,
-                                filter: 'drop-shadow(0 0 8px rgba(255, 255, 0, 0.8))'
+                                filter: 'drop-shadow(0 0 8px rgba(255, 255, 0, 0.8))',
+                                zIndex: -1
                               }}
                               viewBox="0 0 24 24" 
                               fill="none"
