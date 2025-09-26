@@ -259,7 +259,8 @@ export function Header() {
                 {/* Super Saiyan Ground-Breaking Effects - Original inspiration */}
                 {(user?.energyLevel ?? 5) >= 3 && (
                   <>
-                    <div className="absolute -bottom-8 left-0 w-full h-8 overflow-hidden">
+                    {console.log('🌍 Rendering ground effects for energy level:', user?.energyLevel ?? 5)}
+                    <div className="absolute -bottom-4 left-0 w-full h-6 overflow-hidden">
                       {/* Ground pieces flying up - Super Saiyan style */}
                       {Array.from({ length: Math.min(Math.floor(((user?.energyLevel ?? 5) - 2) * 2), 12) }, (_, i) => (
                         <div 
@@ -267,10 +268,9 @@ export function Header() {
                           className={`absolute bottom-0 bg-gradient-to-t from-yellow-800 to-yellow-500 rounded-sm`}
                           style={{
                             left: `${3 + (i * 4)}px`,
-                            width: `${0.4 + (i % 3) * 0.2}rem`,
-                            height: `${0.4 + (i % 3) * 0.2}rem`,
-                            animation: `bounce ${1.2 - ((user?.energyLevel ?? 5) * 0.08)}s ease-in-out infinite`,
-                            animationDelay: `${i * 0.08}s`
+                            width: `${0.6 + (i % 3) * 0.3}rem`,
+                            height: `${0.6 + (i % 3) * 0.3}rem`,
+                            animation: `bounce ${1.2 - ((user?.energyLevel ?? 5) * 0.08)}s ease-in-out infinite ${i * 0.08}s`
                           }}
                         >
                           {/* Inner glow effect */}
