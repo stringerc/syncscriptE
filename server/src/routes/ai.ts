@@ -985,13 +985,20 @@ router.post('/tasks/:taskId/suggest-calendar', authenticateToken, asyncHandler(a
       "conflicts": ["List any potential conflicts or considerations"]
     }
     
+    CRITICAL BUFFER TIME RULES:
+    - If there are existing events, ALWAYS add buffer time after the end of the last conflicting event
+    - Minimum buffer: 15 minutes for same-day events, 30 minutes for different locations
+    - If an event ends at 5:35 PM, the next event should start at 5:50 PM (5:35 + 15 min buffer)
+    - NEVER suggest a start time that conflicts with or immediately follows an existing event
+    - Always account for travel time between different locations
+    
     IMPORTANT: 
     - Use UTC timezone for the suggested times
     - Ensure suggestedEndTime is exactly estimatedDuration minutes after suggestedTime
     - Consider travel time if location differs from existing events
     - Suggest realistic times (avoid late night for work tasks, early morning for social events)
     - Account for weekends vs weekdays
-    - Include buffer time between events`;
+    - ALWAYS include proper buffer time between events - this is mandatory`;
 
     const userPrompt = `Suggest optimal calendar timing for this task:
     
