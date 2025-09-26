@@ -18,6 +18,7 @@ import aiRoutes from './routes/ai';
 import notificationRoutes from './routes/notifications';
 import locationRoutes from './routes/location';
 import searchRoutes from './routes/search';
+import gamificationRoutes from './routes/gamification';
 
 // Import middleware
 import { errorHandler } from './middleware/errorHandler';
@@ -117,7 +118,8 @@ app.get('/', (req, res) => {
       googleCalendar: '/api/google-calendar',
       search: '/api/search',
       notifications: '/api/notifications',
-      location: '/api/location'
+      location: '/api/location',
+      gamification: '/api/gamification'
     },
     documentation: 'https://github.com/stringerc/syncscriptE'
   });
@@ -177,6 +179,7 @@ app.use('/api/ai', aiRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/location', locationRoutes);
 app.use('/api/search', searchRoutes);
+app.use('/api/gamification', gamificationRoutes);
 
 // Socket.IO for real-time updates
 io.on('connection', (socket) => {

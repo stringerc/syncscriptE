@@ -26,7 +26,7 @@ const navigation = [
   { name: 'AI Assistant', href: '/ai-assistant', icon: Brain },
   { name: 'Energy Analysis', href: '/energy-analysis', icon: Zap },
   { name: 'Profile', href: '/profile', icon: User },
-  { name: 'Achievements', href: '/achievements', icon: Trophy },
+  { name: 'Gamification', href: '/gamification', icon: Trophy },
   { name: 'Notifications', href: '/notifications', icon: Bell },
   { name: 'Settings', href: '/settings', icon: Settings },
 ]
@@ -91,6 +91,18 @@ export function Sidebar() {
               return response.data.data
             },
             staleTime: 10 * 60 * 1000,
+          })
+        }
+        break
+      case '/gamification':
+        if (shouldPrefetch(['gamification'])) {
+          queryClient.prefetchQuery({
+            queryKey: ['gamification'],
+            queryFn: async () => {
+              const response = await api.get('/gamification')
+              return response.data.data
+            },
+            staleTime: 5 * 60 * 1000,
           })
         }
         break

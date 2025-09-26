@@ -49,6 +49,9 @@ model User {
   notificationPreferences NotificationPreferences?
   achievements Achievement[]
   streaks      Streak[]
+  userStats    UserStats?
+  badges       Badge[]
+  points       Point[]
   
   // Settings
   settings UserSettings?
@@ -284,6 +287,70 @@ model Streak {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("streaks")
+}
+
+model UserStats {
+  id        String @id @default(cuid())
+  userId    String @unique
+  
+  // Overall stats
+  totalPoints      Int @default(0)
+  currentLevel     Int @default(1)
+  experiencePoints Int @default(0)
+  
+  // Task stats
+  tasksCompleted   Int @default(0)
+  tasksCreated     Int @default(0)
+  totalTaskTime    Int @default(0) // minutes
+  
+  // Event stats
+  eventsAttended   Int @default(0)
+  eventsCreated    Int @default(0)
+  
+  // Streak stats
+  longestStreak    Int @default(0)
+  currentStreak    Int @default(0)
+  
+  // Achievement stats
+  achievementsUnlocked Int @default(0)
+  badgesEarned     Int @default(0)
+  
+  // Time-based stats
+  lastActiveDate   DateTime @default(now())
+  joinDate         DateTime @default(now())
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_stats")
+}
+
+model Badge {
+  id          String   @id @default(cuid())
+  userId      String
+  type        String   // "first_task", "streak_7", "budget_master", etc.
+  title       String
+  description String
+  icon        String?  // Icon name or URL
+  rarity      String   @default("common") // "common", "rare", "epic", "legendary"
+  earnedAt    DateTime @default(now())
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("badges")
+}
+
+model Point {
+  id          String   @id @default(cuid())
+  userId      String
+  amount      Int      // Can be positive or negative
+  source      String   // "task_completion", "streak_bonus", "achievement", etc.
+  description String?
+  metadata    String?  // JSON string for additional data
+  earnedAt    DateTime @default(now())
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("points")
 }
 
 // Enums removed for SQLite compatibility - using String types instead

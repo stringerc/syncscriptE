@@ -5,6 +5,7 @@ import { asyncHandler, createError } from '../middleware/errorHandler';
 import { authenticateToken, AuthRequest } from '../middleware/auth';
 import { logger } from '../utils/logger';
 import { Priority, TaskStatus } from '../types';
+import GamificationService from '../services/gamificationService';
 
 const router = express.Router();
 const prisma = new PrismaClient();
@@ -177,6 +178,22 @@ router.post('/', authenticateToken, asyncHandler(async (req: AuthRequest, res) =
     }
   });
 
+  // Trigger gamification event
+  try {
+    await GamificationService.processEvent({
+      userId: req.user!.id,
+      type: 'task_created',
+      data: {
+        taskId: task.id,
+        priority: task.priority,
+        estimatedDuration: task.estimatedDuration
+      }
+    });
+  } catch (error) {
+    logger.error('Gamification event failed:', error);
+    // Don't fail the task creation if gamification fails
+  }
+
   logger.info('Task created', { userId: req.user!.id, taskId: task.id });
 
   res.status(201).json({
@@ -276,6 +293,23 @@ router.patch('/:id/complete', authenticateToken, asyncHandler(async (req: AuthRe
     where: { taskId: id },
     data: { completed: true }
   });
+
+  // Trigger gamification event
+  try {
+    await GamificationService.processEvent({
+      userId: req.user!.id,
+      type: 'task_completed',
+      data: {
+        taskId: id,
+        duration: actualDuration,
+        priority: task.priority,
+        completedAt: new Date()
+      }
+    });
+  } catch (error) {
+    logger.error('Gamification event failed:', error);
+    // Don't fail the task completion if gamification fails
+  }
 
   logger.info('Task completed', { userId: req.user!.id, taskId: id });
 
