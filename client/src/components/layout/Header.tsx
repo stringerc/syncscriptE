@@ -26,7 +26,7 @@ export function Header() {
   const isDashboard = location.pathname === '/'
   
   // Temporary debug logging
-  console.log('Header debug:', { pathname: location.pathname, isDashboard })
+  console.log('Header debug - pathname:', location.pathname, 'isDashboard:', isDashboard)
 
   // Get user's current location
   useEffect(() => {
@@ -69,7 +69,9 @@ export function Header() {
 
   // Temporary debug logging to see weather data structure
   if (currentWeatherData) {
-    console.log('Header weather data:', currentWeatherData)
+    console.log('Header weather data - location:', currentWeatherData.location)
+    console.log('Header weather data - weather:', currentWeatherData.weather)
+    console.log('Header weather data - full object:', JSON.stringify(currentWeatherData, null, 2))
   }
 
   // Weather icon function
