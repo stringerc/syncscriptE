@@ -234,7 +234,9 @@ export function Header() {
 
                 {/* Main lightning bolt - Fill effect based on energy level - CLICKABLE TOGGLE */}
                 <button 
-                  className="relative w-4 h-4 cursor-pointer hover:scale-110 transition-transform duration-200"
+                  className={`relative w-4 h-4 cursor-pointer hover:scale-110 transition-all duration-200 ${
+                    animationEnabled ? 'ring-2 ring-yellow-400/50 ring-opacity-50' : 'ring-1 ring-gray-300 dark:ring-gray-600 ring-opacity-30'
+                  }`}
                   onClick={toggleAnimation}
                   title={animationEnabled ? "Disable Energy Animation" : "Enable Energy Animation"}
                 >
@@ -251,7 +253,7 @@ export function Header() {
                       (user?.energyLevel ?? 5) >= 5 ? 'text-yellow-500' : 
                       (user?.energyLevel ?? 5) >= 3 ? 'text-yellow-600' : 
                       'text-primary'
-                    } ${animationEnabled ? 'animate-pulse' : ''}`} 
+                    } ${animationEnabled ? 'animate-pulse' : 'opacity-70'}`} 
                     style={{
                       clipPath: `polygon(0% 0%, ${((user?.energyLevel ?? 5) / 10) * 100}% 0%, ${((user?.energyLevel ?? 5) / 10) * 100}% 100%, 0% 100%)`,
                       ...(animationEnabled && (user?.energyLevel ?? 5) >= 7 ? { 
