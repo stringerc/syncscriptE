@@ -265,24 +265,26 @@ export function Header() {
                       const startY = 8 + (i * 2);
                       const endX = startX + 12 + ((user?.energyLevel ?? 5) * 2);
                       const endY = startY - 20 - ((user?.energyLevel ?? 5) * 3);
-                      const size = 0.8 + ((user?.energyLevel ?? 5) * 0.1);
-                      const opacity = 0.6 + ((user?.energyLevel ?? 5) * 0.03);
-                      const animationSpeed = 2.5 - ((user?.energyLevel ?? 5) * 0.15);
+                      const size = 1.0 + ((user?.energyLevel ?? 5) * 0.15);
+                      const opacity = 0.8 + ((user?.energyLevel ?? 5) * 0.02);
+                      const animationSpeed = 2.0 - ((user?.energyLevel ?? 5) * 0.1);
 
                       return (
                         <div
                           key={`streak-${i}`}
-                          className="absolute bg-gradient-to-r from-blue-400 to-blue-600 rounded-full"
+                          className="absolute rounded-full"
                           style={{
                             left: `${startX}px`,
                             top: `${startY}px`,
                             width: `${size}rem`,
-                            height: `${size * 0.3}rem`,
+                            height: `${size * 0.4}rem`,
+                            background: 'linear-gradient(45deg, #3b82f6, #1d4ed8, #3b82f6)',
                             opacity: opacity,
                             animation: `pulse ${animationSpeed}s ease-in-out infinite`,
                             animationDelay: `${i * 0.1}s`,
                             transform: `rotate(${-15 - (i * 5)}deg)`,
-                            filter: 'drop-shadow(0 0 4px rgba(59, 130, 246, 0.6))'
+                            filter: 'drop-shadow(0 0 6px rgba(59, 130, 246, 0.8))',
+                            zIndex: 10
                           }}
                         >
                           {/* Inner glow */}
@@ -299,24 +301,26 @@ export function Header() {
                           const startY = 12 + (i * 3);
                           const endX = startX + 16 + ((user?.energyLevel ?? 5) * 2);
                           const endY = startY - 25 - ((user?.energyLevel ?? 5) * 3);
-                          const size = 1.2 + ((user?.energyLevel ?? 5) * 0.15);
-                          const opacity = 0.5 + ((user?.energyLevel ?? 5) * 0.02);
-                          const animationSpeed = 2.2 - ((user?.energyLevel ?? 5) * 0.12);
+                          const size = 1.4 + ((user?.energyLevel ?? 5) * 0.2);
+                          const opacity = 0.7 + ((user?.energyLevel ?? 5) * 0.02);
+                          const animationSpeed = 1.8 - ((user?.energyLevel ?? 5) * 0.1);
 
                           return (
                             <div
                               key={`streak-outer-${i}`}
-                              className="absolute bg-gradient-to-r from-blue-300 to-blue-500 rounded-full"
+                              className="absolute rounded-full"
                               style={{
                                 left: `${startX}px`,
                                 top: `${startY}px`,
                                 width: `${size}rem`,
-                                height: `${size * 0.4}rem`,
+                                height: `${size * 0.5}rem`,
+                                background: 'linear-gradient(45deg, #60a5fa, #3b82f6, #60a5fa)',
                                 opacity: opacity,
                                 animation: `pulse ${animationSpeed}s ease-in-out infinite`,
                                 animationDelay: `${i * 0.08}s`,
                                 transform: `rotate(${-20 - (i * 8)}deg)`,
-                                filter: 'drop-shadow(0 0 6px rgba(59, 130, 246, 0.8))'
+                                filter: 'drop-shadow(0 0 8px rgba(59, 130, 246, 1))',
+                                zIndex: 10
                               }}
                             >
                               {/* Inner glow */}
