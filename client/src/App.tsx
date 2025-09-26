@@ -19,6 +19,7 @@ import { VerifyEmailPage } from '@/pages/VerifyEmailPage'
 import { LoadingSpinner } from '@/components/ui/loading-spinner'
 import { ThemeProvider } from '@/contexts/ThemeContext'
 import { NotificationProvider } from '@/contexts/NotificationContext'
+import { AnimationProvider } from '@/contexts/AnimationContext'
 import DemoMode from '@/components/DemoMode'
 import { api } from '@/lib/api'
 
@@ -87,7 +88,9 @@ function App() {
   return (
     <ThemeProvider>
       <NotificationProvider>
-        <AppContent />
+        <AnimationProvider>
+          <AppContent />
+        </AnimationProvider>
       </NotificationProvider>
     </ThemeProvider>
   )

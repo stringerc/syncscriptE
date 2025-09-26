@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { LoadingSpinner } from '@/components/ui/loading-spinner'
 import { useToast } from '@/hooks/use-toast'
 import { useNavigate } from 'react-router-dom'
-import { useAuthStore } from '@/stores/authStore'
+import { useAnimation } from '@/contexts/AnimationContext'
 import { 
   CheckSquare, 
   Calendar, 
@@ -245,9 +245,8 @@ export function DashboardPage() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const { token, user: authUser } = useAuthStore()
+  const { animationEnabled, toggleAnimation } = useAnimation()
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null)
-  const [isModalOpen, setIsModalOpen] = useState(false)
-  const [animationEnabled, setAnimationEnabled] = useState(false) // Default off
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false)
   const [eventWeatherData, setEventWeatherData] = useState<Record<string, { emoji: string; temperature: number; condition: string } | null>>({})
@@ -1262,7 +1261,7 @@ export function DashboardPage() {
               {/* Main lightning bolt - Fill effect matching header - CLICKABLE TOGGLE */}
               <button 
                 className="relative w-5 h-5 cursor-pointer hover:scale-110 transition-transform duration-200"
-                onClick={() => setAnimationEnabled(!animationEnabled)}
+                onClick={toggleAnimation}
                 title={animationEnabled ? "Disable Energy Animation" : "Enable Energy Animation"}
               >
                 {/* Background lightning bolt (empty) */}

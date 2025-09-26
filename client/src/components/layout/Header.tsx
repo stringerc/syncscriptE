@@ -7,6 +7,7 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import { NotificationCenter } from '@/components/notifications/NotificationCenter'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '@/lib/api'
+import { useAnimation } from '@/contexts/AnimationContext'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -19,7 +20,7 @@ export function Header() {
   const { user, logout } = useAuthStore()
   const [searchQuery, setSearchQuery] = useState('')
   const [userLocation, setUserLocation] = useState<{lat: number, lon: number} | null>(null)
-  const [animationEnabled, setAnimationEnabled] = useState(false) // Default off
+  const { animationEnabled, toggleAnimation } = useAnimation()
   const navigate = useNavigate()
   const location = useLocation()
 
@@ -234,7 +235,7 @@ export function Header() {
                 {/* Main lightning bolt - Fill effect based on energy level - CLICKABLE TOGGLE */}
                 <button 
                   className="relative w-4 h-4 cursor-pointer hover:scale-110 transition-transform duration-200"
-                  onClick={() => setAnimationEnabled(!animationEnabled)}
+                  onClick={toggleAnimation}
                   title={animationEnabled ? "Disable Energy Animation" : "Enable Energy Animation"}
                 >
                   {/* Background lightning bolt (empty) */}
