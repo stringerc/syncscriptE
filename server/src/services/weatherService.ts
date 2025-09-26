@@ -40,18 +40,44 @@ class WeatherService {
     }
 
     try {
-      // First, get coordinates for the location
-      const coords = await this.getLocationCoordinates(location)
-      if (!coords) {
-        logger.error('Could not get coordinates for location', { location })
-        return null
+      let lat: number, lon: number, cityName: string
+
+      // Check if location is already coordinates (lat,lon format)
+      if (location.includes(',') && !isNaN(parseFloat(location.split(',')[0]))) {
+        const [latStr, lonStr] = location.split(',')
+        lat = parseFloat(latStr.trim())
+        lon = parseFloat(lonStr.trim())
+        
+        // Get city name from coordinates using reverse geocoding
+        try {
+          const reverseResponse = await axios.get(`${this.baseUrl}/weather`, {
+            params: {
+              lat: lat,
+              lon: lon,
+              appid: this.apiKey
+            }
+          })
+          cityName = `${reverseResponse.data.name}, ${reverseResponse.data.sys.country}`
+        } catch (reverseError) {
+          cityName = `${lat.toFixed(2)}, ${lon.toFixed(2)}` // Fallback to coordinates
+        }
+      } else {
+        // Get coordinates for the location string
+        const coords = await this.getLocationCoordinates(location)
+        if (!coords) {
+          logger.error('Could not get coordinates for location', { location })
+          return null
+        }
+        lat = coords.latitude
+        lon = coords.longitude
+        cityName = `${coords.city}, ${coords.country}`
       }
 
       // Get weather data
       const response = await axios.get(`${this.baseUrl}/weather`, {
         params: {
-          lat: coords.latitude,
-          lon: coords.longitude,
+          lat: lat,
+          lon: lon,
           appid: this.apiKey,
           units: 'imperial' // Use Fahrenheit
         }
@@ -65,7 +91,7 @@ class WeatherService {
         description: data.weather[0].description,
         humidity: data.main.humidity,
         windSpeed: data.wind.speed,
-        location: `${data.name}, ${data.sys.country}`,
+        location: cityName,
         timestamp,
         emoji: this.getWeatherEmoji(data.weather[0].main, timestamp, data.weather[0].description)
       }
