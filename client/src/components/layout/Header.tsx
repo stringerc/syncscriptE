@@ -288,7 +288,9 @@ export function Header() {
                             height: `${size}rem`,
                             animation: `ping ${animationSpeed}s cubic-bezier(0, 0, 0.2, 1) infinite ${i * 0.05}s`,
                             opacity: opacity,
-                            zIndex: -1
+                            zIndex: 10,
+                            backgroundColor: 'rgba(255, 255, 0, 0.3)',
+                            border: '1px solid yellow'
                           }}
                           viewBox="0 0 24 24" 
                           fill="none"
