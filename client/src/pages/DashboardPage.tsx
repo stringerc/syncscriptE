@@ -248,6 +248,7 @@ export function DashboardPage() {
   const { token, user: authUser } = useAuthStore()
   const { animationEnabled, toggleAnimation } = useAnimation()
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null)
+  const [isModalOpen, setIsModalOpen] = useState(false)
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false)
   const [eventWeatherData, setEventWeatherData] = useState<Record<string, { emoji: string; temperature: number; condition: string } | null>>({})
