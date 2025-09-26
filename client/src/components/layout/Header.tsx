@@ -65,7 +65,9 @@ export function Header() {
   })
 
   // Weather icon function
-  const getWeatherIcon = useCallback((condition: string) => {
+  const getWeatherIcon = useCallback((condition: string | undefined) => {
+    if (!condition) return '🌤️'
+    
     const conditionLower = condition.toLowerCase()
     
     if (conditionLower.includes('clear') || conditionLower.includes('sunny')) {
@@ -133,11 +135,11 @@ export function Header() {
             {!isDashboard && currentWeatherData && (
               <div className="flex items-center space-x-2 px-2 py-1 bg-slate-50 dark:bg-slate-800 rounded-lg">
                 <span className="text-lg">
-                  {getWeatherIcon(currentWeatherData.condition)}
+                  {getWeatherIcon(currentWeatherData.weather?.condition || currentWeatherData.condition)}
                 </span>
                 <div className="text-xs">
                   <div className="font-medium text-slate-700 dark:text-slate-300">
-                    {currentWeatherData.temperature}°
+                    {currentWeatherData.weather?.temperature || currentWeatherData.temperature}°
                   </div>
                   <div className="text-slate-500 dark:text-slate-400">
                     {currentWeatherData.location?.split(',')[0] || 'Current'}
