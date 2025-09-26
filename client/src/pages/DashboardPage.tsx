@@ -668,9 +668,11 @@ export function DashboardPage() {
         }
       }
     },
-    staleTime: 10 * 60 * 1000, // 10 minutes
+    staleTime: 15 * 60 * 1000, // 15 minutes - increased to reduce API calls
+    cacheTime: 30 * 60 * 1000, // Keep in cache for 30 minutes
     refetchOnWindowFocus: false,
-    retry: 1,
+    retry: 2, // Retry failed requests twice
+    retryDelay: 2000, // Wait 2 seconds between retries
     onError: (error) => {
       console.error('Failed to fetch current weather:', error)
     }
@@ -699,8 +701,10 @@ export function DashboardPage() {
       return []
     },
     staleTime: 30 * 60 * 1000, // 30 minutes
+    cacheTime: 60 * 60 * 1000, // Keep in cache for 1 hour
     refetchOnWindowFocus: false,
-    retry: 1,
+    retry: 2, // Retry failed requests twice
+    retryDelay: 2000, // Wait 2 seconds between retries
     onError: (error) => {
       console.error('Failed to fetch weather forecast:', error)
     }

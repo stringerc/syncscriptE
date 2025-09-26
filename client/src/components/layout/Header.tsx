@@ -272,15 +272,15 @@ export function Header() {
                       return (
                         <div
                           key={`streak-${i}`}
-                          className="absolute bg-gradient-to-r from-blue-400 to-blue-600 rounded-full animate-pulse"
+                          className="absolute bg-gradient-to-r from-blue-400 to-blue-600 rounded-full"
                           style={{
                             left: `${startX}px`,
                             top: `${startY}px`,
                             width: `${size}rem`,
                             height: `${size * 0.3}rem`,
                             opacity: opacity,
-                            animationDuration: `${animationSpeed}s`,
-                            animationDelay: `${i * 0.2}s`,
+                            animation: `pulse ${animationSpeed}s ease-in-out infinite`,
+                            animationDelay: `${i * 0.1}s`,
                             transform: `rotate(${-15 - (i * 5)}deg)`,
                             filter: 'drop-shadow(0 0 4px rgba(59, 130, 246, 0.6))'
                           }}
@@ -306,15 +306,15 @@ export function Header() {
                           return (
                             <div
                               key={`streak-outer-${i}`}
-                              className="absolute bg-gradient-to-r from-blue-300 to-blue-500 rounded-full animate-pulse"
+                              className="absolute bg-gradient-to-r from-blue-300 to-blue-500 rounded-full"
                               style={{
                                 left: `${startX}px`,
                                 top: `${startY}px`,
                                 width: `${size}rem`,
                                 height: `${size * 0.4}rem`,
                                 opacity: opacity,
-                                animationDuration: `${animationSpeed}s`,
-                                animationDelay: `${i * 0.15}s`,
+                                animation: `pulse ${animationSpeed}s ease-in-out infinite`,
+                                animationDelay: `${i * 0.08}s`,
                                 transform: `rotate(${-20 - (i * 8)}deg)`,
                                 filter: 'drop-shadow(0 0 6px rgba(59, 130, 246, 0.8))'
                               }}
@@ -345,14 +345,14 @@ export function Header() {
                       return (
                         <svg 
                           key={`inner-${i}`}
-                          className={`absolute text-yellow-400 animate-ping`}
+                          className={`absolute text-yellow-400`}
                           style={{
                             left: `${x}px`,
                             top: `${y}px`,
                             width: `${size}rem`,
                             height: `${size}rem`,
-                            animationDelay: `${i * 0.08}s`,
-                            animationDuration: `${animationSpeed}s`,
+                            animation: `ping ${animationSpeed}s cubic-bezier(0, 0, 0.2, 1) infinite`,
+                            animationDelay: `${i * 0.05}s`,
                             opacity: opacity
                           }}
                           viewBox="0 0 24 24" 
@@ -378,14 +378,14 @@ export function Header() {
                           return (
                             <svg 
                               key={`outer-${i}`}
-                              className={`absolute text-yellow-300 animate-ping`}
+                              className={`absolute text-yellow-300`}
                               style={{
                                 left: `${x}px`,
                                 top: `${y}px`,
                                 width: `${size}rem`,
                                 height: `${size}rem`,
-                                animationDelay: `${i * 0.06}s`,
-                                animationDuration: `${animationSpeed}s`,
+                                animation: `ping ${animationSpeed}s cubic-bezier(0, 0, 0.2, 1) infinite`,
+                                animationDelay: `${i * 0.03}s`,
                                 opacity: opacity,
                                 filter: (user?.energyLevel ?? 5) >= 9 ? 'drop-shadow(0 0 4px rgba(255, 255, 0, 0.6))' : 'none'
                               }}
@@ -413,14 +413,14 @@ export function Header() {
                           return (
                             <svg 
                               key={`divine-${i}`}
-                              className={`absolute text-yellow-200 animate-ping`}
+                              className={`absolute text-yellow-200`}
                               style={{
                                 left: `${x}px`,
                                 top: `${y}px`,
                                 width: `${size}rem`,
                                 height: `${size}rem`,
-                                animationDelay: `${i * 0.1}s`,
-                                animationDuration: '0.8s',
+                                animation: `ping 0.8s cubic-bezier(0, 0, 0.2, 1) infinite`,
+                                animationDelay: `${i * 0.05}s`,
                                 opacity: opacity,
                                 filter: 'drop-shadow(0 0 8px rgba(255, 255, 0, 0.8))'
                               }}
