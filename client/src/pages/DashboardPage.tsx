@@ -1307,7 +1307,7 @@ export function DashboardPage() {
 
               {/* Main lightning bolt - changes color based on energy */}
               <Zap className={`w-5 h-5 ${(user.energyLevel ?? 5) >= 10 ? 'text-yellow-300 animate-pulse' : (user.energyLevel ?? 5) >= 8 ? 'text-yellow-400 animate-pulse' : (user.energyLevel ?? 5) >= 6 ? 'text-yellow-500' : 'text-primary'}`} 
-                   style={{(user.energyLevel ?? 5) >= 10 ? { animationDuration: '0.2s' } : {}}}
+                   style={(user.energyLevel ?? 5) >= 10 ? { animationDuration: '0.2s' } : {}}
               />
               
               {/* Super Saiyan sparks - intensity increases with energy */}
