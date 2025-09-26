@@ -1,11 +1,11 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../lib/api'
 import { Button } from '../components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card'
 import { Badge } from '../components/ui/badge'
 import { Alert, AlertDescription, AlertTitle } from '../components/ui/alert'
-import { Loader2, Zap, Clock, TrendingUp, Lightbulb, Calendar, Target, Brain } from 'lucide-react'
+import { Loader2, Zap, Clock, TrendingUp, Lightbulb, Calendar, Target, Brain, RefreshCw } from 'lucide-react'
 import { toast } from '../hooks/use-toast'
 
 interface EnergyAnalysis {
@@ -46,16 +46,24 @@ const EnergyAnalysisPage: React.FC = () => {
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const queryClient = useQueryClient()
 
-
-  // Energy analysis query
-  const { data: energyData, isLoading, error } = useQuery<EnergyAnalysis>({
+  // Energy analysis query - now runs automatically
+  const { data: energyData, isLoading, error, refetch } = useQuery<EnergyAnalysis>({
     queryKey: ['energy-analysis'],
     queryFn: async () => {
       const response = await api.post('/ai/energy-analysis')
-      return response.data.data
+      return response.data.data || response.data
     },
-    enabled: false // Only run when manually triggered
+    enabled: true, // Run automatically when component mounts
+    staleTime: 5 * 60 * 1000, // Consider data fresh for 5 minutes
+    refetchOnWindowFocus: false // Don't refetch on window focus
   })
+
+  // Auto-trigger analysis when component mounts
+  useEffect(() => {
+    if (!energyData && !isLoading && !error) {
+      refetch()
+    }
+  }, [energyData, isLoading, error, refetch])
 
   // Apply scheduling recommendations mutation
   const applyScheduleMutation = useMutation({
@@ -83,7 +91,7 @@ const EnergyAnalysisPage: React.FC = () => {
   const handleAnalyze = async () => {
     setIsAnalyzing(true)
     try {
-      await queryClient.fetchQuery({ queryKey: ['energy-analysis'] })
+      await refetch()
     } catch (error) {
       console.error('Energy analysis failed:', error)
     } finally {
@@ -127,13 +135,14 @@ const EnergyAnalysisPage: React.FC = () => {
           onClick={handleAnalyze} 
           disabled={isAnalyzing || isLoading}
           className="flex items-center gap-2"
+          variant="outline"
         >
           {(isAnalyzing || isLoading) ? (
             <Loader2 className="w-4 h-4 animate-spin" />
           ) : (
-            <Brain className="w-4 h-4" />
+            <RefreshCw className="w-4 h-4" />
           )}
-          {isAnalyzing || isLoading ? 'Analyzing...' : 'Analyze Energy Patterns'}
+          {isAnalyzing || isLoading ? 'Analyzing...' : 'Refresh Analysis'}
         </Button>
       </div>
 
@@ -143,6 +152,18 @@ const EnergyAnalysisPage: React.FC = () => {
             Failed to analyze energy patterns. Please try again.
           </AlertDescription>
         </Alert>
+      )}
+
+      {isLoading && !energyData && (
+        <div className="flex items-center justify-center py-12">
+          <div className="text-center space-y-4">
+            <Loader2 className="w-8 h-8 animate-spin mx-auto text-blue-600" />
+            <div>
+              <h3 className="text-lg font-medium">Analyzing Your Energy Patterns</h3>
+              <p className="text-gray-600">This may take a few moments...</p>
+            </div>
+          </div>
+        </div>
       )}
 
       {energyData && (
