@@ -2,8 +2,8 @@ import { Search, User, LogOut, Settings, UserCircle, Zap } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useAuthStore } from '@/stores/authStore'
-import { useState, useCallback } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useState, useCallback, useEffect } from 'react'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { NotificationCenter } from '@/components/notifications/NotificationCenter'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '@/lib/api'
@@ -18,15 +18,48 @@ import {
 export function Header() {
   const { user, logout } = useAuthStore()
   const [searchQuery, setSearchQuery] = useState('')
+  const [userLocation, setUserLocation] = useState<{lat: number, lon: number} | null>(null)
   const navigate = useNavigate()
+  const location = useLocation()
 
-  // Weather query for header
+  // Check if we're on the dashboard
+  const isDashboard = location.pathname === '/'
+
+  // Get user's current location
+  useEffect(() => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setUserLocation({
+            lat: position.coords.latitude,
+            lon: position.coords.longitude
+          })
+        },
+        (error) => {
+          console.log('Location access denied or failed:', error)
+          // Fallback to user's saved location or default
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 300000 // 5 minutes
+        }
+      )
+    }
+  }, [])
+
+  // Weather query for header - only fetch if not on dashboard
   const { data: currentWeatherData } = useQuery({
-    queryKey: ['current-weather'],
+    queryKey: ['current-weather', userLocation],
     queryFn: async () => {
-      const response = await api.get('/location/weather/current')
+      let locationParam = ''
+      if (userLocation) {
+        locationParam = `?lat=${userLocation.lat}&lon=${userLocation.lon}`
+      }
+      const response = await api.get(`/location/weather/current${locationParam}`)
       return response.data.data || response.data
     },
+    enabled: !isDashboard, // Only fetch weather if not on dashboard
     staleTime: 10 * 60 * 1000, // 10 minutes
     refetchOnWindowFocus: false,
   })
@@ -96,8 +129,8 @@ export function Header() {
               </p>
             </div>
 
-            {/* Weather Display */}
-            {currentWeatherData && (
+            {/* Weather Display - only show if not on dashboard */}
+            {!isDashboard && currentWeatherData && (
               <div className="flex items-center space-x-2 px-2 py-1 bg-slate-50 dark:bg-slate-800 rounded-lg">
                 <span className="text-lg">
                   {getWeatherIcon(currentWeatherData.condition)}
@@ -113,8 +146,9 @@ export function Header() {
               </div>
             )}
 
-            {/* Energy Animation */}
-            <div className="relative">
+            {/* Energy Animation - only show if not on dashboard */}
+            {!isDashboard && (
+              <div className="relative">
               {/* Ground-breaking effects - gradual progression */}
               {(user?.energyLevel ?? 5) >= 3 && (
                 <>
@@ -233,6 +267,7 @@ export function Header() {
                 </>
               )}
             </div>
+            )}
             
             {/* Test button - navigation */}
             <Button 

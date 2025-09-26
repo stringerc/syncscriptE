@@ -73,14 +73,30 @@ router.get('/weather/test', authenticateToken, asyncHandler(async (req: AuthRequ
 // Get current weather for user's location
 router.get('/weather/current', authenticateToken, asyncHandler(async (req: AuthRequest, res) => {
   const userId = req.user!.id
-  const { location } = req.query
+  const { location, lat, lon } = req.query
 
   const user = await prisma.user.findUnique({
     where: { id: userId },
     select: { currentLocation: true, homeLocation: true, workLocation: true }
   })
 
-  const targetLocation = (location as string) || user?.currentLocation || user?.homeLocation || 'New York'
+  let targetLocation: string
+
+  // Priority: lat/lon coordinates > location parameter > user's saved locations > default
+  if (lat && lon) {
+    try {
+      // Convert coordinates to location string for weather service
+      targetLocation = `${lat},${lon}`
+    } catch (error) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid latitude or longitude coordinates'
+      })
+    }
+  } else {
+    targetLocation = (location as string) || user?.currentLocation || user?.homeLocation || 'New York'
+  }
+
   if (!targetLocation) {
     return res.status(400).json({
       success: false,
