@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input'
 import { CheckSquare, Plus, Clock, DollarSign, Zap, Trash2, Eye, EyeOff, CheckCircle, RotateCcw } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { formatDate, formatDuration, formatCurrency, getPriorityColor } from '@/lib/utils'
+import { buildHierarchicalPrepChain, isPrepTask, getEventTitleFromPrepTask } from '@/lib/prepChain'
 import { TaskModal } from '@/components/TaskModal'
 import { Task, Priority } from '@/shared/types'
 
@@ -517,7 +518,14 @@ export function TasksPage() {
                         {/* Event indicator for prep tasks */}
                         {relatedEvent && (
                           <div className="text-xs text-blue-600">
-                            Prep for: {relatedEvent.title}
+                            {(() => {
+                              // If task title already contains prep chain, use it
+                              if (isPrepTask(task.title)) {
+                                return task.title;
+                              }
+                              // Otherwise, build the basic prep chain
+                              return `Prep for: ${relatedEvent.title}`;
+                            })()}
                           </div>
                         )}
                       </div>
@@ -656,7 +664,14 @@ export function TasksPage() {
                                 {/* Event indicator for prep tasks */}
                                 {relatedEvent && (
                                   <div className="text-xs text-blue-600">
-                                    Prep for: {relatedEvent.title}
+                                    {(() => {
+                                      // If task title already contains prep chain, use it
+                                      if (isPrepTask(task.title)) {
+                                        return task.title;
+                                      }
+                                      // Otherwise, build the basic prep chain
+                                      return `Prep for: ${relatedEvent.title}`;
+                                    })()}
                                   </div>
                                 )}
                               </div>
@@ -799,7 +814,14 @@ export function TasksPage() {
                                 {/* Event indicator for prep tasks */}
                                 {relatedEvent && (
                                   <div className="text-xs text-blue-600">
-                                    Prep for: {relatedEvent.title}
+                                    {(() => {
+                                      // If task title already contains prep chain, use it
+                                      if (isPrepTask(task.title)) {
+                                        return task.title;
+                                      }
+                                      // Otherwise, build the basic prep chain
+                                      return `Prep for: ${relatedEvent.title}`;
+                                    })()}
                                   </div>
                                 )}
                               </div>

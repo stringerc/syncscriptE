@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { useToast } from '@/hooks/use-toast'
 import { ConfirmationModal } from '@/components/ConfirmationModal'
+import { buildPrepChainTitle, isPrepTask } from '@/lib/prepChain'
 import { 
   X, 
   Save, 
@@ -205,7 +206,7 @@ export function TaskModal({ task, isOpen, onClose, onTaskUpdated, onTaskDeleted 
       // Update the task to link it to the new event and mark it as a prep task
       const updateData: any = {
         eventId: eventResponse.data.data.id,
-        title: `Prep for: ${task.title}`,
+        title: buildPrepChainTitle(task.title, eventResponse.data.data.title, isPrepTask(task.title)),
         // Keep all other task properties unchanged
         description: task.description,
         priority: task.priority,
