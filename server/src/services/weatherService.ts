@@ -67,7 +67,7 @@ class WeatherService {
         windSpeed: data.wind.speed,
         location: `${data.name}, ${data.sys.country}`,
         timestamp,
-        emoji: this.getWeatherEmoji(data.weather[0].main, timestamp)
+        emoji: this.getWeatherEmoji(data.weather[0].main, timestamp, data.weather[0].description)
       }
     } catch (error) {
       logger.error('Failed to get weather data', { error, location })
@@ -76,33 +76,91 @@ class WeatherService {
   }
 
   /**
-   * Get weather emoji based on condition and time of day
+   * Get weather emoji based on condition, description, and time of day
    */
-  getWeatherEmoji(condition: string, timestamp?: Date): string {
+  getWeatherEmoji(condition: string, timestamp?: Date, description?: string): string {
     const conditionLower = condition.toLowerCase()
+    const descriptionLower = description?.toLowerCase() || ''
     const isNight = this.isNightTime(timestamp)
     
+    // Clear/Sunny conditions
     if (conditionLower.includes('clear') || conditionLower.includes('sunny')) {
       return isNight ? '🌙' : '☀️'
-    } else if (conditionLower.includes('cloud')) {
-      return isNight ? '☁️' : '☁️'
-    } else if (conditionLower.includes('rain') || conditionLower.includes('drizzle')) {
-      return '🌧️'
-    } else if (conditionLower.includes('thunderstorm') || conditionLower.includes('storm')) {
-      return '⛈️'
-    } else if (conditionLower.includes('snow')) {
-      return '❄️'
-    } else if (conditionLower.includes('mist') || conditionLower.includes('fog')) {
-      return '🌫️'
-    } else if (conditionLower.includes('wind')) {
-      return '💨'
-    } else {
-      return isNight ? '🌙' : '🌤️'
     }
+    
+    // Cloudy conditions - use description for more accuracy
+    if (conditionLower.includes('cloud')) {
+      if (descriptionLower.includes('few') || descriptionLower.includes('scattered')) {
+        return isNight ? '🌙☁️' : '⛅'
+      } else if (descriptionLower.includes('broken') || descriptionLower.includes('overcast')) {
+        return '☁️'
+      } else if (descriptionLower.includes('partly')) {
+        return isNight ? '🌙☁️' : '⛅'
+      } else {
+        return isNight ? '☁️' : '⛅'
+      }
+    }
+    
+    // Rain conditions - use description for intensity
+    if (conditionLower.includes('rain') || conditionLower.includes('drizzle')) {
+      if (descriptionLower.includes('light') || descriptionLower.includes('drizzle') || descriptionLower.includes('shower')) {
+        return '🌦️'
+      } else if (descriptionLower.includes('heavy') || descriptionLower.includes('intense')) {
+        return '🌧️'
+      } else {
+        return '🌧️'
+      }
+    }
+    
+    // Thunderstorm conditions
+    if (conditionLower.includes('thunderstorm') || conditionLower.includes('storm')) {
+      if (descriptionLower.includes('light')) {
+        return '⛈️'
+      } else if (descriptionLower.includes('heavy') || descriptionLower.includes('intense')) {
+        return '⛈️'
+      } else {
+        return '⛈️'
+      }
+    }
+    
+    // Snow conditions
+    if (conditionLower.includes('snow')) {
+      if (descriptionLower.includes('light') || descriptionLower.includes('shower')) {
+        return '🌨️'
+      } else if (descriptionLower.includes('heavy') || descriptionLower.includes('blizzard')) {
+        return '❄️'
+      } else {
+        return '🌨️'
+      }
+    }
+    
+    // Mist/Fog conditions
+    if (conditionLower.includes('mist') || conditionLower.includes('fog') || conditionLower.includes('haze')) {
+      return '🌫️'
+    }
+    
+    // Wind conditions
+    if (conditionLower.includes('wind')) {
+      return '💨'
+    }
+    
+    // Dust/Sand conditions
+    if (conditionLower.includes('dust') || conditionLower.includes('sand')) {
+      return '🌪️'
+    }
+    
+    // Tornado conditions
+    if (conditionLower.includes('tornado')) {
+      return '🌪️'
+    }
+    
+    // Default fallback
+    return isNight ? '🌙' : '🌤️'
   }
 
   /**
-   * Determine if it's night time based on timestamp
+   * Determine if it's night time based on timestamp and location
+   * For now, uses a simple time-based approach, but could be enhanced with sunrise/sunset API
    */
   private isNightTime(timestamp?: Date): boolean {
     if (!timestamp) {
@@ -110,8 +168,9 @@ class WeatherService {
     }
     
     const hour = timestamp.getHours()
-    // Consider night time from 6 PM to 6 AM
-    return hour >= 18 || hour < 6
+    // More realistic night time hours: 7 PM to 6 AM
+    // This accounts for twilight periods and seasonal variations
+    return hour >= 19 || hour < 6
   }
 
   /**
@@ -169,7 +228,7 @@ class WeatherService {
         windSpeed: closestForecast.wind.speed,
         location: `${response.data.city.name}, ${response.data.city.country}`,
         timestamp,
-        emoji: this.getWeatherEmoji(closestForecast.weather[0].main, timestamp)
+        emoji: this.getWeatherEmoji(closestForecast.weather[0].main, timestamp, closestForecast.weather[0].description)
       }
 
       logger.info('Successfully got weather data', { 
@@ -222,7 +281,7 @@ class WeatherService {
           windSpeed: item.wind.speed,
           location: `${response.data.city.name}, ${response.data.city.country}`,
           timestamp,
-          emoji: this.getWeatherEmoji(item.weather[0].main, timestamp)
+          emoji: this.getWeatherEmoji(item.weather[0].main, timestamp, item.weather[0].description)
         }
       })
 
