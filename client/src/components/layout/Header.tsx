@@ -23,7 +23,7 @@ export function Header() {
   const location = useLocation()
 
   // Check if we're on the dashboard
-  const isDashboard = location.pathname === '/'
+  const isDashboard = location.pathname === '/dashboard'
   
   // Temporary debug logging
   console.log('Header debug - pathname:', location.pathname, 'isDashboard:', isDashboard)
@@ -153,9 +153,9 @@ export function Header() {
                   <div className="font-medium text-slate-700 dark:text-slate-300">
                     {currentWeatherData.weather?.temperature || currentWeatherData.temperature}°
                   </div>
-                  <div className="text-slate-500 dark:text-slate-400">
-                    {currentWeatherData.location?.split(',')[0] || 'Current'}
-                  </div>
+                         <div className="text-slate-500 dark:text-slate-400">
+                           {currentWeatherData.weather?.location?.split(',')[0] || 'Current'}
+                         </div>
                 </div>
               </div>
             )}
