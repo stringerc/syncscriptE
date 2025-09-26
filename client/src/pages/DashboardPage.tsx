@@ -1276,7 +1276,7 @@ export function DashboardPage() {
               {animationEnabled && (user.energyLevel ?? 5) >= 3 && (
                 <>
                   {/* Ground-breaking effects - Super Saiyan style */}
-                  <div className="absolute -bottom-8 left-0 w-full h-8 overflow-hidden">
+                  <div className="absolute -bottom-8 left-0 w-full h-8 overflow-hidden" style={{ backgroundColor: 'rgba(255, 0, 0, 0.3)', border: '2px solid red' }}>
                     {/* Ground pieces flying up - Super Saiyan style */}
                     {Array.from({ length: Math.min(Math.floor(((user.energyLevel ?? 5) - 2) * 2), 12) }, (_, i) => (
                       <div 
@@ -1286,7 +1286,10 @@ export function DashboardPage() {
                           left: `${5 + (i * 8)}px`,
                           width: `${0.5 + (i % 3) * 0.5}rem`,
                           height: `${0.5 + (i % 2) * 0.5}rem`,
-                          animation: `bounce ${1.5 - ((user.energyLevel ?? 5) * 0.1)}s ease-in-out infinite ${i * 0.1}s`
+                          animation: `bounce ${1.5 - ((user.energyLevel ?? 5) * 0.1)}s ease-in-out infinite ${i * 0.1}s`,
+                          backgroundColor: 'red',
+                          border: '1px solid yellow',
+                          zIndex: 100
                         }}
                       >
                         {/* Inner glow effect */}
@@ -1304,7 +1307,10 @@ export function DashboardPage() {
                       height: `${100 + ((user.energyLevel ?? 5) * 20)}%`,
                       left: `${-((user.energyLevel ?? 5) * 10)}%`,
                       top: `${-((user.energyLevel ?? 5) * 10)}%`,
-                      animationDuration: `${2 - ((user.energyLevel ?? 5) * 0.15)}s`
+                      animationDuration: `${2 - ((user.energyLevel ?? 5) * 0.15)}s`,
+                      backgroundColor: 'rgba(0, 255, 0, 0.5)',
+                      border: '3px solid green',
+                      zIndex: 50
                     }}
                   />
 
