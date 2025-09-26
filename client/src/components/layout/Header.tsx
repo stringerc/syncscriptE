@@ -4,7 +4,7 @@ import { Input } from '@/components/ui/input'
 import { useAuthStore } from '@/stores/authStore'
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { NotificationsDropdown } from '@/components/NotificationsDropdown'
+import { NotificationCenter } from '@/components/notifications/NotificationCenter'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -37,7 +37,7 @@ export function Header() {
         {/* Right side */}
         <div className="flex items-center space-x-4">
           {/* Notifications */}
-          <NotificationsDropdown />
+          <NotificationCenter />
 
           {/* User Menu */}
           <div className="flex items-center space-x-3">
