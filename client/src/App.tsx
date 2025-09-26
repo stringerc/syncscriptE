@@ -15,6 +15,7 @@ import { ProfilePage } from '@/pages/ProfilePage'
 import { AIAssistantPage } from '@/pages/AIAssistantPage'
 import EnergyAnalysisPage from '@/pages/EnergyAnalysisPage'
 import NotificationsPage from '@/pages/NotificationsPage'
+import SearchPage from '@/pages/SearchPage'
 import { VerifyEmailPage } from '@/pages/VerifyEmailPage'
 import { LoadingSpinner } from '@/components/ui/loading-spinner'
 import { ThemeProvider } from '@/contexts/ThemeContext'
@@ -75,6 +76,7 @@ function AppContent() {
         <Route path="/ai-assistant" element={<AIAssistantPage />} />
         <Route path="/energy-analysis" element={<EnergyAnalysisPage />} />
         <Route path="/notifications" element={<NotificationsPage />} />
+        <Route path="/search" element={<SearchPage />} />
         <Route path="/settings" element={<SettingsPage />} />
         <Route path="/profile" element={<ProfilePage />} />
         <Route path="/verify-email" element={<VerifyEmailPage />} />

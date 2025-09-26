@@ -17,6 +17,7 @@ import financialRoutes from './routes/financial';
 import aiRoutes from './routes/ai';
 import notificationRoutes from './routes/notifications';
 import locationRoutes from './routes/location';
+import searchRoutes from './routes/search';
 
 // Import middleware
 import { errorHandler } from './middleware/errorHandler';
@@ -113,7 +114,10 @@ app.get('/', (req, res) => {
       tasks: '/api/tasks',
       calendar: '/api/calendar',
       ai: '/api/ai',
-      googleCalendar: '/api/google-calendar'
+      googleCalendar: '/api/google-calendar',
+      search: '/api/search',
+      notifications: '/api/notifications',
+      location: '/api/location'
     },
     documentation: 'https://github.com/stringerc/syncscriptE'
   });
@@ -172,6 +176,7 @@ app.use('/api/financial', financialRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/location', locationRoutes);
+app.use('/api/search', searchRoutes);
 
 // Socket.IO for real-time updates
 io.on('connection', (socket) => {
