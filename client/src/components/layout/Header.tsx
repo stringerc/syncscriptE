@@ -24,14 +24,6 @@ export function Header() {
 
   // Check if we're on the dashboard
   const isDashboard = location.pathname === '/'
-  
-  // Debug logging
-  console.log('Header render:', { 
-    pathname: location.pathname, 
-    isDashboard,
-    currentWeatherData: currentWeatherData ? 'exists' : 'null',
-    weatherCondition: currentWeatherData?.weather?.condition || currentWeatherData?.condition || 'undefined'
-  })
 
   // Get user's current location
   useEffect(() => {
@@ -70,6 +62,14 @@ export function Header() {
     enabled: !isDashboard, // Only fetch weather if not on dashboard
     staleTime: 10 * 60 * 1000, // 10 minutes
     refetchOnWindowFocus: false,
+  })
+
+  // Debug logging
+  console.log('Header render:', { 
+    pathname: location.pathname, 
+    isDashboard,
+    currentWeatherData: currentWeatherData ? 'exists' : 'null',
+    weatherCondition: currentWeatherData?.weather?.condition || currentWeatherData?.condition || 'undefined'
   })
 
   // Weather icon function
