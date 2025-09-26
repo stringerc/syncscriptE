@@ -54,10 +54,11 @@ const EnergyAnalysisPage: React.FC = () => {
       return response.data.data || response.data
     },
     enabled: true, // Run automatically when component mounts
-    staleTime: 10 * 60 * 1000, // Consider data fresh for 10 minutes (increased from 5)
-    cacheTime: 30 * 60 * 1000, // Keep in cache for 30 minutes
-    refetchOnWindowFocus: false, // Don't refetch on window focus
+    staleTime: 5 * 60 * 1000, // Consider data fresh for 5 minutes (reduced for more frequent updates)
+    cacheTime: 15 * 60 * 1000, // Keep in cache for 15 minutes
+    refetchOnWindowFocus: true, // Refetch when window regains focus
     refetchOnMount: 'always', // Always refetch when component mounts
+    refetchInterval: 10 * 60 * 1000, // Auto-refresh every 10 minutes in background
     retry: 2, // Retry failed requests twice
     retryDelay: 1000 // Wait 1 second between retries
   })

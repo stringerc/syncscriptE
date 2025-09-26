@@ -19,6 +19,7 @@ export function Header() {
   const { user, logout } = useAuthStore()
   const [searchQuery, setSearchQuery] = useState('')
   const [userLocation, setUserLocation] = useState<{lat: number, lon: number} | null>(null)
+  const [animationEnabled, setAnimationEnabled] = useState(false) // Default off
   const navigate = useNavigate()
   const location = useLocation()
 
@@ -66,6 +67,19 @@ export function Header() {
 
 
   // Weather icon function
+  const handleSearch = useCallback((query: string) => {
+    if (query.trim()) {
+      // Navigate to a search results page or implement search logic
+      navigate(`/search?q=${encodeURIComponent(query.trim())}`)
+    }
+  }, [navigate])
+
+  const handleKeyPress = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleSearch(searchQuery)
+    }
+  }, [searchQuery, handleSearch])
+
   const getWeatherIcon = useCallback((condition: string | undefined | null) => {
     if (!condition || typeof condition !== 'string') {
       return '🌤️'
@@ -113,6 +127,7 @@ export function Header() {
               placeholder="Search tasks, events, or ask AI..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyPress={handleKeyPress}
               className="pl-10"
             />
           </div>
@@ -153,9 +168,7 @@ export function Header() {
 
             {/* Energy Animation - Combined Super Saiyan + God Level - only show if not on dashboard */}
             {!isDashboard && (
-              <>
-                {console.log('⚡ Energy animation section rendering! isDashboard:', isDashboard)}
-                <div className="relative">
+              <div className="relative">
 
                 {/* Multi-layered Energy Aura - God Level progression */}
                 <div className="relative">
@@ -218,49 +231,35 @@ export function Header() {
                   )}
                 </div>
 
-                {/* Main lightning bolt - Enhanced progression */}
-                <Zap 
-                  className={`w-4 h-4 ${
-                    (user?.energyLevel ?? 5) >= 10 ? 'text-yellow-200 animate-pulse' : 
-                    (user?.energyLevel ?? 5) >= 9 ? 'text-yellow-300 animate-pulse' : 
-                    (user?.energyLevel ?? 5) >= 7 ? 'text-yellow-400 animate-pulse' : 
-                    (user?.energyLevel ?? 5) >= 5 ? 'text-yellow-500' : 
-                    (user?.energyLevel ?? 5) >= 3 ? 'text-yellow-600' : 
-                    'text-primary'
-                  }`} 
-                  style={(user?.energyLevel ?? 5) >= 7 ? { 
-                    animationDuration: `${0.6 - ((user?.energyLevel ?? 5) * 0.04)}s`,
-                    filter: (user?.energyLevel ?? 5) >= 9 ? 'drop-shadow(0 0 8px rgba(255, 255, 0, 0.8))' : 'none'
-                  } : {}}
-                />
+                {/* Main lightning bolt - Fill effect based on energy level */}
+                <div className="relative w-4 h-4">
+                  {/* Background lightning bolt (empty) */}
+                  <Zap 
+                    className="absolute inset-0 w-4 h-4 text-gray-300 dark:text-gray-600"
+                  />
+                  {/* Filled lightning bolt based on energy level */}
+                  <Zap 
+                    className={`absolute inset-0 w-4 h-4 ${
+                      (user?.energyLevel ?? 5) >= 10 ? 'text-yellow-200' : 
+                      (user?.energyLevel ?? 5) >= 9 ? 'text-yellow-300' : 
+                      (user?.energyLevel ?? 5) >= 7 ? 'text-yellow-400' : 
+                      (user?.energyLevel ?? 5) >= 5 ? 'text-yellow-500' : 
+                      (user?.energyLevel ?? 5) >= 3 ? 'text-yellow-600' : 
+                      'text-primary'
+                    } ${animationEnabled ? 'animate-pulse' : ''}`} 
+                    style={{
+                      clipPath: `polygon(0% 0%, ${((user?.energyLevel ?? 5) / 10) * 100}% 0%, ${((user?.energyLevel ?? 5) / 10) * 100}% 100%, 0% 100%)`,
+                      ...(animationEnabled && (user?.energyLevel ?? 5) >= 7 ? { 
+                        animationDuration: `${0.6 - ((user?.energyLevel ?? 5) * 0.04)}s`,
+                        filter: (user?.energyLevel ?? 5) >= 9 ? 'drop-shadow(0 0 8px rgba(255, 255, 0, 0.8))' : 'none'
+                      } : {})
+                    }}
+                  />
+                </div>
 
-                {/* Super Saiyan Ground-Breaking Effects - Original inspiration */}
-                {(user?.energyLevel ?? 5) >= 3 && (
-                  <>
-                    {console.log('🌍 Ground effects should be visible! Energy level:', user?.energyLevel ?? 5)}
-                    <div className="absolute -bottom-4 left-0 w-full h-6 overflow-hidden">
-                      {/* Ground pieces flying up - Super Saiyan style */}
-                      {Array.from({ length: Math.min(Math.floor(((user?.energyLevel ?? 5) - 2) * 2), 12) }, (_, i) => (
-                        <div 
-                          key={i}
-                          className={`absolute bottom-0 bg-gradient-to-t from-yellow-800 to-yellow-500 rounded-sm`}
-                          style={{
-                            left: `${3 + (i * 4)}px`,
-                            width: `${0.6 + (i % 3) * 0.3}rem`,
-                            height: `${0.6 + (i % 3) * 0.3}rem`,
-                            animation: `bounce ${1.2 - ((user?.energyLevel ?? 5) * 0.08)}s ease-in-out infinite ${i * 0.08}s`
-                          }}
-                        >
-                          {/* Inner glow effect */}
-                          <div className="w-full h-full bg-gradient-to-t from-yellow-600 to-yellow-300 rounded-sm opacity-80"></div>
-                        </div>
-                      ))}
-                    </div>
-                  </>
-                )}
 
-                {/* Super Saiyan + God Level Sparks - Combined epicness */}
-                {(user?.energyLevel ?? 5) >= 3 && (
+                {/* Super Saiyan + God Level Sparks - Combined epicness (only when animation enabled) */}
+                {animationEnabled && (user?.energyLevel ?? 5) >= 3 && (
                   <>
                     {/* Inner ring sparks - Super Saiyan */}
                     {Array.from({ length: Math.min(Math.floor(((user?.energyLevel ?? 5) - 2) * 2.5), 16) }, (_, i) => {
@@ -363,8 +362,18 @@ export function Header() {
                   </>
                 )}
               </div>
-              </>
             )}
+            
+            {/* Animation Toggle Button */}
+            <Button 
+              variant="ghost" 
+              size="icon"
+              className="hover:bg-accent hover:text-accent-foreground cursor-pointer"
+              onClick={() => setAnimationEnabled(!animationEnabled)}
+              title={animationEnabled ? "Disable Energy Animation" : "Enable Energy Animation"}
+            >
+              <Zap className={`w-5 h-5 ${animationEnabled ? 'text-yellow-500' : 'text-gray-400'}`} />
+            </Button>
             
             {/* Test button - navigation */}
             <Button 

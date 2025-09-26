@@ -1258,21 +1258,31 @@ export function DashboardPage() {
                 )}
               </div>
 
-              {/* Main lightning bolt - Enhanced progression matching header */}
-              <Zap 
-                className={`w-5 h-5 ${
-                  (user.energyLevel ?? 5) >= 10 ? 'text-yellow-200 animate-pulse' : 
-                  (user.energyLevel ?? 5) >= 9 ? 'text-yellow-300 animate-pulse' : 
-                  (user.energyLevel ?? 5) >= 7 ? 'text-yellow-400 animate-pulse' : 
-                  (user.energyLevel ?? 5) >= 5 ? 'text-yellow-500' : 
-                  (user.energyLevel ?? 5) >= 3 ? 'text-yellow-600' : 
-                  'text-primary'
-                }`} 
-                style={(user.energyLevel ?? 5) >= 7 ? { 
-                  animationDuration: `${0.6 - ((user.energyLevel ?? 5) * 0.04)}s`,
-                  filter: (user.energyLevel ?? 5) >= 9 ? 'drop-shadow(0 0 8px rgba(255, 255, 0, 0.8))' : 'none'
-                } : {}}
-              />
+              {/* Main lightning bolt - Fill effect matching header */}
+              <div className="relative w-5 h-5">
+                {/* Background lightning bolt (empty) */}
+                <Zap 
+                  className="absolute inset-0 w-5 h-5 text-gray-300 dark:text-gray-600"
+                />
+                {/* Filled lightning bolt based on energy level */}
+                <Zap 
+                  className={`absolute inset-0 w-5 h-5 ${
+                    (user.energyLevel ?? 5) >= 10 ? 'text-yellow-200' : 
+                    (user.energyLevel ?? 5) >= 9 ? 'text-yellow-300' : 
+                    (user.energyLevel ?? 5) >= 7 ? 'text-yellow-400' : 
+                    (user.energyLevel ?? 5) >= 5 ? 'text-yellow-500' : 
+                    (user.energyLevel ?? 5) >= 3 ? 'text-yellow-600' : 
+                    'text-primary'
+                  }`} 
+                  style={{
+                    clipPath: `polygon(0% 0%, ${((user.energyLevel ?? 5) / 10) * 100}% 0%, ${((user.energyLevel ?? 5) / 10) * 100}% 100%, 0% 100%)`,
+                    ...((user.energyLevel ?? 5) >= 7 ? { 
+                      animationDuration: `${0.6 - ((user.energyLevel ?? 5) * 0.04)}s`,
+                      filter: (user.energyLevel ?? 5) >= 9 ? 'drop-shadow(0 0 8px rgba(255, 255, 0, 0.8))' : 'none'
+                    } : {})
+                  }}
+                />
+              </div>
               
               {/* Super Saiyan sparks - gradual progression */}
               {(user.energyLevel ?? 5) >= 3 && (
