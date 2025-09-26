@@ -203,17 +203,27 @@ export function TaskModal({ task, isOpen, onClose, onTaskUpdated, onTaskDeleted 
       })
       
       // Update the task to link it to the new event and mark it as a prep task
-      await api.put(`/tasks/${task.id}`, {
+      const updateData: any = {
         eventId: eventResponse.data.data.id,
         title: `Prep for: ${task.title}`,
         // Keep all other task properties unchanged
         description: task.description,
         priority: task.priority,
-        estimatedDuration: task.estimatedDuration,
-        energyRequired: task.energyRequired,
-        location: task.location,
-        notes: task.notes
-      })
+        estimatedDuration: task.estimatedDuration
+      }
+      
+      // Only include optional fields if they have values (not null/undefined)
+      if (task.energyRequired !== null && task.energyRequired !== undefined) {
+        updateData.energyRequired = task.energyRequired
+      }
+      if (task.location !== null && task.location !== undefined && task.location !== '') {
+        updateData.location = task.location
+      }
+      if (task.notes !== null && task.notes !== undefined && task.notes !== '') {
+        updateData.notes = task.notes
+      }
+      
+      await api.put(`/tasks/${task.id}`, updateData)
       
       return eventResponse.data
     },

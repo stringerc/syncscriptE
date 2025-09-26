@@ -17,10 +17,10 @@ const createTaskSchema = z.object({
   priority: z.nativeEnum(Priority).default(Priority.MEDIUM),
   dueDate: z.string().datetime().optional(),
   estimatedDuration: z.number().min(0).optional(),
-  energyRequired: z.number().min(1).max(10).optional(),
+  energyRequired: z.number().min(1).max(10).nullish(),
   budgetImpact: z.number().optional(),
-  notes: z.string().optional(),
-  location: z.string().optional(),
+  notes: z.string().nullish(),
+  location: z.string().nullish(),
   tags: z.string().optional(),
   subtasks: z.array(z.object({
     title: z.string().min(1, 'Subtask title is required'),
