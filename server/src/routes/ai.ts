@@ -263,6 +263,232 @@ Consider the user's energy level and budget when generating tasks. Make tasks sp
   }
 }));
 
+// Energy Adaptive Agent - Analyze and suggest optimal scheduling
+router.post('/energy-analysis', authenticateToken, asyncHandler(async (req: AuthRequest, res) => {
+  if (!openai) {
+    throw createError('OpenAI API key not configured', 503);
+  }
+
+  try {
+    // Get user's current energy level and recent activity
+    const user = await prisma.user.findUnique({
+      where: { id: req.user!.id },
+      select: {
+        energyLevel: true,
+        timezone: true,
+        name: true
+      }
+    });
+
+    // Get recent tasks and events for pattern analysis
+    const recentTasks = await prisma.task.findMany({
+      where: {
+        userId: req.user!.id,
+        createdAt: { gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) } // Last 7 days
+      },
+      select: {
+        title: true,
+        priority: true,
+        energyRequired: true,
+        estimatedDuration: true,
+        completedAt: true,
+        scheduledAt: true,
+        status: true
+      }
+    });
+
+    const upcomingEvents = await prisma.event.findMany({
+      where: {
+        userId: req.user!.id,
+        startTime: { gte: new Date() }
+      },
+      select: {
+        title: true,
+        startTime: true,
+        endTime: true,
+        description: true
+      },
+      take: 10
+    });
+
+    // Get pending tasks for scheduling suggestions
+    const pendingTasks = await prisma.task.findMany({
+      where: {
+        userId: req.user!.id,
+        status: TaskStatus.PENDING,
+        scheduledAt: null
+      },
+      select: {
+        id: true,
+        title: true,
+        priority: true,
+        energyRequired: true,
+        estimatedDuration: true,
+        dueDate: true
+      }
+    });
+
+    const currentTime = new Date();
+    const currentHour = currentTime.getHours();
+
+    const systemPrompt = `You are SyncScript's Energy Adaptive Agent. Your role is to analyze the user's energy patterns and provide intelligent scheduling recommendations.
+
+User Context:
+- Current Energy Level: ${user?.energyLevel || 5}/10
+- Current Time: ${currentTime.toLocaleString()}
+- Timezone: ${user?.timezone || 'UTC'}
+
+Recent Activity Analysis:
+${recentTasks.length > 0 ? `Recent Tasks (${recentTasks.length}):\n${recentTasks.map(t => 
+  `- ${t.title} (${t.priority}, Energy: ${t.energyRequired || 'N/A'}, Duration: ${t.estimatedDuration || 'N/A'}min, Status: ${t.status})`
+).join('\n')}` : 'No recent tasks found.'}
+
+Upcoming Events:
+${upcomingEvents.length > 0 ? upcomingEvents.map(e => 
+  `- ${e.title}: ${new Date(e.startTime).toLocaleString()} - ${new Date(e.endTime).toLocaleString()}`
+).join('\n') : 'No upcoming events.'}
+
+Pending Tasks to Schedule:
+${pendingTasks.map(t => 
+  `- ${t.title} (${t.priority}, Energy Required: ${t.energyRequired || 'N/A'}, Duration: ${t.estimatedDuration || 'N/A'}min, Due: ${t.dueDate || 'No deadline'})`
+).join('\n')}
+
+Provide analysis in this JSON format:
+{
+  "energyAnalysis": {
+    "currentEnergyAssessment": "Assessment of current energy level and time of day",
+    "optimalEnergyWindows": [
+      {
+        "timeRange": "e.g., 9:00 AM - 11:00 AM",
+        "energyLevel": 8,
+        "recommendedTaskTypes": ["creative work", "deep focus", "high-energy tasks"],
+        "reasoning": "Why this is an optimal window"
+      }
+    ],
+    "energyPatterns": {
+      "morningEnergy": 1-10,
+      "afternoonEnergy": 1-10,
+      "eveningEnergy": 1-10,
+      "peakHours": ["9:00 AM", "2:00 PM"],
+      "lowEnergyHours": ["3:00 PM", "10:00 PM"]
+    }
+  },
+  "schedulingRecommendations": [
+    {
+      "taskId": "task_id",
+      "taskTitle": "Task title",
+      "suggestedTime": "YYYY-MM-DDTHH:mm:ss",
+      "reasoning": "Why this time is optimal",
+      "energyMatch": "How well the task energy requirement matches the time slot",
+      "alternativeTimes": ["alternative1", "alternative2"]
+    }
+  ],
+  "energyOptimizationTips": [
+    "Specific tips for optimizing energy usage",
+    "Suggestions for task batching",
+    "Break recommendations"
+  ],
+  "adaptiveSuggestions": {
+    "shouldReschedule": boolean,
+    "rescheduleReason": "Reason if rescheduling is recommended",
+    "energyBoostSuggestions": ["Suggestions for increasing energy"],
+    "taskModifications": ["Suggestions for breaking down high-energy tasks"]
+  }
+}`;
+
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4",
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: "Analyze my energy patterns and provide scheduling recommendations for optimal productivity." }
+      ],
+      temperature: 0.3
+    });
+
+    const response = completion.choices[0]?.message?.content;
+    if (!response) {
+      throw createError('Failed to analyze energy patterns', 500);
+    }
+
+    const energyAnalysis = JSON.parse(response);
+
+    logger.info('Energy analysis completed', {
+      userId: req.user!.id,
+      currentEnergy: user?.energyLevel,
+      tasksAnalyzed: pendingTasks.length,
+      recommendations: energyAnalysis.schedulingRecommendations?.length || 0
+    });
+
+    res.json({
+      success: true,
+      data: energyAnalysis,
+      message: 'Energy analysis completed successfully'
+    });
+
+  } catch (error) {
+    logger.error('Energy analysis failed', { error, userId: req.user!.id });
+    throw createError('Failed to analyze energy patterns', 500);
+  }
+}));
+
+// Apply energy-based scheduling recommendations
+router.post('/apply-energy-schedule', authenticateToken, asyncHandler(async (req: AuthRequest, res) => {
+  const { recommendations } = req.body;
+
+  if (!Array.isArray(recommendations) || recommendations.length === 0) {
+    throw createError('Scheduling recommendations array is required', 400);
+  }
+
+  try {
+    const scheduledTasks = [];
+
+    for (const rec of recommendations) {
+      if (!rec.taskId || !rec.suggestedTime) {
+        continue;
+      }
+
+      // Update the task with the suggested schedule
+      const updatedTask = await prisma.task.update({
+        where: {
+          id: rec.taskId,
+          userId: req.user!.id
+        },
+        data: {
+          scheduledAt: new Date(rec.suggestedTime),
+          notes: rec.reasoning ? `Energy-optimized scheduling: ${rec.reasoning}` : undefined
+        }
+      });
+
+      scheduledTasks.push({
+        task: updatedTask,
+        schedulingInfo: {
+          suggestedTime: rec.suggestedTime,
+          reasoning: rec.reasoning,
+          energyMatch: rec.energyMatch
+        }
+      });
+    }
+
+    logger.info('Energy-based scheduling applied', {
+      userId: req.user!.id,
+      tasksScheduled: scheduledTasks.length
+    });
+
+    res.json({
+      success: true,
+      data: {
+        scheduledTasks,
+        totalScheduled: scheduledTasks.length
+      },
+      message: `Successfully scheduled ${scheduledTasks.length} tasks based on energy optimization`
+    });
+
+  } catch (error) {
+    logger.error('Energy scheduling application failed', { error, userId: req.user!.id });
+    throw createError('Failed to apply energy-based scheduling', 500);
+  }
+}));
+
 // AI-powered task prioritization
 router.post('/prioritize-tasks', authenticateToken, asyncHandler(async (req: AuthRequest, res) => {
   const { taskIds } = req.body;

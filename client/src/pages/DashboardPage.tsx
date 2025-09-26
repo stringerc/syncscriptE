@@ -1256,6 +1256,17 @@ export function DashboardPage() {
             </div>
             <span className="text-sm font-medium">Energy: {user.energyLevel ?? 5}/10</span>
           </div>
+          
+          {/* Energy Analysis Button */}
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={() => navigate('/energy-analysis')}
+            className="flex items-center gap-2"
+          >
+            <Sparkles className="w-4 h-4" />
+            Optimize
+          </Button>
         </div>
       </div>
 

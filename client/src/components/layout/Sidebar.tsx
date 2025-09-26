@@ -9,7 +9,8 @@ import {
   Trophy,
   Bell,
   User,
-  ExternalLink
+  ExternalLink,
+  Zap
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/stores/authStore'
@@ -23,6 +24,7 @@ const navigation = [
   { name: 'Google Calendar', href: '/google-calendar', icon: ExternalLink },
   { name: 'Financial', href: '/financial', icon: DollarSign },
   { name: 'AI Assistant', href: '/ai-assistant', icon: Brain },
+  { name: 'Energy Analysis', href: '/energy-analysis', icon: Zap },
   { name: 'Profile', href: '/profile', icon: User },
   { name: 'Achievements', href: '/achievements', icon: Trophy },
   { name: 'Notifications', href: '/notifications', icon: Bell },
