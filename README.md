@@ -123,6 +123,7 @@ syncscript/
 - Dashboard integration
 - **AI-powered task prioritization using Eisenhower Matrix**
 - **Smart task ordering and context-aware prioritization**
+- **Energy adaptive agent for optimal scheduling**
 
 ### ✅ Calendar Integration
 - Create and manage events
@@ -142,6 +143,15 @@ syncscript/
 - **Travel time considerations**
 - **Outdoor activity weather suitability**
 
+### ✅ Energy Adaptive Agent
+- **AI-powered energy pattern analysis**
+- **Optimal scheduling recommendations based on energy levels**
+- **Energy window identification (morning/afternoon/evening)**
+- **Smart task-to-energy matching**
+- **One-click application of scheduling recommendations**
+- **Energy optimization tips and adaptive suggestions**
+- **Real-time energy assessment and rescheduling alerts**
+
 ### ✅ Email Service
 - Professional HTML email templates
 - Password reset emails
@@ -160,7 +170,7 @@ syncscript/
 - [x] Calendar integration (Google Calendar API)
 - [ ] Financial integration (Plaid)
 - [x] Prioritization agent
-- [ ] Energy adaptive agent
+- [x] Energy adaptive agent
 - [ ] Budget-aware planning
 - [ ] Notification system
 - [ ] Gamification features
