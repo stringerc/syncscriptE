@@ -26,7 +26,12 @@ export function Header() {
   const isDashboard = location.pathname === '/'
   
   // Debug logging
-  console.log('Header render:', { pathname: location.pathname, isDashboard })
+  console.log('Header render:', { 
+    pathname: location.pathname, 
+    isDashboard,
+    currentWeatherData: currentWeatherData ? 'exists' : 'null',
+    weatherCondition: currentWeatherData?.weather?.condition || currentWeatherData?.condition || 'undefined'
+  })
 
   // Get user's current location
   useEffect(() => {
@@ -68,8 +73,13 @@ export function Header() {
   })
 
   // Weather icon function
-  const getWeatherIcon = useCallback((condition: string | undefined) => {
-    if (!condition) return '🌤️'
+  const getWeatherIcon = useCallback((condition: string | undefined | null) => {
+    console.log('getWeatherIcon called with:', condition)
+    
+    if (!condition || typeof condition !== 'string') {
+      console.log('getWeatherIcon: returning default due to invalid condition')
+      return '🌤️'
+    }
     
     const conditionLower = condition.toLowerCase()
     
