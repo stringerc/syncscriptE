@@ -266,7 +266,81 @@ export function Header() {
                 {/* Super Saiyan + God Level Sparks - Combined epicness (only when animation enabled) */}
                 {animationEnabled && (user?.energyLevel ?? 5) >= 3 && (
                   <>
-                    {/* Inner ring sparks - Super Saiyan */}
+                    {/* Ground-breaking effects - Super Saiyan style */}
+                    <div className="absolute -bottom-6 left-0 w-full h-6 overflow-hidden">
+                      {/* Ground pieces flying up - Super Saiyan style */}
+                      {Array.from({ length: Math.min(Math.floor(((user?.energyLevel ?? 5) - 2) * 2), 12) }, (_, i) => (
+                        <div 
+                          key={i}
+                          className={`absolute bottom-0 bg-gradient-to-t from-yellow-800 to-yellow-500 rounded-sm`}
+                          style={{
+                            left: `${3 + (i * 4)}px`,
+                            width: `${0.4 + (i % 3) * 0.2}rem`,
+                            height: `${0.4 + (i % 3) * 0.2}rem`,
+                            animation: `bounce ${1.2 - ((user?.energyLevel ?? 5) * 0.08)}s ease-in-out infinite ${i * 0.08}s`
+                          }}
+                        >
+                          {/* Inner glow effect */}
+                          <div className="w-full h-full bg-gradient-to-t from-yellow-600 to-yellow-300 rounded-sm opacity-80"></div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Multi-layered Energy Aura - Super Saiyan */}
+                    {/* Base aura - grows with energy level */}
+                    <div 
+                      className={`absolute inset-0 rounded-full ${(user?.energyLevel ?? 5) >= 2 ? 'bg-gradient-to-r from-yellow-400/20 to-yellow-600/30 animate-pulse' : ''}`} 
+                      style={{
+                        width: `${100 + ((user?.energyLevel ?? 5) * 20)}%`,
+                        height: `${100 + ((user?.energyLevel ?? 5) * 20)}%`,
+                        left: `${-((user?.energyLevel ?? 5) * 10)}%`,
+                        top: `${-((user?.energyLevel ?? 5) * 10)}%`,
+                        animationDuration: `${2 - ((user?.energyLevel ?? 5) * 0.15)}s`
+                      }}
+                    />
+
+                    {/* Secondary aura - level 4+ */}
+                    {(user?.energyLevel ?? 5) >= 4 && (
+                      <div 
+                        className="absolute inset-0 rounded-full bg-gradient-to-r from-yellow-300/15 to-yellow-500/25 animate-ping"
+                        style={{
+                          width: `${120 + ((user?.energyLevel ?? 5) * 15)}%`,
+                          height: `${120 + ((user?.energyLevel ?? 5) * 15)}%`,
+                          left: `${-((user?.energyLevel ?? 5) * 7.5)}%`,
+                          top: `${-((user?.energyLevel ?? 5) * 7.5)}%`,
+                          animationDuration: `${1.8 - ((user?.energyLevel ?? 5) * 0.12)}s`
+                        }}
+                      />
+                    )}
+
+                    {/* Tertiary aura - level 7+ */}
+                    {(user?.energyLevel ?? 5) >= 7 && (
+                      <div 
+                        className="absolute inset-0 rounded-full bg-gradient-to-r from-yellow-200/10 to-yellow-400/20 animate-pulse"
+                        style={{
+                          width: `${140 + ((user?.energyLevel ?? 5) * 10)}%`,
+                          height: `${140 + ((user?.energyLevel ?? 5) * 10)}%`,
+                          left: `${-((user?.energyLevel ?? 5) * 5)}%`,
+                          top: `${-((user?.energyLevel ?? 5) * 5)}%`,
+                          animationDuration: `${1.5 - ((user?.energyLevel ?? 5) * 0.1)}s`
+                        }}
+                      />
+                    )}
+
+                    {/* Divine aura - level 9+ */}
+                    {(user?.energyLevel ?? 5) >= 9 && (
+                      <div 
+                        className="absolute inset-0 rounded-full bg-gradient-to-r from-yellow-100/5 to-yellow-300/15 animate-ping"
+                        style={{
+                          width: `${160 + ((user?.energyLevel ?? 5) * 5)}%`,
+                          height: `${160 + ((user?.energyLevel ?? 5) * 5)}%`,
+                          left: `${-((user?.energyLevel ?? 5) * 2.5)}%`,
+                          top: `${-((user?.energyLevel ?? 5) * 2.5)}%`,
+                          animationDuration: `${1.2 - ((user?.energyLevel ?? 5) * 0.08)}s`,
+                          filter: 'drop-shadow(0 0 10px rgba(255, 255, 0, 0.6))'
+                        }}
+                      />
+                    )}
                     {Array.from({ length: Math.min(Math.floor(((user?.energyLevel ?? 5) - 2) * 2.5), 16) }, (_, i) => {
                       const angle = (i * 22.5) % 360; // More sparks, tighter distribution
                       const radius = 12 + ((user?.energyLevel ?? 5) * 2.5);
