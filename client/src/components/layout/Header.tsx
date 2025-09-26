@@ -272,23 +272,31 @@ export function Header() {
                       return (
                         <div
                           key={`streak-${i}`}
-                          className="absolute rounded-full"
+                          className="absolute"
                           style={{
                             left: `${startX}px`,
                             top: `${startY}px`,
-                            width: `${size}rem`,
-                            height: `${size * 0.4}rem`,
-                            background: 'linear-gradient(45deg, #3b82f6, #1d4ed8, #3b82f6)',
+                            width: `${size * 2}rem`,
+                            height: `${size * 0.2}rem`,
+                            background: 'linear-gradient(90deg, transparent, #3b82f6, #1d4ed8, #3b82f6, transparent)',
                             opacity: opacity,
                             animation: `pulse ${animationSpeed}s ease-in-out infinite`,
                             animationDelay: `${i * 0.1}s`,
                             transform: `rotate(${-15 - (i * 5)}deg)`,
-                            filter: 'drop-shadow(0 0 6px rgba(59, 130, 246, 0.8))',
-                            zIndex: 10
+                            filter: 'drop-shadow(0 0 4px rgba(59, 130, 246, 0.8))',
+                            zIndex: 10,
+                            borderRadius: '50%'
                           }}
                         >
-                          {/* Inner glow */}
-                          <div className="w-full h-full bg-gradient-to-r from-blue-300 to-blue-500 rounded-full opacity-70"></div>
+                          {/* Inner streak */}
+                          <div 
+                            className="absolute inset-0"
+                            style={{
+                              background: 'linear-gradient(90deg, transparent, #60a5fa, #3b82f6, #60a5fa, transparent)',
+                              borderRadius: '50%',
+                              opacity: 0.8
+                            }}
+                          ></div>
                         </div>
                       );
                     })}
@@ -308,23 +316,31 @@ export function Header() {
                           return (
                             <div
                               key={`streak-outer-${i}`}
-                              className="absolute rounded-full"
+                              className="absolute"
                               style={{
                                 left: `${startX}px`,
                                 top: `${startY}px`,
-                                width: `${size}rem`,
-                                height: `${size * 0.5}rem`,
-                                background: 'linear-gradient(45deg, #60a5fa, #3b82f6, #60a5fa)',
+                                width: `${size * 2.5}rem`,
+                                height: `${size * 0.15}rem`,
+                                background: 'linear-gradient(90deg, transparent, #60a5fa, #3b82f6, #1d4ed8, #3b82f6, #60a5fa, transparent)',
                                 opacity: opacity,
                                 animation: `pulse ${animationSpeed}s ease-in-out infinite`,
                                 animationDelay: `${i * 0.08}s`,
                                 transform: `rotate(${-20 - (i * 8)}deg)`,
-                                filter: 'drop-shadow(0 0 8px rgba(59, 130, 246, 1))',
-                                zIndex: 10
+                                filter: 'drop-shadow(0 0 6px rgba(59, 130, 246, 1))',
+                                zIndex: 10,
+                                borderRadius: '50%'
                               }}
                             >
-                              {/* Inner glow */}
-                              <div className="w-full h-full bg-gradient-to-r from-blue-200 to-blue-400 rounded-full opacity-80"></div>
+                              {/* Inner streak */}
+                              <div 
+                                className="absolute inset-0"
+                                style={{
+                                  background: 'linear-gradient(90deg, transparent, #93c5fd, #60a5fa, #3b82f6, #60a5fa, #93c5fd, transparent)',
+                                  borderRadius: '50%',
+                                  opacity: 0.9
+                                }}
+                              ></div>
                             </div>
                           );
                         })}

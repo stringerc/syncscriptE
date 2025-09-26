@@ -1258,16 +1258,20 @@ export function DashboardPage() {
                 )}
               </div>
 
-              {/* Main lightning bolt - gradual color progression */}
+              {/* Main lightning bolt - Enhanced progression matching header */}
               <Zap 
                 className={`w-5 h-5 ${
+                  (user.energyLevel ?? 5) >= 10 ? 'text-yellow-200 animate-pulse' : 
                   (user.energyLevel ?? 5) >= 9 ? 'text-yellow-300 animate-pulse' : 
                   (user.energyLevel ?? 5) >= 7 ? 'text-yellow-400 animate-pulse' : 
                   (user.energyLevel ?? 5) >= 5 ? 'text-yellow-500' : 
                   (user.energyLevel ?? 5) >= 3 ? 'text-yellow-600' : 
                   'text-primary'
                 }`} 
-                style={(user.energyLevel ?? 5) >= 7 ? { animationDuration: `${0.8 - ((user.energyLevel ?? 5) * 0.05)}s` } : {}}
+                style={(user.energyLevel ?? 5) >= 7 ? { 
+                  animationDuration: `${0.6 - ((user.energyLevel ?? 5) * 0.04)}s`,
+                  filter: (user.energyLevel ?? 5) >= 9 ? 'drop-shadow(0 0 8px rgba(255, 255, 0, 0.8))' : 'none'
+                } : {}}
               />
               
               {/* Super Saiyan sparks - gradual progression */}
