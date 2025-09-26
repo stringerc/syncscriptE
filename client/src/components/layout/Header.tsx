@@ -25,8 +25,6 @@ export function Header() {
   // Check if we're on the dashboard
   const isDashboard = location.pathname === '/dashboard'
   
-  // Temporary debug logging
-  console.log('Header debug - pathname:', location.pathname, 'isDashboard:', isDashboard)
 
   // Get user's current location
   useEffect(() => {
@@ -67,12 +65,6 @@ export function Header() {
     refetchOnWindowFocus: false,
   })
 
-  // Temporary debug logging to see weather data structure
-  if (currentWeatherData) {
-    console.log('Header weather data - location:', currentWeatherData.location)
-    console.log('Header weather data - weather:', currentWeatherData.weather)
-    console.log('Header weather data - full object:', JSON.stringify(currentWeatherData, null, 2))
-  }
 
   // Weather icon function
   const getWeatherIcon = useCallback((condition: string | undefined | null) => {

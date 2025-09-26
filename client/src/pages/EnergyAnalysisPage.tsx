@@ -46,7 +46,7 @@ const EnergyAnalysisPage: React.FC = () => {
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const queryClient = useQueryClient()
 
-  // Energy analysis query - now runs automatically
+  // Energy analysis query - runs automatically with better caching
   const { data: energyData, isLoading, error, refetch } = useQuery<EnergyAnalysis>({
     queryKey: ['energy-analysis'],
     queryFn: async () => {
@@ -54,16 +54,13 @@ const EnergyAnalysisPage: React.FC = () => {
       return response.data.data || response.data
     },
     enabled: true, // Run automatically when component mounts
-    staleTime: 5 * 60 * 1000, // Consider data fresh for 5 minutes
-    refetchOnWindowFocus: false // Don't refetch on window focus
+    staleTime: 10 * 60 * 1000, // Consider data fresh for 10 minutes (increased from 5)
+    cacheTime: 30 * 60 * 1000, // Keep in cache for 30 minutes
+    refetchOnWindowFocus: false, // Don't refetch on window focus
+    refetchOnMount: 'always', // Always refetch when component mounts
+    retry: 2, // Retry failed requests twice
+    retryDelay: 1000 // Wait 1 second between retries
   })
-
-  // Auto-trigger analysis when component mounts
-  useEffect(() => {
-    if (!energyData && !isLoading && !error) {
-      refetch()
-    }
-  }, [energyData, isLoading, error, refetch])
 
   // Apply scheduling recommendations mutation
   const applyScheduleMutation = useMutation({
@@ -162,6 +159,16 @@ const EnergyAnalysisPage: React.FC = () => {
               <h3 className="text-lg font-medium">Analyzing Your Energy Patterns</h3>
               <p className="text-gray-600">This may take a few moments...</p>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Show loading indicator when refreshing cached data */}
+      {isLoading && energyData && (
+        <div className="flex items-center justify-center py-4">
+          <div className="flex items-center gap-2 text-blue-600">
+            <Loader2 className="w-4 h-4 animate-spin" />
+            <span className="text-sm">Updating analysis...</span>
           </div>
         </div>
       )}
