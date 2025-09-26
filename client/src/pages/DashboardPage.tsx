@@ -1184,258 +1184,121 @@ export function DashboardPage() {
           {/* Energy Level */}
           <div className="flex items-center space-x-2">
             <div className="relative">
-              {/* Ground-breaking effects - pieces flying up */}
-              {(user.energyLevel ?? 5) >= 6 && (
+              {/* Ground-breaking effects - gradual progression */}
+              {(user.energyLevel ?? 5) >= 3 && (
                 <>
-                  {/* Ground pieces flying up */}
                   <div className="absolute -bottom-8 left-0 w-full h-8 overflow-hidden">
-                    {/* Small ground pieces */}
-                    <div className="absolute bottom-0 left-1 w-1 h-1 bg-yellow-600 rounded-sm animate-bounce" style={{ animationDelay: '0.1s', animationDuration: '0.8s' }}>
-                      <div className="w-full h-full bg-gradient-to-t from-yellow-800 to-yellow-500 rounded-sm"></div>
-                    </div>
-                    <div className="absolute bottom-0 left-3 w-0.5 h-0.5 bg-yellow-700 rounded-sm animate-bounce" style={{ animationDelay: '0.3s', animationDuration: '1s' }}>
-                      <div className="w-full h-full bg-gradient-to-t from-yellow-900 to-yellow-600 rounded-sm"></div>
-                    </div>
-                    <div className="absolute bottom-0 right-2 w-1.5 h-1 bg-yellow-600 rounded-sm animate-bounce" style={{ animationDelay: '0.2s', animationDuration: '0.9s' }}>
-                      <div className="w-full h-full bg-gradient-to-t from-yellow-800 to-yellow-500 rounded-sm"></div>
-                    </div>
-                    <div className="absolute bottom-0 right-4 w-0.5 h-0.5 bg-yellow-700 rounded-sm animate-bounce" style={{ animationDelay: '0.4s', animationDuration: '1.1s' }}>
-                      <div className="w-full h-full bg-gradient-to-t from-yellow-900 to-yellow-600 rounded-sm"></div>
-                    </div>
-                    
-                    {/* More ground pieces for higher energy */}
-                    {(user.energyLevel ?? 5) >= 8 && (
-                      <>
-                        <div className="absolute bottom-0 left-5 w-1 h-1 bg-yellow-600 rounded-sm animate-bounce" style={{ animationDelay: '0.5s', animationDuration: '0.7s' }}>
-                          <div className="w-full h-full bg-gradient-to-t from-yellow-800 to-yellow-500 rounded-sm"></div>
-                        </div>
-                        <div className="absolute bottom-0 right-6 w-0.5 h-0.5 bg-yellow-700 rounded-sm animate-bounce" style={{ animationDelay: '0.6s', animationDuration: '1.2s' }}>
-                          <div className="w-full h-full bg-gradient-to-t from-yellow-900 to-yellow-600 rounded-sm"></div>
-                        </div>
-                        <div className="absolute bottom-0 left-7 w-1.5 h-1 bg-yellow-600 rounded-sm animate-bounce" style={{ animationDelay: '0.7s', animationDuration: '0.8s' }}>
-                          <div className="w-full h-full bg-gradient-to-t from-yellow-800 to-yellow-500 rounded-sm"></div>
-                        </div>
-                      </>
-                    )}
-                    
-                    {/* Maximum ground destruction for level 10 - SUPER FAST */}
-                    {(user.energyLevel ?? 5) >= 10 && (
-                      <>
-                        <div className="absolute bottom-0 left-8 w-2 h-1.5 bg-yellow-600 rounded-sm animate-bounce" style={{ animationDelay: '0.1s', animationDuration: '0.3s' }}>
-                          <div className="w-full h-full bg-gradient-to-t from-yellow-800 to-yellow-500 rounded-sm"></div>
-                        </div>
-                        <div className="absolute bottom-0 right-8 w-1 h-1 bg-yellow-700 rounded-sm animate-bounce" style={{ animationDelay: '0.15s', animationDuration: '0.4s' }}>
-                          <div className="w-full h-full bg-gradient-to-t from-yellow-900 to-yellow-600 rounded-sm"></div>
-                        </div>
-                        <div className="absolute bottom-0 left-9 w-1.5 h-1 bg-yellow-600 rounded-sm animate-bounce" style={{ animationDelay: '0.2s', animationDuration: '0.35s' }}>
-                          <div className="w-full h-full bg-gradient-to-t from-yellow-800 to-yellow-500 rounded-sm"></div>
-                        </div>
-                        <div className="absolute bottom-0 right-9 w-0.5 h-0.5 bg-yellow-700 rounded-sm animate-bounce" style={{ animationDelay: '0.25s', animationDuration: '0.45s' }}>
-                          <div className="w-full h-full bg-gradient-to-t from-yellow-900 to-yellow-600 rounded-sm"></div>
-                        </div>
-                        <div className="absolute bottom-0 left-10 w-1.5 h-1 bg-yellow-600 rounded-sm animate-bounce" style={{ animationDelay: '0.3s', animationDuration: '0.3s' }}>
-                          <div className="w-full h-full bg-gradient-to-t from-yellow-800 to-yellow-500 rounded-sm"></div>
-                        </div>
-                        <div className="absolute bottom-0 right-10 w-1 h-1 bg-yellow-700 rounded-sm animate-bounce" style={{ animationDelay: '0.35s', animationDuration: '0.4s' }}>
-                          <div className="w-full h-full bg-gradient-to-t from-yellow-900 to-yellow-600 rounded-sm"></div>
-                        </div>
-                      </>
-                    )}
+                    {/* Ground pieces - number increases with energy level */}
+                    {Array.from({ length: Math.min(Math.floor(((user.energyLevel ?? 5) - 2) * 2), 12) }, (_, i) => (
+                      <div 
+                        key={i}
+                        className={`absolute bottom-0 bg-yellow-600 rounded-sm animate-bounce`}
+                        style={{
+                          left: `${5 + (i * 8)}px`,
+                          width: `${0.5 + (i % 3) * 0.5}rem`,
+                          height: `${0.5 + (i % 2) * 0.5}rem`,
+                          animationDelay: `${i * 0.1}s`,
+                          animationDuration: `${1.5 - ((user.energyLevel ?? 5) * 0.1)}s`
+                        }}
+                      >
+                        <div className="w-full h-full bg-gradient-to-t from-yellow-800 to-yellow-500 rounded-sm"></div>
+                      </div>
+                    ))}
                   </div>
                 </>
               )}
 
-              {/* Main energy aura - gets more intense with higher levels */}
+              {/* Main energy aura - gradual progression */}
               <div className="relative">
-                {/* Base aura layers */}
-                <div className={`absolute inset-0 rounded-full ${(user.energyLevel ?? 5) >= 6 ? 'bg-gradient-to-r from-yellow-400/20 to-yellow-600/30 animate-pulse' : ''}`} 
-                     style={{ 
-                       width: (user.energyLevel ?? 5) >= 8 ? '200%' : (user.energyLevel ?? 5) >= 6 ? '150%' : '100%',
-                       height: (user.energyLevel ?? 5) >= 8 ? '200%' : (user.energyLevel ?? 5) >= 6 ? '150%' : '100%',
-                       left: (user.energyLevel ?? 5) >= 8 ? '-50%' : (user.energyLevel ?? 5) >= 6 ? '-25%' : '0%',
-                       top: (user.energyLevel ?? 5) >= 8 ? '-50%' : (user.energyLevel ?? 5) >= 6 ? '-25%' : '0%',
-                       animationDuration: '2s'
-                     }}>
+                {/* Base aura - grows with energy level */}
+                <div 
+                  className={`absolute inset-0 rounded-full ${(user.energyLevel ?? 5) >= 2 ? 'bg-gradient-to-r from-yellow-400/20 to-yellow-600/30 animate-pulse' : ''}`} 
+                  style={{ 
+                    width: `${100 + ((user.energyLevel ?? 5) * 30)}%`,
+                    height: `${100 + ((user.energyLevel ?? 5) * 30)}%`,
+                    left: `-${((user.energyLevel ?? 5) * 15)}%`,
+                    top: `-${((user.energyLevel ?? 5) * 15)}%`,
+                    animationDuration: `${2.5 - ((user.energyLevel ?? 5) * 0.2)}s`
+                  }}
+                >
                 </div>
                 
-                {/* Secondary aura for high energy */}
-                {(user.energyLevel ?? 5) >= 8 && (
-                  <div className="absolute inset-0 rounded-full bg-gradient-to-r from-yellow-300/15 to-yellow-500/25 animate-ping" 
-                       style={{ 
-                         width: '250%', 
-                         height: '250%',
-                         left: '-75%',
-                         top: '-75%',
-                         animationDuration: '3s'
-                       }}>
+                {/* Secondary aura - appears at level 4+ */}
+                {(user.energyLevel ?? 5) >= 4 && (
+                  <div 
+                    className="absolute inset-0 rounded-full bg-gradient-to-r from-yellow-300/15 to-yellow-500/25 animate-ping" 
+                    style={{ 
+                      width: `${150 + ((user.energyLevel ?? 5) * 25)}%`, 
+                      height: `${150 + ((user.energyLevel ?? 5) * 25)}%`,
+                      left: `-${25 + ((user.energyLevel ?? 5) * 12.5)}%`,
+                      top: `-${25 + ((user.energyLevel ?? 5) * 12.5)}%`,
+                      animationDuration: `${3 - ((user.energyLevel ?? 5) * 0.2)}s`
+                    }}
+                  >
                   </div>
                 )}
                 
-                {/* Maximum aura for level 10 - SUPER FAST */}
-                {(user.energyLevel ?? 5) >= 10 && (
-                  <>
-                    <div className="absolute inset-0 rounded-full bg-gradient-to-r from-yellow-200/10 to-yellow-400/20 animate-pulse" 
-                         style={{ 
-                           width: '300%', 
-                           height: '300%',
-                           left: '-100%',
-                           top: '-100%',
-                           animationDuration: '0.3s'
-                         }}>
-                    </div>
-                    <div className="absolute inset-0 rounded-full bg-gradient-to-r from-yellow-300/15 to-yellow-500/25 animate-ping" 
-                         style={{ 
-                           width: '350%', 
-                           height: '350%',
-                           left: '-125%',
-                           top: '-125%',
-                           animationDuration: '0.5s'
-                         }}>
-                    </div>
-                    <div className="absolute inset-0 rounded-full bg-gradient-to-r from-yellow-400/20 to-yellow-600/30 animate-pulse" 
-                         style={{ 
-                           width: '400%', 
-                           height: '400%',
-                           left: '-150%',
-                           top: '-150%',
-                           animationDuration: '0.4s'
-                         }}>
-                    </div>
-                  </>
+                {/* Tertiary aura - appears at level 7+ */}
+                {(user.energyLevel ?? 5) >= 7 && (
+                  <div 
+                    className="absolute inset-0 rounded-full bg-gradient-to-r from-yellow-200/10 to-yellow-400/20 animate-pulse" 
+                    style={{ 
+                      width: `${200 + ((user.energyLevel ?? 5) * 20)}%`, 
+                      height: `${200 + ((user.energyLevel ?? 5) * 20)}%`,
+                      left: `-${50 + ((user.energyLevel ?? 5) * 10)}%`,
+                      top: `-${50 + ((user.energyLevel ?? 5) * 10)}%`,
+                      animationDuration: `${1.5 - ((user.energyLevel ?? 5) * 0.1)}s`
+                    }}
+                  >
+                  </div>
                 )}
               </div>
 
-              {/* Main lightning bolt - changes color based on energy */}
-              <Zap className={`w-5 h-5 ${(user.energyLevel ?? 5) >= 10 ? 'text-yellow-300 animate-pulse' : (user.energyLevel ?? 5) >= 8 ? 'text-yellow-400 animate-pulse' : (user.energyLevel ?? 5) >= 6 ? 'text-yellow-500' : 'text-primary'}`} 
-                   style={(user.energyLevel ?? 5) >= 10 ? { animationDuration: '0.2s' } : {}}
+              {/* Main lightning bolt - gradual color progression */}
+              <Zap 
+                className={`w-5 h-5 ${
+                  (user.energyLevel ?? 5) >= 9 ? 'text-yellow-300 animate-pulse' : 
+                  (user.energyLevel ?? 5) >= 7 ? 'text-yellow-400 animate-pulse' : 
+                  (user.energyLevel ?? 5) >= 5 ? 'text-yellow-500' : 
+                  (user.energyLevel ?? 5) >= 3 ? 'text-yellow-600' : 
+                  'text-primary'
+                }`} 
+                style={(user.energyLevel ?? 5) >= 7 ? { animationDuration: `${0.8 - ((user.energyLevel ?? 5) * 0.05)}s` } : {}}
               />
               
-              {/* Super Saiyan sparks - intensity increases with energy */}
-              {(user.energyLevel ?? 5) >= 6 && (
+              {/* Super Saiyan sparks - gradual progression */}
+              {(user.energyLevel ?? 5) >= 3 && (
                 <>
-                  {/* Level 6-7 sparks */}
-                  <svg className="absolute -top-3 -right-3 w-4 h-4 text-yellow-400 animate-ping opacity-90" viewBox="0 0 24 24" fill="none">
-                    <path d="M8 2L5 8h3l-2 4 4-5h-2z" fill="currentColor" />
-                  </svg>
-                  <svg className="absolute top-2 -right-4 w-3 h-3 text-yellow-500 animate-pulse opacity-80" style={{ animationDelay: '0.2s' }} viewBox="0 0 24 24" fill="none">
-                    <path d="M10 1L7 7h3l-2 3 3-4h-1z" fill="currentColor" />
-                  </svg>
-                  <svg className="absolute -top-2 left-2 w-3.5 h-3.5 text-yellow-400 animate-ping opacity-70" style={{ animationDelay: '0.4s' }} viewBox="0 0 24 24" fill="none">
-                    <path d="M7 3L4 9h3l-2 3 3-4h-1z" fill="currentColor" />
-                  </svg>
-                  <svg className="absolute bottom-1 -left-3 w-3 h-3 text-yellow-300 animate-pulse opacity-60" style={{ animationDelay: '0.6s' }} viewBox="0 0 24 24" fill="none">
-                    <path d="M9 2L6 8h3l-2 3 3-4h-1z" fill="currentColor" />
-                  </svg>
-                  <svg className="absolute -bottom-2 right-2 w-3 h-3 text-yellow-500 animate-ping opacity-80" style={{ animationDelay: '0.8s' }} viewBox="0 0 24 24" fill="none">
-                    <path d="M8 1L5 7h3l-2 3 3-4h-1z" fill="currentColor" />
-                  </svg>
-                  <svg className="absolute top-4 -left-2 w-2.5 h-2.5 text-yellow-400 animate-pulse opacity-70" style={{ animationDelay: '1s' }} viewBox="0 0 24 24" fill="none">
-                    <path d="M6 2L3 8h3l-2 3 3-4h-1z" fill="currentColor" />
-                  </svg>
-                  
-                  {/* Level 8-9 additional sparks */}
-                  {(user.energyLevel ?? 5) >= 8 && (
-                    <>
-                      <svg className="absolute top-3 -left-3 w-2.5 h-2.5 text-yellow-400 animate-pulse opacity-70" style={{ animationDelay: '1.2s' }} viewBox="0 0 24 24" fill="none">
-                        <path d="M5 2L2 8h3l-2 3 3-4h-1z" fill="currentColor" />
+                  {/* Generate sparks based on energy level */}
+                  {Array.from({ length: Math.min(Math.floor(((user.energyLevel ?? 5) - 2) * 3), 20) }, (_, i) => {
+                    const angle = (i * 18) % 360; // Distribute sparks in a circle
+                    const radius = 20 + ((user.energyLevel ?? 5) * 5);
+                    const x = Math.cos(angle * Math.PI / 180) * radius;
+                    const y = Math.sin(angle * Math.PI / 180) * radius;
+                    const size = 2 + ((user.energyLevel ?? 5) * 0.3);
+                    const opacity = 0.3 + ((user.energyLevel ?? 5) * 0.05);
+                    const animationSpeed = 2 - ((user.energyLevel ?? 5) * 0.15);
+                    
+                    return (
+                      <svg 
+                        key={i}
+                        className={`absolute text-yellow-400 animate-ping`}
+                        style={{
+                          left: `${x}px`,
+                          top: `${y}px`,
+                          width: `${size}rem`,
+                          height: `${size}rem`,
+                          animationDelay: `${i * 0.1}s`,
+                          animationDuration: `${animationSpeed}s`,
+                          opacity: opacity
+                        }}
+                        viewBox="0 0 24 24" 
+                        fill="none"
+                      >
+                        <path d="M8 2L5 8h3l-2 4 4-5h-2z" fill="currentColor" />
                       </svg>
-                      <svg className="absolute -bottom-3 left-1 w-3 h-3 text-yellow-300 animate-ping opacity-60" style={{ animationDelay: '1.4s' }} viewBox="0 0 24 24" fill="none">
-                        <path d="M7 1L4 7h3l-2 3 3-4h-1z" fill="currentColor" />
-                      </svg>
-                      <svg className="absolute top-1 left-4 w-2 h-2 text-yellow-500 animate-pulse opacity-80" style={{ animationDelay: '1.6s' }} viewBox="0 0 24 24" fill="none">
-                        <path d="M4 1L1 7h3l-2 3 3-4h-1z" fill="currentColor" />
-                      </svg>
-                      <svg className="absolute -top-4 right-1 w-3 h-3 text-yellow-500 animate-pulse opacity-80" style={{ animationDelay: '1.8s' }} viewBox="0 0 24 24" fill="none">
-                        <path d="M8 2L5 8h3l-2 3 3-4h-1z" fill="currentColor" />
-                      </svg>
-                      <svg className="absolute -top-1 -right-2 w-2.5 h-2.5 text-yellow-400 animate-ping opacity-70" style={{ animationDelay: '2s' }} viewBox="0 0 24 24" fill="none">
-                        <path d="M6 2L3 8h3l-2 3 3-4h-1z" fill="currentColor" />
-                      </svg>
-                      <svg className="absolute bottom-2 -left-4 w-3 h-3 text-yellow-300 animate-pulse opacity-60" style={{ animationDelay: '2.2s' }} viewBox="0 0 24 24" fill="none">
-                        <path d="M7 1L4 7h3l-2 3 3-4h-1z" fill="currentColor" />
-                      </svg>
-                    </>
-                  )}
-                  
-                  
-                  {/* Level 10 - OVER THE TOP sparks - SUPER FAST */}
-                  {(user.energyLevel ?? 5) >= 10 && (
-                    <>
-                      <svg className="absolute -top-5 left-1 w-4 h-4 text-yellow-500 animate-pulse opacity-90" style={{ animationDelay: '0.1s', animationDuration: '0.2s' }} viewBox="0 0 24 24" fill="none">
-                        <path d="M8 2L5 8h3l-2 3 3-4h-1z" fill="currentColor" />
-                      </svg>
-                      <svg className="absolute top-0 -right-3 w-3.5 h-3.5 text-yellow-400 animate-ping opacity-80" style={{ animationDelay: '0.15s', animationDuration: '0.3s' }} viewBox="0 0 24 24" fill="none">
-                        <path d="M7 3L4 9h3l-2 3 3-4h-1z" fill="currentColor" />
-                      </svg>
-                      <svg className="absolute -bottom-2 left-2 w-2.5 h-2.5 text-yellow-300 animate-pulse opacity-70" style={{ animationDelay: '0.2s', animationDuration: '0.25s' }} viewBox="0 0 24 24" fill="none">
-                        <path d="M6 2L3 8h3l-2 3 3-4h-1z" fill="currentColor" />
-                      </svg>
-                      <svg className="absolute -bottom-1 right-1 w-1.5 h-1.5 text-yellow-400 animate-pulse opacity-30" style={{ animationDelay: '0.25s', animationDuration: '0.3s' }} viewBox="0 0 24 24" fill="none">
-                        <path d="M4 1L1 7h3l-2 3 3-4h-1z" fill="currentColor" />
-                      </svg>
-                      <svg className="absolute -top-6 right-2 w-3 h-3 text-yellow-500 animate-ping opacity-85" style={{ animationDelay: '0.3s', animationDuration: '0.2s' }} viewBox="0 0 24 24" fill="none">
-                        <path d="M7 2L4 8h3l-2 3 3-4h-1z" fill="currentColor" />
-                      </svg>
-                      <svg className="absolute top-5 -left-5 w-2 h-2 text-yellow-400 animate-pulse opacity-75" style={{ animationDelay: '0.35s', animationDuration: '0.25s' }} viewBox="0 0 24 24" fill="none">
-                        <path d="M5 1L2 7h3l-2 3 3-4h-1z" fill="currentColor" />
-                      </svg>
-                      <svg className="absolute -bottom-4 right-3 w-2.5 h-2.5 text-yellow-300 animate-ping opacity-65" style={{ animationDelay: '0.4s', animationDuration: '0.3s' }} viewBox="0 0 24 24" fill="none">
-                        <path d="M6 2L3 8h3l-2 3 3-4h-1z" fill="currentColor" />
-                      </svg>
-                      <svg className="absolute -top-3 left-5 w-1.5 h-1.5 text-yellow-500 animate-pulse opacity-80" style={{ animationDelay: '0.45s', animationDuration: '0.2s' }} viewBox="0 0 24 24" fill="none">
-                        <path d="M4 1L1 7h3l-2 3 3-4h-1z" fill="currentColor" />
-                      </svg>
-                      <svg className="absolute -top-7 left-3 w-3 h-3 text-yellow-400 animate-ping opacity-90" style={{ animationDelay: '0.5s', animationDuration: '0.25s' }} viewBox="0 0 24 24" fill="none">
-                        <path d="M7 2L4 8h3l-2 3 3-4h-1z" fill="currentColor" />
-                      </svg>
-                      <svg className="absolute bottom-6 -right-6 w-2 h-2 text-yellow-300 animate-pulse opacity-70" style={{ animationDelay: '0.55s', animationDuration: '0.3s' }} viewBox="0 0 24 24" fill="none">
-                        <path d="M5 1L2 7h3l-2 3 3-4h-1z" fill="currentColor" />
-                      </svg>
-                      <svg className="absolute top-7 left-7 w-1.5 h-1.5 text-yellow-500 animate-ping opacity-85" style={{ animationDelay: '0.6s', animationDuration: '0.2s' }} viewBox="0 0 24 24" fill="none">
-                        <path d="M4 1L1 7h3l-2 3 3-4h-1z" fill="currentColor" />
-                      </svg>
-                      <svg className="absolute -bottom-6 left-6 w-2.5 h-2.5 text-yellow-400 animate-pulse opacity-75" style={{ animationDelay: '0.65s', animationDuration: '0.25s' }} viewBox="0 0 24 24" fill="none">
-                        <path d="M6 2L3 8h3l-2 3 3-4h-1z" fill="currentColor" />
-                      </svg>
-                    </>
-                  )}
-                </>
-              )}
-              
-              {(user.energyLevel ?? 5) >= 4 && (user.energyLevel ?? 5) < 7 && (
-                <>
-                  {/* Medium energy sparks */}
-                  <svg className="absolute -top-2 -right-2 w-3 h-3 text-blue-400 animate-pulse opacity-70" viewBox="0 0 24 24" fill="none">
-                    <path d="M7 2L4 8h3l-2 3 3-4h-1z" fill="currentColor" />
-                  </svg>
-                  <svg className="absolute top-1 -left-2 w-2.5 h-2.5 text-blue-500 animate-ping opacity-60" style={{ animationDelay: '1s' }} viewBox="0 0 24 24" fill="none">
-                    <path d="M6 1L3 7h3l-2 3 3-4h-1z" fill="currentColor" />
-                  </svg>
-                  <svg className="absolute -bottom-2 right-1 w-2.5 h-2.5 text-blue-400 animate-pulse opacity-50" style={{ animationDelay: '1.5s' }} viewBox="0 0 24 24" fill="none">
-                    <path d="M7 2L4 8h3l-2 3 3-4h-1z" fill="currentColor" />
-                  </svg>
-                  <svg className="absolute top-3 left-1 w-2 h-2 text-blue-300 animate-ping opacity-40" style={{ animationDelay: '2s' }} viewBox="0 0 24 24" fill="none">
-                    <path d="M5 1L2 7h3l-2 3 3-4h-1z" fill="currentColor" />
-                  </svg>
-                </>
-              )}
-              
-              {(user.energyLevel ?? 5) >= 1 && (user.energyLevel ?? 5) < 4 && (
-                <>
-                  {/* Low energy sparks */}
-                  <svg className="absolute -top-1 -right-1 w-2.5 h-2.5 text-blue-400 animate-pulse opacity-50" viewBox="0 0 24 24" fill="none">
-                    <path d="M6 2L3 8h3l-2 3 3-4h-1z" fill="currentColor" />
-                  </svg>
-                  {(user.energyLevel ?? 5) >= 2 && (
-                    <svg className="absolute top-1 -left-1 w-2 h-2 text-blue-500 animate-ping opacity-40" style={{ animationDelay: '2s' }} viewBox="0 0 24 24" fill="none">
-                      <path d="M5 1L2 7h3l-2 3 3-4h-1z" fill="currentColor" />
-                    </svg>
-                  )}
-                  {(user.energyLevel ?? 5) >= 3 && (
-                    <svg className="absolute -bottom-1 right-1 w-1.5 h-1.5 text-blue-400 animate-pulse opacity-30" style={{ animationDelay: '3s' }} viewBox="0 0 24 24" fill="none">
-                      <path d="M4 1L1 7h3l-2 3 3-4h-1z" fill="currentColor" />
-                    </svg>
-                  )}
+                    );
+                  })}
                 </>
               )}
             </div>
