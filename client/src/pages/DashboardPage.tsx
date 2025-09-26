@@ -1218,19 +1218,25 @@ export function DashboardPage() {
                       </>
                     )}
                     
-                    {/* Maximum ground destruction for level 10 */}
+                    {/* Maximum ground destruction for level 10 - SUPER FAST */}
                     {(user.energyLevel ?? 5) >= 10 && (
                       <>
-                        <div className="absolute bottom-0 left-8 w-2 h-1.5 bg-yellow-600 rounded-sm animate-bounce" style={{ animationDelay: '0.8s', animationDuration: '0.6s' }}>
+                        <div className="absolute bottom-0 left-8 w-2 h-1.5 bg-yellow-600 rounded-sm animate-bounce" style={{ animationDelay: '0.1s', animationDuration: '0.3s' }}>
                           <div className="w-full h-full bg-gradient-to-t from-yellow-800 to-yellow-500 rounded-sm"></div>
                         </div>
-                        <div className="absolute bottom-0 right-8 w-1 h-1 bg-yellow-700 rounded-sm animate-bounce" style={{ animationDelay: '0.9s', animationDuration: '1.3s' }}>
+                        <div className="absolute bottom-0 right-8 w-1 h-1 bg-yellow-700 rounded-sm animate-bounce" style={{ animationDelay: '0.15s', animationDuration: '0.4s' }}>
                           <div className="w-full h-full bg-gradient-to-t from-yellow-900 to-yellow-600 rounded-sm"></div>
                         </div>
-                        <div className="absolute bottom-0 left-9 w-1.5 h-1 bg-yellow-600 rounded-sm animate-bounce" style={{ animationDelay: '1s', animationDuration: '0.7s' }}>
+                        <div className="absolute bottom-0 left-9 w-1.5 h-1 bg-yellow-600 rounded-sm animate-bounce" style={{ animationDelay: '0.2s', animationDuration: '0.35s' }}>
                           <div className="w-full h-full bg-gradient-to-t from-yellow-800 to-yellow-500 rounded-sm"></div>
                         </div>
-                        <div className="absolute bottom-0 right-9 w-0.5 h-0.5 bg-yellow-700 rounded-sm animate-bounce" style={{ animationDelay: '1.1s', animationDuration: '1.4s' }}>
+                        <div className="absolute bottom-0 right-9 w-0.5 h-0.5 bg-yellow-700 rounded-sm animate-bounce" style={{ animationDelay: '0.25s', animationDuration: '0.45s' }}>
+                          <div className="w-full h-full bg-gradient-to-t from-yellow-900 to-yellow-600 rounded-sm"></div>
+                        </div>
+                        <div className="absolute bottom-0 left-10 w-1.5 h-1 bg-yellow-600 rounded-sm animate-bounce" style={{ animationDelay: '0.3s', animationDuration: '0.3s' }}>
+                          <div className="w-full h-full bg-gradient-to-t from-yellow-800 to-yellow-500 rounded-sm"></div>
+                        </div>
+                        <div className="absolute bottom-0 right-10 w-1 h-1 bg-yellow-700 rounded-sm animate-bounce" style={{ animationDelay: '0.35s', animationDuration: '0.4s' }}>
                           <div className="w-full h-full bg-gradient-to-t from-yellow-900 to-yellow-600 rounded-sm"></div>
                         </div>
                       </>
@@ -1265,22 +1271,44 @@ export function DashboardPage() {
                   </div>
                 )}
                 
-                {/* Maximum aura for level 10 */}
+                {/* Maximum aura for level 10 - SUPER FAST */}
                 {(user.energyLevel ?? 5) >= 10 && (
-                  <div className="absolute inset-0 rounded-full bg-gradient-to-r from-yellow-200/10 to-yellow-400/20 animate-pulse" 
-                       style={{ 
-                         width: '300%', 
-                         height: '300%',
-                         left: '-100%',
-                         top: '-100%',
-                         animationDuration: '1.5s'
-                       }}>
-                  </div>
+                  <>
+                    <div className="absolute inset-0 rounded-full bg-gradient-to-r from-yellow-200/10 to-yellow-400/20 animate-pulse" 
+                         style={{ 
+                           width: '300%', 
+                           height: '300%',
+                           left: '-100%',
+                           top: '-100%',
+                           animationDuration: '0.3s'
+                         }}>
+                    </div>
+                    <div className="absolute inset-0 rounded-full bg-gradient-to-r from-yellow-300/15 to-yellow-500/25 animate-ping" 
+                         style={{ 
+                           width: '350%', 
+                           height: '350%',
+                           left: '-125%',
+                           top: '-125%',
+                           animationDuration: '0.5s'
+                         }}>
+                    </div>
+                    <div className="absolute inset-0 rounded-full bg-gradient-to-r from-yellow-400/20 to-yellow-600/30 animate-pulse" 
+                         style={{ 
+                           width: '400%', 
+                           height: '400%',
+                           left: '-150%',
+                           top: '-150%',
+                           animationDuration: '0.4s'
+                         }}>
+                    </div>
+                  </>
                 )}
               </div>
 
               {/* Main lightning bolt - changes color based on energy */}
-              <Zap className={`w-5 h-5 ${(user.energyLevel ?? 5) >= 8 ? 'text-yellow-400' : (user.energyLevel ?? 5) >= 6 ? 'text-yellow-500' : 'text-primary'} ${(user.energyLevel ?? 5) >= 8 ? 'animate-pulse' : ''}`} />
+              <Zap className={`w-5 h-5 ${(user.energyLevel ?? 5) >= 10 ? 'text-yellow-300 animate-pulse' : (user.energyLevel ?? 5) >= 8 ? 'text-yellow-400 animate-pulse' : (user.energyLevel ?? 5) >= 6 ? 'text-yellow-500' : 'text-primary'}`} 
+                   style={{(user.energyLevel ?? 5) >= 10 ? { animationDuration: '0.2s' } : {}}}
+              />
               
               {/* Super Saiyan sparks - intensity increases with energy */}
               {(user.energyLevel ?? 5) >= 6 && (
@@ -1330,32 +1358,44 @@ export function DashboardPage() {
                   )}
                   
                   
-                  {/* Level 10 - OVER THE TOP sparks */}
+                  {/* Level 10 - OVER THE TOP sparks - SUPER FAST */}
                   {(user.energyLevel ?? 5) >= 10 && (
                     <>
-                      <svg className="absolute -top-5 left-1 w-4 h-4 text-yellow-500 animate-pulse opacity-90" style={{ animationDelay: '2.4s' }} viewBox="0 0 24 24" fill="none">
+                      <svg className="absolute -top-5 left-1 w-4 h-4 text-yellow-500 animate-pulse opacity-90" style={{ animationDelay: '0.1s', animationDuration: '0.2s' }} viewBox="0 0 24 24" fill="none">
                         <path d="M8 2L5 8h3l-2 3 3-4h-1z" fill="currentColor" />
                       </svg>
-                      <svg className="absolute top-0 -right-3 w-3.5 h-3.5 text-yellow-400 animate-ping opacity-80" style={{ animationDelay: '2.6s' }} viewBox="0 0 24 24" fill="none">
+                      <svg className="absolute top-0 -right-3 w-3.5 h-3.5 text-yellow-400 animate-ping opacity-80" style={{ animationDelay: '0.15s', animationDuration: '0.3s' }} viewBox="0 0 24 24" fill="none">
                         <path d="M7 3L4 9h3l-2 3 3-4h-1z" fill="currentColor" />
                       </svg>
-                      <svg className="absolute -bottom-2 left-2 w-2.5 h-2.5 text-yellow-300 animate-pulse opacity-70" style={{ animationDelay: '2.8s' }} viewBox="0 0 24 24" fill="none">
+                      <svg className="absolute -bottom-2 left-2 w-2.5 h-2.5 text-yellow-300 animate-pulse opacity-70" style={{ animationDelay: '0.2s', animationDuration: '0.25s' }} viewBox="0 0 24 24" fill="none">
                         <path d="M6 2L3 8h3l-2 3 3-4h-1z" fill="currentColor" />
                       </svg>
-                      <svg className="absolute -bottom-1 right-1 w-1.5 h-1.5 text-yellow-400 animate-pulse opacity-30" style={{ animationDelay: '3s' }} viewBox="0 0 24 24" fill="none">
+                      <svg className="absolute -bottom-1 right-1 w-1.5 h-1.5 text-yellow-400 animate-pulse opacity-30" style={{ animationDelay: '0.25s', animationDuration: '0.3s' }} viewBox="0 0 24 24" fill="none">
                         <path d="M4 1L1 7h3l-2 3 3-4h-1z" fill="currentColor" />
                       </svg>
-                      <svg className="absolute -top-6 right-2 w-3 h-3 text-yellow-500 animate-ping opacity-85" style={{ animationDelay: '3.2s' }} viewBox="0 0 24 24" fill="none">
+                      <svg className="absolute -top-6 right-2 w-3 h-3 text-yellow-500 animate-ping opacity-85" style={{ animationDelay: '0.3s', animationDuration: '0.2s' }} viewBox="0 0 24 24" fill="none">
                         <path d="M7 2L4 8h3l-2 3 3-4h-1z" fill="currentColor" />
                       </svg>
-                      <svg className="absolute top-5 -left-5 w-2 h-2 text-yellow-400 animate-pulse opacity-75" style={{ animationDelay: '3.4s' }} viewBox="0 0 24 24" fill="none">
+                      <svg className="absolute top-5 -left-5 w-2 h-2 text-yellow-400 animate-pulse opacity-75" style={{ animationDelay: '0.35s', animationDuration: '0.25s' }} viewBox="0 0 24 24" fill="none">
                         <path d="M5 1L2 7h3l-2 3 3-4h-1z" fill="currentColor" />
                       </svg>
-                      <svg className="absolute -bottom-4 right-3 w-2.5 h-2.5 text-yellow-300 animate-ping opacity-65" style={{ animationDelay: '3.6s' }} viewBox="0 0 24 24" fill="none">
+                      <svg className="absolute -bottom-4 right-3 w-2.5 h-2.5 text-yellow-300 animate-ping opacity-65" style={{ animationDelay: '0.4s', animationDuration: '0.3s' }} viewBox="0 0 24 24" fill="none">
                         <path d="M6 2L3 8h3l-2 3 3-4h-1z" fill="currentColor" />
                       </svg>
-                      <svg className="absolute -top-3 left-5 w-1.5 h-1.5 text-yellow-500 animate-pulse opacity-80" style={{ animationDelay: '3.8s' }} viewBox="0 0 24 24" fill="none">
+                      <svg className="absolute -top-3 left-5 w-1.5 h-1.5 text-yellow-500 animate-pulse opacity-80" style={{ animationDelay: '0.45s', animationDuration: '0.2s' }} viewBox="0 0 24 24" fill="none">
                         <path d="M4 1L1 7h3l-2 3 3-4h-1z" fill="currentColor" />
+                      </svg>
+                      <svg className="absolute -top-7 left-3 w-3 h-3 text-yellow-400 animate-ping opacity-90" style={{ animationDelay: '0.5s', animationDuration: '0.25s' }} viewBox="0 0 24 24" fill="none">
+                        <path d="M7 2L4 8h3l-2 3 3-4h-1z" fill="currentColor" />
+                      </svg>
+                      <svg className="absolute bottom-6 -right-6 w-2 h-2 text-yellow-300 animate-pulse opacity-70" style={{ animationDelay: '0.55s', animationDuration: '0.3s' }} viewBox="0 0 24 24" fill="none">
+                        <path d="M5 1L2 7h3l-2 3 3-4h-1z" fill="currentColor" />
+                      </svg>
+                      <svg className="absolute top-7 left-7 w-1.5 h-1.5 text-yellow-500 animate-ping opacity-85" style={{ animationDelay: '0.6s', animationDuration: '0.2s' }} viewBox="0 0 24 24" fill="none">
+                        <path d="M4 1L1 7h3l-2 3 3-4h-1z" fill="currentColor" />
+                      </svg>
+                      <svg className="absolute -bottom-6 left-6 w-2.5 h-2.5 text-yellow-400 animate-pulse opacity-75" style={{ animationDelay: '0.65s', animationDuration: '0.25s' }} viewBox="0 0 24 24" fill="none">
+                        <path d="M6 2L3 8h3l-2 3 3-4h-1z" fill="currentColor" />
                       </svg>
                     </>
                   )}
