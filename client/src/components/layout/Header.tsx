@@ -256,6 +256,79 @@ export function Header() {
                   } : {}}
                 />
 
+                {/* Blue Energy Streaks - Super Saiyan signature effect */}
+                {(user?.energyLevel ?? 5) >= 3 && (
+                  <>
+                    {/* Blue energy streaks moving upward diagonally */}
+                    {Array.from({ length: Math.min(Math.floor(((user?.energyLevel ?? 5) - 2) * 1.5), 8) }, (_, i) => {
+                      const startX = -8 + (i * 3);
+                      const startY = 8 + (i * 2);
+                      const endX = startX + 12 + ((user?.energyLevel ?? 5) * 2);
+                      const endY = startY - 20 - ((user?.energyLevel ?? 5) * 3);
+                      const size = 0.8 + ((user?.energyLevel ?? 5) * 0.1);
+                      const opacity = 0.6 + ((user?.energyLevel ?? 5) * 0.03);
+                      const animationSpeed = 2.5 - ((user?.energyLevel ?? 5) * 0.15);
+
+                      return (
+                        <div
+                          key={`streak-${i}`}
+                          className="absolute bg-gradient-to-r from-blue-400 to-blue-600 rounded-full animate-pulse"
+                          style={{
+                            left: `${startX}px`,
+                            top: `${startY}px`,
+                            width: `${size}rem`,
+                            height: `${size * 0.3}rem`,
+                            opacity: opacity,
+                            animationDuration: `${animationSpeed}s`,
+                            animationDelay: `${i * 0.2}s`,
+                            transform: `rotate(${-15 - (i * 5)}deg)`,
+                            filter: 'drop-shadow(0 0 4px rgba(59, 130, 246, 0.6))'
+                          }}
+                        >
+                          {/* Inner glow */}
+                          <div className="w-full h-full bg-gradient-to-r from-blue-300 to-blue-500 rounded-full opacity-70"></div>
+                        </div>
+                      );
+                    })}
+
+                    {/* Additional blue streaks for higher levels */}
+                    {(user?.energyLevel ?? 5) >= 6 && (
+                      <>
+                        {Array.from({ length: Math.min(Math.floor(((user?.energyLevel ?? 5) - 5) * 2), 6) }, (_, i) => {
+                          const startX = -12 + (i * 4);
+                          const startY = 12 + (i * 3);
+                          const endX = startX + 16 + ((user?.energyLevel ?? 5) * 2);
+                          const endY = startY - 25 - ((user?.energyLevel ?? 5) * 3);
+                          const size = 1.2 + ((user?.energyLevel ?? 5) * 0.15);
+                          const opacity = 0.5 + ((user?.energyLevel ?? 5) * 0.02);
+                          const animationSpeed = 2.2 - ((user?.energyLevel ?? 5) * 0.12);
+
+                          return (
+                            <div
+                              key={`streak-outer-${i}`}
+                              className="absolute bg-gradient-to-r from-blue-300 to-blue-500 rounded-full animate-pulse"
+                              style={{
+                                left: `${startX}px`,
+                                top: `${startY}px`,
+                                width: `${size}rem`,
+                                height: `${size * 0.4}rem`,
+                                opacity: opacity,
+                                animationDuration: `${animationSpeed}s`,
+                                animationDelay: `${i * 0.15}s`,
+                                transform: `rotate(${-20 - (i * 8)}deg)`,
+                                filter: 'drop-shadow(0 0 6px rgba(59, 130, 246, 0.8))'
+                              }}
+                            >
+                              {/* Inner glow */}
+                              <div className="w-full h-full bg-gradient-to-r from-blue-200 to-blue-400 rounded-full opacity-80"></div>
+                            </div>
+                          );
+                        })}
+                      </>
+                    )}
+                  </>
+                )}
+
                 {/* Super Saiyan + God Level Sparks - Combined epicness */}
                 {(user?.energyLevel ?? 5) >= 3 && (
                   <>
