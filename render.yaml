@@ -14,27 +14,25 @@ services:
       - key: JWT_SECRET
         generateValue: true
       - key: FRONTEND_URL
-        value: https://syncscript-frontend.onrender.com
+        value: https://stringerc.github.io/syncscriptE
       - key: OPENAI_API_KEY
         sync: false
       - key: EMAIL_USER
         sync: false
       - key: EMAIL_APP_PASSWORD
         sync: false
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: GOOGLE_REDIRECT_URI
+        value: https://stringerc.github.io/syncscriptE/google-calendar
       - key: PLAID_CLIENT_ID
         sync: false
       - key: PLAID_SECRET
         sync: false
       - key: PLAID_ENVIRONMENT
         value: sandbox
-
-  - type: static
-    name: syncscript-frontend
-    buildCommand: cd client && npm install && npm run build
-    staticPublishPath: ./client/dist
-    envVars:
-      - key: VITE_API_URL
-        value: https://syncscript-backend.onrender.com/api
 
 databases:
   - name: syncscript-db
