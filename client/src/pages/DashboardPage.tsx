@@ -649,7 +649,7 @@ export function DashboardPage() {
       console.log('🌤️ Fetching current weather...')
       const response = await api.get('/location/weather/current')
       console.log('🌤️ Current weather response:', response.data)
-      
+
       if (response.data.success && response.data.data.weather) {
         const weather = response.data.data.weather
         return {
@@ -673,6 +673,34 @@ export function DashboardPage() {
     retry: 1,
     onError: (error) => {
       console.error('Failed to fetch current weather:', error)
+    }
+  })
+
+  // Fetch 6-hour weather forecast
+  const { data: forecastData } = useQuery({
+    queryKey: ['weather-forecast-6h'],
+    queryFn: async () => {
+      console.log('🌤️ Fetching 6-hour weather forecast...')
+      const response = await api.get('/location/weather/forecast?days=1')
+      console.log('🌤️ Forecast response:', response.data)
+
+      if (response.data.success && response.data.data.forecast) {
+        // Get next 6 hours (first 2 forecast entries, as OpenWeather provides 3-hour intervals)
+        const next6Hours = response.data.data.forecast.slice(0, 2).map((item: any) => ({
+          time: new Date(item.timestamp),
+          temperature: item.temperature,
+          condition: item.condition,
+          emoji: item.emoji
+        }))
+        return next6Hours
+      }
+      return []
+    },
+    staleTime: 30 * 60 * 1000, // 30 minutes
+    refetchOnWindowFocus: false,
+    retry: 1,
+    onError: (error) => {
+      console.error('Failed to fetch weather forecast:', error)
     }
   })
 
@@ -1106,6 +1134,33 @@ export function DashboardPage() {
                 <span className="text-xs text-blue-600 dark:text-blue-400">
                   {currentWeather.condition}
                 </span>
+              </div>
+            </div>
+          )}
+
+          {/* 6-Hour Forecast Strip */}
+          {forecastData && forecastData.length > 0 && (
+            <div className="flex items-center space-x-3 bg-gradient-to-r from-slate-50 to-slate-100 dark:from-slate-800/20 dark:to-slate-700/20 px-3 py-2 rounded-lg border">
+              <span className="text-xs text-slate-600 dark:text-slate-400 font-medium">Next 6h:</span>
+              <div className="flex items-center space-x-2">
+                {forecastData.map((forecast, index) => (
+                  <div key={index} className="flex items-center space-x-1">
+                    <div className="relative w-4 h-4">
+                      {getWeatherIcon(forecast.condition)}
+                    </div>
+                    <div className="flex flex-col items-center">
+                      <span className="text-xs font-medium text-slate-700 dark:text-slate-300">
+                        {forecast.temperature}°
+                      </span>
+                      <span className="text-xs text-slate-500 dark:text-slate-500">
+                        {forecast.time.toLocaleTimeString('en-US', { 
+                          hour: 'numeric', 
+                          hour12: true 
+                        })}
+                      </span>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           )}
