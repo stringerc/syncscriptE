@@ -43,7 +43,7 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
     queryKey: ['notifications'],
     queryFn: async () => {
       const response = await api.get('/notifications')
-      return response.data
+      return response.data.data || response.data || []
     },
     refetchInterval: 30000, // Refresh every 30 seconds
     refetchOnWindowFocus: true,
@@ -53,23 +53,35 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
   const { data: preferences } = useQuery<NotificationPreferences>({
     queryKey: ['notification-preferences'],
     queryFn: async () => {
-      const response = await api.get('/notifications/preferences')
-      return response.data
+      try {
+        const response = await api.get('/notifications/preferences')
+        return response.data.data || response.data
+      } catch (error) {
+        console.log('Preferences endpoint not available yet, using defaults')
+        return null
+      }
     },
+    retry: false,
   })
 
   // Fetch stats
   const { data: stats } = useQuery<NotificationStats>({
     queryKey: ['notification-stats'],
     queryFn: async () => {
-      const response = await api.get('/notifications/stats')
-      return response.data
+      try {
+        const response = await api.get('/notifications/stats')
+        return response.data.data || response.data
+      } catch (error) {
+        console.log('Stats endpoint not available yet, using defaults')
+        return null
+      }
     },
+    retry: false,
   })
 
   // Update notifications state when data changes
   useEffect(() => {
-    if (notificationsData) {
+    if (notificationsData && Array.isArray(notificationsData)) {
       setNotifications(notificationsData)
     }
   }, [notificationsData])
@@ -200,7 +212,7 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
   // Context value
   const value: NotificationContextType = {
     notifications,
-    unreadCount: notifications.filter(n => !n.read).length,
+    unreadCount: Array.isArray(notifications) ? notifications.filter(n => !n.read).length : 0,
     preferences,
     stats,
     isLoading,
