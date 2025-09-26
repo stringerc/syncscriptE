@@ -58,6 +58,7 @@ class WeatherService {
       })
 
       const data = response.data
+      const timestamp = new Date()
       return {
         temperature: Math.round(data.main.temp),
         condition: data.weather[0].main,
@@ -65,8 +66,8 @@ class WeatherService {
         humidity: data.main.humidity,
         windSpeed: data.wind.speed,
         location: `${data.name}, ${data.sys.country}`,
-        timestamp: new Date(),
-        emoji: this.getWeatherEmoji(data.weather[0].main)
+        timestamp,
+        emoji: this.getWeatherEmoji(data.weather[0].main, timestamp)
       }
     } catch (error) {
       logger.error('Failed to get weather data', { error, location })
@@ -75,15 +76,16 @@ class WeatherService {
   }
 
   /**
-   * Get weather emoji based on condition
+   * Get weather emoji based on condition and time of day
    */
-  getWeatherEmoji(condition: string): string {
+  getWeatherEmoji(condition: string, timestamp?: Date): string {
     const conditionLower = condition.toLowerCase()
+    const isNight = this.isNightTime(timestamp)
     
     if (conditionLower.includes('clear') || conditionLower.includes('sunny')) {
-      return '☀️'
+      return isNight ? '🌙' : '☀️'
     } else if (conditionLower.includes('cloud')) {
-      return '☁️'
+      return isNight ? '☁️' : '☁️'
     } else if (conditionLower.includes('rain') || conditionLower.includes('drizzle')) {
       return '🌧️'
     } else if (conditionLower.includes('thunderstorm') || conditionLower.includes('storm')) {
@@ -95,8 +97,21 @@ class WeatherService {
     } else if (conditionLower.includes('wind')) {
       return '💨'
     } else {
-      return '🌤️'
+      return isNight ? '🌙' : '🌤️'
     }
+  }
+
+  /**
+   * Determine if it's night time based on timestamp
+   */
+  private isNightTime(timestamp?: Date): boolean {
+    if (!timestamp) {
+      timestamp = new Date()
+    }
+    
+    const hour = timestamp.getHours()
+    // Consider night time from 6 PM to 6 AM
+    return hour >= 18 || hour < 6
   }
 
   /**
@@ -145,6 +160,7 @@ class WeatherService {
         }
       }
 
+      const timestamp = new Date(closestForecast.dt * 1000)
       const weather = {
         temperature: Math.round(closestForecast.main.temp),
         condition: closestForecast.weather[0].main,
@@ -152,8 +168,8 @@ class WeatherService {
         humidity: closestForecast.main.humidity,
         windSpeed: closestForecast.wind.speed,
         location: `${response.data.city.name}, ${response.data.city.country}`,
-        timestamp: new Date(closestForecast.dt * 1000),
-        emoji: this.getWeatherEmoji(closestForecast.weather[0].main)
+        timestamp,
+        emoji: this.getWeatherEmoji(closestForecast.weather[0].main, timestamp)
       }
 
       logger.info('Successfully got weather data', { 
@@ -196,16 +212,19 @@ class WeatherService {
         }
       })
 
-      const forecasts = response.data.list.map((item: any) => ({
-        temperature: Math.round(item.main.temp),
-        condition: item.weather[0].main,
-        description: item.weather[0].description,
-        humidity: item.main.humidity,
-        windSpeed: item.wind.speed,
-        location: `${response.data.city.name}, ${response.data.city.country}`,
-        timestamp: new Date(item.dt * 1000),
-        emoji: this.getWeatherEmoji(item.weather[0].main)
-      }))
+      const forecasts = response.data.list.map((item: any) => {
+        const timestamp = new Date(item.dt * 1000)
+        return {
+          temperature: Math.round(item.main.temp),
+          condition: item.weather[0].main,
+          description: item.weather[0].description,
+          humidity: item.main.humidity,
+          windSpeed: item.wind.speed,
+          location: `${response.data.city.name}, ${response.data.city.country}`,
+          timestamp,
+          emoji: this.getWeatherEmoji(item.weather[0].main, timestamp)
+        }
+      })
 
       return forecasts
     } catch (error) {

@@ -629,69 +629,6 @@ export function DashboardPage() {
     }
   }, [])
 
-  // Fetch current weather for user's location (with caching)
-  const fetchCurrentWeather = useCallback(async () => {
-    // Check if we already have recent weather data (within last 10 minutes)
-    const lastFetch = localStorage.getItem('weather-last-fetch')
-    const cachedWeather = localStorage.getItem('weather-data')
-    const now = Date.now()
-    if (lastFetch && cachedWeather && (now - parseInt(lastFetch)) < 10 * 60 * 1000) {
-      console.log('🌤️ Using cached weather data')
-      try {
-        const weather = JSON.parse(cachedWeather)
-        setCurrentWeather(weather)
-        return
-      } catch (error) {
-        console.error('Failed to parse cached weather data:', error)
-      }
-    }
-
-    try {
-      console.log('🌤️ Fetching current weather...')
-      const response = await api.get('/location/weather/current')
-      console.log('🌤️ Current weather response:', response.data)
-      
-      if (response.data.success && response.data.data.weather) {
-        const weather = response.data.data.weather
-        const weatherData = {
-          emoji: weather.emoji || '🌤️',
-          temperature: weather.temperature || 72,
-          condition: weather.condition || 'Unknown',
-          location: weather.location || response.data.data.location || 'Unknown'
-        }
-        setCurrentWeather(weatherData)
-        // Cache the weather data and fetch time
-        localStorage.setItem('weather-data', JSON.stringify(weatherData))
-        localStorage.setItem('weather-last-fetch', now.toString())
-        console.log('🌤️ Set current weather:', { emoji: weather.emoji, temperature: weather.temperature, condition: weather.condition })
-      } else {
-        console.log('🌤️ No weather data in response, using fallback')
-        const fallbackWeather = {
-          emoji: '🌤️',
-          temperature: 72,
-          condition: 'Unknown',
-          location: 'Unknown'
-        }
-        setCurrentWeather(fallbackWeather)
-        // Cache the fallback weather data
-        localStorage.setItem('weather-data', JSON.stringify(fallbackWeather))
-        localStorage.setItem('weather-last-fetch', now.toString())
-      }
-    } catch (error) {
-      console.error('Failed to fetch current weather:', error)
-      // Set fallback weather
-      const fallbackWeather = {
-        emoji: '🌤️',
-        temperature: 72,
-        condition: 'Unknown',
-        location: 'Unknown'
-      }
-      setCurrentWeather(fallbackWeather)
-      // Cache the fallback weather data
-      localStorage.setItem('weather-data', JSON.stringify(fallbackWeather))
-      localStorage.setItem('weather-last-fetch', now.toString())
-    }
-  }, [])
 
   // Fetch weather data when events change (with debouncing)
   useEffect(() => {
@@ -705,14 +642,46 @@ export function DashboardPage() {
     }
   }, [dashboardData?.upcomingEvents, fetchEventWeather, fetchEventPreparationTasks])
 
-  // Fetch current weather on component mount (with debouncing)
+  // Use React Query for current weather with better caching
+  const { data: currentWeatherData, isLoading: weatherLoading } = useQuery({
+    queryKey: ['current-weather'],
+    queryFn: async () => {
+      console.log('🌤️ Fetching current weather...')
+      const response = await api.get('/location/weather/current')
+      console.log('🌤️ Current weather response:', response.data)
+      
+      if (response.data.success && response.data.data.weather) {
+        const weather = response.data.data.weather
+        return {
+          emoji: weather.emoji || '🌤️',
+          temperature: weather.temperature || 72,
+          condition: weather.condition || 'Unknown',
+          location: weather.location || response.data.data.location || 'Unknown'
+        }
+      } else {
+        console.log('🌤️ No weather data in response, using fallback')
+        return {
+          emoji: '🌤️',
+          temperature: 72,
+          condition: 'Unknown',
+          location: 'Unknown'
+        }
+      }
+    },
+    staleTime: 10 * 60 * 1000, // 10 minutes
+    refetchOnWindowFocus: false,
+    retry: 1,
+    onError: (error) => {
+      console.error('Failed to fetch current weather:', error)
+    }
+  })
+
+  // Update currentWeather state when data changes
   useEffect(() => {
-    const timer = setTimeout(() => {
-      fetchCurrentWeather()
-    }, 1000) // Wait 1 second before fetching to avoid rapid calls
-    
-    return () => clearTimeout(timer)
-  }, [fetchCurrentWeather])
+    if (currentWeatherData) {
+      setCurrentWeather(currentWeatherData)
+    }
+  }, [currentWeatherData])
 
   const handleAddTask = useCallback(() => {
     navigate('/tasks')
