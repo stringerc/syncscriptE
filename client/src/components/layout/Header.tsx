@@ -264,7 +264,6 @@ export function Header() {
 
 
                 {/* Super Saiyan + God Level Sparks - Combined epicness (only when animation enabled) */}
-                {console.log('🔍 Header sparks check:', { animationEnabled, energyLevel: user?.energyLevel ?? 5, shouldShow: animationEnabled && (user?.energyLevel ?? 5) >= 3 })}
                 {animationEnabled && (user?.energyLevel ?? 5) >= 3 && (
                   <>
                     {/* Inner ring sparks - Super Saiyan */}
@@ -288,9 +287,7 @@ export function Header() {
                             height: `${size}rem`,
                             animation: `ping ${animationSpeed}s cubic-bezier(0, 0, 0.2, 1) infinite ${i * 0.05}s`,
                             opacity: opacity,
-                            zIndex: 10,
-                            backgroundColor: 'rgba(255, 255, 0, 0.3)',
-                            border: '1px solid yellow'
+                            zIndex: 1
                           }}
                           viewBox="0 0 24 24" 
                           fill="none"

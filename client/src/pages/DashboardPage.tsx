@@ -1268,7 +1268,6 @@ export function DashboardPage() {
               </button>
               
               {/* Super Saiyan sparks - gradual progression (only when animation enabled) */}
-              {console.log('🔍 Dashboard sparks check:', { animationEnabled, energyLevel: user.energyLevel ?? 5, shouldShow: animationEnabled && (user.energyLevel ?? 5) >= 3 })}
               {animationEnabled && (user.energyLevel ?? 5) >= 3 && (
                 <>
                   {/* Generate sparks based on energy level */}
@@ -1293,9 +1292,7 @@ export function DashboardPage() {
                           animationDelay: `${i * 0.1}s`,
                           animationDuration: `${animationSpeed}s`,
                           opacity: opacity,
-                          zIndex: 10,
-                          backgroundColor: 'rgba(255, 255, 0, 0.3)',
-                          border: '1px solid yellow'
+                          zIndex: 1
                         }}
                         viewBox="0 0 24 24" 
                         fill="none"
