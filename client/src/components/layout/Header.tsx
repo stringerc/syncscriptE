@@ -64,20 +64,9 @@ export function Header() {
     refetchOnWindowFocus: false,
   })
 
-  // Debug logging
-  console.log('Header render:', { 
-    pathname: location.pathname, 
-    isDashboard,
-    currentWeatherData: currentWeatherData ? 'exists' : 'null',
-    weatherCondition: currentWeatherData?.weather?.condition || currentWeatherData?.condition || 'undefined'
-  })
-
   // Weather icon function
   const getWeatherIcon = useCallback((condition: string | undefined | null) => {
-    console.log('getWeatherIcon called with:', condition)
-    
     if (!condition || typeof condition !== 'string') {
-      console.log('getWeatherIcon: returning default due to invalid condition')
       return '🌤️'
     }
     

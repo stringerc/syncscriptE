@@ -50,6 +50,7 @@ class WeatherService {
         
         // Get city name from coordinates using reverse geocoding
         try {
+          logger.info('Attempting reverse geocoding for coordinates', { lat, lon })
           const reverseResponse = await axios.get(`${this.baseUrl}/weather`, {
             params: {
               lat: lat,
@@ -58,7 +59,9 @@ class WeatherService {
             }
           })
           cityName = `${reverseResponse.data.name}, ${reverseResponse.data.sys.country}`
+          logger.info('Reverse geocoding successful', { cityName })
         } catch (reverseError) {
+          logger.warn('Reverse geocoding failed, using coordinates', { lat, lon, error: reverseError.message })
           cityName = `${lat.toFixed(2)}, ${lon.toFixed(2)}` // Fallback to coordinates
         }
       } else {
