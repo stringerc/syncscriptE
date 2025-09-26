@@ -4,7 +4,7 @@ import { api } from '../lib/api'
 import { Button } from '../components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card'
 import { Badge } from '../components/ui/badge'
-import { Alert, AlertDescription } from '../components/ui/alert'
+import { Alert, AlertDescription, AlertTitle } from '../components/ui/alert'
 import { Loader2, Zap, Clock, TrendingUp, Lightbulb, Calendar, Target, Brain } from 'lucide-react'
 import { toast } from '../hooks/use-toast'
 
