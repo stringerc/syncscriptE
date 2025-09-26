@@ -677,7 +677,7 @@ export function DashboardPage() {
   })
 
   // Fetch 6-hour weather forecast
-  const { data: forecastData } = useQuery({
+  const { data: forecastData, isLoading: forecastLoading, error: forecastError } = useQuery({
     queryKey: ['weather-forecast-6h'],
     queryFn: async () => {
       console.log('🌤️ Fetching 6-hour weather forecast...')
@@ -692,8 +692,10 @@ export function DashboardPage() {
           condition: item.condition,
           emoji: item.emoji
         }))
+        console.log('🌤️ Processed forecast data:', next6Hours)
         return next6Hours
       }
+      console.log('🌤️ No forecast data available')
       return []
     },
     staleTime: 30 * 60 * 1000, // 30 minutes
@@ -703,6 +705,11 @@ export function DashboardPage() {
       console.error('Failed to fetch weather forecast:', error)
     }
   })
+
+  // Debug forecast data
+  useEffect(() => {
+    console.log('🌤️ Forecast data state:', { forecastData, forecastLoading, forecastError })
+  }, [forecastData, forecastLoading, forecastError])
 
   // Update currentWeather state when data changes
   useEffect(() => {
@@ -1139,31 +1146,40 @@ export function DashboardPage() {
           )}
 
           {/* 6-Hour Forecast Strip */}
-          {forecastData && forecastData.length > 0 && (
+          {(forecastData && forecastData.length > 0) || forecastLoading ? (
             <div className="flex items-center space-x-3 bg-gradient-to-r from-slate-50 to-slate-100 dark:from-slate-800/20 dark:to-slate-700/20 px-3 py-2 rounded-lg border">
               <span className="text-xs text-slate-600 dark:text-slate-400 font-medium">Next 6h:</span>
-              <div className="flex items-center space-x-2">
-                {forecastData.map((forecast, index) => (
-                  <div key={index} className="flex items-center space-x-1">
-                    <div className="relative w-4 h-4">
-                      {getWeatherIcon(forecast.condition)}
+              {forecastLoading ? (
+                <div className="flex items-center space-x-2">
+                  <div className="w-4 h-4 border-2 border-slate-300 border-t-slate-600 rounded-full animate-spin"></div>
+                  <span className="text-xs text-slate-500">Loading...</span>
+                </div>
+              ) : forecastData && forecastData.length > 0 ? (
+                <div className="flex items-center space-x-2">
+                  {forecastData.map((forecast, index) => (
+                    <div key={index} className="flex items-center space-x-1">
+                      <div className="relative w-4 h-4">
+                        {getWeatherIcon(forecast.condition)}
+                      </div>
+                      <div className="flex flex-col items-center">
+                        <span className="text-xs font-medium text-slate-700 dark:text-slate-300">
+                          {forecast.temperature}°
+                        </span>
+                        <span className="text-xs text-slate-500 dark:text-slate-500">
+                          {forecast.time.toLocaleTimeString('en-US', { 
+                            hour: 'numeric', 
+                            hour12: true 
+                          })}
+                        </span>
+                      </div>
                     </div>
-                    <div className="flex flex-col items-center">
-                      <span className="text-xs font-medium text-slate-700 dark:text-slate-300">
-                        {forecast.temperature}°
-                      </span>
-                      <span className="text-xs text-slate-500 dark:text-slate-500">
-                        {forecast.time.toLocaleTimeString('en-US', { 
-                          hour: 'numeric', 
-                          hour12: true 
-                        })}
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              ) : (
+                <span className="text-xs text-slate-500">No forecast data</span>
+              )}
             </div>
-          )}
+          ) : null}
           
           {/* Energy Level */}
           <div className="flex items-center space-x-2">
