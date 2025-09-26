@@ -247,6 +247,7 @@ export function DashboardPage() {
   const { token, user: authUser } = useAuthStore()
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [animationEnabled, setAnimationEnabled] = useState(false) // Default off
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false)
   const [eventWeatherData, setEventWeatherData] = useState<Record<string, { emoji: string; temperature: number; condition: string } | null>>({})
@@ -1258,8 +1259,12 @@ export function DashboardPage() {
                 )}
               </div>
 
-              {/* Main lightning bolt - Fill effect matching header */}
-              <div className="relative w-5 h-5">
+              {/* Main lightning bolt - Fill effect matching header - CLICKABLE TOGGLE */}
+              <button 
+                className="relative w-5 h-5 cursor-pointer hover:scale-110 transition-transform duration-200"
+                onClick={() => setAnimationEnabled(!animationEnabled)}
+                title={animationEnabled ? "Disable Energy Animation" : "Enable Energy Animation"}
+              >
                 {/* Background lightning bolt (empty) */}
                 <Zap 
                   className="absolute inset-0 w-5 h-5 text-gray-300 dark:text-gray-600"
@@ -1273,19 +1278,19 @@ export function DashboardPage() {
                     (user.energyLevel ?? 5) >= 5 ? 'text-yellow-500' : 
                     (user.energyLevel ?? 5) >= 3 ? 'text-yellow-600' : 
                     'text-primary'
-                  }`} 
+                  } ${animationEnabled ? 'animate-pulse' : ''}`} 
                   style={{
                     clipPath: `polygon(0% 0%, ${((user.energyLevel ?? 5) / 10) * 100}% 0%, ${((user.energyLevel ?? 5) / 10) * 100}% 100%, 0% 100%)`,
-                    ...((user.energyLevel ?? 5) >= 7 ? { 
+                    ...(animationEnabled && (user.energyLevel ?? 5) >= 7 ? { 
                       animationDuration: `${0.6 - ((user.energyLevel ?? 5) * 0.04)}s`,
                       filter: (user.energyLevel ?? 5) >= 9 ? 'drop-shadow(0 0 8px rgba(255, 255, 0, 0.8))' : 'none'
                     } : {})
                   }}
                 />
-              </div>
+              </button>
               
-              {/* Super Saiyan sparks - gradual progression */}
-              {(user.energyLevel ?? 5) >= 3 && (
+              {/* Super Saiyan sparks - gradual progression (only when animation enabled) */}
+              {animationEnabled && (user.energyLevel ?? 5) >= 3 && (
                 <>
                   {/* Generate sparks based on energy level */}
                   {Array.from({ length: Math.min(Math.floor(((user.energyLevel ?? 5) - 2) * 3), 20) }, (_, i) => {

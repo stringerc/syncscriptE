@@ -231,8 +231,12 @@ export function Header() {
                   )}
                 </div>
 
-                {/* Main lightning bolt - Fill effect based on energy level */}
-                <div className="relative w-4 h-4">
+                {/* Main lightning bolt - Fill effect based on energy level - CLICKABLE TOGGLE */}
+                <button 
+                  className="relative w-4 h-4 cursor-pointer hover:scale-110 transition-transform duration-200"
+                  onClick={() => setAnimationEnabled(!animationEnabled)}
+                  title={animationEnabled ? "Disable Energy Animation" : "Enable Energy Animation"}
+                >
                   {/* Background lightning bolt (empty) */}
                   <Zap 
                     className="absolute inset-0 w-4 h-4 text-gray-300 dark:text-gray-600"
@@ -255,7 +259,7 @@ export function Header() {
                       } : {})
                     }}
                   />
-                </div>
+                </button>
 
 
                 {/* Super Saiyan + God Level Sparks - Combined epicness (only when animation enabled) */}
@@ -364,29 +368,6 @@ export function Header() {
               </div>
             )}
             
-            {/* Animation Toggle Button - Enhanced toggle design */}
-            <div className="flex items-center space-x-2">
-              <span className="text-xs text-muted-foreground">
-                {animationEnabled ? 'ON' : 'OFF'}
-              </span>
-              <Button 
-                variant={animationEnabled ? "default" : "outline"}
-                size="icon"
-                className={`cursor-pointer transition-all duration-200 ${
-                  animationEnabled 
-                    ? 'bg-yellow-500 hover:bg-yellow-600 text-white border-yellow-500 shadow-lg' 
-                    : 'bg-transparent hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400 border-gray-300 dark:border-gray-600'
-                }`}
-                onClick={() => setAnimationEnabled(!animationEnabled)}
-                title={animationEnabled ? "Disable Energy Animation" : "Enable Energy Animation"}
-              >
-                <Zap className={`w-5 h-5 transition-all duration-200 ${
-                  animationEnabled 
-                    ? 'text-white animate-pulse' 
-                    : 'text-gray-500 dark:text-gray-400'
-                }`} />
-              </Button>
-            </div>
             
             {/* Test button - navigation */}
             <Button 
