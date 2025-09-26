@@ -1240,7 +1240,11 @@ export function DashboardPage() {
               {/* Main lightning bolt - Fill effect matching header - CLICKABLE TOGGLE */}
               <button 
                 className="relative w-5 h-5 cursor-pointer hover:scale-110 transition-transform duration-200"
-                onClick={toggleAnimation}
+                onClick={() => {
+                  console.log('⚡ Dashboard lightning bolt clicked! Current state:', animationEnabled);
+                  toggleAnimation();
+                  console.log('⚡ After toggle, new state:', !animationEnabled);
+                }}
                 title={animationEnabled ? "Disable Energy Animation" : "Enable Energy Animation"}
               >
                 {/* Background lightning bolt (empty) */}
@@ -1268,6 +1272,7 @@ export function DashboardPage() {
               </button>
               
               {/* Super Saiyan sparks - gradual progression (only when animation enabled) */}
+              {console.log('🔍 Dashboard effects check:', { animationEnabled, energyLevel: user.energyLevel ?? 5, shouldShow: animationEnabled && (user.energyLevel ?? 5) >= 3 })}
               {animationEnabled && (user.energyLevel ?? 5) >= 3 && (
                 <>
                   {/* Ground-breaking effects - Super Saiyan style */}
