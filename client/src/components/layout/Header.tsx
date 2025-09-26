@@ -268,6 +268,7 @@ export function Header() {
 
 
                 {/* Super Saiyan + God Level Sparks - Combined epicness (only when animation enabled) */}
+                {console.log('🔌 Header: animationEnabled =', animationEnabled, 'energyLevel =', user?.energyLevel ?? 5)}
                 {animationEnabled && (user?.energyLevel ?? 5) >= 3 && (
                   <>
                     {/* Inner ring sparks - Super Saiyan */}
