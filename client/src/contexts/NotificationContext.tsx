@@ -49,20 +49,41 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
     refetchOnWindowFocus: true,
   })
 
-  // Fetch preferences
-  const { data: preferences } = useQuery<NotificationPreferences>({
-    queryKey: ['notification-preferences'],
-    queryFn: async () => {
-      try {
-        const response = await api.get('/notifications/preferences')
-        return response.data.data || response.data
-      } catch (error) {
-        console.log('Preferences endpoint not available yet, using defaults')
-        return null
-      }
-    },
-    retry: false,
-  })
+    // Fetch preferences
+    const { data: preferences } = useQuery<NotificationPreferences>({
+      queryKey: ['notification-preferences'],
+      queryFn: async () => {
+        try {
+          const response = await api.get('/notifications/preferences')
+          return response.data.data || response.data
+        } catch (error) {
+          console.log('Preferences endpoint not available yet, using defaults')
+          // Return default preferences for testing
+          return {
+            channels: {
+              in_app: { enabled: true, sound: true, showBadge: true },
+              email: { enabled: true, frequency: 'immediate', types: ['task_reminder', 'event_reminder', 'deadline_warning'] },
+              push: { enabled: true, sound: true, vibration: true },
+              desktop: { enabled: true, sound: true, showPreview: true }
+            },
+            timing: {
+              quietHours: { enabled: false, start: '22:00', end: '08:00', timezone: 'UTC' },
+              energyBasedTiming: true,
+              respectFocusMode: true
+            },
+            types: {
+              task_reminders: { enabled: true, advanceMinutes: 15, priority: 'medium' },
+              event_reminders: { enabled: true, advanceMinutes: 30, priority: 'medium' },
+              energy_alerts: { enabled: true, threshold: 3, priority: 'high' },
+              achievements: { enabled: true, priority: 'low' },
+              deadline_warnings: { enabled: true, advanceHours: 2, priority: 'high' },
+              system: { enabled: true, priority: 'medium' }
+            }
+          }
+        }
+      },
+      retry: false,
+    })
 
   // Fetch stats
   const { data: stats } = useQuery<NotificationStats>({
@@ -73,7 +94,18 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
         return response.data.data || response.data
       } catch (error) {
         console.log('Stats endpoint not available yet, using defaults')
-        return null
+        // Return default stats for testing
+        return {
+          total: 0,
+          unread: 0,
+          byType: {},
+          byPriority: {},
+          recentActivity: {
+            today: 0,
+            thisWeek: 0,
+            thisMonth: 0
+          }
+        }
       }
     },
     retry: false,
