@@ -235,11 +235,7 @@ export function Header() {
                 {/* Main lightning bolt - Fill effect based on energy level - CLICKABLE TOGGLE */}
                 <button 
                   className="relative w-4 h-4 cursor-pointer hover:scale-110 transition-transform duration-200"
-                  onClick={() => {
-                    console.log('🔌 Header lightning bolt clicked! Current state:', animationEnabled);
-                    toggleAnimation();
-                    console.log('🔌 After toggle, new state:', !animationEnabled);
-                  }}
+                  onClick={toggleAnimation}
                   title={animationEnabled ? "Disable Energy Animation" : "Enable Energy Animation"}
                 >
                   {/* Background lightning bolt (empty) */}
@@ -268,7 +264,6 @@ export function Header() {
 
 
                 {/* Super Saiyan + God Level Sparks - Combined epicness (only when animation enabled) */}
-                {console.log('🔌 Header: animationEnabled =', animationEnabled, 'energyLevel =', user?.energyLevel ?? 5)}
                 {animationEnabled && (user?.energyLevel ?? 5) >= 3 && (
                   <>
                     {/* Inner ring sparks - Super Saiyan */}

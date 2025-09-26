@@ -1190,29 +1190,6 @@ export function DashboardPage() {
           {/* Energy Level */}
           <div className="flex items-center space-x-2">
             <div className="relative">
-              {/* Ground-breaking effects - gradual progression */}
-              {(user.energyLevel ?? 5) >= 3 && (
-                <>
-                  <div className="absolute -bottom-8 left-0 w-full h-8 overflow-hidden">
-                    {/* Ground pieces - number increases with energy level */}
-                    {Array.from({ length: Math.min(Math.floor(((user.energyLevel ?? 5) - 2) * 2), 12) }, (_, i) => (
-                      <div 
-                        key={i}
-                        className={`absolute bottom-0 bg-yellow-600 rounded-sm animate-bounce`}
-                        style={{
-                          left: `${5 + (i * 8)}px`,
-                          width: `${0.5 + (i % 3) * 0.5}rem`,
-                          height: `${0.5 + (i % 2) * 0.5}rem`,
-                          animationDelay: `${i * 0.1}s`,
-                          animationDuration: `${1.5 - ((user.energyLevel ?? 5) * 0.1)}s`
-                        }}
-                      >
-                        <div className="w-full h-full bg-gradient-to-t from-yellow-800 to-yellow-500 rounded-sm"></div>
-                      </div>
-                    ))}
-                  </div>
-                </>
-              )}
 
               {/* Main energy aura - gradual progression */}
               <div className="relative">
@@ -1263,11 +1240,7 @@ export function DashboardPage() {
               {/* Main lightning bolt - Fill effect matching header - CLICKABLE TOGGLE */}
               <button 
                 className="relative w-5 h-5 cursor-pointer hover:scale-110 transition-transform duration-200"
-                onClick={() => {
-                  console.log('⚡ Dashboard lightning bolt clicked! Current state:', animationEnabled);
-                  toggleAnimation();
-                  console.log('⚡ After toggle, new state:', !animationEnabled);
-                }}
+                onClick={toggleAnimation}
                 title={animationEnabled ? "Disable Energy Animation" : "Enable Energy Animation"}
               >
                 {/* Background lightning bolt (empty) */}
@@ -1295,7 +1268,6 @@ export function DashboardPage() {
               </button>
               
               {/* Super Saiyan sparks - gradual progression (only when animation enabled) */}
-              {console.log('⚡ Dashboard: animationEnabled =', animationEnabled, 'energyLevel =', user.energyLevel ?? 5)}
               {animationEnabled && (user.energyLevel ?? 5) >= 3 && (
                 <>
                   {/* Generate sparks based on energy level */}
