@@ -34,8 +34,8 @@ router.get('/', authenticateToken, asyncHandler(async (req: AuthRequest, res) =>
         where: {
           userId,
           OR: [
-            { title: { contains: searchQuery, mode: 'insensitive' } },
-            { description: { contains: searchQuery, mode: 'insensitive' } },
+            { title: { contains: searchQuery } },
+            { description: { contains: searchQuery } },
             { tags: { has: searchQuery } }
           ]
         },
@@ -77,9 +77,9 @@ router.get('/', authenticateToken, asyncHandler(async (req: AuthRequest, res) =>
         where: {
           userId,
           OR: [
-            { title: { contains: searchQuery, mode: 'insensitive' } },
-            { description: { contains: searchQuery, mode: 'insensitive' } },
-            { location: { contains: searchQuery, mode: 'insensitive' } }
+            { title: { contains: searchQuery } },
+            { description: { contains: searchQuery } },
+            { location: { contains: searchQuery } }
           ]
         },
         orderBy: [
@@ -182,8 +182,8 @@ router.get('/advanced', authenticateToken, asyncHandler(async (req: AuthRequest,
       const taskWhere: any = {
         userId,
         OR: [
-          { title: { contains: searchQuery, mode: 'insensitive' } },
-          { description: { contains: searchQuery, mode: 'insensitive' } },
+          { title: { contains: searchQuery } },
+          { description: { contains: searchQuery } },
           { tags: { has: searchQuery } }
         ]
       };
@@ -237,9 +237,9 @@ router.get('/advanced', authenticateToken, asyncHandler(async (req: AuthRequest,
       const eventWhere: any = {
         userId,
         OR: [
-          { title: { contains: searchQuery, mode: 'insensitive' } },
-          { description: { contains: searchQuery, mode: 'insensitive' } },
-          { location: { contains: searchQuery, mode: 'insensitive' } }
+          { title: { contains: searchQuery } },
+          { description: { contains: searchQuery } },
+          { location: { contains: searchQuery } }
         ]
       };
 

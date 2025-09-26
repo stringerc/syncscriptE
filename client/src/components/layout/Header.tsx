@@ -72,6 +72,8 @@ export function Header() {
     if (query.trim()) {
       // Navigate to a search results page or implement search logic
       navigate(`/search?q=${encodeURIComponent(query.trim())}`)
+      // Clear the search input after navigation
+      setSearchQuery('')
     }
   }, [navigate])
 
