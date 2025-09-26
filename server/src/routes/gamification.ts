@@ -17,6 +17,26 @@ router.get('/', authenticateToken, asyncHandler(async (req: AuthRequest, res) =>
   try {
     const gamificationData = await GamificationService.getUserGamificationData(userId);
 
+    // If user has no achievements, unlock welcome achievement
+    if (gamificationData.achievements.length === 0) {
+      await GamificationService.unlockAchievement(userId, {
+        id: 'welcome',
+        title: 'Welcome to SyncScript!',
+        description: 'You\'ve discovered the gamification system!',
+        points: 10,
+        icon: '🎉',
+        rarity: 'common',
+        condition: () => true // Always true for welcome achievement
+      });
+      
+      // Refresh data after unlocking achievement
+      const updatedData = await GamificationService.getUserGamificationData(userId);
+      return res.json({
+        success: true,
+        data: updatedData
+      });
+    }
+
     res.json({
       success: true,
       data: gamificationData
