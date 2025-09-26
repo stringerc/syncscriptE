@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { useNotifications } from '@/contexts/NotificationContext'
-import { Bell, X, Check, Trash2, Settings, Filter } from 'lucide-react'
+import { Bell, X, Check, Trash2, Settings, Filter, Mail } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { NotificationItem } from './NotificationItem'
 import { NotificationPreferences } from './NotificationPreferences'
+import { EventEndedNotification } from '@/components/EventEndedNotification'
 import { cn } from '@/lib/utils'
 
 interface NotificationCenterProps {
@@ -26,9 +27,24 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ classNam
 
   const [isOpen, setIsOpen] = useState(false)
   const [activeTab, setActiveTab] = useState('all')
+  const [selectedEventEndedNotification, setSelectedEventEndedNotification] = useState<any>(null)
+  const [showEventEndedModal, setShowEventEndedModal] = useState(false)
 
   const unreadNotifications = notifications.filter(n => !n.read)
   const allNotifications = notifications
+  const eventEndedNotifications = notifications.filter(n => n.type === 'event_ended')
+
+  const handleEventEndedNotificationClick = (notification: any) => {
+    setSelectedEventEndedNotification(notification)
+    setShowEventEndedModal(true)
+    setIsOpen(false) // Close the notification center
+  }
+
+  const handleEventEndedNotificationRead = (notificationId: string) => {
+    // Mark notification as read
+    // This would typically call an API to mark the notification as read
+    console.log('Marking notification as read:', notificationId)
+  }
 
   const getFilteredNotifications = () => {
     switch (activeTab) {
@@ -39,7 +55,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ classNam
       case 'tasks':
         return notifications.filter(n => n.type === 'task_reminder' || n.type === 'deadline_warning')
       case 'events':
-        return notifications.filter(n => n.type === 'event_reminder')
+        return notifications.filter(n => n.type === 'event_reminder' || n.type === 'event_ended')
       case 'energy':
         return notifications.filter(n => n.type === 'energy_alert')
       default:
@@ -66,6 +82,10 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ classNam
           >
             {unreadCount > 99 ? '99+' : unreadCount}
           </Badge>
+        )}
+        {/* Blue dot for event-ended notifications */}
+        {eventEndedNotifications.filter(n => !n.read).length > 0 && (
+          <div className="absolute -top-1 -right-1 w-3 h-3 bg-blue-500 rounded-full border-2 border-white dark:border-gray-900"></div>
         )}
       </Button>
 
@@ -148,12 +168,46 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ classNam
                     </div>
                   ) : (
                     <div className="space-y-1">
-                      {filteredNotifications.map((notification) => (
-                        <NotificationItem
-                          key={notification.id}
-                          notification={notification}
-                        />
-                      ))}
+                      {filteredNotifications.map((notification) => {
+                        // Special handling for event-ended notifications
+                        if (notification.type === 'event_ended') {
+                          return (
+                            <div
+                              key={notification.id}
+                              className="p-3 border-l-4 border-blue-500 bg-blue-50 dark:bg-blue-900/20 cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors"
+                              onClick={() => handleEventEndedNotificationClick(notification)}
+                            >
+                              <div className="flex items-start space-x-3">
+                                <Mail className="w-5 h-5 text-blue-600 mt-0.5" />
+                                <div className="flex-1">
+                                  <div className="flex items-center space-x-2">
+                                    <h4 className="font-medium text-blue-900 dark:text-blue-100">
+                                      {notification.title}
+                                    </h4>
+                                    {!notification.read && (
+                                      <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                                    )}
+                                  </div>
+                                  <p className="text-sm text-blue-700 dark:text-blue-200 mt-1">
+                                    {notification.message}
+                                  </p>
+                                  <p className="text-xs text-blue-600 dark:text-blue-300 mt-1">
+                                    Click to manage incomplete tasks
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                          )
+                        }
+                        
+                        // Regular notification handling
+                        return (
+                          <NotificationItem
+                            key={notification.id}
+                            notification={notification}
+                          />
+                        )
+                      })}
                     </div>
                   )}
                 </ScrollArea>
@@ -184,6 +238,19 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ classNam
             </div>
           </div>
         </>
+      )}
+
+      {/* Event Ended Notification Modal */}
+      {selectedEventEndedNotification && (
+        <EventEndedNotification
+          notification={selectedEventEndedNotification}
+          isOpen={showEventEndedModal}
+          onClose={() => {
+            setShowEventEndedModal(false)
+            setSelectedEventEndedNotification(null)
+          }}
+          onNotificationRead={handleEventEndedNotificationRead}
+        />
       )}
     </div>
   )

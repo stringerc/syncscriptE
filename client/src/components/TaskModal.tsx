@@ -202,22 +202,32 @@ export function TaskModal({ task, isOpen, onClose, onTaskUpdated, onTaskDeleted 
         budgetImpact: task.budgetImpact || 0
       })
       
-      // Delete the task since it's now converted to an event
-      await api.delete(`/tasks/${task.id}`)
+      // Update the task to link it to the new event and mark it as a prep task
+      await api.put(`/tasks/${task.id}`, {
+        eventId: eventResponse.data.data.id,
+        title: `Prep for: ${task.title}`,
+        // Keep all other task properties unchanged
+        description: task.description,
+        priority: task.priority,
+        estimatedDuration: task.estimatedDuration,
+        energyRequired: task.energyRequired,
+        location: task.location,
+        notes: task.notes
+      })
       
       return eventResponse.data
     },
     onSuccess: () => {
       toast({
         title: "Calendar Event Created!",
-        description: "The task has been converted to a calendar event and removed from your tasks"
+        description: "The task has been converted to a calendar event and linked as a preparation task"
       })
       queryClient.invalidateQueries({ queryKey: ['calendar'] })
       queryClient.invalidateQueries({ queryKey: ['dashboard'] })
       queryClient.invalidateQueries({ queryKey: ['tasks'] })
       setShowCalendarSuggestion(false)
       setCalendarSuggestion(null)
-      // Close the modal since the task is now converted to an event
+      // Close the modal since the task is now linked to the event
       onClose()
     },
     onError: (error: any) => {

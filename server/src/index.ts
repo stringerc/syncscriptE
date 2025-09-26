@@ -19,6 +19,7 @@ import notificationRoutes from './routes/notifications';
 import locationRoutes from './routes/location';
 import searchRoutes from './routes/search';
 import gamificationRoutes from './routes/gamification';
+import taskSchedulingRoutes from './routes/taskScheduling';
 
 // Import middleware
 import { errorHandler } from './middleware/errorHandler';
@@ -119,7 +120,8 @@ app.get('/', (req, res) => {
       search: '/api/search',
       notifications: '/api/notifications',
       location: '/api/location',
-      gamification: '/api/gamification'
+      gamification: '/api/gamification',
+      taskScheduling: '/api/task-scheduling'
     },
     documentation: 'https://github.com/stringerc/syncscriptE'
   });
@@ -180,6 +182,7 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api/location', locationRoutes);
 app.use('/api/search', searchRoutes);
 app.use('/api/gamification', gamificationRoutes);
+app.use('/api/task-scheduling', taskSchedulingRoutes);
 
 // Socket.IO for real-time updates
 io.on('connection', (socket) => {
