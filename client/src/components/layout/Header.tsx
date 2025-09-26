@@ -235,11 +235,7 @@ export function Header() {
                 {/* Main lightning bolt - Fill effect based on energy level - CLICKABLE TOGGLE */}
                 <button 
                   className="relative w-4 h-4 cursor-pointer hover:scale-110 transition-transform duration-200"
-                  onClick={() => {
-                    console.log('🔌 Header lightning bolt clicked! Current state:', animationEnabled);
-                    toggleAnimation();
-                    console.log('🔌 After toggle, new state:', !animationEnabled);
-                  }}
+                  onClick={toggleAnimation}
                   title={animationEnabled ? "Disable Energy Animation" : "Enable Energy Animation"}
                 >
                   {/* Background lightning bolt (empty) */}
@@ -268,11 +264,10 @@ export function Header() {
 
 
                 {/* Super Saiyan + God Level Sparks - Combined epicness (only when animation enabled) */}
-                {console.log('🔍 Header effects check:', { animationEnabled, energyLevel: user?.energyLevel ?? 5, shouldShow: animationEnabled && (user?.energyLevel ?? 5) >= 3 })}
                 {animationEnabled && (user?.energyLevel ?? 5) >= 3 && (
                   <>
                     {/* Ground-breaking effects - Super Saiyan style */}
-                    <div className="absolute -bottom-6 left-0 w-full h-6 overflow-hidden" style={{ backgroundColor: 'rgba(255, 0, 0, 0.3)', border: '2px solid red' }}>
+                    <div className="absolute -bottom-6 left-0 w-full h-6 overflow-hidden">
                       {/* Ground pieces flying up - Super Saiyan style */}
                       {Array.from({ length: Math.min(Math.floor(((user?.energyLevel ?? 5) - 2) * 2), 12) }, (_, i) => (
                         <div 
@@ -283,9 +278,7 @@ export function Header() {
                             width: `${0.4 + (i % 3) * 0.2}rem`,
                             height: `${0.4 + (i % 3) * 0.2}rem`,
                             animation: `bounce ${1.2 - ((user?.energyLevel ?? 5) * 0.08)}s ease-in-out infinite ${i * 0.08}s`,
-                            backgroundColor: 'red',
-                            border: '1px solid yellow',
-                            zIndex: 100
+                            zIndex: 1
                           }}
                         >
                           {/* Inner glow effect */}
@@ -304,9 +297,7 @@ export function Header() {
                         left: `${-((user?.energyLevel ?? 5) * 10)}%`,
                         top: `${-((user?.energyLevel ?? 5) * 10)}%`,
                         animationDuration: `${2 - ((user?.energyLevel ?? 5) * 0.15)}s`,
-                        backgroundColor: 'rgba(0, 255, 0, 0.5)',
-                        border: '3px solid green',
-                        zIndex: 50
+                        zIndex: 1
                       }}
                     />
 

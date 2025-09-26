@@ -1240,11 +1240,7 @@ export function DashboardPage() {
               {/* Main lightning bolt - Fill effect matching header - CLICKABLE TOGGLE */}
               <button 
                 className="relative w-5 h-5 cursor-pointer hover:scale-110 transition-transform duration-200"
-                onClick={() => {
-                  console.log('⚡ Dashboard lightning bolt clicked! Current state:', animationEnabled);
-                  toggleAnimation();
-                  console.log('⚡ After toggle, new state:', !animationEnabled);
-                }}
+                onClick={toggleAnimation}
                 title={animationEnabled ? "Disable Energy Animation" : "Enable Energy Animation"}
               >
                 {/* Background lightning bolt (empty) */}
@@ -1272,11 +1268,10 @@ export function DashboardPage() {
               </button>
               
               {/* Super Saiyan sparks - gradual progression (only when animation enabled) */}
-              {console.log('🔍 Dashboard effects check:', { animationEnabled, energyLevel: user.energyLevel ?? 5, shouldShow: animationEnabled && (user.energyLevel ?? 5) >= 3 })}
               {animationEnabled && (user.energyLevel ?? 5) >= 3 && (
                 <>
                   {/* Ground-breaking effects - Super Saiyan style */}
-                  <div className="absolute -bottom-8 left-0 w-full h-8 overflow-hidden" style={{ backgroundColor: 'rgba(255, 0, 0, 0.3)', border: '2px solid red' }}>
+                  <div className="absolute -bottom-8 left-0 w-full h-8 overflow-hidden">
                     {/* Ground pieces flying up - Super Saiyan style */}
                     {Array.from({ length: Math.min(Math.floor(((user.energyLevel ?? 5) - 2) * 2), 12) }, (_, i) => (
                       <div 
@@ -1287,9 +1282,7 @@ export function DashboardPage() {
                           width: `${0.5 + (i % 3) * 0.5}rem`,
                           height: `${0.5 + (i % 2) * 0.5}rem`,
                           animation: `bounce ${1.5 - ((user.energyLevel ?? 5) * 0.1)}s ease-in-out infinite ${i * 0.1}s`,
-                          backgroundColor: 'red',
-                          border: '1px solid yellow',
-                          zIndex: 100
+                          zIndex: 1
                         }}
                       >
                         {/* Inner glow effect */}
@@ -1308,9 +1301,7 @@ export function DashboardPage() {
                       left: `${-((user.energyLevel ?? 5) * 10)}%`,
                       top: `${-((user.energyLevel ?? 5) * 10)}%`,
                       animationDuration: `${2 - ((user.energyLevel ?? 5) * 0.15)}s`,
-                      backgroundColor: 'rgba(0, 255, 0, 0.5)',
-                      border: '3px solid green',
-                      zIndex: 50
+                      zIndex: 1
                     }}
                   />
 
