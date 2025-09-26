@@ -25,7 +25,11 @@ import {
   Sun,
   CloudRain,
   CloudSnow,
-  Wind
+  Wind,
+  Star,
+  Flame,
+  MapPin,
+  CheckCircle
 } from 'lucide-react'
 import { formatDate, formatTime, formatCurrency, getPriorityColor } from '@/lib/utils'
 import { EventModal } from '@/components/EventModal'
@@ -289,6 +293,17 @@ export function DashboardPage() {
     retry: 1, // Only retry once for faster error handling
     retryDelay: 500, // Faster retry
     enabled: !!token && isHydrated // Only run if user is authenticated and store is hydrated
+  })
+
+  // Fetch gamification data for dashboard widget
+  const { data: gamificationData } = useQuery({
+    queryKey: ['gamification-summary'],
+    queryFn: async () => {
+      const response = await api.get('/gamification')
+      return response.data.data
+    },
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    enabled: !!token && isHydrated
   })
 
 
@@ -1392,7 +1407,7 @@ export function DashboardPage() {
       </div>
 
       {/* Quick Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Today's Tasks</CardTitle>
@@ -1441,6 +1456,21 @@ export function DashboardPage() {
             <div className="text-2xl font-bold">{unreadNotifications.length}</div>
             <p className="text-xs text-muted-foreground">
               Unread messages
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate('/gamification')}>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Gamification</CardTitle>
+            <Trophy className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-yellow-600">
+              {gamificationData?.stats?.totalPoints || 0}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Level {gamificationData?.stats?.currentLevel || 1} • {gamificationData?.achievements?.length || 0} achievements
             </p>
           </CardContent>
         </Card>

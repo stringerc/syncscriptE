@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Trophy, Star, Zap, Target, Calendar, Award, TrendingUp, Users, Crown, Medal } from 'lucide-react'
+import { Trophy, Star, Zap, Target, Calendar, Award, TrendingUp, Users, Crown, Medal, Flame, Clock, CheckCircle } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
@@ -30,6 +30,16 @@ const GamificationPage: React.FC = () => {
       return response.data.data
     },
     staleTime: 10 * 60 * 1000, // 10 minutes
+  })
+
+  // Fetch daily challenges
+  const { data: dailyChallenges, isLoading: challengesLoading } = useQuery({
+    queryKey: ['daily-challenges'],
+    queryFn: async () => {
+      const response = await api.get('/gamification/challenges')
+      return response.data.data
+    },
+    staleTime: 5 * 60 * 1000, // 5 minutes
   })
 
   if (isLoading) {
@@ -177,8 +187,9 @@ const GamificationPage: React.FC = () => {
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="challenges">Daily Challenges</TabsTrigger>
           <TabsTrigger value="achievements">Achievements</TabsTrigger>
           <TabsTrigger value="badges">Badges</TabsTrigger>
           <TabsTrigger value="leaderboard">Leaderboard</TabsTrigger>
@@ -359,6 +370,85 @@ const GamificationPage: React.FC = () => {
                   )}
                 </div>
               </ScrollArea>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="challenges" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Target className="h-5 w-5 text-blue-600" />
+                Today's Challenges
+              </CardTitle>
+              <CardDescription>
+                Complete these challenges to earn bonus points and level up faster!
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {challengesLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                </div>
+              ) : (
+                <div className="grid gap-4">
+                  {dailyChallenges?.map((challenge: any) => (
+                    <div key={challenge.id} className="flex items-center gap-4 p-4 border rounded-lg hover:bg-gray-50 transition-colors">
+                      <div className="text-3xl">{challenge.icon}</div>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <h4 className="font-medium">{challenge.title}</h4>
+                          <Badge variant={challenge.difficulty === 'easy' ? 'default' : challenge.difficulty === 'medium' ? 'secondary' : 'destructive'}>
+                            {challenge.difficulty}
+                          </Badge>
+                        </div>
+                        <p className="text-sm text-gray-600 mb-2">{challenge.description}</p>
+                        <div className="flex items-center gap-4 text-sm">
+                          <span className="text-green-600 font-medium">+{challenge.reward} points</span>
+                          <span className="text-gray-500">Target: {challenge.target}</span>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center">
+                          <CheckCircle className="h-4 w-4 text-gray-400" />
+                        </div>
+                        <p className="text-xs text-gray-500 mt-1">In Progress</p>
+                      </div>
+                    </div>
+                  ))}
+                  {(!dailyChallenges || dailyChallenges.length === 0) && (
+                    <div className="text-center py-12">
+                      <Target className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                      <p className="text-gray-500">No challenges available today</p>
+                      <p className="text-sm text-gray-400">Check back tomorrow for new challenges!</p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Challenge Progress */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Flame className="h-5 w-5 text-orange-600" />
+                Challenge Streak
+              </CardTitle>
+              <CardDescription>Keep completing daily challenges to build your streak!</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center gap-4">
+                <div className="text-3xl">🔥</div>
+                <div className="flex-1">
+                  <p className="text-2xl font-bold">0</p>
+                  <p className="text-sm text-gray-600">Day streak</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm text-gray-600">Next milestone</p>
+                  <p className="font-medium">7 days</p>
+                </div>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>

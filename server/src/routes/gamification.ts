@@ -383,4 +383,22 @@ async function getNextBadge(userId: string) {
   return nextBadge || null;
 }
 
+// Get daily challenges
+router.get('/challenges', authenticateToken, asyncHandler(async (req: AuthRequest, res) => {
+  const userId = req.user!.id;
+  
+  try {
+    const DailyChallengeService = (await import('../services/dailyChallengeService')).default;
+    const challenges = await DailyChallengeService.generateDailyChallenges(userId);
+    
+    res.json({
+      success: true,
+      data: challenges
+    });
+  } catch (error) {
+    logger.error('Error getting daily challenges:', error);
+    throw createError('Failed to get daily challenges', 500);
+  }
+}));
+
 export default router;
