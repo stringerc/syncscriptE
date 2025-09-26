@@ -153,7 +153,9 @@ export function Header() {
 
             {/* Energy Animation - Combined Super Saiyan + God Level - only show if not on dashboard */}
             {!isDashboard && (
-              <div className="relative">
+              <>
+                {console.log('⚡ Energy animation section rendering! isDashboard:', isDashboard)}
+                <div className="relative">
 
                 {/* Multi-layered Energy Aura - God Level progression */}
                 <div className="relative">
@@ -235,6 +237,7 @@ export function Header() {
                 {/* Super Saiyan Ground-Breaking Effects - Original inspiration */}
                 {(user?.energyLevel ?? 5) >= 3 && (
                   <>
+                    {console.log('🌍 Ground effects should be visible! Energy level:', user?.energyLevel ?? 5)}
                     <div className="absolute -bottom-4 left-0 w-full h-6 overflow-hidden">
                       {/* Ground pieces flying up - Super Saiyan style */}
                       {Array.from({ length: Math.min(Math.floor(((user?.energyLevel ?? 5) - 2) * 2), 12) }, (_, i) => (
@@ -360,6 +363,7 @@ export function Header() {
                   </>
                 )}
               </div>
+              </>
             )}
             
             {/* Test button - navigation */}
