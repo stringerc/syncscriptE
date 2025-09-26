@@ -151,127 +151,218 @@ export function Header() {
               </div>
             )}
 
-            {/* Energy Animation - only show if not on dashboard */}
+            {/* Energy Animation - Combined Super Saiyan + God Level - only show if not on dashboard */}
             {!isDashboard && (
               <div className="relative">
-              {/* Ground-breaking effects - gradual progression */}
-              {(user?.energyLevel ?? 5) >= 3 && (
-                <>
-                  <div className="absolute -bottom-6 left-0 w-full h-6 overflow-hidden">
-                    {/* Ground pieces - number increases with energy level */}
-                    {Array.from({ length: Math.min(Math.floor(((user?.energyLevel ?? 5) - 2) * 1.5), 8) }, (_, i) => (
-                      <div 
-                        key={i}
-                        className={`absolute bottom-0 bg-yellow-600 rounded-sm animate-bounce`}
-                        style={{
-                          left: `${5 + (i * 6)}px`,
-                          width: `${0.3 + (i % 2) * 0.3}rem`,
-                          height: `${0.3 + (i % 2) * 0.3}rem`,
-                          animationDelay: `${i * 0.1}s`,
-                          animationDuration: `${1.5 - ((user?.energyLevel ?? 5) * 0.1)}s`
-                        }}
-                      >
-                        <div className="w-full h-full bg-gradient-to-t from-yellow-800 to-yellow-500 rounded-sm"></div>
-                      </div>
-                    ))}
-                  </div>
-                </>
-              )}
-
-              {/* Main energy aura - gradual progression */}
-              <div className="relative">
-                {/* Base aura - grows with energy level */}
-                <div 
-                  className={`absolute inset-0 rounded-full ${(user?.energyLevel ?? 5) >= 2 ? 'bg-gradient-to-r from-yellow-400/20 to-yellow-600/30 animate-pulse' : ''}`} 
-                  style={{ 
-                    width: `${100 + ((user?.energyLevel ?? 5) * 20)}%`,
-                    height: `${100 + ((user?.energyLevel ?? 5) * 20)}%`,
-                    left: `-${((user?.energyLevel ?? 5) * 10)}%`,
-                    top: `-${((user?.energyLevel ?? 5) * 10)}%`,
-                    animationDuration: `${2.5 - ((user?.energyLevel ?? 5) * 0.2)}s`
-                  }}
-                >
-                </div>
-                
-                {/* Secondary aura - appears at level 4+ */}
-                {(user?.energyLevel ?? 5) >= 4 && (
-                  <div 
-                    className="absolute inset-0 rounded-full bg-gradient-to-r from-yellow-300/15 to-yellow-500/25 animate-ping" 
-                    style={{ 
-                      width: `${120 + ((user?.energyLevel ?? 5) * 15)}%`, 
-                      height: `${120 + ((user?.energyLevel ?? 5) * 15)}%`,
-                      left: `-${10 + ((user?.energyLevel ?? 5) * 7.5)}%`,
-                      top: `-${10 + ((user?.energyLevel ?? 5) * 7.5)}%`,
-                      animationDuration: `${3 - ((user?.energyLevel ?? 5) * 0.2)}s`
-                    }}
-                  >
-                  </div>
+                {/* Ground-breaking effects - Super Saiyan style */}
+                {(user?.energyLevel ?? 5) >= 3 && (
+                  <>
+                    <div className="absolute -bottom-8 left-0 w-full h-8 overflow-hidden">
+                      {/* Ground pieces - more dramatic at higher levels */}
+                      {Array.from({ length: Math.min(Math.floor(((user?.energyLevel ?? 5) - 2) * 2), 12) }, (_, i) => (
+                        <div 
+                          key={i}
+                          className={`absolute bottom-0 bg-gradient-to-t from-yellow-800 to-yellow-500 rounded-sm animate-bounce`}
+                          style={{
+                            left: `${3 + (i * 4)}px`,
+                            width: `${0.4 + (i % 3) * 0.2}rem`,
+                            height: `${0.4 + (i % 3) * 0.2}rem`,
+                            animationDelay: `${i * 0.08}s`,
+                            animationDuration: `${1.2 - ((user?.energyLevel ?? 5) * 0.08)}s`
+                          }}
+                        >
+                          {/* Inner glow effect */}
+                          <div className="w-full h-full bg-gradient-to-t from-yellow-600 to-yellow-300 rounded-sm opacity-80"></div>
+                        </div>
+                      ))}
+                    </div>
+                  </>
                 )}
-                
-                {/* Tertiary aura - appears at level 7+ */}
-                {(user?.energyLevel ?? 5) >= 7 && (
+
+                {/* Multi-layered Energy Aura - God Level progression */}
+                <div className="relative">
+                  {/* Base aura - Super Saiyan foundation */}
                   <div 
-                    className="absolute inset-0 rounded-full bg-gradient-to-r from-yellow-200/10 to-yellow-400/20 animate-pulse" 
+                    className={`absolute inset-0 rounded-full ${(user?.energyLevel ?? 5) >= 2 ? 'bg-gradient-to-r from-yellow-400/25 to-yellow-600/35 animate-pulse' : ''}`} 
                     style={{ 
-                      width: `${140 + ((user?.energyLevel ?? 5) * 10)}%`, 
-                      height: `${140 + ((user?.energyLevel ?? 5) * 10)}%`,
-                      left: `-${20 + ((user?.energyLevel ?? 5) * 5)}%`,
-                      top: `-${20 + ((user?.energyLevel ?? 5) * 5)}%`,
-                      animationDuration: `${1.5 - ((user?.energyLevel ?? 5) * 0.1)}s`
+                      width: `${100 + ((user?.energyLevel ?? 5) * 25)}%`,
+                      height: `${100 + ((user?.energyLevel ?? 5) * 25)}%`,
+                      left: `-${((user?.energyLevel ?? 5) * 12.5)}%`,
+                      top: `-${((user?.energyLevel ?? 5) * 12.5)}%`,
+                      animationDuration: `${2.2 - ((user?.energyLevel ?? 5) * 0.15)}s`
                     }}
                   >
                   </div>
+                  
+                  {/* Secondary aura - Super Saiyan power */}
+                  {(user?.energyLevel ?? 5) >= 4 && (
+                    <div 
+                      className="absolute inset-0 rounded-full bg-gradient-to-r from-yellow-300/20 to-yellow-500/30 animate-ping" 
+                      style={{ 
+                        width: `${130 + ((user?.energyLevel ?? 5) * 18)}%`, 
+                        height: `${130 + ((user?.energyLevel ?? 5) * 18)}%`,
+                        left: `-${15 + ((user?.energyLevel ?? 5) * 9)}%`,
+                        top: `-${15 + ((user?.energyLevel ?? 5) * 9)}%`,
+                        animationDuration: `${2.8 - ((user?.energyLevel ?? 5) * 0.18)}s`
+                      }}
+                    >
+                    </div>
+                  )}
+                  
+                  {/* Tertiary aura - God Level transcendence */}
+                  {(user?.energyLevel ?? 5) >= 7 && (
+                    <div 
+                      className="absolute inset-0 rounded-full bg-gradient-to-r from-yellow-200/15 to-yellow-400/25 animate-pulse" 
+                      style={{ 
+                        width: `${160 + ((user?.energyLevel ?? 5) * 12)}%`, 
+                        height: `${160 + ((user?.energyLevel ?? 5) * 12)}%`,
+                        left: `-${30 + ((user?.energyLevel ?? 5) * 6)}%`,
+                        top: `-${30 + ((user?.energyLevel ?? 5) * 6)}%`,
+                        animationDuration: `${1.8 - ((user?.energyLevel ?? 5) * 0.12)}s`
+                      }}
+                    >
+                    </div>
+                  )}
+
+                  {/* God Level Divine Aura - Ultimate power */}
+                  {(user?.energyLevel ?? 5) >= 9 && (
+                    <div 
+                      className="absolute inset-0 rounded-full bg-gradient-to-r from-yellow-100/10 to-yellow-300/20 animate-ping" 
+                      style={{ 
+                        width: `${200 + ((user?.energyLevel ?? 5) * 8)}%`, 
+                        height: `${200 + ((user?.energyLevel ?? 5) * 8)}%`,
+                        left: `-${50 + ((user?.energyLevel ?? 5) * 4)}%`,
+                        top: `-${50 + ((user?.energyLevel ?? 5) * 4)}%`,
+                        animationDuration: `${1.5 - ((user?.energyLevel ?? 5) * 0.08)}s`
+                      }}
+                    >
+                    </div>
+                  )}
+                </div>
+
+                {/* Main lightning bolt - Enhanced progression */}
+                <Zap 
+                  className={`w-4 h-4 ${
+                    (user?.energyLevel ?? 5) >= 10 ? 'text-yellow-200 animate-pulse' : 
+                    (user?.energyLevel ?? 5) >= 9 ? 'text-yellow-300 animate-pulse' : 
+                    (user?.energyLevel ?? 5) >= 7 ? 'text-yellow-400 animate-pulse' : 
+                    (user?.energyLevel ?? 5) >= 5 ? 'text-yellow-500' : 
+                    (user?.energyLevel ?? 5) >= 3 ? 'text-yellow-600' : 
+                    'text-primary'
+                  }`} 
+                  style={(user?.energyLevel ?? 5) >= 7 ? { 
+                    animationDuration: `${0.6 - ((user?.energyLevel ?? 5) * 0.04)}s`,
+                    filter: (user?.energyLevel ?? 5) >= 9 ? 'drop-shadow(0 0 8px rgba(255, 255, 0, 0.8))' : 'none'
+                  } : {}}
+                />
+
+                {/* Super Saiyan + God Level Sparks - Combined epicness */}
+                {(user?.energyLevel ?? 5) >= 3 && (
+                  <>
+                    {/* Inner ring sparks - Super Saiyan */}
+                    {Array.from({ length: Math.min(Math.floor(((user?.energyLevel ?? 5) - 2) * 2.5), 16) }, (_, i) => {
+                      const angle = (i * 22.5) % 360; // More sparks, tighter distribution
+                      const radius = 12 + ((user?.energyLevel ?? 5) * 2.5);
+                      const x = Math.cos(angle * Math.PI / 180) * radius;
+                      const y = Math.sin(angle * Math.PI / 180) * radius;
+                      const size = 1.2 + ((user?.energyLevel ?? 5) * 0.15);
+                      const opacity = 0.4 + ((user?.energyLevel ?? 5) * 0.04);
+                      const animationSpeed = 1.8 - ((user?.energyLevel ?? 5) * 0.12);
+
+                      return (
+                        <svg 
+                          key={`inner-${i}`}
+                          className={`absolute text-yellow-400 animate-ping`}
+                          style={{
+                            left: `${x}px`,
+                            top: `${y}px`,
+                            width: `${size}rem`,
+                            height: `${size}rem`,
+                            animationDelay: `${i * 0.08}s`,
+                            animationDuration: `${animationSpeed}s`,
+                            opacity: opacity
+                          }}
+                          viewBox="0 0 24 24" 
+                          fill="none"
+                        >
+                          <path d="M8 2L5 8h3l-2 4 4-5h-2z" fill="currentColor" />
+                        </svg>
+                      );
+                    })}
+
+                    {/* Outer ring sparks - God Level */}
+                    {(user?.energyLevel ?? 5) >= 6 && (
+                      <>
+                        {Array.from({ length: Math.min(Math.floor(((user?.energyLevel ?? 5) - 5) * 3), 20) }, (_, i) => {
+                          const angle = (i * 18) % 360; // Even more sparks for God Level
+                          const radius = 20 + ((user?.energyLevel ?? 5) * 3);
+                          const x = Math.cos(angle * Math.PI / 180) * radius;
+                          const y = Math.sin(angle * Math.PI / 180) * radius;
+                          const size = 1.8 + ((user?.energyLevel ?? 5) * 0.2);
+                          const opacity = 0.3 + ((user?.energyLevel ?? 5) * 0.03);
+                          const animationSpeed = 1.5 - ((user?.energyLevel ?? 5) * 0.1);
+
+                          return (
+                            <svg 
+                              key={`outer-${i}`}
+                              className={`absolute text-yellow-300 animate-ping`}
+                              style={{
+                                left: `${x}px`,
+                                top: `${y}px`,
+                                width: `${size}rem`,
+                                height: `${size}rem`,
+                                animationDelay: `${i * 0.06}s`,
+                                animationDuration: `${animationSpeed}s`,
+                                opacity: opacity,
+                                filter: (user?.energyLevel ?? 5) >= 9 ? 'drop-shadow(0 0 4px rgba(255, 255, 0, 0.6))' : 'none'
+                              }}
+                              viewBox="0 0 24 24" 
+                              fill="none"
+                            >
+                              <path d="M8 2L5 8h3l-2 4 4-5h-2z" fill="currentColor" />
+                            </svg>
+                          );
+                        })}
+                      </>
+                    )}
+
+                    {/* Divine sparks - Ultimate God Level */}
+                    {(user?.energyLevel ?? 5) >= 10 && (
+                      <>
+                        {Array.from({ length: 8 }, (_, i) => {
+                          const angle = (i * 45) % 360;
+                          const radius = 30;
+                          const x = Math.cos(angle * Math.PI / 180) * radius;
+                          const y = Math.sin(angle * Math.PI / 180) * radius;
+                          const size = 2.5;
+                          const opacity = 0.6;
+
+                          return (
+                            <svg 
+                              key={`divine-${i}`}
+                              className={`absolute text-yellow-200 animate-ping`}
+                              style={{
+                                left: `${x}px`,
+                                top: `${y}px`,
+                                width: `${size}rem`,
+                                height: `${size}rem`,
+                                animationDelay: `${i * 0.1}s`,
+                                animationDuration: '0.8s',
+                                opacity: opacity,
+                                filter: 'drop-shadow(0 0 8px rgba(255, 255, 0, 0.8))'
+                              }}
+                              viewBox="0 0 24 24" 
+                              fill="none"
+                            >
+                              <path d="M8 2L5 8h3l-2 4 4-5h-2z" fill="currentColor" />
+                            </svg>
+                          );
+                        })}
+                      </>
+                    )}
+                  </>
                 )}
               </div>
-
-              {/* Main lightning bolt - gradual color progression */}
-              <Zap 
-                className={`w-4 h-4 ${
-                  (user?.energyLevel ?? 5) >= 9 ? 'text-yellow-300 animate-pulse' : 
-                  (user?.energyLevel ?? 5) >= 7 ? 'text-yellow-400 animate-pulse' : 
-                  (user?.energyLevel ?? 5) >= 5 ? 'text-yellow-500' : 
-                  (user?.energyLevel ?? 5) >= 3 ? 'text-yellow-600' : 
-                  'text-primary'
-                }`} 
-                style={(user?.energyLevel ?? 5) >= 7 ? { animationDuration: `${0.8 - ((user?.energyLevel ?? 5) * 0.05)}s` } : {}}
-              />
-              
-              {/* Super Saiyan sparks - gradual progression */}
-              {(user?.energyLevel ?? 5) >= 3 && (
-                <>
-                  {/* Generate sparks based on energy level */}
-                  {Array.from({ length: Math.min(Math.floor(((user?.energyLevel ?? 5) - 2) * 2), 12) }, (_, i) => {
-                    const angle = (i * 30) % 360; // Distribute sparks in a circle
-                    const radius = 15 + ((user?.energyLevel ?? 5) * 3);
-                    const x = Math.cos(angle * Math.PI / 180) * radius;
-                    const y = Math.sin(angle * Math.PI / 180) * radius;
-                    const size = 1.5 + ((user?.energyLevel ?? 5) * 0.2);
-                    const opacity = 0.3 + ((user?.energyLevel ?? 5) * 0.05);
-                    const animationSpeed = 2 - ((user?.energyLevel ?? 5) * 0.15);
-                    
-                    return (
-                      <svg 
-                        key={i}
-                        className={`absolute text-yellow-400 animate-ping`}
-                        style={{
-                          left: `${x}px`,
-                          top: `${y}px`,
-                          width: `${size}rem`,
-                          height: `${size}rem`,
-                          animationDelay: `${i * 0.1}s`,
-                          animationDuration: `${animationSpeed}s`,
-                          opacity: opacity
-                        }}
-                        viewBox="0 0 24 24" 
-                        fill="none"
-                      >
-                        <path d="M8 2L5 8h3l-2 4 4-5h-2z" fill="currentColor" />
-                      </svg>
-                    );
-                  })}
-                </>
-              )}
-            </div>
             )}
             
             {/* Test button - navigation */}
