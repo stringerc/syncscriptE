@@ -47,6 +47,19 @@ const EnergyAnalysisPage: React.FC = () => {
   const queryClient = useQueryClient()
 
   console.log('EnergyAnalysisPage: Component rendered')
+  
+  // Check authentication status
+  const token = localStorage.getItem('syncscript-auth')
+  console.log('EnergyAnalysisPage: Auth token:', token ? 'Present' : 'Missing')
+  
+  if (token) {
+    try {
+      const authData = JSON.parse(token)
+      console.log('EnergyAnalysisPage: Auth data:', authData)
+    } catch (error) {
+      console.error('EnergyAnalysisPage: Invalid auth data:', error)
+    }
+  }
 
   // Energy analysis query
   const { data: energyData, isLoading, error } = useQuery<EnergyAnalysis>({
@@ -125,6 +138,9 @@ const EnergyAnalysisPage: React.FC = () => {
           </h1>
           <p className="text-gray-600 mt-2">
             AI-powered energy analysis and optimal scheduling recommendations
+          </p>
+          <p className="text-sm text-gray-500 mt-1">
+            Debug: Component loaded successfully
           </p>
         </div>
         <Button 
