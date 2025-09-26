@@ -1,11 +1,11 @@
 import { Router } from 'express';
 import { authenticateToken } from '../middleware/auth';
-import { asyncHandler } from '../middleware/asyncHandler';
-import { createError } from '../utils/errorHandler';
+import { asyncHandler } from '../middleware/errorHandler';
+import { createError } from '../middleware/errorHandler';
 import { logger } from '../utils/logger';
 import TaskSchedulingService from '../services/taskSchedulingService';
 import { PrismaClient } from '@prisma/client';
-import { AuthRequest } from '../types/auth';
+import { AuthRequest } from '../middleware/auth';
 
 const router = Router();
 const prisma = new PrismaClient();
