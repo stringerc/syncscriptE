@@ -12,7 +12,11 @@ export function AnimationProvider({ children }: { children: ReactNode }) {
   const [animationEnabled, setAnimationEnabled] = useState(false) // Default off
 
   const toggleAnimation = () => {
-    setAnimationEnabled(prev => !prev)
+    console.log('🔄 AnimationContext: toggleAnimation called, current state:', animationEnabled);
+    setAnimationEnabled(prev => {
+      console.log('🔄 AnimationContext: changing from', prev, 'to', !prev);
+      return !prev;
+    });
   }
 
   return (

@@ -1263,7 +1263,11 @@ export function DashboardPage() {
               {/* Main lightning bolt - Fill effect matching header - CLICKABLE TOGGLE */}
               <button 
                 className="relative w-5 h-5 cursor-pointer hover:scale-110 transition-transform duration-200"
-                onClick={toggleAnimation}
+                onClick={() => {
+                  console.log('⚡ Dashboard lightning bolt clicked! Current state:', animationEnabled);
+                  toggleAnimation();
+                  console.log('⚡ After toggle, new state:', !animationEnabled);
+                }}
                 title={animationEnabled ? "Disable Energy Animation" : "Enable Energy Animation"}
               >
                 {/* Background lightning bolt (empty) */}

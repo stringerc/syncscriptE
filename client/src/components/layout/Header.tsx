@@ -235,7 +235,11 @@ export function Header() {
                 {/* Main lightning bolt - Fill effect based on energy level - CLICKABLE TOGGLE */}
                 <button 
                   className="relative w-4 h-4 cursor-pointer hover:scale-110 transition-transform duration-200"
-                  onClick={toggleAnimation}
+                  onClick={() => {
+                    console.log('🔌 Header lightning bolt clicked! Current state:', animationEnabled);
+                    toggleAnimation();
+                    console.log('🔌 After toggle, new state:', !animationEnabled);
+                  }}
                   title={animationEnabled ? "Disable Energy Animation" : "Enable Energy Animation"}
                 >
                   {/* Background lightning bolt (empty) */}
