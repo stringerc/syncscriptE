@@ -255,49 +255,67 @@ router.get('/recent', authenticateToken, asyncHandler(async (req: AuthRequest, r
 
 // Get notification preferences
 router.get('/preferences', authenticateToken, asyncHandler(async (req: AuthRequest, res) => {
-  const preferences = await prisma.notificationPreferences.findUnique({
-    where: { userId: req.user!.id }
-  });
-
-  if (!preferences) {
-    // Create default preferences if none exist
-    const defaultPreferences = {
-      userId: req.user!.id,
-      channels: {
-        in_app: { enabled: true, sound: true, showBadge: true },
-        email: { enabled: true, frequency: 'immediate', types: ['task_reminder', 'event_reminder', 'deadline_warning'] },
-        push: { enabled: true, sound: true, vibration: true },
-        desktop: { enabled: true, sound: true, showPreview: true }
-      },
-      timing: {
-        quietHours: { enabled: false, start: '22:00', end: '08:00', timezone: 'UTC' },
-        energyBasedTiming: true,
-        respectFocusMode: true
-      },
-      types: {
-        task_reminders: { enabled: true, advanceMinutes: 15, priority: 'medium' },
-        event_reminders: { enabled: true, advanceMinutes: 30, priority: 'medium' },
-        energy_alerts: { enabled: true, threshold: 3, priority: 'high' },
-        achievements: { enabled: true, priority: 'low' },
-        deadline_warnings: { enabled: true, advanceHours: 2, priority: 'high' },
-        system: { enabled: true, priority: 'medium' }
-      }
-    };
-
-    const newPreferences = await prisma.notificationPreferences.create({
-      data: defaultPreferences
+  try {
+    const preferences = await prisma.notificationPreferences.findUnique({
+      where: { userId: req.user!.id }
     });
 
-    return res.json({
+    if (!preferences) {
+      // Create default preferences if none exist
+      const defaultPreferences = {
+        userId: req.user!.id,
+        channels: JSON.stringify({
+          in_app: { enabled: true, sound: true, showBadge: true },
+          email: { enabled: true, frequency: 'immediate', types: ['task_reminder', 'event_reminder', 'deadline_warning'] },
+          push: { enabled: true, sound: true, vibration: true },
+          desktop: { enabled: true, sound: true, showPreview: true }
+        }),
+        timing: JSON.stringify({
+          quietHours: { enabled: false, start: '22:00', end: '08:00', timezone: 'UTC' },
+          energyBasedTiming: true,
+          respectFocusMode: true
+        }),
+        types: JSON.stringify({
+          task_reminders: { enabled: true, advanceMinutes: 15, priority: 'medium' },
+          event_reminders: { enabled: true, advanceMinutes: 30, priority: 'medium' },
+          energy_alerts: { enabled: true, threshold: 3, priority: 'high' },
+          achievements: { enabled: true, priority: 'low' },
+          deadline_warnings: { enabled: true, advanceHours: 2, priority: 'high' },
+          system: { enabled: true, priority: 'medium' }
+        })
+      };
+
+      const newPreferences = await prisma.notificationPreferences.create({
+        data: defaultPreferences
+      });
+
+      return res.json({
+        success: true,
+        data: {
+          ...newPreferences,
+          channels: JSON.parse(newPreferences.channels),
+          timing: JSON.parse(newPreferences.timing),
+          types: JSON.parse(newPreferences.types)
+        }
+      });
+    }
+
+    res.json({
       success: true,
-      data: newPreferences
+      data: {
+        ...preferences,
+        channels: JSON.parse(preferences.channels),
+        timing: JSON.parse(preferences.timing),
+        types: JSON.parse(preferences.types)
+      }
+    });
+  } catch (error) {
+    logger.error('Error fetching notification preferences:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch preferences'
     });
   }
-
-  res.json({
-    success: true,
-    data: preferences
-  });
 }));
 
 // Update notification preferences
@@ -322,65 +340,73 @@ router.patch('/preferences', authenticateToken, asyncHandler(async (req: AuthReq
 
 // Get notification stats
 router.get('/stats', authenticateToken, asyncHandler(async (req: AuthRequest, res) => {
-  const now = new Date();
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
-  const monthAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
+  try {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const monthAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
 
-  const [
-    total,
-    unread,
-    byType,
-    byPriority,
-    todayCount,
-    weekCount,
-    monthCount
-  ] = await Promise.all([
-    prisma.notification.count({ where: { userId: req.user!.id } }),
-    prisma.notification.count({ where: { userId: req.user!.id, isRead: false } }),
-    prisma.notification.groupBy({
-      by: ['type'],
-      where: { userId: req.user!.id },
-      _count: { type: true }
-    }),
-    prisma.notification.groupBy({
-      by: ['priority'],
-      where: { userId: req.user!.id },
-      _count: { priority: true }
-    }),
-    prisma.notification.count({ 
-      where: { userId: req.user!.id, createdAt: { gte: today } }
-    }),
-    prisma.notification.count({ 
-      where: { userId: req.user!.id, createdAt: { gte: weekAgo } }
-    }),
-    prisma.notification.count({ 
-      where: { userId: req.user!.id, createdAt: { gte: monthAgo } }
-    })
-  ]);
+    const [
+      total,
+      unread,
+      byType,
+      byPriority,
+      todayCount,
+      weekCount,
+      monthCount
+    ] = await Promise.all([
+      prisma.notification.count({ where: { userId: req.user!.id } }),
+      prisma.notification.count({ where: { userId: req.user!.id, isRead: false } }),
+      prisma.notification.groupBy({
+        by: ['type'],
+        where: { userId: req.user!.id },
+        _count: { type: true }
+      }),
+      prisma.notification.groupBy({
+        by: ['priority'],
+        where: { userId: req.user!.id },
+        _count: { priority: true }
+      }),
+      prisma.notification.count({ 
+        where: { userId: req.user!.id, createdAt: { gte: today } }
+      }),
+      prisma.notification.count({ 
+        where: { userId: req.user!.id, createdAt: { gte: weekAgo } }
+      }),
+      prisma.notification.count({ 
+        where: { userId: req.user!.id, createdAt: { gte: monthAgo } }
+      })
+    ]);
 
-  const stats = {
-    total,
-    unread,
-    byType: byType.reduce((acc, item) => {
-      acc[item.type] = item._count.type;
-      return acc;
-    }, {} as Record<string, number>),
-    byPriority: byPriority.reduce((acc, item) => {
-      acc[item.priority || 'unknown'] = item._count.priority;
-      return acc;
-    }, {} as Record<string, number>),
-    recentActivity: {
-      today: todayCount,
-      thisWeek: weekCount,
-      thisMonth: monthCount
-    }
-  };
+    const stats = {
+      total,
+      unread,
+      byType: byType.reduce((acc, item) => {
+        acc[item.type] = item._count.type;
+        return acc;
+      }, {} as Record<string, number>),
+      byPriority: byPriority.reduce((acc, item) => {
+        acc[item.priority || 'unknown'] = item._count.priority;
+        return acc;
+      }, {} as Record<string, number>),
+      recentActivity: {
+        today: todayCount,
+        thisWeek: weekCount,
+        thisMonth: monthCount
+      }
+    };
 
-  res.json({
-    success: true,
-    data: stats
-  });
+    res.json({
+      success: true,
+      data: stats
+    });
+  } catch (error) {
+    logger.error('Error fetching notification stats:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch stats'
+    });
+  }
 }));
 
 // Clear all notifications
