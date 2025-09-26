@@ -24,7 +24,6 @@ export function Header() {
 
   // Check if we're on the dashboard
   const isDashboard = location.pathname === '/dashboard'
-  
 
   // Get user's current location
   useEffect(() => {

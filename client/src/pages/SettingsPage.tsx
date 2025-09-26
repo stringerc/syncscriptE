@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -39,6 +39,7 @@ export function SettingsPage() {
   const queryClient = useQueryClient()
   const { updateUser } = useAuthStore()
   const [isLoading, setIsLoading] = useState(false)
+  const [energyLevelDebounceTimer, setEnergyLevelDebounceTimer] = useState<NodeJS.Timeout | null>(null)
 
   // Form state
   const [profileData, setProfileData] = useState({
@@ -160,6 +161,30 @@ export function SettingsPage() {
     updateSettingsMutation.mutate(settingsData)
   }
 
+  // Debounced energy level update to prevent rate limiting
+  const debouncedEnergyLevelUpdate = useCallback((newEnergyLevel: number) => {
+    // Clear existing timer
+    if (energyLevelDebounceTimer) {
+      clearTimeout(energyLevelDebounceTimer)
+    }
+
+    // Set new timer
+    const timer = setTimeout(() => {
+      updateProfileMutation.mutate({ energyLevel: newEnergyLevel })
+    }, 1000) // Wait 1 second after user stops changing
+
+    setEnergyLevelDebounceTimer(timer)
+  }, [energyLevelDebounceTimer, updateProfileMutation])
+
+  // Cleanup timer on unmount
+  useEffect(() => {
+    return () => {
+      if (energyLevelDebounceTimer) {
+        clearTimeout(energyLevelDebounceTimer)
+      }
+    }
+  }, [energyLevelDebounceTimer])
+
   const timezones = [
     { value: 'UTC-12', label: 'UTC-12 (Baker Island)' },
     { value: 'UTC-11', label: 'UTC-11 (Samoa)' },
@@ -245,8 +270,16 @@ export function SettingsPage() {
                   min="1"
                   max="10"
                   value={profileData.energyLevel}
-                  onChange={(e) => setProfileData(prev => ({ ...prev, energyLevel: parseInt(e.target.value) ?? 5 }))}
+                  onChange={(e) => {
+                    const newValue = parseInt(e.target.value) || 5
+                    setProfileData(prev => ({ ...prev, energyLevel: newValue }))
+                    // Debounced update to prevent rate limiting
+                    debouncedEnergyLevelUpdate(newValue)
+                  }}
                 />
+                <p className="text-xs text-muted-foreground">
+                  Changes are automatically saved after 1 second
+                </p>
               </div>
 
               <Button 
