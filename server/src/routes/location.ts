@@ -117,13 +117,7 @@ router.get('/weather/forecast', authenticateToken, asyncHandler(async (req: Auth
     select: { currentLocation: true, homeLocation: true, workLocation: true }
   })
 
-  const targetLocation = (location as string) || user?.currentLocation || user?.homeLocation
-  if (!targetLocation) {
-    return res.status(400).json({
-      success: false,
-      error: 'No location specified and user has no default location set'
-    })
-  }
+  const targetLocation = (location as string) || user?.currentLocation || user?.homeLocation || 'New York'
 
   const forecast = await weatherService.getWeatherForecast(targetLocation, parseInt(days as string))
   if (!forecast) {
