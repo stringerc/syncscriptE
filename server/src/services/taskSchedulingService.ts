@@ -138,7 +138,7 @@ class TaskSchedulingService {
           endTime: { lt: now }
         },
         include: {
-          tasks: {
+          preparationTasks: {
             where: {
               status: { not: 'COMPLETED' }
             }
@@ -148,7 +148,7 @@ class TaskSchedulingService {
 
       // Filter events that have incomplete prep tasks
       const eventsWithIncompleteTasks = endedEvents.filter(event => 
-        event.tasks.length > 0
+        event.preparationTasks.length > 0
       );
 
       logger.info('Found events with incomplete prep tasks', {
@@ -166,7 +166,7 @@ class TaskSchedulingService {
           title: event.title,
           endTime: event.endTime
         },
-        incompleteTasks: event.tasks
+        incompleteTasks: event.preparationTasks
       }));
 
     } catch (error) {
@@ -190,7 +190,7 @@ class TaskSchedulingService {
           where: {
             userId: userId,
             title: `Event "${event.title}" has ended`,
-            read: false
+            isRead: false
           }
         });
 
@@ -206,7 +206,7 @@ class TaskSchedulingService {
             message: `The event "${event.title}" has ended, but there are still ${incompleteTasks.length} preparation task(s) that remain. Please choose what to do with them.`,
             type: 'event_ended',
             priority: 'HIGH',
-            channels: ['in_app', 'email'],
+            channels: JSON.stringify(['in_app', 'email']),
             metadata: JSON.stringify({
               eventId: event.id,
               eventTitle: event.title,

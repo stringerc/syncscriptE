@@ -26,7 +26,7 @@ router.get('/event-ended-notifications', authenticateToken, asyncHandler(async (
       where: {
         userId: userId,
         type: 'event_ended',
-        read: false
+        isRead: false
       },
       orderBy: {
         createdAt: 'desc'
@@ -123,15 +123,15 @@ router.post('/handle-ended-event-tasks', authenticateToken, asyncHandler(async (
     switch (action) {
       case 'keep':
         // Keep tasks as-is, just remove the eventId link
-        await prisma.task.updateMany({
-          where: {
-            id: { in: tasks.map(t => t.id) }
-          },
-          data: {
-            eventId: null,
-            title: tasks.map(t => t.title.replace(/^Prep for:\s*/i, '')) // Keep clean titles
-          }
-        });
+        for (const task of tasks) {
+          await prisma.task.update({
+            where: { id: task.id },
+            data: {
+              eventId: null,
+              title: task.title.replace(/^Prep for:\s*/i, '') // Keep clean titles
+            }
+          });
+        }
         result = { message: `${tasks.length} tasks kept and unlinked from event` };
         break;
 
@@ -183,15 +183,15 @@ router.post('/handle-ended-event-tasks', authenticateToken, asyncHandler(async (
         });
 
         // Link tasks to the new event
-        await prisma.task.updateMany({
-          where: {
-            id: { in: tasks.map(t => t.id) }
-          },
-          data: {
-            eventId: newEvent.id,
-            title: tasks.map(t => t.title.replace(/^Prep for:\s*/i, ''))
-          }
-        });
+        for (const task of tasks) {
+          await prisma.task.update({
+            where: { id: task.id },
+            data: {
+              eventId: newEvent.id,
+              title: task.title.replace(/^Prep for:\s*/i, '')
+            }
+          });
+        }
 
         result = { 
           message: `${tasks.length} tasks linked to new event`,
@@ -211,7 +211,7 @@ router.post('/handle-ended-event-tasks', authenticateToken, asyncHandler(async (
         metadata: {
           contains: eventId
         },
-        read: false
+        isRead: false
       },
       data: {
         read: true

@@ -3,7 +3,7 @@ import { PrismaClient } from '@prisma/client';
 import { asyncHandler, createError } from '../middleware/errorHandler';
 import { authenticateToken, AuthRequest } from '../middleware/auth';
 import { logger } from '../utils/logger';
-import GamificationService from '../services/gamificationService';
+import GamificationService, { ACHIEVEMENTS, BADGES } from '../services/gamificationService';
 
 const router = express.Router();
 const prisma = new PrismaClient();
@@ -206,7 +206,7 @@ router.get('/achievements/available', authenticateToken, asyncHandler(async (req
     });
 
     const unlockedTypes = unlockedAchievements.map(a => a.type);
-    const availableAchievements = GamificationService.ACHIEVEMENTS.filter(
+    const availableAchievements = ACHIEVEMENTS.filter(
       achievement => !unlockedTypes.includes(achievement.id)
     );
 
@@ -232,7 +232,7 @@ router.get('/badges/available', authenticateToken, asyncHandler(async (req: Auth
     });
 
     const earnedTypes = earnedBadges.map(b => b.type);
-    const availableBadges = GamificationService.BADGES.filter(
+    const availableBadges = BADGES.filter(
       badge => !earnedTypes.includes(badge.id)
     );
 
@@ -360,7 +360,7 @@ async function getNextAchievement(userId: string) {
   });
 
   const unlockedTypes = unlockedAchievements.map(a => a.type);
-  const nextAchievement = GamificationService.ACHIEVEMENTS.find(
+  const nextAchievement = ACHIEVEMENTS.find(
     achievement => !unlockedTypes.includes(achievement.id) && achievement.condition(userStats)
   );
 
@@ -376,7 +376,7 @@ async function getNextBadge(userId: string) {
   });
 
   const earnedTypes = earnedBadges.map(b => b.type);
-  const nextBadge = GamificationService.BADGES.find(
+  const nextBadge = BADGES.find(
     badge => !earnedTypes.includes(badge.id) && badge.condition(userStats)
   );
 

@@ -36,7 +36,7 @@ router.get('/', authenticateToken, asyncHandler(async (req: AuthRequest, res) =>
           OR: [
             { title: { contains: searchQuery } },
             { description: { contains: searchQuery } },
-            { tags: { has: searchQuery } }
+            { tags: { array_contains: searchQuery } }
           ]
         },
         orderBy: [
@@ -308,15 +308,15 @@ function getSortOrder(sortBy: string, sortOrder: string) {
   
   switch (sortBy) {
     case 'title':
-      return { title: order };
+      return [{ title: order }];
     case 'date':
-      return { dueDate: order };
+      return [{ dueDate: order }];
     case 'priority':
-      return { priority: order };
+      return [{ priority: order }];
     case 'status':
-      return { status: order };
+      return [{ status: order }];
     case 'created':
-      return { createdAt: order };
+      return [{ createdAt: order }];
     case 'relevance':
     default:
       return [
