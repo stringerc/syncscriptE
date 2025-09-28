@@ -1,38 +1,19 @@
 {
   "name": "syncscript",
   "version": "1.0.0",
-  "description": "AI-driven life management system that integrates calendar, tasks, finances, and lifestyle logistics",
-  "main": "server/index.js",
-  "engines": {
-    "node": ">=18.0.0",
-    "npm": ">=8.0.0"
-  },
+  "description": "SyncScript - AI-powered productivity platform",
+  "private": true,
   "scripts": {
-    "dev": "concurrently \"npm run server\" \"npm run client\"",
-    "server": "cd server && npm run dev",
-    "client": "cd client && npm run dev",
-    "build": "cd server && npm install && npm run build && npx prisma generate",
-    "start": "cd server && npx prisma db push && npm start",
-    "test": "npm run test:server && npm run test:client",
-    "test:server": "cd server && npm test",
-    "test:client": "cd client && npm test",
-    "install:all": "npm install && cd server && npm install && cd ../client && npm install",
-    "postinstall": "cd server && npm install",
-    "predeploy": "cd client && npm run build",
-    "deploy": "gh-pages -d client/dist"
+    "build": "cd client && npm install && npm run build",
+    "dev": "cd client && npm run dev",
+    "preview": "cd client && npm run preview",
+    "install": "cd client && npm install"
   },
-  "keywords": [
-    "productivity",
-    "ai",
-    "calendar",
-    "finance",
-    "task-management",
-    "life-management"
+  "workspaces": [
+    "client",
+    "server"
   ],
-  "author": "SyncScript Team",
-  "license": "MIT",
-  "devDependencies": {
-    "concurrently": "^8.2.2",
-    "gh-pages": "^6.3.0"
+  "engines": {
+    "node": ">=18.0.0"
   }
 }
