@@ -41,6 +41,10 @@ export const useAuthStore = create<AuthStore>()(
         set({ user: null, token: null, error: null, isLoading: true })
         delete api.defaults.headers.common['Authorization']
         
+        // Clear AI chat data from localStorage
+        localStorage.removeItem('syncscript-chats')
+        localStorage.removeItem('syncscript-current-chat-id')
+        
         try {
           const response = await api.post('/auth/login', { email, password })
           console.log('🔐 AuthStore: Login response:', response.data)
@@ -72,6 +76,10 @@ export const useAuthStore = create<AuthStore>()(
         set({ user: null, token: null, error: null, isLoading: true })
         delete api.defaults.headers.common['Authorization']
         
+        // Clear AI chat data from localStorage
+        localStorage.removeItem('syncscript-chats')
+        localStorage.removeItem('syncscript-current-chat-id')
+        
         try {
           const response = await api.post('/auth/register', { email, password, name })
           console.log('🔐 AuthStore: Registration response:', response.data)
@@ -99,12 +107,22 @@ export const useAuthStore = create<AuthStore>()(
         console.log('🔐 AuthStore: Logging out user')
         set({ user: null, token: null, error: null })
         delete api.defaults.headers.common['Authorization']
+        
+        // Clear AI chat data from localStorage
+        localStorage.removeItem('syncscript-chats')
+        localStorage.removeItem('syncscript-current-chat-id')
+        console.log('🔐 AuthStore: Cleared AI chat data from localStorage')
       },
 
       clearAuth: () => {
         console.log('🔐 AuthStore: Clearing authentication state')
         set({ user: null, token: null, error: null, isLoading: false })
         delete api.defaults.headers.common['Authorization']
+        
+        // Clear AI chat data from localStorage
+        localStorage.removeItem('syncscript-chats')
+        localStorage.removeItem('syncscript-current-chat-id')
+        console.log('🔐 AuthStore: Cleared AI chat data from localStorage')
       },
 
       checkAuth: async () => {
