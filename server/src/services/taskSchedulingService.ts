@@ -156,7 +156,7 @@ class TaskSchedulingService {
         events: eventsWithIncompleteTasks.map(e => ({
           id: e.id,
           title: e.title,
-          incompleteTasksCount: e.tasks.length
+          incompleteTasksCount: e.preparationTasks.length
         }))
       });
 

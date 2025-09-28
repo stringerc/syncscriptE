@@ -214,7 +214,7 @@ router.post('/handle-ended-event-tasks', authenticateToken, asyncHandler(async (
         isRead: false
       },
       data: {
-        read: true
+        isRead: true
       }
     });
 
