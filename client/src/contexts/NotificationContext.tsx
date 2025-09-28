@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { Notification, NotificationPreferences, NotificationStats } from '@/types/notification'
 import { toast } from '@/hooks/use-toast'
+import { useAuthStore } from '@/stores/authStore'
 
 interface NotificationContextType {
   notifications: Notification[]
@@ -37,6 +38,7 @@ interface NotificationProviderProps {
 export const NotificationProvider: React.FC<NotificationProviderProps> = ({ children }) => {
   const [notifications, setNotifications] = useState<Notification[]>([])
   const queryClient = useQueryClient()
+  const { user } = useAuthStore()
 
   // Fetch notifications
   const { data: notificationsData, isLoading, error, refetch } = useQuery<Notification[]>({
@@ -45,6 +47,7 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
       const response = await api.get('/notifications')
       return response.data.data || response.data || []
     },
+    enabled: !!user, // Only run when user is authenticated
     refetchInterval: 5 * 60 * 1000, // Refresh every 5 minutes
     refetchOnWindowFocus: true,
   })
@@ -52,6 +55,7 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
     // Fetch preferences
     const { data: preferences } = useQuery<NotificationPreferences>({
       queryKey: ['notification-preferences'],
+      enabled: !!user, // Only run when user is authenticated
       queryFn: async () => {
         try {
           const response = await api.get('/notifications/preferences')
@@ -88,6 +92,7 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
   // Fetch stats
   const { data: stats } = useQuery<NotificationStats>({
     queryKey: ['notification-stats'],
+    enabled: !!user, // Only run when user is authenticated
     queryFn: async () => {
       try {
         const response = await api.get('/notifications/stats')

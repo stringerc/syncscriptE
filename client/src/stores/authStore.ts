@@ -111,8 +111,8 @@ export const useAuthStore = create<AuthStore>()(
         }
         
         if (!token) {
-          console.log('🔐 AuthStore: No token, skipping checkAuth')
-          set({ isLoading: false })
+          console.log('🔐 AuthStore: No token, user not authenticated')
+          set({ user: null, isLoading: false })
           return
         }
 

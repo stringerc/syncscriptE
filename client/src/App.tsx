@@ -33,12 +33,12 @@ function AppContent() {
 
   useEffect(() => {
     if (!isDemoMode) {
-      console.log('🔐 App: Skipping checkAuth for debugging')
-      // checkAuth() // Temporarily disabled for debugging
+      console.log('🔐 App: Checking authentication...')
+      checkAuth()
     } else {
       console.log('🔐 App: Demo mode, skipping checkAuth')
     }
-  }, [isDemoMode]) // Remove checkAuth from dependencies to prevent infinite loop
+  }, [isDemoMode, checkAuth])
 
   // Show demo mode for GitHub Pages
   if (isDemoMode) {
