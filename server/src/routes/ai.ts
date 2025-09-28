@@ -10,6 +10,10 @@ import { Priority, TaskStatus } from '../types';
 const router = express.Router();
 const prisma = new PrismaClient();
 
+// OPTIMIZATION 9: Simple in-memory cache for energy analysis
+const energyAnalysisCache = new Map<string, { data: any; timestamp: number }>();
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes cache
+
 // Initialize OpenAI
 const openai = process.env.OPENAI_API_KEY ? new OpenAI({
   apiKey: process.env.OPENAI_API_KEY
@@ -264,111 +268,126 @@ Consider the user's energy level and budget when generating tasks. Make tasks sp
 }));
 
 // Energy Adaptive Agent - Analyze and suggest optimal scheduling
+// Energy analysis endpoint with optimizations
 router.post('/energy-analysis', authenticateToken, asyncHandler(async (req: AuthRequest, res) => {
   if (!openai) {
     throw createError('OpenAI API key not configured', 503);
   }
 
   try {
-    // Get user's current energy level and recent activity
-    const user = await prisma.user.findUnique({
-      where: { id: req.user!.id },
-      select: {
-        energyLevel: true,
-        timezone: true,
-        name: true
-      }
-    });
+    // OPTIMIZATION 10: Check cache first
+    const cacheKey = `energy-analysis-${req.user!.id}`;
+    const cached = energyAnalysisCache.get(cacheKey);
+    
+    if (cached && (Date.now() - cached.timestamp) < CACHE_DURATION) {
+      logger.info('Energy analysis served from cache', { userId: req.user!.id });
+      return res.json({
+        success: true,
+        data: cached.data,
+        message: 'Energy analysis completed successfully (cached)',
+        cached: true
+      });
+    }
 
-    // Get recent tasks and events for pattern analysis
-    const recentTasks = await prisma.task.findMany({
-      where: {
-        userId: req.user!.id,
-        createdAt: { gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) } // Last 7 days
-      },
-      select: {
-        title: true,
-        priority: true,
-        energyRequired: true,
-        estimatedDuration: true,
-        completedAt: true,
-        scheduledAt: true,
-        status: true
-      }
-    });
-
-    const upcomingEvents = await prisma.event.findMany({
-      where: {
-        userId: req.user!.id,
-        startTime: { gte: new Date() }
-      },
-      select: {
-        title: true,
-        startTime: true,
-        endTime: true,
-        description: true
-      },
-      take: 10
-    });
-
-    // Get pending tasks for scheduling suggestions
-    const pendingTasks = await prisma.task.findMany({
-      where: {
-        userId: req.user!.id,
-        status: TaskStatus.PENDING,
-        scheduledAt: null
-      },
-      select: {
-        id: true,
-        title: true,
-        priority: true,
-        energyRequired: true,
-        estimatedDuration: true,
-        dueDate: true
-      }
-    });
+    // OPTIMIZATION 1: Parallel database queries instead of sequential
+    const [user, recentTasks, upcomingEvents, pendingTasks] = await Promise.all([
+      prisma.user.findUnique({
+        where: { id: req.user!.id },
+        select: {
+          energyLevel: true,
+          timezone: true,
+          name: true
+        }
+      }),
+      prisma.task.findMany({
+        where: {
+          userId: req.user!.id,
+          createdAt: { gte: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000) } // OPTIMIZATION 2: Reduced from 7 to 3 days
+        },
+        select: {
+          title: true,
+          priority: true,
+          energyRequired: true,
+          estimatedDuration: true,
+          completedAt: true,
+          scheduledAt: true,
+          status: true
+        },
+        take: 20 // OPTIMIZATION 3: Limit to 20 most recent tasks
+      }),
+      prisma.event.findMany({
+        where: {
+          userId: req.user!.id,
+          startTime: { gte: new Date() }
+        },
+        select: {
+          title: true,
+          startTime: true,
+          endTime: true,
+          description: true
+        },
+        take: 5 // OPTIMIZATION 4: Reduced from 10 to 5 upcoming events
+      }),
+      prisma.task.findMany({
+        where: {
+          userId: req.user!.id,
+          status: TaskStatus.PENDING,
+          scheduledAt: null
+        },
+        select: {
+          id: true,
+          title: true,
+          priority: true,
+          energyRequired: true,
+          estimatedDuration: true,
+          dueDate: true
+        },
+        take: 10 // OPTIMIZATION 5: Limit pending tasks to 10
+      })
+    ]);
 
     const currentTime = new Date();
     const currentHour = currentTime.getHours();
 
-    const systemPrompt = `You are SyncScript's Energy Adaptive Agent. Your role is to analyze the user's energy patterns and provide intelligent scheduling recommendations.
+    // OPTIMIZATION 6: Simplified prompt for faster processing
+    const systemPrompt = `You are SyncScript's Energy Adaptive Agent. Analyze energy patterns and provide scheduling recommendations.
 
 User Context:
-- Current Energy Level: ${user?.energyLevel || 5}/10
+- Current Energy: ${user?.energyLevel || 5}/10
 - Current Time: ${currentTime.toLocaleString()}
 - Timezone: ${user?.timezone || 'UTC'}
 
-Recent Activity Analysis:
-${recentTasks.length > 0 ? `Recent Tasks (${recentTasks.length}):\n${recentTasks.map(t => 
-  `- ${t.title} (${t.priority}, Energy: ${t.energyRequired || 'N/A'}, Duration: ${t.estimatedDuration || 'N/A'}min, Status: ${t.status})`
-).join('\n')}` : 'No recent tasks found.'}
-
-Upcoming Events:
-${upcomingEvents.length > 0 ? upcomingEvents.map(e => 
-  `- ${e.title}: ${new Date(e.startTime).toLocaleString()} - ${new Date(e.endTime).toLocaleString()}`
-).join('\n') : 'No upcoming events.'}
-
-Pending Tasks to Schedule:
-${pendingTasks.map(t => 
-  `- ${t.title} (${t.priority}, Energy Required: ${t.energyRequired || 'N/A'}, Duration: ${t.estimatedDuration || 'N/A'}min, Due: ${t.dueDate || 'No deadline'})`
+Recent Tasks (${recentTasks.length}):
+${recentTasks.slice(0, 10).map(t => 
+  `- ${t.title} (${t.priority}, Energy: ${t.energyRequired || 'N/A'}, Status: ${t.status})`
 ).join('\n')}
 
-Provide analysis in this JSON format:
+Upcoming Events (${upcomingEvents.length}):
+${upcomingEvents.map(e => 
+  `- ${e.title}: ${new Date(e.startTime).toLocaleString()}`
+).join('\n')}
+
+Pending Tasks (${pendingTasks.length}):
+${pendingTasks.map(t => 
+  `- ${t.title} (${t.priority}, Energy: ${t.energyRequired || 'N/A'}, Duration: ${t.estimatedDuration || 'N/A'}min)`
+).join('\n')}
+
+Provide concise analysis in JSON format:
 {
   "energyAnalysis": {
-    "currentEnergyAssessment": "Assessment of current energy level and time of day",
+    "currentEnergyAssessment": "Brief assessment",
     "optimalEnergyWindows": [
       {
         "timeRange": "e.g., 9:00 AM - 11:00 AM",
         "energyLevel": 8,
-        "recommendedTaskTypes": ["creative work", "deep focus", "high-energy tasks"],
-        "reasoning": "Why this is an optimal window"
+        "recommendedTaskTypes": ["creative work", "deep focus"],
+        "reasoning": "Brief reason"
       }
     ],
     "energyPatterns": {
-      "morningEnergy": 1-10,
-      "afternoonEnergy": 1-10,
-      "eveningEnergy": 1-10,
+      "morningEnergy": 7,
+      "afternoonEnergy": 5,
+      "eveningEnergy": 3,
       "peakHours": ["9:00 AM", "2:00 PM"],
       "lowEnergyHours": ["3:00 PM", "10:00 PM"]
     }
@@ -378,31 +397,32 @@ Provide analysis in this JSON format:
       "taskId": "task_id",
       "taskTitle": "Task title",
       "suggestedTime": "YYYY-MM-DDTHH:mm:ss",
-      "reasoning": "Why this time is optimal",
-      "energyMatch": "How well the task energy requirement matches the time slot",
-      "alternativeTimes": ["alternative1", "alternative2"]
+      "reasoning": "Brief reason",
+      "energyMatch": "Good/Moderate/Poor"
     }
   ],
   "energyOptimizationTips": [
-    "Specific tips for optimizing energy usage",
-    "Suggestions for task batching",
-    "Break recommendations"
+    "Tip 1",
+    "Tip 2",
+    "Tip 3"
   ],
   "adaptiveSuggestions": {
-    "shouldReschedule": boolean,
-    "rescheduleReason": "Reason if rescheduling is recommended",
-    "energyBoostSuggestions": ["Suggestions for increasing energy"],
-    "taskModifications": ["Suggestions for breaking down high-energy tasks"]
+    "shouldReschedule": false,
+    "rescheduleReason": "",
+    "energyBoostSuggestions": ["Suggestion 1", "Suggestion 2"],
+    "taskModifications": ["Modification 1"]
   }
 }`;
 
+    // OPTIMIZATION 7: Use GPT-3.5-turbo instead of GPT-4 for faster response
     const completion = await openai.chat.completions.create({
-      model: "gpt-4",
+      model: "gpt-3.5-turbo", // Much faster than GPT-4
       messages: [
         { role: "system", content: systemPrompt },
-        { role: "user", content: "Analyze my energy patterns and provide scheduling recommendations for optimal productivity." }
+        { role: "user", content: "Analyze my energy patterns and provide scheduling recommendations." }
       ],
-      temperature: 0.3
+      temperature: 0.3,
+      max_tokens: 1000 // OPTIMIZATION 8: Limit response length
     });
 
     const response = completion.choices[0]?.message?.content;
@@ -411,6 +431,12 @@ Provide analysis in this JSON format:
     }
 
     const energyAnalysis = JSON.parse(response);
+
+    // OPTIMIZATION 11: Store in cache
+    energyAnalysisCache.set(cacheKey, {
+      data: energyAnalysis,
+      timestamp: Date.now()
+    });
 
     logger.info('Energy analysis completed', {
       userId: req.user!.id,

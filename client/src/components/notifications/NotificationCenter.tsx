@@ -30,7 +30,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ classNam
   const [selectedEventEndedNotification, setSelectedEventEndedNotification] = useState<any>(null)
   const [showEventEndedModal, setShowEventEndedModal] = useState(false)
 
-  const unreadNotifications = notifications.filter(n => !n.read)
+  const unreadNotifications = notifications.filter(n => !n.isRead)
   const allNotifications = notifications
   const eventEndedNotifications = notifications.filter(n => n.type === 'event_ended')
 
@@ -84,7 +84,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ classNam
           </Badge>
         )}
         {/* Blue dot for event-ended notifications */}
-        {eventEndedNotifications.filter(n => !n.read).length > 0 && (
+        {eventEndedNotifications.filter(n => !n.isRead).length > 0 && (
           <div className="absolute -top-1 -right-1 w-3 h-3 bg-blue-500 rounded-full border-2 border-white dark:border-gray-900"></div>
         )}
       </Button>
@@ -184,7 +184,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ classNam
                                     <h4 className="font-medium text-blue-900 dark:text-blue-100">
                                       {notification.title}
                                     </h4>
-                                    {!notification.read && (
+                                    {!notification.isRead && (
                                       <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
                                     )}
                                   </div>

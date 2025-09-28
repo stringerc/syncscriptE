@@ -80,7 +80,7 @@ export const NotificationItem: React.FC<NotificationItemProps> = ({ notification
 
   const handleMarkAsRead = (e: React.MouseEvent) => {
     e.stopPropagation()
-    if (!notification.read) {
+    if (!notification.isRead) {
       markAsRead(notification.id)
     }
   }
@@ -91,7 +91,7 @@ export const NotificationItem: React.FC<NotificationItemProps> = ({ notification
   }
 
   const handleClick = () => {
-    if (!notification.read) {
+    if (!notification.isRead) {
       markAsRead(notification.id)
     }
     
@@ -111,7 +111,7 @@ export const NotificationItem: React.FC<NotificationItemProps> = ({ notification
       className={cn(
         "p-3 border-b border-gray-100 dark:border-gray-700 cursor-pointer transition-colors",
         "hover:bg-gray-50 dark:hover:bg-gray-800",
-        !notification.read && "bg-blue-50 dark:bg-blue-900/20 border-l-4 border-l-blue-500"
+        !notification.isRead && "bg-blue-50 dark:bg-blue-900/20 border-l-4 border-l-blue-500"
       )}
       onClick={handleClick}
     >
@@ -128,7 +128,7 @@ export const NotificationItem: React.FC<NotificationItemProps> = ({ notification
               <div className="flex items-center gap-2 mb-1">
                 <h4 className={cn(
                   "text-sm font-medium truncate",
-                  !notification.read && "font-semibold"
+                  !notification.isRead && "font-semibold"
                 )}>
                   {notification.title}
                 </h4>
@@ -160,7 +160,7 @@ export const NotificationItem: React.FC<NotificationItemProps> = ({ notification
 
             {/* Actions */}
             <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-              {!notification.read && (
+              {!notification.isRead && (
                 <Button
                   variant="ghost"
                   size="sm"

@@ -4,7 +4,7 @@ export interface Notification {
   title: string
   message: string
   timestamp: Date
-  read: boolean
+  isRead: boolean
   priority: 'low' | 'medium' | 'high' | 'urgent'
   actionUrl?: string
   actionText?: string

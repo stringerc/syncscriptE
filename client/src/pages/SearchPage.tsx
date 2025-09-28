@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { Search, Clock, Calendar, CheckCircle, MessageSquare, Zap, Filter, X } from 'lucide-react'
@@ -35,28 +35,41 @@ const SearchPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams()
   const navigate = useNavigate()
   const [query, setQuery] = useState(searchParams.get('q') || '')
+  const [debouncedQuery, setDebouncedQuery] = useState(searchParams.get('q') || '')
   const [activeTab, setActiveTab] = useState('all')
   const [isSearching, setIsSearching] = useState(false)
 
-  // Search query
+  // Debounce the search query to avoid too many API calls
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedQuery(query)
+    }, 300) // 300ms delay
+
+    return () => clearTimeout(timer)
+  }, [query])
+
+  // Search query - now uses debounced query for live search
   const { data: searchResults, isLoading, error, refetch } = useQuery<SearchResponse>({
-    queryKey: ['search', query],
+    queryKey: ['search', debouncedQuery],
     queryFn: async () => {
-      if (!query.trim()) return { tasks: [], events: [], totalResults: 0 }
+      if (!debouncedQuery.trim() || debouncedQuery.trim().length < 2) return { tasks: [], events: [], totalResults: 0 }
       
       setIsSearching(true)
       try {
-        const response = await api.get(`/search?q=${encodeURIComponent(query.trim())}`)
-        return response.data.data || response.data
+        const response = await api.get(`/search?q=${encodeURIComponent(debouncedQuery.trim())}`)
+        console.log('🔍 Search API Response:', response.data)
+        const result = response.data.data || response.data
+        console.log('🔍 Processed Search Result:', result)
+        return result
       } catch (error) {
         console.error('Search error:', error)
         // Fallback to local search if API fails
-        return await performLocalSearch(query.trim())
+        return await performLocalSearch(debouncedQuery.trim())
       } finally {
         setIsSearching(false)
       }
     },
-    enabled: !!query.trim(),
+    enabled: !!debouncedQuery.trim() && debouncedQuery.trim().length >= 2,
     staleTime: 5 * 60 * 1000, // 5 minutes
   })
 
@@ -132,12 +145,24 @@ const SearchPage: React.FC = () => {
 
   const handleKeyPress = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
-      handleSearch(query)
+      // Force immediate search on Enter
+      setDebouncedQuery(query)
+      setSearchParams({ q: query })
     }
-  }, [query, handleSearch])
+  }, [query, setSearchParams])
+
+  // Update URL when debounced query changes
+  useEffect(() => {
+    if (debouncedQuery.trim()) {
+      setSearchParams({ q: debouncedQuery.trim() })
+    } else if (query === '') {
+      setSearchParams({})
+    }
+  }, [debouncedQuery, setSearchParams, query])
 
   const clearSearch = () => {
     setQuery('')
+    setDebouncedQuery('')
     setSearchParams({})
   }
 
@@ -169,6 +194,17 @@ const SearchPage: React.FC = () => {
   const totalResults = searchResults?.totalResults || 0
   const tasks = searchResults?.tasks || []
   const events = searchResults?.events || []
+
+  // Debug logging
+  console.log('🔍 Search Debug:', {
+    query,
+    debouncedQuery,
+    searchResults,
+    totalResults,
+    tasks: tasks.length,
+    events: events.length,
+    isLoading
+  })
 
   return (
     <div className="container mx-auto p-6 space-y-6">
@@ -206,24 +242,41 @@ const SearchPage: React.FC = () => {
             </Button>
           )}
           <Button
-            onClick={() => handleSearch(query)}
-            disabled={!query.trim() || isLoading}
+            onClick={() => {
+              setDebouncedQuery(query)
+              setSearchParams({ q: query })
+            }}
+            disabled={!query.trim()}
             className="h-8"
           >
-            {isLoading ? 'Searching...' : 'Search'}
+            Search
           </Button>
         </div>
       </div>
 
+      {/* Live Search Indicator */}
+      {query && query !== debouncedQuery && (
+        <div className="flex items-center gap-2 text-sm text-blue-600">
+          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+          <span>Searching as you type...</span>
+        </div>
+      )}
+      {query && query.length > 0 && query.length < 2 && (
+        <div className="flex items-center gap-2 text-sm text-gray-500">
+          <Search className="h-4 w-4" />
+          <span>Type at least 2 characters to search</span>
+        </div>
+      )}
+
       {/* Search Results */}
-      {query && (
+      {debouncedQuery && (
         <div className="space-y-4">
           {/* Results Summary */}
           <div className="flex items-center justify-between">
             <p className="text-sm text-gray-600">
-              {isLoading ? 'Searching...' : `${totalResults} results for "${query}"`}
+              {isLoading ? 'Searching...' : `${totalResults || (tasks.length + events.length)} results for "${debouncedQuery}"`}
             </p>
-            {totalResults > 0 && (
+            {(totalResults > 0 || tasks.length > 0 || events.length > 0) && (
               <div className="flex items-center gap-2">
                 <Filter className="h-4 w-4 text-gray-400" />
                 <span className="text-sm text-gray-600">Filter by type</span>
@@ -232,7 +285,7 @@ const SearchPage: React.FC = () => {
           </div>
 
           {/* Results Tabs */}
-          {totalResults > 0 && (
+          {(totalResults > 0 || tasks.length > 0 || events.length > 0) && (
             <Tabs value={activeTab} onValueChange={setActiveTab}>
               <TabsList>
                 <TabsTrigger value="all">
@@ -457,7 +510,7 @@ const SearchPage: React.FC = () => {
           )}
 
           {/* No Results */}
-          {!isLoading && totalResults === 0 && query && (
+          {!isLoading && totalResults === 0 && tasks.length === 0 && events.length === 0 && debouncedQuery && (
             <Card>
               <CardContent className="text-center py-8">
                 <Search className="h-12 w-12 text-gray-400 mx-auto mb-4" />
@@ -487,7 +540,7 @@ const SearchPage: React.FC = () => {
       )}
 
       {/* Empty State */}
-      {!query && (
+      {!debouncedQuery && (
         <Card>
           <CardContent className="text-center py-12">
             <Search className="h-16 w-16 text-gray-400 mx-auto mb-4" />

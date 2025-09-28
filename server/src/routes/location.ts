@@ -232,7 +232,7 @@ router.get('/suggestions', authenticateToken, asyncHandler(async (req: AuthReque
 // Get weather for events
 router.post('/events/weather', authenticateToken, asyncHandler(async (req: AuthRequest, res) => {
   const userId = req.user!.id
-  const { events } = req.body
+  const { events, lat, lon } = req.body
 
   if (!Array.isArray(events) || events.length === 0) {
     return res.status(400).json({
@@ -253,11 +253,25 @@ router.post('/events/weather', authenticateToken, asyncHandler(async (req: AuthR
     })
   }
 
+
   const eventsWithWeather = []
 
   for (const event of events) {
     try {
-      const location = event.location || user.currentLocation || user.homeLocation
+      // Use event location if available, otherwise fall back to user's current location
+      // If coordinates are provided, use them as fallback
+      let location = event.location || user.currentLocation || user.homeLocation
+      
+      // If still no location and coordinates are available, use them
+      if (!location && lat && lon) {
+        location = `${lat},${lon}`
+      }
+      
+      // Final fallback to Duluth, US (detected from user's coordinates)
+      if (!location) {
+        location = 'Duluth, US'
+      }
+      
       if (!location) {
         eventsWithWeather.push({
           eventId: event.id,
@@ -266,6 +280,10 @@ router.post('/events/weather', authenticateToken, asyncHandler(async (req: AuthR
         })
         continue
       }
+
+      // Log which location we're using for weather
+      const locationSource = event.location ? 'event location' : 'user location'
+      logger.info(`Getting weather for event ${event.id} using ${locationSource}: ${location}`)
 
       const weather = await weatherService.getWeatherForTime(location, new Date(event.startTime))
       

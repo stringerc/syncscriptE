@@ -120,12 +120,62 @@ export class GoogleCalendarService {
   }
 
   /**
+   * Subscribe to a holiday calendar
+   */
+  async subscribeToHolidayCalendar(calendarId: string): Promise<any> {
+    try {
+      const response = await this.calendar.calendarList.insert({
+        resource: {
+          id: calendarId
+        }
+      });
+      
+      logger.info('Subscribed to holiday calendar', { calendarId });
+      return response.data;
+    } catch (error) {
+      logger.error('Error subscribing to holiday calendar:', error);
+      throw new Error(`Failed to subscribe to holiday calendar: ${calendarId}`);
+    }
+  }
+
+  /**
+   * Get available holiday calendars
+   */
+  async getAvailableHolidayCalendars(): Promise<any[]> {
+    const holidayCalendars = [
+      {
+        id: 'en.usa#holiday@group.v.calendar.google.com',
+        summary: 'US Holidays',
+        description: 'Holidays in United States',
+        accessRole: 'reader',
+        primary: false
+      },
+      {
+        id: 'en.usa.official#holiday@group.v.calendar.google.com',
+        summary: 'US Official Holidays',
+        description: 'Official holidays in United States',
+        accessRole: 'reader',
+        primary: false
+      }
+    ];
+    
+    return holidayCalendars;
+  }
+
+  /**
    * Get list of calendars
    */
   async getCalendars(): Promise<any[]> {
     try {
       const response = await this.calendar.calendarList.list();
-      return response.data.items || [];
+      const calendars = response.data.items || [];
+      
+      logger.info('Fetched calendars from Google', { 
+        totalCalendars: calendars.length,
+        calendarIds: calendars.map(cal => cal.id)
+      });
+      
+      return calendars;
     } catch (error) {
       logger.error('Error fetching calendars:', error);
       throw new Error('Failed to fetch calendars');
@@ -143,8 +193,11 @@ export class GoogleCalendarService {
     orderBy?: string;
   } = {}): Promise<any[]> {
     try {
+      // The calendar ID is already properly formatted from the route
+      // No need to encode again as it's already handled by the route
+      
       const response = await this.calendar.events.list({
-        calendarId,
+        calendarId: calendarId,
         timeMin: options.timeMin || new Date().toISOString(),
         timeMax: options.timeMax,
         maxResults: options.maxResults || 100,
@@ -152,7 +205,18 @@ export class GoogleCalendarService {
         orderBy: options.orderBy || 'startTime'
       });
 
-      return response.data.items || [];
+      const events = response.data.items || [];
+      
+      // Log holiday events specifically
+      if (calendarId.includes('holiday')) {
+        logger.info('Fetched holiday events', { 
+          calendarId, 
+          eventCount: events.length,
+          events: events.map(e => ({ title: e.summary, date: e.start?.date || e.start?.dateTime }))
+        });
+      }
+
+      return events;
     } catch (error) {
       logger.error('Error fetching events:', error);
       throw new Error('Failed to fetch events');
@@ -243,22 +307,29 @@ export class GoogleCalendarService {
     };
 
     try {
-      // Get events from Google Calendar
+      // Get events from Google Calendar - only future events
       const googleEvents = await this.getEvents(calendarId, {
-        timeMin: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(), // Last 30 days
+        timeMin: new Date().toISOString(), // Start from now (no past events)
         timeMax: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(), // Next year
         maxResults: 1000
       });
 
       for (const googleEvent of googleEvents) {
         try {
-          // Skip all-day events for now (they have different date format)
-          if (googleEvent.start.date || googleEvent.end.date) {
-            continue;
-          }
+          let startTime: Date;
+          let endTime: Date;
+          let isAllDay = false;
 
-          const startTime = new Date(googleEvent.start.dateTime);
-          const endTime = new Date(googleEvent.end.dateTime);
+          // Handle all-day events (like holidays)
+          if (googleEvent.start.date || googleEvent.end.date) {
+            startTime = new Date(googleEvent.start.date + 'T00:00:00');
+            endTime = new Date(googleEvent.end.date + 'T23:59:59');
+            isAllDay = true;
+          } else {
+            startTime = new Date(googleEvent.start.dateTime);
+            endTime = new Date(googleEvent.end.dateTime);
+            isAllDay = false;
+          }
 
           // Check if event already exists in local database
           const existingEvent = await prisma.event.findFirst({
@@ -277,7 +348,7 @@ export class GoogleCalendarService {
             location: googleEvent.location,
             calendarEventId: googleEvent.id,
             calendarProvider: 'google',
-            isAllDay: false
+            isAllDay
           };
 
           if (existingEvent) {
@@ -313,6 +384,9 @@ export class GoogleCalendarService {
         }
       }
 
+      // Clean up duplicate events (same title and start time)
+      await this.cleanupDuplicateEvents(userId, prisma);
+
       logger.info('Google Calendar sync completed', { 
         userId, 
         calendarId, 
@@ -323,6 +397,50 @@ export class GoogleCalendarService {
     } catch (error) {
       logger.error('Error syncing events from Google Calendar:', error);
       throw new Error('Failed to sync events from Google Calendar');
+    }
+  }
+
+  /**
+   * Clean up duplicate events
+   */
+  private async cleanupDuplicateEvents(userId: string, prisma: any): Promise<void> {
+    try {
+      // Find events with the same title and start time
+      const duplicates = await prisma.$queryRaw`
+        SELECT title, "startTime", COUNT(*) as count
+        FROM "events"
+        WHERE "userId" = ${userId}
+        GROUP BY title, "startTime"
+        HAVING COUNT(*) > 1
+      `;
+
+      for (const duplicate of duplicates) {
+        // Keep the first event, delete the rest
+        const events = await prisma.event.findMany({
+          where: {
+            userId,
+            title: duplicate.title,
+            startTime: new Date(duplicate.startTime)
+          },
+          orderBy: { createdAt: 'asc' }
+        });
+
+        // Delete all but the first one
+        if (events.length > 1) {
+          const idsToDelete = events.slice(1).map(e => e.id);
+          await prisma.event.deleteMany({
+            where: { id: { in: idsToDelete } }
+          });
+          
+          logger.info('Cleaned up duplicate events', { 
+            userId, 
+            title: duplicate.title, 
+            deletedCount: idsToDelete.length 
+          });
+        }
+      }
+    } catch (error) {
+      logger.error('Error cleaning up duplicate events:', error);
     }
   }
 
@@ -371,5 +489,47 @@ export class GoogleCalendarService {
     }
 
     return stats;
+  }
+
+  // Subscribe to a holiday calendar
+  async subscribeToHolidayCalendar(calendarId: string): Promise<void> {
+    try {
+      await this.calendar.calendarList.insert({
+        requestBody: {
+          id: calendarId,
+          selected: true,
+          hidden: false
+        }
+      });
+      
+      logger.info('Successfully subscribed to holiday calendar', { calendarId });
+    } catch (error) {
+      logger.error('Error subscribing to holiday calendar:', error);
+      throw error;
+    }
+  }
+
+  // Get available holiday calendars
+  async getAvailableHolidayCalendars(): Promise<Array<{ id: string; summary: string; description?: string }>> {
+    try {
+      // Common US holiday calendars
+      const holidayCalendars = [
+        {
+          id: 'en.usa#holiday@group.v.calendar.google.com',
+          summary: 'US Holidays',
+          description: 'Major holidays in the United States'
+        },
+        {
+          id: 'en.usa.official#holiday@group.v.calendar.google.com',
+          summary: 'US Official Holidays',
+          description: 'Official federal holidays in the United States'
+        }
+      ];
+
+      return holidayCalendars;
+    } catch (error) {
+      logger.error('Error getting available holiday calendars:', error);
+      throw error;
+    }
   }
 }

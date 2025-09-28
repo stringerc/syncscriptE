@@ -393,12 +393,12 @@ export function TasksPage() {
         </Card>
       )}
 
-      {/* Pending Tasks */}
+      {/* Tasks */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center space-x-2">
             <CheckSquare className="w-5 h-5" />
-            <span>Pending Tasks</span>
+            <span>Tasks</span>
             <span className="text-sm font-normal text-muted-foreground">
               ({pendingTasks.length})
             </span>
@@ -412,7 +412,7 @@ export function TasksPage() {
             <div className="text-center py-8">
               <CheckSquare className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
               <h3 className="text-lg font-semibold text-foreground mb-2">
-                No pending tasks!
+                No tasks!
               </h3>
               <p className="text-muted-foreground mb-4">
                 {completedTasks.length > 0 ? 'All tasks completed! 🎉' : 'Create your first task to get started.'}
@@ -443,11 +443,6 @@ export function TasksPage() {
                           </h4>
                           <span className={`px-2 py-1 rounded-full text-xs ${getPriorityColor(task.priority)}`}>
                             {task.priority}
-                          </span>
-                          <span className={`px-2 py-1 rounded-full text-xs ${
-                            task.status === 'COMPLETED' ? 'text-green-600 bg-green-50' : 'text-gray-600 bg-gray-50'
-                          }`}>
-                            {task.status}
                           </span>
                         </div>
                         {task.description && (
@@ -606,9 +601,6 @@ export function TasksPage() {
                                   <span className={`px-2 py-1 rounded-full text-xs ${getPriorityColor(task.priority)}`}>
                                     {task.priority}
                                   </span>
-                                  <span className="px-2 py-1 rounded-full text-xs text-green-600 bg-green-100 dark:bg-green-800 dark:text-green-200">
-                                    COMPLETED
-                                  </span>
                                 </div>
                                 {task.description && (
                                   <p className="text-xs text-muted-foreground mb-2 line-through">
@@ -747,9 +739,6 @@ export function TasksPage() {
                                   </h4>
                                   <span className={`px-2 py-1 rounded-full text-xs ${getPriorityColor(task.priority)}`}>
                                     {task.priority}
-                                  </span>
-                                  <span className="px-2 py-1 rounded-full text-xs text-red-600 bg-red-100 dark:bg-red-800 dark:text-red-200">
-                                    DELETED
                                   </span>
                                 </div>
                                 {task.description && (

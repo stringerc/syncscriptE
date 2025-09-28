@@ -8,7 +8,7 @@ import { PasswordResetPage } from '@/pages/PasswordResetPage'
 import { DashboardPage } from '@/pages/DashboardPage'
 import { TasksPage } from '@/pages/TasksPage'
 import { CalendarPage } from '@/pages/CalendarPage'
-import { GoogleCalendarPageWorking as GoogleCalendarPage } from '@/pages/GoogleCalendarPageWorking'
+import { GoogleCalendarPage } from '@/pages/GoogleCalendarPage'
 import { FinancialPage } from '@/pages/FinancialPage'
 import { SettingsPage } from '@/pages/SettingsPage'
 import { ProfilePage } from '@/pages/ProfilePage'
@@ -21,7 +21,7 @@ import { VerifyEmailPage } from '@/pages/VerifyEmailPage'
 import { LoadingSpinner } from '@/components/ui/loading-spinner'
 import { ThemeProvider } from '@/contexts/ThemeContext'
 import { NotificationProvider } from '@/contexts/NotificationContext'
-import { AnimationProvider } from '@/contexts/AnimationContext'
+// Removed animation context import
 import DemoMode from '@/components/DemoMode'
 import { api } from '@/lib/api'
 
@@ -92,9 +92,7 @@ function App() {
   return (
     <ThemeProvider>
       <NotificationProvider>
-        <AnimationProvider>
-          <AppContent />
-        </AnimationProvider>
+        <AppContent />
       </NotificationProvider>
     </ThemeProvider>
   )

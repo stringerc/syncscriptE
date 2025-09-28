@@ -8,7 +8,9 @@ import { useToast } from '@/hooks/use-toast'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '@/stores/authStore'
 import { ConfirmationModal } from '@/components/ConfirmationModal'
-import { useAnimation } from '@/contexts/AnimationContext'
+import { useEnergyAnalysisPrefetch } from '@/hooks/useEnergyAnalysisPrefetch'
+// Removed animation context import
+import { getWeatherIcon } from '@/utils/weatherIcons'
 import { 
   CheckSquare, 
   Calendar, 
@@ -27,9 +29,9 @@ import {
   CloudRain,
   CloudSnow,
   Wind,
+  MapPin,
   Star,
   Flame,
-  MapPin,
   CheckCircle
 } from 'lucide-react'
 import { formatDate, formatTime, formatCurrency, getPriorityColor } from '@/lib/utils'
@@ -51,6 +53,7 @@ interface DashboardData {
   activeStreaks: Streak[]
   unreadNotifications: Notification[]
 }
+
 
 // Memoized task item component for performance
 const TaskItem = memo(({ task, onComplete, onDelete, onView, order, showOrder, events }: { 
@@ -203,22 +206,36 @@ const EventItem = memo(({ event, onView, onDelete, weatherData, preparationTasks
           <div className="flex items-center space-x-1">
             <Clock className="w-3 h-3" />
             <span>{formatTime(event.startTime)}</span>
+            <span className="text-muted-foreground/70">•</span>
+            <span>{new Date(event.startTime).toLocaleDateString()}</span>
           </div>
-          <div className="text-xs text-gray-500">
-            {new Date(event.startTime).toLocaleDateString()} {new Date(event.startTime).toLocaleTimeString()}
+          <div className="flex items-center space-x-1">
+            {event.location ? (
+              <>
+                <span>{event.location}</span>
+                <span 
+                  title={weatherData ? `${weatherData.condition}, ${weatherData.temperature}°F` : 'Weather data unavailable'}
+                  className="text-lg"
+                  style={{ fontSize: '16px' }}
+                >
+                  {weatherData?.emoji || '🌤️'}
+                </span>
+              </>
+            ) : weatherData ? (
+              <>
+                <span className="text-xs text-muted-foreground/60">Your location</span>
+                <span 
+                  title={weatherData ? `${weatherData.condition}, ${weatherData.temperature}°F` : 'Weather data unavailable'}
+                  className="text-lg"
+                  style={{ fontSize: '16px' }}
+                >
+                  {weatherData?.emoji || '🌤️'}
+                </span>
+              </>
+            ) : (
+              <span className="text-xs text-muted-foreground/60">No location available</span>
+            )}
           </div>
-          {event.location && (
-            <div className="flex items-center space-x-1">
-              <span>{event.location}</span>
-              <span 
-                title={weatherData ? `${weatherData.condition}, ${weatherData.temperature}°F` : 'Weather data unavailable'}
-                className="text-lg"
-                style={{ fontSize: '16px' }}
-              >
-                {weatherData?.emoji || '🌤️'}
-              </span>
-            </div>
-          )}
           {event.budgetImpact !== null && event.budgetImpact !== undefined && event.budgetImpact > 0 && (
             <div className="flex items-center space-x-1">
               <DollarSign className="w-3 h-3" />
@@ -261,23 +278,24 @@ const EventItem = memo(({ event, onView, onDelete, weatherData, preparationTasks
         
         // Fallback: Check if event title suggests it's a prep event
         // Look for events that might be prep events based on their titles and timing
-        const prepKeywords = ['prepare', 'coordinate', 'create', 'plan', 'organize', 'set up'];
+        const prepKeywords = ['prepare', 'coordinate', 'create', 'plan', 'organize', 'set up', 'check', 'verify', 'confirm'];
         const isLikelyPrepEvent = prepKeywords.some(keyword => 
           event.title.toLowerCase().includes(keyword)
         );
         
         if (isLikelyPrepEvent && events && events.length > 1) {
-          // Find the main event (usually the one without prep keywords and earliest time)
+          // Find the main event (usually the one without prep keywords and later in time)
           const mainEvents = events.filter((e: any) => 
             !prepKeywords.some(keyword => e.title.toLowerCase().includes(keyword)) &&
-            e.id !== event.id
+            e.id !== event.id &&
+            new Date(e.startTime) > new Date(event.startTime) // Main event should be after prep event
           );
           
           if (mainEvents.length > 0) {
-            // Find the closest main event by time
+            // Find the closest main event by time (earliest after this event)
             const closestMainEvent = mainEvents.reduce((closest: any, current: any) => {
-              const currentTimeDiff = Math.abs(new Date(current.startTime).getTime() - new Date(event.startTime).getTime());
-              const closestTimeDiff = Math.abs(new Date(closest.startTime).getTime() - new Date(event.startTime).getTime());
+              const currentTimeDiff = new Date(current.startTime).getTime() - new Date(event.startTime).getTime();
+              const closestTimeDiff = new Date(closest.startTime).getTime() - new Date(event.startTime).getTime();
               return currentTimeDiff < closestTimeDiff ? current : closest;
             });
             
@@ -287,6 +305,43 @@ const EventItem = memo(({ event, onView, onDelete, weatherData, preparationTasks
                 Prep for: {closestMainEvent.title}
               </div>
             );
+          }
+        }
+        
+        // Additional check: Look for events that might be related by content similarity
+        // This helps catch cases like "Check fasting requirements" -> "Labcorp appointment"
+        if (events && events.length > 1) {
+          const eventTitleLower = event.title.toLowerCase();
+          
+          // Look for events that might be related by medical/professional context
+          const medicalKeywords = ['labcorp', 'appointment', 'doctor', 'medical', 'test', 'fasting', 'blood', 'check'];
+          const hasMedicalContext = medicalKeywords.some(keyword => 
+            eventTitleLower.includes(keyword)
+          );
+          
+          if (hasMedicalContext) {
+            // Find other events with similar medical context that occur after this one
+            const relatedEvents = events.filter((e: any) => 
+              e.id !== event.id &&
+              new Date(e.startTime) > new Date(event.startTime) &&
+              medicalKeywords.some(keyword => e.title.toLowerCase().includes(keyword))
+            );
+            
+            if (relatedEvents.length > 0) {
+              // Find the closest related event by time
+              const closestRelatedEvent = relatedEvents.reduce((closest: any, current: any) => {
+                const currentTimeDiff = new Date(current.startTime).getTime() - new Date(event.startTime).getTime();
+                const closestTimeDiff = new Date(closest.startTime).getTime() - new Date(event.startTime).getTime();
+                return currentTimeDiff < closestTimeDiff ? current : closest;
+              });
+              
+              console.log(`🔄 Dashboard EventItem: Medical context: Found related event ${event.id} for main event:`, closestRelatedEvent);
+              return (
+                <div className="text-xs text-blue-600 mb-2">
+                  Prep for: {closestRelatedEvent.title}
+                </div>
+              );
+            }
           }
         }
         
@@ -318,7 +373,8 @@ export function DashboardPage() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const { token, user: authUser } = useAuthStore()
-  const { animationEnabled, toggleAnimation } = useAnimation()
+  const { prefetchEnergyAnalysis } = useEnergyAnalysisPrefetch()
+  // Removed animation functionality
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
@@ -334,6 +390,36 @@ export function DashboardPage() {
   useEffect(() => {
     setIsHydrated(true)
   }, [])
+
+  // Restore cached weather data on component mount
+  useEffect(() => {
+    const cachedWeatherData = localStorage.getItem('event-weather-data')
+    const lastFetch = localStorage.getItem('event-weather-last-fetch')
+    const now = Date.now()
+    
+    // Only restore if data is recent (within 15 minutes)
+    if (cachedWeatherData && lastFetch && (now - parseInt(lastFetch)) < 15 * 60 * 1000) {
+      try {
+        const parsedWeatherData = JSON.parse(cachedWeatherData)
+        setEventWeatherData(parsedWeatherData)
+        console.log('🌤️ Restored cached weather data on mount:', parsedWeatherData)
+      } catch (error) {
+        console.error('Failed to parse cached weather data on mount:', error)
+      }
+    }
+  }, [])
+
+  // Prefetch energy analysis data in background when dashboard loads
+  useEffect(() => {
+    if (isHydrated && token) {
+      // Delay prefetch to not interfere with initial dashboard loading
+      const timer = setTimeout(() => {
+        prefetchEnergyAnalysis()
+      }, 3000) // Wait 3 seconds after dashboard loads
+      
+      return () => clearTimeout(timer)
+    }
+  }, [isHydrated, token, prefetchEnergyAnalysis])
 
   // Only refresh dashboard data when energy level changes (for the header display)
   useEffect(() => {
@@ -676,20 +762,37 @@ export function DashboardPage() {
   }, [queryClient, toast, allTasks])
 
   // Fetch weather data for events
-  const fetchEventWeather = useCallback(async (events: Event[]) => {
+  const fetchEventWeather = useCallback(async (events: Event[], forceRefresh = false) => {
     if (events.length === 0) return
 
-    // Check if we already have recent weather data (within last 15 minutes)
+    // Check if we already have recent weather data (within last 15 minutes) - unless force refresh
     const lastFetch = localStorage.getItem('event-weather-last-fetch')
+    const cachedWeatherData = localStorage.getItem('event-weather-data')
     const now = Date.now()
-    if (lastFetch && (now - parseInt(lastFetch)) < 15 * 60 * 1000) {
+    
+    if (!forceRefresh && lastFetch && cachedWeatherData && (now - parseInt(lastFetch)) < 15 * 60 * 1000) {
       console.log('🌤️ Using cached event weather data')
+      try {
+        const parsedWeatherData = JSON.parse(cachedWeatherData)
+        setEventWeatherData(parsedWeatherData)
+        console.log('🌤️ Restored cached weather data:', parsedWeatherData)
+      } catch (error) {
+        console.error('Failed to parse cached weather data:', error)
+      }
       return
     }
 
     try {
       console.log('🌤️ Fetching weather for events:', events.map(e => ({ id: e.id, title: e.title, location: e.location })))
-      const response = await api.post('/location/events/weather', { events })
+      
+      // Include user coordinates for fallback location
+      const requestData: any = { events }
+      if (userLocation) {
+        requestData.lat = userLocation.lat
+        requestData.lon = userLocation.lon
+      }
+      
+      const response = await api.post('/location/events/weather', requestData)
       console.log('🌤️ Weather API response:', response.data)
       
       const weatherData: Record<string, { emoji: string; temperature: number; condition: string } | null> = {}
@@ -702,9 +805,11 @@ export function DashboardPage() {
       
       console.log('🌤️ Final weather data:', weatherData)
       setEventWeatherData(weatherData)
+      console.log('🌤️ Weather data state updated with:', weatherData)
       
-      // Cache the fetch time
+      // Cache the fetch time and weather data
       localStorage.setItem('event-weather-last-fetch', now.toString())
+      localStorage.setItem('event-weather-data', JSON.stringify(weatherData))
     } catch (error) {
       console.error('Failed to fetch event weather:', error)
     }
@@ -759,7 +864,7 @@ export function DashboardPage() {
   useEffect(() => {
     if (dashboardData?.upcomingEvents) {
       const timer = setTimeout(() => {
-        fetchEventWeather(dashboardData.upcomingEvents)
+        fetchEventWeather(dashboardData.upcomingEvents, true) // Force refresh to get latest data
         fetchEventPreparationTasks(dashboardData.upcomingEvents, true) // Force refresh to get latest data
       }, 500) // Wait 500ms before fetching to avoid rapid calls
       
@@ -767,12 +872,36 @@ export function DashboardPage() {
     }
   }, [dashboardData?.upcomingEvents, fetchEventWeather, fetchEventPreparationTasks])
 
+  // Get user location for weather
+  const [userLocation, setUserLocation] = useState<{ lat: number; lon: number } | null>(null)
+
+  // Get user's location
+  useEffect(() => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setUserLocation({
+            lat: position.coords.latitude,
+            lon: position.coords.longitude
+          })
+        },
+        (error) => {
+          console.log('Location access denied or failed:', error)
+        }
+      )
+    }
+  }, [])
+
   // Use React Query for current weather with better caching
   const { data: currentWeatherData, isLoading: weatherLoading } = useQuery({
-    queryKey: ['current-weather'],
+    queryKey: ['current-weather', userLocation],
     queryFn: async () => {
       console.log('🌤️ Fetching current weather...')
-      const response = await api.get('/location/weather/current')
+      let locationParam = ''
+      if (userLocation) {
+        locationParam = `?lat=${userLocation.lat}&lon=${userLocation.lon}`
+      }
+      const response = await api.get(`/location/weather/current${locationParam}`)
       console.log('🌤️ Current weather response:', response.data)
 
       if (response.data.success && response.data.data.weather) {
@@ -793,6 +922,7 @@ export function DashboardPage() {
         }
       }
     },
+    enabled: !!userLocation, // Only fetch when we have location
     staleTime: 15 * 60 * 1000, // 15 minutes - increased to reduce API calls
     cacheTime: 30 * 60 * 1000, // Keep in cache for 30 minutes
     refetchOnWindowFocus: false,
@@ -805,10 +935,14 @@ export function DashboardPage() {
 
   // Fetch 6-hour weather forecast
   const { data: forecastData, isLoading: forecastLoading, error: forecastError } = useQuery({
-    queryKey: ['weather-forecast-6h'],
+    queryKey: ['weather-forecast-6h', userLocation],
     queryFn: async () => {
       console.log('🌤️ Fetching 6-hour weather forecast...')
-      const response = await api.get('/location/weather/forecast?days=1')
+      let locationParam = ''
+      if (userLocation) {
+        locationParam = `&lat=${userLocation.lat}&lon=${userLocation.lon}`
+      }
+      const response = await api.get(`/location/weather/forecast?days=1${locationParam}`)
       console.log('🌤️ Forecast response:', response.data)
 
       if (response.data.success && response.data.data.forecast) {
@@ -825,6 +959,7 @@ export function DashboardPage() {
       console.log('🌤️ No forecast data available')
       return []
     },
+    enabled: !!userLocation, // Only fetch when we have location
     staleTime: 30 * 60 * 1000, // 30 minutes
     cacheTime: 60 * 60 * 1000, // Keep in cache for 1 hour
     refetchOnWindowFocus: false,
@@ -854,291 +989,6 @@ export function DashboardPage() {
   const handleAddEvent = useCallback(() => {
     navigate('/calendar')
   }, [navigate])
-
-  // Get weather icon component based on condition
-  const getWeatherIcon = useCallback((condition: string) => {
-    const conditionLower = condition.toLowerCase()
-    
-    if (conditionLower.includes('clear') || conditionLower.includes('sunny')) {
-      return (
-        <div className="relative w-6 h-6">
-          <svg className="w-full h-full" viewBox="0 0 24 24" fill="none">
-            <defs>
-              <radialGradient id="sun-gradient" cx="50%" cy="50%" r="50%">
-                <stop offset="0%" stopColor="#FEF3C7" stopOpacity="1"/>
-                <stop offset="50%" stopColor="#F59E0B" stopOpacity="0.8"/>
-                <stop offset="100%" stopColor="#D97706" stopOpacity="0.6"/>
-              </radialGradient>
-              <filter id="sun-glow">
-                <feGaussianBlur stdDeviation="1" result="coloredBlur"/>
-                <feMerge> 
-                  <feMergeNode in="coloredBlur"/>
-                  <feMergeNode in="SourceGraphic"/>
-                </feMerge>
-              </filter>
-            </defs>
-            
-            {/* Sun rays */}
-            <g stroke="#F59E0B" strokeWidth="1" opacity="0.8">
-              <line x1="12" y1="2" x2="12" y2="4">
-                <animate attributeName="opacity" values="0.8;0.4;0.8" dur="3s" repeatCount="indefinite"/>
-              </line>
-              <line x1="12" y1="20" x2="12" y2="22">
-                <animate attributeName="opacity" values="0.8;0.4;0.8" dur="3s" repeatCount="indefinite"/>
-              </line>
-              <line x1="2" y1="12" x2="4" y2="12">
-                <animate attributeName="opacity" values="0.8;0.4;0.8" dur="3s" repeatCount="indefinite"/>
-              </line>
-              <line x1="20" y1="12" x2="22" y2="12">
-                <animate attributeName="opacity" values="0.8;0.4;0.8" dur="3s" repeatCount="indefinite"/>
-              </line>
-              <line x1="4.24" y1="4.24" x2="5.66" y2="5.66">
-                <animate attributeName="opacity" values="0.8;0.4;0.8" dur="3s" repeatCount="indefinite"/>
-              </line>
-              <line x1="18.34" y1="18.34" x2="19.76" y2="19.76">
-                <animate attributeName="opacity" values="0.8;0.4;0.8" dur="3s" repeatCount="indefinite"/>
-              </line>
-              <line x1="19.76" y1="4.24" x2="18.34" y2="5.66">
-                <animate attributeName="opacity" values="0.8;0.4;0.8" dur="3s" repeatCount="indefinite"/>
-              </line>
-              <line x1="5.66" y1="18.34" x2="4.24" y2="19.76">
-                <animate attributeName="opacity" values="0.8;0.4;0.8" dur="3s" repeatCount="indefinite"/>
-              </line>
-            </g>
-            
-            {/* Sun center */}
-            <circle cx="12" cy="12" r="4" fill="url(#sun-gradient)" filter="url(#sun-glow)">
-              <animate attributeName="r" values="4;4.2;4" dur="4s" repeatCount="indefinite"/>
-            </circle>
-          </svg>
-        </div>
-      )
-    } else if (conditionLower.includes('mist') || conditionLower.includes('fog') || conditionLower.includes('haze') || conditionLower.includes('clouds')) {
-      return (
-        <div className="relative w-6 h-6">
-          <svg className="w-full h-full" viewBox="0 0 24 24" fill="none">
-            {/* Simple mist cloud with visible elements */}
-            <ellipse cx="8" cy="8" rx="4" ry="2" fill="#E2E8F0" opacity="0.8">
-              <animateTransform attributeName="transform" type="translate" values="0,0; 2,0; 0,0" dur="6s" repeatCount="indefinite"/>
-              <animate attributeName="opacity" values="0.8;0.4;0.8" dur="4s" repeatCount="indefinite"/>
-            </ellipse>
-            
-            <ellipse cx="16" cy="12" rx="3" ry="1.5" fill="#CBD5E1" opacity="0.6">
-              <animateTransform attributeName="transform" type="translate" values="0,0; -1,0; 0,0" dur="5s" repeatCount="indefinite"/>
-              <animate attributeName="opacity" values="0.6;0.3;0.6" dur="3s" repeatCount="indefinite"/>
-            </ellipse>
-            
-            <ellipse cx="12" cy="16" rx="3.5" ry="1.8" fill="#94A3B8" opacity="0.7">
-              <animateTransform attributeName="transform" type="translate" values="0,0; 1.5,0; 0,0" dur="7s" repeatCount="indefinite"/>
-              <animate attributeName="opacity" values="0.7;0.3;0.7" dur="5s" repeatCount="indefinite"/>
-            </ellipse>
-            
-            {/* Small mist particles */}
-            <circle cx="6" cy="6" r="0.8" fill="#64748B" opacity="0.6">
-              <animate attributeName="cx" values="6;10;6" dur="8s" repeatCount="indefinite"/>
-              <animate attributeName="opacity" values="0.6;0.2;0.6" dur="6s" repeatCount="indefinite"/>
-            </circle>
-            
-            <circle cx="18" cy="14" r="0.6" fill="#475569" opacity="0.5">
-              <animate attributeName="cx" values="18;16;18" dur="9s" repeatCount="indefinite"/>
-              <animate attributeName="opacity" values="0.5;0.2;0.5" dur="7s" repeatCount="indefinite"/>
-            </circle>
-          </svg>
-        </div>
-      )
-    } else if (conditionLower.includes('cloud')) {
-      console.log('🎨 Rendering CLOUD weather icon')
-      return (
-        <div className="relative w-6 h-6">
-          <svg className="w-full h-full" viewBox="0 0 24 24" fill="none">
-            <defs>
-              <radialGradient id="cloud-gradient" cx="50%" cy="50%" r="50%">
-                <stop offset="0%" stopColor="#F9FAFB" stopOpacity="1"/>
-                <stop offset="50%" stopColor="#E5E7EB" stopOpacity="0.8"/>
-                <stop offset="100%" stopColor="#9CA3AF" stopOpacity="0.6"/>
-              </radialGradient>
-            </defs>
-            
-            {/* Cloud with gentle floating animation */}
-            <path d="M18 10c0-3.3-2.7-6-6-6s-6 2.7-6 6c-1.1 0-2 .9-2 2s.9 2 2 2h12c1.1 0 2-.9 2-2s-.9-2-2-2z" 
-                  fill="url(#cloud-gradient)">
-              <animateTransform attributeName="transform" type="translate" values="0,0; 0,-1; 0,0" dur="6s" repeatCount="indefinite"/>
-            </path>
-            
-            {/* Small cloud particles floating around */}
-            <circle cx="6" cy="8" r="1" fill="#D1D5DB" opacity="0.6">
-              <animate attributeName="cx" values="6;8;6" dur="8s" repeatCount="indefinite"/>
-              <animate attributeName="opacity" values="0.6;0.3;0.6" dur="5s" repeatCount="indefinite"/>
-            </circle>
-            
-            <circle cx="18" cy="12" r="0.8" fill="#E5E7EB" opacity="0.5">
-              <animate attributeName="cx" values="18;16;18" dur="7s" repeatCount="indefinite"/>
-              <animate attributeName="opacity" values="0.5;0.2;0.5" dur="6s" repeatCount="indefinite"/>
-            </circle>
-          </svg>
-        </div>
-      )
-    } else if (conditionLower.includes('rain') || conditionLower.includes('drizzle')) {
-      console.log('🎨 Rendering RAIN weather icon')
-      return (
-        <div className="relative w-6 h-6">
-          <svg className="w-full h-full" viewBox="0 0 24 24" fill="none">
-            <defs>
-              <radialGradient id="rain-cloud-gradient" cx="50%" cy="50%" r="50%">
-                <stop offset="0%" stopColor="#F3F4F6" stopOpacity="1"/>
-                <stop offset="50%" stopColor="#9CA3AF" stopOpacity="0.8"/>
-                <stop offset="100%" stopColor="#6B7280" stopOpacity="0.6"/>
-              </radialGradient>
-            </defs>
-            
-            {/* Rain cloud */}
-            <path d="M18 10c0-3.3-2.7-6-6-6s-6 2.7-6 6c-1.1 0-2 .9-2 2s.9 2 2 2h12c1.1 0 2-.9 2-2s-.9-2-2-2z" 
-                  fill="url(#rain-cloud-gradient)">
-              <animateTransform attributeName="transform" type="translate" values="0,0; 0,-0.5; 0,0" dur="4s" repeatCount="indefinite"/>
-            </path>
-            
-            {/* Animated rain drops */}
-            <g stroke="#3B82F6" strokeWidth="1" opacity="0.8">
-              <line x1="8" y1="14" x2="8" y2="18">
-                <animate attributeName="y2" values="18;22;18" dur="1s" repeatCount="indefinite"/>
-                <animate attributeName="opacity" values="0.8;0.4;0.8" dur="1s" repeatCount="indefinite"/>
-              </line>
-              <line x1="12" y1="14" x2="12" y2="20">
-                <animate attributeName="y2" values="20;24;20" dur="1.2s" repeatCount="indefinite"/>
-                <animate attributeName="opacity" values="0.8;0.4;0.8" dur="1.2s" repeatCount="indefinite"/>
-              </line>
-              <line x1="16" y1="14" x2="16" y2="19">
-                <animate attributeName="y2" values="19;23;19" dur="0.8s" repeatCount="indefinite"/>
-                <animate attributeName="opacity" values="0.8;0.4;0.8" dur="0.8s" repeatCount="indefinite"/>
-              </line>
-            </g>
-          </svg>
-        </div>
-      )
-    } else if (conditionLower.includes('thunderstorm') || conditionLower.includes('storm')) {
-      return (
-        <div className="relative w-6 h-6">
-          <svg className="w-full h-full" viewBox="0 0 24 24" fill="none">
-            <defs>
-              <radialGradient id="storm-cloud-gradient" cx="50%" cy="50%" r="50%">
-                <stop offset="0%" stopColor="#E5E7EB" stopOpacity="1"/>
-                <stop offset="50%" stopColor="#6B7280" stopOpacity="0.8"/>
-                <stop offset="100%" stopColor="#374151" stopOpacity="0.6"/>
-              </radialGradient>
-            </defs>
-            
-            {/* Storm cloud */}
-            <path d="M18 10c0-3.3-2.7-6-6-6s-6 2.7-6 6c-1.1 0-2 .9-2 2s.9 2 2 2h12c1.1 0 2-.9 2-2s-.9-2-2-2z" 
-                  fill="url(#storm-cloud-gradient)">
-              <animateTransform attributeName="transform" type="translate" values="0,0; 0,-1; 0,0" dur="3s" repeatCount="indefinite"/>
-            </path>
-            
-            {/* Lightning bolt */}
-            <path d="M12 14l-2 4h2l-1 2 3-4h-2z" fill="#FCD34D" opacity="0.9">
-              <animate attributeName="opacity" values="0.9;0.3;0.9" dur="0.5s" repeatCount="indefinite"/>
-            </path>
-            
-            {/* Heavy rain */}
-            <g stroke="#1E40AF" strokeWidth="1.5" opacity="0.9">
-              <line x1="7" y1="14" x2="7" y2="22">
-                <animate attributeName="y2" values="22;24;22" dur="0.6s" repeatCount="indefinite"/>
-              </line>
-              <line x1="11" y1="14" x2="11" y2="22">
-                <animate attributeName="y2" values="22;24;22" dur="0.7s" repeatCount="indefinite"/>
-              </line>
-              <line x1="15" y1="14" x2="15" y2="22">
-                <animate attributeName="y2" values="22;24;22" dur="0.5s" repeatCount="indefinite"/>
-              </line>
-              <line x1="19" y1="14" x2="19" y2="22">
-                <animate attributeName="y2" values="22;24;22" dur="0.8s" repeatCount="indefinite"/>
-              </line>
-            </g>
-          </svg>
-        </div>
-      )
-    } else if (conditionLower.includes('snow')) {
-      return (
-        <div className="relative w-6 h-6">
-          <svg className="w-full h-full" viewBox="0 0 24 24" fill="none">
-            <defs>
-              <radialGradient id="snow-cloud-gradient" cx="50%" cy="50%" r="50%">
-                <stop offset="0%" stopColor="#F8FAFC" stopOpacity="1"/>
-                <stop offset="50%" stopColor="#E2E8F0" stopOpacity="0.8"/>
-                <stop offset="100%" stopColor="#94A3B8" stopOpacity="0.6"/>
-              </radialGradient>
-            </defs>
-            
-            {/* Snow cloud */}
-            <path d="M18 10c0-3.3-2.7-6-6-6s-6 2.7-6 6c-1.1 0-2 .9-2 2s.9 2 2 2h12c1.1 0 2-.9 2-2s-.9-2-2-2z" 
-                  fill="url(#snow-cloud-gradient)">
-              <animateTransform attributeName="transform" type="translate" values="0,0; 0,-0.5; 0,0" dur="5s" repeatCount="indefinite"/>
-            </path>
-            
-            {/* Snowflakes */}
-            <g fill="#E0E7FF" opacity="0.8">
-              <circle cx="8" cy="16" r="0.5">
-                <animate attributeName="cy" values="16;22;16" dur="3s" repeatCount="indefinite"/>
-                <animate attributeName="opacity" values="0.8;0.2;0.8" dur="3s" repeatCount="indefinite"/>
-              </circle>
-              <circle cx="12" cy="18" r="0.4">
-                <animate attributeName="cy" values="18;24;18" dur="2.5s" repeatCount="indefinite"/>
-                <animate attributeName="opacity" values="0.8;0.2;0.8" dur="2.5s" repeatCount="indefinite"/>
-              </circle>
-              <circle cx="16" cy="17" r="0.6">
-                <animate attributeName="cy" values="17;23;17" dur="3.5s" repeatCount="indefinite"/>
-                <animate attributeName="opacity" values="0.8;0.2;0.8" dur="3.5s" repeatCount="indefinite"/>
-              </circle>
-            </g>
-          </svg>
-        </div>
-      )
-    } else if (conditionLower.includes('wind')) {
-      return (
-        <div className="relative w-6 h-6">
-          <svg className="w-full h-full" viewBox="0 0 24 24" fill="none">
-            <defs>
-              <filter id="wind-blur">
-                <feGaussianBlur stdDeviation="0.5"/>
-              </filter>
-            </defs>
-            
-            {/* Wind lines */}
-            <g stroke="#9CA3AF" strokeWidth="1" opacity="0.7" filter="url(#wind-blur)">
-              <path d="M2 8 Q6 6 10 8 Q14 10 18 8 Q20 7 22 8">
-                <animate attributeName="d" values="M2 8 Q6 6 10 8 Q14 10 18 8 Q20 7 22 8;M2 8 Q6 10 10 8 Q14 6 18 8 Q20 9 22 8;M2 8 Q6 6 10 8 Q14 10 18 8 Q20 7 22 8" dur="2s" repeatCount="indefinite"/>
-              </path>
-              <path d="M2 12 Q6 10 10 12 Q14 14 18 12 Q20 11 22 12">
-                <animate attributeName="d" values="M2 12 Q6 10 10 12 Q14 14 18 12 Q20 11 22 12;M2 12 Q6 14 10 12 Q14 10 18 12 Q20 13 22 12;M2 12 Q6 10 10 12 Q14 14 18 12 Q20 11 22 12" dur="2.5s" repeatCount="indefinite"/>
-              </path>
-              <path d="M2 16 Q6 14 10 16 Q14 18 18 16 Q20 15 22 16">
-                <animate attributeName="d" values="M2 16 Q6 14 10 16 Q14 18 18 16 Q20 15 22 16;M2 16 Q6 18 10 16 Q14 14 18 16 Q20 17 22 16;M2 16 Q6 14 10 16 Q14 18 18 16 Q20 15 22 16" dur="3s" repeatCount="indefinite"/>
-              </path>
-            </g>
-          </svg>
-        </div>
-      )
-    } else {
-      // Default sunny weather
-      console.log('🎨 Rendering DEFAULT weather icon')
-      return (
-        <div className="relative w-6 h-6">
-          <svg className="w-full h-full" viewBox="0 0 24 24" fill="none">
-            <defs>
-              <radialGradient id="default-sun-gradient" cx="50%" cy="50%" r="50%">
-                <stop offset="0%" stopColor="#FEF3C7" stopOpacity="1"/>
-                <stop offset="50%" stopColor="#F59E0B" stopOpacity="0.8"/>
-                <stop offset="100%" stopColor="#D97706" stopOpacity="0.6"/>
-              </radialGradient>
-            </defs>
-            
-            <circle cx="12" cy="12" r="4" fill="url(#default-sun-gradient)">
-              <animate attributeName="r" values="4;4.2;4" dur="4s" repeatCount="indefinite"/>
-            </circle>
-          </svg>
-        </div>
-      )
-    }
-  }, [])
 
   // Memoized calculations for performance - must be before any conditional returns
   const completedTasksCount = useMemo(() => {
@@ -1258,26 +1108,26 @@ export function DashboardPage() {
           </p>
         </div>
         <div className="flex items-center space-x-4">
-          {/* Current Weather Widget */}
+          {/* Current Weather Widget - Header Style */}
           {currentWeather && (
-            <div className="flex items-center space-x-2 bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 px-4 py-2 rounded-lg border">
-              <div className="relative">
-                {getWeatherIcon(currentWeather.condition)}
-              </div>
-              <div className="flex flex-col">
-                <span className="text-sm font-semibold text-blue-700 dark:text-blue-300">
-                  {currentWeather.temperature}°F
-                </span>
-                <span className="text-xs text-blue-600 dark:text-blue-400">
-                  {currentWeather.condition}
-                </span>
+            <div className="flex items-center space-x-2 px-2 py-1 bg-slate-50 dark:bg-slate-800 rounded-lg">
+              <span className="text-lg">
+                {getWeatherIcon(currentWeather.condition, currentWeather.emoji)}
+              </span>
+              <div className="text-xs">
+                <div className="font-medium text-slate-700 dark:text-slate-300">
+                  {currentWeather.temperature}°
+                </div>
+                <div className="text-slate-500 dark:text-slate-400">
+                  {currentWeather.location?.split(',')[0] || 'Current'}
+                </div>
               </div>
             </div>
           )}
 
           {/* 6-Hour Forecast Strip */}
           {(forecastData && forecastData.length > 0) || forecastLoading ? (
-            <div className="flex items-center space-x-3 bg-gradient-to-r from-slate-50 to-slate-100 dark:from-slate-800/20 dark:to-slate-700/20 px-3 py-2 rounded-lg border">
+            <div className="flex items-center space-x-4 bg-gradient-to-r from-slate-50 to-slate-100 dark:from-slate-800/20 dark:to-slate-700/20 px-4 py-3 rounded-lg border mb-4 mt-4">
               <span className="text-xs text-slate-600 dark:text-slate-400 font-medium">Next 6h:</span>
               {forecastLoading ? (
                 <div className="flex items-center space-x-2">
@@ -1285,11 +1135,11 @@ export function DashboardPage() {
                   <span className="text-xs text-slate-500">Loading...</span>
                 </div>
               ) : forecastData && forecastData.length > 0 ? (
-                <div className="flex items-center space-x-2">
+                <div className="flex items-center space-x-4">
                   {forecastData.map((forecast, index) => (
-                    <div key={index} className="flex items-center space-x-1">
-                      <div className="relative w-4 h-4">
-                        {getWeatherIcon(forecast.condition)}
+                    <div key={index} className="flex items-center space-x-2">
+                      <div className="relative w-5 h-5">
+                        {getWeatherIcon(forecast.condition, forecast.emoji)}
                       </div>
                       <div className="flex flex-col items-center">
                         <span className="text-xs font-medium text-slate-700 dark:text-slate-300">
@@ -1312,198 +1162,8 @@ export function DashboardPage() {
           ) : null}
           
           {/* Energy Level */}
-          <div className="flex items-center space-x-2">
-            <div className="relative">
-
-              {/* Main energy aura - gradual progression */}
-              <div className="relative">
-                {/* Base aura - grows with energy level */}
-                <div 
-                  className={`absolute inset-0 rounded-full ${(user.energyLevel ?? 5) >= 2 ? 'bg-gradient-to-r from-yellow-400/20 to-yellow-600/30 animate-pulse' : ''}`} 
-                  style={{ 
-                    width: `${100 + ((user.energyLevel ?? 5) * 30)}%`,
-                    height: `${100 + ((user.energyLevel ?? 5) * 30)}%`,
-                    left: `-${((user.energyLevel ?? 5) * 15)}%`,
-                    top: `-${((user.energyLevel ?? 5) * 15)}%`,
-                    animationDuration: `${2.5 - ((user.energyLevel ?? 5) * 0.2)}s`
-                  }}
-                >
-                </div>
-                
-                {/* Secondary aura - appears at level 4+ */}
-                {(user.energyLevel ?? 5) >= 4 && (
-                  <div 
-                    className="absolute inset-0 rounded-full bg-gradient-to-r from-yellow-300/15 to-yellow-500/25 animate-ping" 
-                    style={{ 
-                      width: `${150 + ((user.energyLevel ?? 5) * 25)}%`, 
-                      height: `${150 + ((user.energyLevel ?? 5) * 25)}%`,
-                      left: `-${25 + ((user.energyLevel ?? 5) * 12.5)}%`,
-                      top: `-${25 + ((user.energyLevel ?? 5) * 12.5)}%`,
-                      animationDuration: `${3 - ((user.energyLevel ?? 5) * 0.2)}s`
-                    }}
-                  >
-                  </div>
-                )}
-                
-                {/* Tertiary aura - appears at level 7+ */}
-                {(user.energyLevel ?? 5) >= 7 && (
-                  <div 
-                    className="absolute inset-0 rounded-full bg-gradient-to-r from-yellow-200/10 to-yellow-400/20 animate-pulse" 
-                    style={{ 
-                      width: `${200 + ((user.energyLevel ?? 5) * 20)}%`, 
-                      height: `${200 + ((user.energyLevel ?? 5) * 20)}%`,
-                      left: `-${50 + ((user.energyLevel ?? 5) * 10)}%`,
-                      top: `-${50 + ((user.energyLevel ?? 5) * 10)}%`,
-                      animationDuration: `${1.5 - ((user.energyLevel ?? 5) * 0.1)}s`
-                    }}
-                  >
-                  </div>
-                )}
-              </div>
-
-              {/* Main lightning bolt - Fill effect matching header - CLICKABLE TOGGLE */}
-              <button 
-                className="relative w-5 h-5 cursor-pointer hover:scale-110 transition-transform duration-200"
-                onClick={toggleAnimation}
-                title={animationEnabled ? "Disable Energy Animation" : "Enable Energy Animation"}
-              >
-                {/* Background lightning bolt (empty) */}
-                <Zap 
-                  className="absolute inset-0 w-5 h-5 text-gray-300 dark:text-gray-600"
-                />
-                {/* Filled lightning bolt based on energy level */}
-                <Zap 
-                  className={`absolute inset-0 w-5 h-5 ${
-                    (user.energyLevel ?? 5) >= 10 ? 'text-yellow-200' : 
-                    (user.energyLevel ?? 5) >= 9 ? 'text-yellow-300' : 
-                    (user.energyLevel ?? 5) >= 7 ? 'text-yellow-400' : 
-                    (user.energyLevel ?? 5) >= 5 ? 'text-yellow-500' : 
-                    (user.energyLevel ?? 5) >= 3 ? 'text-yellow-600' : 
-                    'text-primary'
-                  } ${animationEnabled ? 'animate-pulse' : 'opacity-70'}`} 
-                  style={{
-                    clipPath: `polygon(0% 0%, ${((user.energyLevel ?? 5) / 10) * 100}% 0%, ${((user.energyLevel ?? 5) / 10) * 100}% 100%, 0% 100%)`,
-                    ...(animationEnabled && (user.energyLevel ?? 5) >= 7 ? { 
-                      animationDuration: `${0.6 - ((user.energyLevel ?? 5) * 0.04)}s`,
-                      filter: (user.energyLevel ?? 5) >= 9 ? 'drop-shadow(0 0 8px rgba(255, 255, 0, 0.8))' : 'none'
-                    } : {})
-                  }}
-                />
-              </button>
-              
-              {/* Super Saiyan sparks - gradual progression (only when animation enabled) */}
-              {animationEnabled && (user.energyLevel ?? 5) >= 3 && (
-                <>
-                  {/* Ground-breaking effects - Super Saiyan style */}
-                  <div className="absolute -bottom-8 left-0 w-full h-8 overflow-hidden">
-                    {/* Ground pieces flying up - Super Saiyan style */}
-                    {Array.from({ length: Math.min(Math.floor(((user.energyLevel ?? 5) - 2) * 2), 12) }, (_, i) => (
-                      <div 
-                        key={i}
-                        className={`absolute bottom-0 bg-gradient-to-t from-yellow-800 to-yellow-500 rounded-sm`}
-                        style={{
-                          left: `${5 + (i * 8)}px`,
-                          width: `${0.5 + (i % 3) * 0.5}rem`,
-                          height: `${0.5 + (i % 2) * 0.5}rem`,
-                          animation: `bounce ${1.5 - ((user.energyLevel ?? 5) * 0.1)}s ease-in-out infinite ${i * 0.1}s`,
-                          zIndex: 1
-                        }}
-                      >
-                        {/* Inner glow effect */}
-                        <div className="w-full h-full bg-gradient-to-t from-yellow-600 to-yellow-300 rounded-sm opacity-80"></div>
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Multi-layered Energy Aura - Super Saiyan */}
-                  {/* Base aura - grows with energy level */}
-                  <div 
-                    className={`absolute inset-0 rounded-full ${(user.energyLevel ?? 5) >= 2 ? 'bg-gradient-to-r from-yellow-400/20 to-yellow-600/30 animate-pulse' : ''}`} 
-                    style={{
-                      width: `${100 + ((user.energyLevel ?? 5) * 20)}%`,
-                      height: `${100 + ((user.energyLevel ?? 5) * 20)}%`,
-                      left: `${-((user.energyLevel ?? 5) * 10)}%`,
-                      top: `${-((user.energyLevel ?? 5) * 10)}%`,
-                      animationDuration: `${2 - ((user.energyLevel ?? 5) * 0.15)}s`,
-                      zIndex: 1
-                    }}
-                  />
-
-                  {/* Secondary aura - level 4+ */}
-                  {(user.energyLevel ?? 5) >= 4 && (
-                    <div 
-                      className="absolute inset-0 rounded-full bg-gradient-to-r from-yellow-300/15 to-yellow-500/25 animate-ping"
-                      style={{
-                        width: `${120 + ((user.energyLevel ?? 5) * 15)}%`,
-                        height: `${120 + ((user.energyLevel ?? 5) * 15)}%`,
-                        left: `${-((user.energyLevel ?? 5) * 7.5)}%`,
-                        top: `${-((user.energyLevel ?? 5) * 7.5)}%`,
-                        animationDuration: `${1.8 - ((user.energyLevel ?? 5) * 0.12)}s`
-                      }}
-                    />
-                  )}
-
-                  {/* Tertiary aura - level 7+ */}
-                  {(user.energyLevel ?? 5) >= 7 && (
-                    <div 
-                      className="absolute inset-0 rounded-full bg-gradient-to-r from-yellow-200/10 to-yellow-400/20 animate-pulse"
-                      style={{
-                        width: `${140 + ((user.energyLevel ?? 5) * 10)}%`,
-                        height: `${140 + ((user.energyLevel ?? 5) * 10)}%`,
-                        left: `${-((user.energyLevel ?? 5) * 5)}%`,
-                        top: `${-((user.energyLevel ?? 5) * 5)}%`,
-                        animationDuration: `${1.5 - ((user.energyLevel ?? 5) * 0.1)}s`
-                      }}
-                    />
-                  )}
-
-                  {/* Divine aura - level 9+ */}
-                  {(user.energyLevel ?? 5) >= 9 && (
-                    <div 
-                      className="absolute inset-0 rounded-full bg-gradient-to-r from-yellow-100/5 to-yellow-300/15 animate-ping"
-                      style={{
-                        width: `${160 + ((user.energyLevel ?? 5) * 5)}%`,
-                        height: `${160 + ((user.energyLevel ?? 5) * 5)}%`,
-                        left: `${-((user.energyLevel ?? 5) * 2.5)}%`,
-                        top: `${-((user.energyLevel ?? 5) * 2.5)}%`,
-                        animationDuration: `${1.2 - ((user.energyLevel ?? 5) * 0.08)}s`,
-                        filter: 'drop-shadow(0 0 10px rgba(255, 255, 0, 0.6))'
-                      }}
-                    />
-                  )}
-                  {Array.from({ length: Math.min(Math.floor(((user.energyLevel ?? 5) - 2) * 3), 20) }, (_, i) => {
-                    const angle = (i * 18) % 360; // Distribute sparks in a circle
-                    const radius = 20 + ((user.energyLevel ?? 5) * 5);
-                    const x = Math.cos(angle * Math.PI / 180) * radius;
-                    const y = Math.sin(angle * Math.PI / 180) * radius;
-                    const size = 2 + ((user.energyLevel ?? 5) * 0.3);
-                    const opacity = 0.3 + ((user.energyLevel ?? 5) * 0.05);
-                    const animationSpeed = 2 - ((user.energyLevel ?? 5) * 0.15);
-                    
-                    return (
-                      <svg 
-                        key={i}
-                        className={`absolute text-yellow-400 animate-ping`}
-                        style={{
-                          left: `${x}px`,
-                          top: `${y}px`,
-                          width: `${size}rem`,
-                          height: `${size}rem`,
-                          animationDelay: `${i * 0.1}s`,
-                          animationDuration: `${animationSpeed}s`,
-                          opacity: opacity,
-                          zIndex: 1
-                        }}
-                        viewBox="0 0 24 24" 
-                        fill="none"
-                      >
-                        <path d="M8 2L5 8h3l-2 4 4-5h-2z" fill="currentColor" />
-                      </svg>
-                    );
-                  })}
-                </>
-              )}
-            </div>
+          <div className="flex items-center space-x-2 mt-2">
+            <Zap className="w-5 h-5 text-primary" />
             <button 
               onClick={() => navigate('/energy-analysis')}
               className="text-sm font-medium hover:text-primary transition-colors cursor-pointer"
@@ -1516,7 +1176,7 @@ export function DashboardPage() {
       </div>
 
       {/* Quick Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Today's Tasks</CardTitle>
@@ -1556,22 +1216,9 @@ export function DashboardPage() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Notifications</CardTitle>
-            <AlertCircle className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{unreadNotifications.length}</div>
-            <p className="text-xs text-muted-foreground">
-              Unread messages
-            </p>
-          </CardContent>
-        </Card>
-
         <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate('/gamification')}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Gamification</CardTitle>
+            <CardTitle className="text-sm font-medium">Points</CardTitle>
             <Trophy className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -1774,6 +1421,7 @@ export function DashboardPage() {
         isLoading={deleteEventMutation.isPending}
         eventTitle={eventToDelete?.title}
       />
+
     </div>
   )
 }

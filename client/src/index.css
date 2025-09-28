@@ -114,3 +114,52 @@
   background: rgba(0, 0, 0, 0.1);
   border: 1px solid rgba(255, 255, 255, 0.1);
 }
+
+/* SUPER SAIYAN GRADIENT EFFECTS */
+.bg-gradient-radial {
+  background: radial-gradient(circle, var(--tw-gradient-stops));
+}
+
+.bg-gradient-conic {
+  background: conic-gradient(from 0deg, var(--tw-gradient-stops));
+}
+
+/* Super Saiyan energy wave animation */
+@keyframes energy-wave {
+  0% {
+    transform: scale(0.8);
+    opacity: 0.8;
+  }
+  50% {
+    transform: scale(1.2);
+    opacity: 0.4;
+  }
+  100% {
+    transform: scale(1.5);
+    opacity: 0;
+  }
+}
+
+.animate-energy-wave {
+  animation: energy-wave 2s ease-out infinite;
+}
+
+/* Super Saiyan transformation burst */
+@keyframes transformation-burst {
+  0% {
+    transform: scale(0.5);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.5);
+    opacity: 0.6;
+  }
+  100% {
+    transform: scale(3);
+    opacity: 0;
+  }
+}
+
+.animate-transformation-burst {
+  animation: transformation-burst 1.5s ease-out infinite;
+}

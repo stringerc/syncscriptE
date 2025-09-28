@@ -335,18 +335,18 @@ const GamificationPage: React.FC = () => {
                 <div className="space-y-3">
                   {leaderboard?.map((user: any, index: number) => (
                     <div key={user.userId} className={cn(
-                      "flex items-center gap-4 p-4 rounded-lg",
-                      index === 0 ? "bg-yellow-50 border-yellow-200" :
-                      index === 1 ? "bg-gray-50 border-gray-200" :
-                      index === 2 ? "bg-orange-50 border-orange-200" :
-                      "bg-white border"
+                      "flex items-center gap-4 p-4 rounded-lg border",
+                      index === 0 ? "bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-700" :
+                      index === 1 ? "bg-gray-50 dark:bg-gray-800/50 border-gray-200 dark:border-gray-700" :
+                      index === 2 ? "bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-700" :
+                      "bg-white dark:bg-gray-800/30 border-gray-200 dark:border-gray-700"
                     )}>
-                      <div className="flex items-center justify-center w-8 h-8 rounded-full bg-gray-100 text-sm font-bold">
+                      <div className="flex items-center justify-center w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-700 text-sm font-bold text-gray-900 dark:text-gray-100">
                         {index + 1}
                       </div>
                       <div className="flex-1">
                         <div className="flex items-center gap-2">
-                          <h4 className="font-medium">{user.name}</h4>
+                          <h4 className="font-semibold text-gray-900 dark:text-gray-100 text-base">{user.name}</h4>
                           {index < 3 && (
                             <div className="text-lg">
                               {index === 0 && '👑'}

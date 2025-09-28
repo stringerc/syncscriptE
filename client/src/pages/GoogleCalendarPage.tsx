@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Calendar, ExternalLink, RefreshCw, Sync, Trash2, Plus } from 'lucide-react'
+import { Calendar, ExternalLink, RefreshCw, Trash2, Plus } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { useAuthStore } from '@/stores/authStore'
 import api from '@/lib/api'
@@ -43,12 +43,43 @@ interface GoogleCalendarEvent {
 }
 
 export function GoogleCalendarPage() {
+  console.log('🚀 GoogleCalendarPage: Component loaded');
+  
   const [authUrl, setAuthUrl] = useState<string>('')
   const [selectedCalendar, setSelectedCalendar] = useState<string>('primary')
   const [syncDirection, setSyncDirection] = useState<'from_google' | 'to_google' | 'bidirectional'>('from_google')
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
+  const [timeRange, setTimeRange] = useState<'3months' | '6months' | '1year' | '2years'>('1year')
+  const [showPastEvents, setShowPastEvents] = useState(false)
   const { toast } = useToast()
   const queryClient = useQueryClient()
   const { user, token } = useAuthStore()
+
+  // Helper function to calculate time range
+  const getTimeRange = (range: string, includePast = false) => {
+    const now = new Date()
+    const timeMin = includePast ? new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000).toISOString() : now.toISOString() // Include past year if needed
+    
+    let timeMax: Date
+    switch (range) {
+      case '3months':
+        timeMax = new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000) // 3 months
+        break
+      case '6months':
+        timeMax = new Date(now.getTime() + 180 * 24 * 60 * 60 * 1000) // 6 months
+        break
+      case '1year':
+        timeMax = new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000) // 1 year
+        break
+      case '2years':
+        timeMax = new Date(now.getTime() + 730 * 24 * 60 * 60 * 1000) // 2 years
+        break
+      default:
+        timeMax = new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000) // 1 year default
+    }
+    
+    return { timeMin, timeMax: timeMax.toISOString() }
+  }
 
   // Fetch Google Calendar integration status
   const { data: statusData, isLoading: statusLoading, error: statusError } = useQuery<GoogleCalendarStatus>({
@@ -86,16 +117,122 @@ export function GoogleCalendarPage() {
     refetchOnWindowFocus: false
   })
 
-  // Fetch Google Calendar events
+  // Fetch Google Calendar events from all calendars
   const { data: eventsData, isLoading: eventsLoading, refetch: refetchEvents, error: eventsError } = useQuery<GoogleCalendarEvent[]>({
-    queryKey: ['google-calendar-events', selectedCalendar],
+    queryKey: ['google-calendar-events-all', timeRange],
     queryFn: async () => {
-      const response = await api.get(`/google-calendar/events?calendarId=${selectedCalendar}&maxResults=50`)
-      return response.data.data
+      const allEvents = []
+      const { timeMin, timeMax } = getTimeRange(timeRange, true) // Get time range including past events
+      
+      // Get events from primary calendar
+      try {
+        const primaryResponse = await api.get(`/google-calendar/events?calendarId=primary&maxResults=50&timeMin=${timeMin}&timeMax=${timeMax}`)
+        allEvents.push(...primaryResponse.data.data.map(event => ({ 
+          ...event, 
+          calendarId: 'primary',
+          title: event.summary || event.title || 'Untitled Event' // Map summary to title
+        })))
+      } catch (error) {
+        console.error('Error fetching primary calendar events:', error)
+      }
+      
+      // Get events from holiday calendars if subscribed
+      const holidayCalendars = calendarsData?.filter(cal => 
+        cal.id === 'en.usa#holiday@group.v.calendar.google.com' || 
+        cal.id === 'en.usa.official#holiday@group.v.calendar.google.com'
+      ) || []
+      
+      console.log('🎉 Found holiday calendars:', holidayCalendars.map(cal => cal.id))
+      
+      for (const holidayCalendar of holidayCalendars) {
+        try {
+          console.log('🎉 Fetching holiday calendar events from:', holidayCalendar.id)
+          const holidayResponse = await api.get(`/google-calendar/events?calendarId=${holidayCalendar.id}&maxResults=50&timeMin=${timeMin}&timeMax=${timeMax}`)
+          console.log('🎉 Holiday calendar events received:', holidayResponse.data.data)
+          allEvents.push(...holidayResponse.data.data.map(event => ({ 
+            ...event, 
+            calendarId: 'holiday',
+            title: event.summary || event.title || 'Untitled Holiday' // Map summary to title
+          })))
+        } catch (error) {
+          console.error('❌ Error fetching holiday calendar events from', holidayCalendar.id, ':', error)
+        }
+      }
+      
+      if (holidayCalendars.length === 0) {
+        console.log('❌ No holiday calendars subscribed. Available calendars:', calendarsData?.map(cal => cal.id))
+      }
+      
+      // Also get events from local database (includes synced holidays)
+      try {
+        const localEventsResponse = await api.get(`/calendar?timeMin=${timeMin}&timeMax=${timeMax}&includePast=true`)
+        const localEvents = localEventsResponse.data.events || []
+        
+        // Add local events with proper formatting
+        allEvents.push(...localEvents.map(event => ({
+          id: event.id,
+          title: event.title,
+          start: {
+            dateTime: event.startTime,
+            date: event.startTime.split('T')[0] // Extract date part for all-day events
+          },
+          end: {
+            dateTime: event.endTime,
+            date: event.endTime.split('T')[0]
+          },
+          calendarId: 'local',
+          description: event.description,
+          location: event.location
+        })))
+        
+        console.log('🎉 Added local events:', localEvents.length, 'events')
+        console.log('🎉 Local events details:', localEvents.map(event => ({ 
+          title: event.title, 
+          startTime: event.startTime,
+          isFuture: new Date(event.startTime) >= new Date()
+        })))
+      } catch (error) {
+        console.error('❌ Error fetching local events:', error)
+      }
+      
+      // Sort events by start time
+      const sortedEvents = allEvents.sort((a, b) => {
+        const aTime = a.start?.dateTime || a.start?.date
+        const bTime = b.start?.dateTime || b.start?.date
+        return new Date(aTime).getTime() - new Date(bTime).getTime()
+      })
+      
+      // Remove duplicates based on title and start time
+      const uniqueEvents = sortedEvents.filter((event, index, array) => {
+        return array.findIndex(e => {
+          // Compare title (case insensitive)
+          const titleMatch = e.title?.toLowerCase() === event.title?.toLowerCase()
+          
+          // Compare start time (handle both dateTime and date formats)
+          const eventStartTime = event.start?.dateTime || event.start?.date
+          const eStartTime = e.start?.dateTime || e.start?.date
+          const timeMatch = eventStartTime === eStartTime
+          
+          return titleMatch && timeMatch
+        }) === index
+      })
+      
+      console.log('🎉 All events combined and sorted:', sortedEvents.length, 'events')
+      console.log('🎉 Event details for debugging:')
+      sortedEvents.forEach((event, index) => {
+        console.log(`  ${index}: "${event.title}" - ${event.start?.dateTime || event.start?.date}`)
+      })
+      
+      console.log('🎉 Unique events after deduplication:', uniqueEvents.length, 'events')
+      console.log('🎉 Removed', sortedEvents.length - uniqueEvents.length, 'duplicates')
+      return uniqueEvents
     },
-    enabled: !!user && !!token && statusData?.connected && !statusError,
+    enabled: !!user && !!token && statusData?.connected && !statusError && !!calendarsData,
     retry: false,
-    refetchOnWindowFocus: false
+    refetchOnWindowFocus: false,
+    onSuccess: () => {
+      setLastUpdated(new Date())
+    }
   })
 
   // Connect Google Calendar mutation
@@ -168,6 +305,28 @@ export function GoogleCalendarPage() {
     }
   })
 
+  // Subscribe to holiday calendar mutation
+  const subscribeHolidayMutation = useMutation({
+    mutationFn: async (calendarId: string) => {
+      const response = await api.post('/google-calendar/subscribe-holiday', { calendarId })
+      return response.data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['google-calendar-calendars'] })
+      toast({
+        title: "Success!",
+        description: "Holiday calendar subscribed successfully."
+      })
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Subscription Failed",
+        description: error.response?.data?.error || "Failed to subscribe to holiday calendar",
+        variant: "destructive"
+      })
+    }
+  })
+
   // Refresh tokens mutation
   const refreshTokensMutation = useMutation({
     mutationFn: async () => {
@@ -197,14 +356,16 @@ export function GoogleCalendarPage() {
 
   // Debug logging
   useEffect(() => {
-    console.log('GoogleCalendarPage Debug:', {
+    console.log('🔍 GoogleCalendarPage Debug:', {
       user: !!user,
       token: !!token,
       statusLoading,
       statusError,
-      statusData
+      statusData,
+      connected: statusData?.connected,
+      calendarsData: calendarsData?.length || 0
     })
-  }, [user, token, statusLoading, statusError, statusData])
+  }, [user, token, statusLoading, statusError, statusData, calendarsData])
 
   const handleConnect = () => {
     if (authUrl) {
@@ -359,17 +520,21 @@ export function GoogleCalendarPage() {
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="font-medium">Connected since</p>
+                  <p className="font-medium">Last updated</p>
                   <p className="text-sm text-muted-foreground">
-                    {new Date(statusData.integration?.createdAt || '').toLocaleDateString()}
+                    {lastUpdated ? lastUpdated.toLocaleString() : 'Never'}
                   </p>
                 </div>
                 <div className="flex space-x-2">
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => refreshTokensMutation.mutate()}
+                    onClick={() => {
+                      refreshTokensMutation.mutate()
+                      setLastUpdated(new Date())
+                    }}
                     disabled={refreshTokensMutation.isPending}
+                    title="Refresh authentication tokens to ensure continued access to Google Calendar"
                   >
                     <RefreshCw className="w-4 h-4 mr-2" />
                     Refresh Tokens
@@ -390,16 +555,68 @@ export function GoogleCalendarPage() {
         </CardContent>
       </Card>
 
+      {/* Holiday Calendar Subscription - Always Visible for Debugging */}
+      <Card className="border-2 border-green-500">
+        <CardHeader>
+          <CardTitle className="flex items-center space-x-2">
+            <Calendar className="w-5 h-5" />
+            <span>Holiday Calendars</span>
+            <Badge variant="secondary" className="ml-2">ALWAYS VISIBLE</Badge>
+          </CardTitle>
+            <CardDescription>
+              Subscribe to holiday calendars to automatically import holidays into your calendar
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="p-4 border rounded-lg">
+                <h4 className="font-medium mb-2">US Holidays</h4>
+                <p className="text-sm text-muted-foreground mb-3">
+                  Major holidays and observances (conflicts with US Official Holidays)
+                </p>
+                <Button
+                  onClick={() => subscribeHolidayMutation.mutate('en.usa#holiday@group.v.calendar.google.com')}
+                  disabled={subscribeHolidayMutation.isPending || calendarsData?.some(cal => cal.id === 'en.usa#holiday@group.v.calendar.google.com') || calendarsData?.some(cal => cal.id === 'en.usa.official#holiday@group.v.calendar.google.com')}
+                  variant="outline"
+                  size="sm"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  {calendarsData?.some(cal => cal.id === 'en.usa#holiday@group.v.calendar.google.com') ? 'Subscribed' : 
+                   calendarsData?.some(cal => cal.id === 'en.usa.official#holiday@group.v.calendar.google.com') ? 'Disabled (conflict)' : 'Subscribe'}
+                </Button>
+              </div>
+              <div className="p-4 border rounded-lg">
+                <h4 className="font-medium mb-2">US Official Holidays</h4>
+                <p className="text-sm text-muted-foreground mb-3">
+                  Official federal holidays only (conflicts with US Holidays)
+                </p>
+                <Button
+                  onClick={() => subscribeHolidayMutation.mutate('en.usa.official#holiday@group.v.calendar.google.com')}
+                  disabled={subscribeHolidayMutation.isPending || calendarsData?.some(cal => cal.id === 'en.usa.official#holiday@group.v.calendar.google.com') || calendarsData?.some(cal => cal.id === 'en.usa#holiday@group.v.calendar.google.com')}
+                  variant="outline"
+                  size="sm"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  {calendarsData?.some(cal => cal.id === 'en.usa.official#holiday@group.v.calendar.google.com') ? 'Subscribed' : 
+                   calendarsData?.some(cal => cal.id === 'en.usa#holiday@group.v.calendar.google.com') ? 'Disabled (conflict)' : 'Subscribe'}
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
       {/* Calendar Selection and Sync */}
       {statusData?.connected && (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center space-x-2">
-              <Sync className="w-5 h-5" />
+              <RefreshCw className="w-5 h-5" />
               <span>Calendar Sync</span>
             </CardTitle>
             <CardDescription>
-              Choose a calendar and sync direction to synchronize events
+              Choose a calendar and sync direction to synchronize events. 
+              <br />
+              <strong>To import holidays:</strong> First subscribe to holiday calendars above, then select "US Holidays" or "US Official Holidays" from the dropdown below, choose "From Google Calendar", and click "Sync Calendar".
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -409,14 +626,20 @@ export function GoogleCalendarPage() {
                 <select
                   value={selectedCalendar}
                   onChange={(e) => setSelectedCalendar(e.target.value)}
-                  className="w-full p-2 border rounded-md"
+                  className="w-full p-2 border rounded-md bg-background text-foreground"
                   disabled={calendarsLoading}
                 >
-                  {calendarsData?.map((calendar) => (
-                    <option key={calendar.id} value={calendar.id}>
-                      {calendar.summary} {calendar.primary && '(Primary)'}
-                    </option>
-                  ))}
+                  {calendarsLoading ? (
+                    <option>Loading calendars...</option>
+                  ) : calendarsData && calendarsData.length > 0 ? (
+                    calendarsData.map((calendar) => (
+                      <option key={calendar.id} value={calendar.id}>
+                        {calendar.summary} {calendar.primary && '(Primary)'}
+                      </option>
+                    ))
+                  ) : (
+                    <option>No calendars available</option>
+                  )}
                 </select>
               </div>
               <div>
@@ -424,7 +647,7 @@ export function GoogleCalendarPage() {
                 <select
                   value={syncDirection}
                   onChange={(e) => setSyncDirection(e.target.value as any)}
-                  className="w-full p-2 border rounded-md"
+                  className="w-full p-2 border rounded-md bg-background text-foreground"
                 >
                   <option value="from_google">From Google Calendar</option>
                   <option value="to_google">To Google Calendar</option>
@@ -437,8 +660,48 @@ export function GoogleCalendarPage() {
               disabled={syncMutation.isPending}
               className="w-full"
             >
-              <Sync className="w-4 h-4 mr-2" />
+              <RefreshCw className="w-4 h-4 mr-2" />
               {syncMutation.isPending ? 'Syncing...' : 'Sync Calendar'}
+            </Button>
+            
+            <Button
+              onClick={() => {
+                fetch('/api/google-calendar/cleanup-duplicates', {
+                  method: 'POST',
+                  headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                  }
+                })
+                .then(res => res.json())
+                .then(data => {
+                  if (data.success) {
+                    toast({
+                      title: "Cleanup Complete",
+                      description: `Removed ${data.data.deletedCount} duplicate events`,
+                    });
+                    queryClient.invalidateQueries({ queryKey: ['calendar'] });
+                  } else {
+                    toast({
+                      title: "Cleanup Failed",
+                      description: data.message || "Failed to clean up duplicates",
+                      variant: "destructive"
+                    });
+                  }
+                })
+                .catch(error => {
+                  toast({
+                    title: "Cleanup Failed",
+                    description: "Failed to clean up duplicates",
+                    variant: "destructive"
+                  });
+                });
+              }}
+              variant="outline"
+              className="w-full"
+            >
+              <Trash2 className="w-4 h-4 mr-2" />
+              Clean Up Duplicates
             </Button>
           </CardContent>
         </Card>
@@ -450,18 +713,44 @@ export function GoogleCalendarPage() {
           <CardHeader>
             <CardTitle className="flex items-center justify-between">
               <span>Google Calendar Events</span>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => refetchEvents()}
-                disabled={eventsLoading}
-              >
-                <RefreshCw className="w-4 h-4 mr-2" />
-                Refresh
-              </Button>
+              <div className="flex items-center gap-2">
+          <select
+            value={timeRange}
+            onChange={(e) => setTimeRange(e.target.value as '3months' | '6months' | '1year' | '2years')}
+            className="px-2 py-1 text-sm border rounded-md bg-background text-foreground"
+            title="Select how far into the future to fetch events"
+          >
+                  <option value="3months">Next 3 months</option>
+                  <option value="6months">Next 6 months</option>
+                  <option value="1year">Next year</option>
+                  <option value="2years">Next 2 years</option>
+                </select>
+                <Button
+                  variant={showPastEvents ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setShowPastEvents(!showPastEvents)}
+                  title={showPastEvents ? "Hide past events" : "Show past events"}
+                >
+                  {showPastEvents ? "Hide Past" : "Show Past"}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    // Invalidate and refetch the events query
+                    queryClient.invalidateQueries({ queryKey: ['google-calendar-events-all', timeRange] })
+                    setLastUpdated(new Date())
+                  }}
+                  disabled={eventsLoading}
+                  title="Refresh events from Google Calendar to show the latest changes"
+                >
+                  <RefreshCw className="w-4 h-4 mr-2" />
+                  Refresh
+                </Button>
+              </div>
             </CardTitle>
             <CardDescription>
-              Events from your selected Google Calendar
+              Events from your primary calendar and holiday calendars
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -470,33 +759,85 @@ export function GoogleCalendarPage() {
                 <div className="w-6 h-6 border-4 border-primary border-t-transparent rounded-full animate-spin" />
               </div>
             ) : eventsData && eventsData.length > 0 ? (
-              <div className="space-y-3">
-                {eventsData.map((event) => (
-                  <div key={event.id} className="p-4 border rounded-lg">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <h3 className="font-medium">{event.summary || 'Untitled Event'}</h3>
-                        {event.description && (
-                          <p className="text-sm text-muted-foreground mt-1">
-                            {event.description}
-                          </p>
+              (() => {
+                const now = new Date()
+                const filteredEvents = showPastEvents 
+                  ? eventsData 
+                  : eventsData.filter(event => {
+                      const eventTime = new Date(event.start?.dateTime || event.start?.date)
+                      return eventTime >= now
+                    })
+                
+                if (filteredEvents.length === 0) {
+                  return (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <Calendar className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                      <p>No upcoming events found</p>
+                      <p className="text-sm mt-2">
+                        {!showPastEvents && eventsData.some(event => {
+                          const eventTime = new Date(event.start?.dateTime || event.start?.date)
+                          return eventTime < now
+                        }) && (
+                          <>
+                            Past events are hidden. <button 
+                              onClick={() => setShowPastEvents(true)}
+                              className="text-primary hover:underline"
+                            >
+                              Show past events
+                            </button>
+                          </>
                         )}
-                        <div className="flex items-center space-x-4 mt-2 text-sm text-muted-foreground">
-                          <span>
-                            {isAllDay(event) ? 'All Day' : formatDateTime(event.start.dateTime)}
-                          </span>
-                          {event.location && (
-                            <span>📍 {event.location}</span>
+                      </p>
+                    </div>
+                  )
+                }
+                
+                return (
+                  <div className="space-y-3">
+                    {filteredEvents.map((event) => (
+                      <div key={event.id} className="p-4 border rounded-lg">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <h3 className="font-medium">{event.title || event.summary || 'Untitled Event'}</h3>
+                            {event.description && (
+                              <p className="text-sm text-muted-foreground mt-1">
+                                {event.description}
+                              </p>
+                            )}
+                            <div className="flex items-center space-x-4 mt-2 text-sm text-muted-foreground">
+                              <span>
+                                {isAllDay(event) ? (
+                                  <span>
+                                    All Day • {new Date(event.start.dateTime || event.start.date).toLocaleDateString()}
+                                  </span>
+                                ) : (
+                                  formatDateTime(event.start.dateTime)
+                                )}
+                              </span>
+                              {event.location && (
+                                <span>📍 {event.location}</span>
+                              )}
+                              <Badge 
+                                variant={
+                                  event.calendarId === 'holiday' ? 'default' : 
+                                  event.calendarId === 'local' ? 'secondary' : 'outline'
+                                } 
+                                className="text-xs"
+                              >
+                                {event.calendarId === 'holiday' ? 'Holiday' : 
+                                 event.calendarId === 'local' ? 'Synced' : 'Primary'}
+                              </Badge>
+                            </div>
+                          </div>
+                          {isAllDay(event) && (
+                            <Badge variant="secondary">All Day</Badge>
                           )}
                         </div>
                       </div>
-                      {isAllDay(event) && (
-                        <Badge variant="secondary">All Day</Badge>
-                      )}
-                    </div>
+                    ))}
                   </div>
-                ))}
-              </div>
+                )
+              })()
             ) : (
               <div className="text-center py-8 text-muted-foreground">
                 <Calendar className="w-12 h-12 mx-auto mb-4 opacity-50" />

@@ -65,7 +65,7 @@ export function NotificationsDropdown() {
     deleteNotificationMutation.mutate(notificationId)
   }
 
-  const unreadCount = notifications?.filter(n => !n.read).length || 0
+  const unreadCount = notifications?.filter(n => !n.isRead).length || 0
 
   return (
     <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
@@ -99,10 +99,10 @@ export function NotificationsDropdown() {
                   <div className="flex items-start justify-between">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center space-x-2 mb-1">
-                        <h4 className={`text-sm font-medium ${!notification.read ? 'text-foreground' : 'text-muted-foreground'}`}>
+                        <h4 className={`text-sm font-medium ${!notification.isRead ? 'text-foreground' : 'text-muted-foreground'}`}>
                           {notification.title}
                         </h4>
-                        {!notification.read && (
+                        {!notification.isRead && (
                           <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
                         )}
                       </div>
@@ -114,7 +114,7 @@ export function NotificationsDropdown() {
                       </p>
                     </div>
                     <div className="flex items-center space-x-1 ml-2">
-                      {!notification.read && (
+                      {!notification.isRead && (
                         <Button
                           size="sm"
                           variant="ghost"

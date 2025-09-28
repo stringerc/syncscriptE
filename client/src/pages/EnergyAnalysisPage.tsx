@@ -47,18 +47,18 @@ const EnergyAnalysisPage: React.FC = () => {
   const queryClient = useQueryClient()
 
   // Energy analysis query - runs automatically with better caching
-  const { data: energyData, isLoading, error, refetch } = useQuery<EnergyAnalysis>({
+  const { data: energyData, isLoading, error, refetch, isFetching } = useQuery<EnergyAnalysis>({
     queryKey: ['energy-analysis'],
     queryFn: async () => {
       const response = await api.post('/ai/energy-analysis')
       return response.data.data || response.data
     },
     enabled: true, // Run automatically when component mounts
-    staleTime: 5 * 60 * 1000, // Consider data fresh for 5 minutes (reduced for more frequent updates)
-    cacheTime: 15 * 60 * 1000, // Keep in cache for 15 minutes
-    refetchOnWindowFocus: true, // Refetch when window regains focus
-    refetchOnMount: 'always', // Always refetch when component mounts
-    refetchInterval: 10 * 60 * 1000, // Auto-refresh every 10 minutes in background
+    staleTime: 2 * 60 * 1000, // Consider data fresh for 2 minutes
+    cacheTime: 30 * 60 * 1000, // Keep in cache for 30 minutes (longer cache)
+    refetchOnWindowFocus: false, // Don't refetch on window focus to avoid unnecessary requests
+    refetchOnMount: false, // Don't always refetch on mount - use cached data if available
+    refetchInterval: 5 * 60 * 1000, // Auto-refresh every 5 minutes in background
     retry: 2, // Retry failed requests twice
     retryDelay: 1000 // Wait 1 second between retries
   })
@@ -131,16 +131,16 @@ const EnergyAnalysisPage: React.FC = () => {
         </div>
         <Button 
           onClick={handleAnalyze} 
-          disabled={isAnalyzing || isLoading}
+          disabled={isAnalyzing || isFetching}
           className="flex items-center gap-2"
           variant="outline"
         >
-          {(isAnalyzing || isLoading) ? (
+          {(isAnalyzing || isFetching) ? (
             <Loader2 className="w-4 h-4 animate-spin" />
           ) : (
             <RefreshCw className="w-4 h-4" />
           )}
-          {isAnalyzing || isLoading ? 'Analyzing...' : 'Refresh Analysis'}
+          {isAnalyzing ? 'Analyzing...' : isFetching ? 'Updating...' : 'Refresh Analysis'}
         </Button>
       </div>
 
@@ -152,6 +152,7 @@ const EnergyAnalysisPage: React.FC = () => {
         </Alert>
       )}
 
+      {/* Show full loading screen only when no cached data exists */}
       {isLoading && !energyData && (
         <div className="flex items-center justify-center py-12">
           <div className="text-center space-y-4">
@@ -164,12 +165,12 @@ const EnergyAnalysisPage: React.FC = () => {
         </div>
       )}
 
-      {/* Show loading indicator when refreshing cached data */}
-      {isLoading && energyData && (
-        <div className="flex items-center justify-center py-4">
-          <div className="flex items-center gap-2 text-blue-600">
+      {/* Show subtle loading indicator when refreshing with cached data */}
+      {isFetching && energyData && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-6">
+          <div className="flex items-center gap-2 text-blue-700">
             <Loader2 className="w-4 h-4 animate-spin" />
-            <span className="text-sm">Updating analysis...</span>
+            <span className="text-sm font-medium">Updating analysis in background...</span>
           </div>
         </div>
       )}
@@ -282,7 +283,7 @@ const EnergyAnalysisPage: React.FC = () => {
           </Card>
 
           {/* Scheduling Recommendations */}
-          {energyData.schedulingRecommendations.length > 0 && (
+          {energyData.schedulingRecommendations && energyData.schedulingRecommendations.length > 0 && (
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -307,7 +308,7 @@ const EnergyAnalysisPage: React.FC = () => {
                         </Badge>
                       </div>
                       <p className="text-sm text-gray-600 mb-2">{rec.reasoning}</p>
-                      {rec.alternativeTimes.length > 0 && (
+                      {rec.alternativeTimes && rec.alternativeTimes.length > 0 && (
                         <div>
                           <p className="text-xs text-gray-500 mb-1">Alternative times:</p>
                           <div className="flex flex-wrap gap-1">
@@ -379,7 +380,7 @@ const EnergyAnalysisPage: React.FC = () => {
                   </Alert>
                 )}
                 
-                {energyData.adaptiveSuggestions.energyBoostSuggestions.length > 0 && (
+                {energyData.adaptiveSuggestions?.energyBoostSuggestions && energyData.adaptiveSuggestions.energyBoostSuggestions.length > 0 && (
                   <div>
                     <h4 className="font-medium text-green-700 mb-2">Energy Boost Suggestions</h4>
                     <ul className="space-y-1">
@@ -393,7 +394,7 @@ const EnergyAnalysisPage: React.FC = () => {
                   </div>
                 )}
                 
-                {energyData.adaptiveSuggestions.taskModifications.length > 0 && (
+                {energyData.adaptiveSuggestions?.taskModifications && energyData.adaptiveSuggestions.taskModifications.length > 0 && (
                   <div>
                     <h4 className="font-medium text-blue-700 mb-2">Task Modifications</h4>
                     <ul className="space-y-1">

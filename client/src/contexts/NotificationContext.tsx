@@ -133,7 +133,7 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
       setNotifications(prev => 
         prev.map(notification => 
           notification.id === notificationId 
-            ? { ...notification, read: true }
+            ? { ...notification, isRead: true }
             : notification
         )
       )
@@ -155,7 +155,7 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
       return response.data
     },
     onSuccess: () => {
-      setNotifications(prev => prev.map(notification => ({ ...notification, read: true })))
+      setNotifications(prev => prev.map(notification => ({ ...notification, isRead: true })))
       queryClient.invalidateQueries({ queryKey: ['notification-stats'] })
     },
     onError: (error) => {
@@ -249,7 +249,7 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
   // Context value
   const value: NotificationContextType = {
     notifications,
-    unreadCount: Array.isArray(notifications) ? notifications.filter(n => !n.read).length : 0,
+    unreadCount: Array.isArray(notifications) ? notifications.filter(n => !n.isRead).length : 0,
     preferences,
     stats,
     isLoading,

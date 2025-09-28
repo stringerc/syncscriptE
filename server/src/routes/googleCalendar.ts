@@ -150,6 +150,84 @@ router.delete('/disconnect', authenticateToken, asyncHandler(async (req: AuthReq
   });
 }));
 
+// Get available holiday calendars
+router.get('/holiday-calendars', authenticateToken, asyncHandler(async (req: AuthRequest, res) => {
+  const integration = await prisma.calendarIntegration.findFirst({
+    where: {
+      userId: req.user!.id,
+      provider: 'google',
+      isActive: true
+    }
+  });
+
+  if (!integration) {
+    throw createError('Google Calendar integration not found', 404);
+  }
+
+  try {
+    const googleCalendarService = new GoogleCalendarService({
+      accessToken: integration.accessToken,
+      refreshToken: integration.refreshToken || undefined,
+      expiresAt: integration.expiresAt || undefined
+    });
+
+    const holidayCalendars = await googleCalendarService.getAvailableHolidayCalendars();
+
+    res.json({
+      success: true,
+      data: holidayCalendars
+    });
+  } catch (error) {
+    logger.error('Error fetching holiday calendars:', error);
+    throw createError('Failed to fetch holiday calendars', 500);
+  }
+}));
+
+// Subscribe to a holiday calendar
+router.post('/subscribe-holiday', authenticateToken, asyncHandler(async (req: AuthRequest, res) => {
+  const { calendarId } = req.body;
+
+  if (!calendarId) {
+    throw createError('Calendar ID is required', 400);
+  }
+
+  const integration = await prisma.calendarIntegration.findFirst({
+    where: {
+      userId: req.user!.id,
+      provider: 'google',
+      isActive: true
+    }
+  });
+
+  if (!integration) {
+    throw createError('Google Calendar integration not found', 404);
+  }
+
+  try {
+    const googleCalendarService = new GoogleCalendarService({
+      accessToken: integration.accessToken,
+      refreshToken: integration.refreshToken || undefined,
+      expiresAt: integration.expiresAt || undefined
+    });
+
+    const subscribedCalendar = await googleCalendarService.subscribeToHolidayCalendar(calendarId);
+
+    logger.info('Holiday calendar subscribed', { 
+      userId: req.user!.id,
+      calendarId 
+    });
+
+    res.json({
+      success: true,
+      data: subscribedCalendar,
+      message: 'Successfully subscribed to holiday calendar'
+    });
+  } catch (error) {
+    logger.error('Error subscribing to holiday calendar:', error);
+    throw createError('Failed to subscribe to holiday calendar', 500);
+  }
+}));
+
 // Get Google Calendar calendars
 router.get('/calendars', authenticateToken, asyncHandler(async (req: AuthRequest, res) => {
   const integration = await prisma.calendarIntegration.findFirst({
@@ -183,9 +261,153 @@ router.get('/calendars', authenticateToken, asyncHandler(async (req: AuthRequest
   }
 }));
 
+// Clean up duplicate events
+router.post('/cleanup-duplicates', authenticateToken, asyncHandler(async (req: AuthRequest, res) => {
+  try {
+    // First, let's see what events exist for this user
+    const allEvents = await prisma.event.findMany({
+      where: { userId: req.user!.id },
+      select: { id: true, title: true, startTime: true, createdAt: true },
+      orderBy: { createdAt: 'asc' }
+    });
+    
+    console.log('🔍 All events for user:', allEvents.length);
+    console.log('📋 Event details:', allEvents.map(e => ({
+      id: e.id,
+      title: e.title,
+      startTime: e.startTime,
+      createdAt: e.createdAt
+    })));
+
+    // Find and remove duplicate events - try multiple approaches
+    const duplicates = await prisma.$queryRaw`
+      SELECT title, "startTime", COUNT(*) as count
+      FROM "events"
+      WHERE "userId" = ${req.user!.id}
+      GROUP BY title, "startTime"
+      HAVING COUNT(*) > 1
+    `;
+    
+    console.log('🔍 Found duplicates (exact match):', duplicates);
+
+    // Also check for duplicates with similar titles (case-insensitive)
+    const similarDuplicates = await prisma.$queryRaw`
+      SELECT LOWER(title) as title_lower, "startTime", COUNT(*) as count
+      FROM "events"
+      WHERE "userId" = ${req.user!.id}
+      GROUP BY LOWER(title), "startTime"
+      HAVING COUNT(*) > 1
+    `;
+    
+    console.log('🔍 Found duplicates (similar titles):', similarDuplicates);
+
+    // Check for events with same title but different times (might be recurring)
+    const titleDuplicates = await prisma.$queryRaw`
+      SELECT title, COUNT(*) as count
+      FROM "events"
+      WHERE "userId" = ${req.user!.id}
+      GROUP BY title
+      HAVING COUNT(*) > 1
+    `;
+    
+    console.log('🔍 Found duplicates (same title):', titleDuplicates);
+
+    let deletedCount = 0;
+    
+    // Handle exact duplicates (same title and time)
+    for (const duplicate of duplicates) {
+      const events = await prisma.event.findMany({
+        where: {
+          userId: req.user!.id,
+          title: duplicate.title,
+          startTime: new Date(duplicate.startTime)
+        },
+        orderBy: { createdAt: 'asc' }
+      });
+
+      if (events.length > 1) {
+        const idsToDelete = events.slice(1).map(e => e.id);
+        await prisma.event.deleteMany({
+          where: { id: { in: idsToDelete } }
+        });
+        deletedCount += idsToDelete.length;
+        console.log(`🗑️ Deleted ${idsToDelete.length} exact duplicates for "${duplicate.title}"`);
+      }
+    }
+    
+    // Handle similar duplicates (case-insensitive)
+    for (const duplicate of similarDuplicates) {
+      const events = await prisma.event.findMany({
+        where: {
+          userId: req.user!.id,
+          title: { mode: 'insensitive', equals: duplicate.title_lower },
+          startTime: new Date(duplicate.startTime)
+        },
+        orderBy: { createdAt: 'asc' }
+      });
+
+      if (events.length > 1) {
+        const idsToDelete = events.slice(1).map(e => e.id);
+        await prisma.event.deleteMany({
+          where: { id: { in: idsToDelete } }
+        });
+        deletedCount += idsToDelete.length;
+        console.log(`🗑️ Deleted ${idsToDelete.length} similar duplicates for "${duplicate.title_lower}"`);
+      }
+    }
+    
+    // Handle title-only duplicates (keep the most recent one)
+    for (const duplicate of titleDuplicates) {
+      const events = await prisma.event.findMany({
+        where: {
+          userId: req.user!.id,
+          title: duplicate.title
+        },
+        orderBy: { createdAt: 'desc' } // Keep the most recent
+      });
+
+      if (events.length > 1) {
+        const idsToDelete = events.slice(1).map(e => e.id);
+        await prisma.event.deleteMany({
+          where: { id: { in: idsToDelete } }
+        });
+        deletedCount += idsToDelete.length;
+        console.log(`🗑️ Deleted ${idsToDelete.length} title duplicates for "${duplicate.title}"`);
+      }
+    }
+
+    logger.info('Cleaned up duplicate events', { 
+      userId: req.user!.id, 
+      deletedCount 
+    });
+
+    res.json({
+      success: true,
+      data: { deletedCount },
+      message: `Cleaned up ${deletedCount} duplicate events`
+    });
+  } catch (error) {
+    logger.error('Error cleaning up duplicates:', error);
+    throw createError('Failed to clean up duplicates', 500);
+  }
+}));
+
 // Get Google Calendar events
 router.get('/events', authenticateToken, asyncHandler(async (req: AuthRequest, res) => {
   const { calendarId = 'primary', timeMin, timeMax, maxResults = '100' } = req.query;
+  
+  // Decode the calendar ID if it was encoded by the frontend
+  const decodedCalendarId = decodeURIComponent(calendarId as string);
+  
+  // Log calendar requests for debugging
+  logger.info('Fetching Google Calendar events', { 
+    originalCalendarId: calendarId,
+    decodedCalendarId,
+    timeMin,
+    timeMax,
+    maxResults,
+    isHolidayCalendar: decodedCalendarId.includes('holiday')
+  });
 
   const integration = await prisma.calendarIntegration.findFirst({
     where: {
@@ -206,9 +428,13 @@ router.get('/events', authenticateToken, asyncHandler(async (req: AuthRequest, r
       expiresAt: integration.expiresAt || undefined
     });
 
-    const events = await googleCalendarService.getEvents(calendarId as string, {
-      timeMin: timeMin as string,
-      timeMax: timeMax as string,
+    // Set default time range to 1 year if not specified
+    const defaultTimeMin = timeMin as string || new Date().toISOString()
+    const defaultTimeMax = timeMax as string || new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString() // 1 year from now
+    
+    const events = await googleCalendarService.getEvents(decodedCalendarId, {
+      timeMin: defaultTimeMin,
+      timeMax: defaultTimeMax,
       maxResults: parseInt(maxResults as string)
     });
 
@@ -433,6 +659,84 @@ router.post('/refresh-tokens', authenticateToken, asyncHandler(async (req: AuthR
   } catch (error) {
     logger.error('Error refreshing Google Calendar tokens:', error);
     throw createError('Failed to refresh tokens', 500);
+  }
+}));
+
+// Subscribe to holiday calendar
+router.post('/subscribe-holiday', authenticateToken, asyncHandler(async (req: AuthRequest, res) => {
+  const { calendarId } = req.body;
+
+  if (!calendarId) {
+    throw createError('Calendar ID is required', 400);
+  }
+
+  const integration = await prisma.calendarIntegration.findFirst({
+    where: {
+      userId: req.user!.id,
+      provider: 'google',
+      isActive: true
+    }
+  });
+
+  if (!integration) {
+    throw createError('Google Calendar integration not found', 404);
+  }
+
+  try {
+    const googleCalendarService = new GoogleCalendarService({
+      accessToken: integration.accessToken,
+      refreshToken: integration.refreshToken || undefined,
+      expiresAt: integration.expiresAt || undefined
+    });
+
+    await googleCalendarService.subscribeToHolidayCalendar(calendarId);
+
+    logger.info('Holiday calendar subscribed', { 
+      userId: req.user!.id,
+      calendarId
+    });
+
+    res.json({
+      success: true,
+      message: 'Successfully subscribed to holiday calendar'
+    });
+  } catch (error) {
+    logger.error('Error subscribing to holiday calendar:', error);
+    throw createError('Failed to subscribe to holiday calendar', 500);
+  }
+}));
+
+// Get available holiday calendars
+router.get('/holiday-calendars', authenticateToken, asyncHandler(async (req: AuthRequest, res) => {
+  const integration = await prisma.calendarIntegration.findFirst({
+    where: {
+      userId: req.user!.id,
+      provider: 'google',
+      isActive: true
+    }
+  });
+
+  if (!integration) {
+    throw createError('Google Calendar integration not found', 404);
+  }
+
+  try {
+    const googleCalendarService = new GoogleCalendarService({
+      accessToken: integration.accessToken,
+      refreshToken: integration.refreshToken || undefined,
+      expiresAt: integration.expiresAt || undefined
+    });
+
+    const holidayCalendars = await googleCalendarService.getAvailableHolidayCalendars();
+
+    res.json({
+      success: true,
+      data: holidayCalendars,
+      message: 'Holiday calendars retrieved successfully'
+    });
+  } catch (error) {
+    logger.error('Error getting holiday calendars:', error);
+    throw createError('Failed to get holiday calendars', 500);
   }
 }));
 
