@@ -45,7 +45,7 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
       const response = await api.get('/notifications')
       return response.data.data || response.data || []
     },
-    refetchInterval: 30000, // Refresh every 30 seconds
+    refetchInterval: 5 * 60 * 1000, // Refresh every 5 minutes
     refetchOnWindowFocus: true,
   })
 

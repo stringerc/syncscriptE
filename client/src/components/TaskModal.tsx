@@ -193,9 +193,11 @@ export function TaskModal({ task, isOpen, onClose, onTaskUpdated, onTaskDeleted 
         throw new Error('Start time and end time are required')
       }
       
-      // Create the calendar event
+      // Create the calendar event with clean title (no "Prep for:" in event title)
+      const eventTitle = task.title.replace(/^Prep for:\s*/i, '');
+      
       const eventResponse = await api.post('/calendar', {
-        title: task.title,
+        title: eventTitle,
         description: task.description,
         startTime: new Date(startTime).toISOString(),
         endTime: new Date(endTime).toISOString(),
@@ -206,7 +208,7 @@ export function TaskModal({ task, isOpen, onClose, onTaskUpdated, onTaskDeleted 
       // Update the task to link it to the new event and mark it as a prep task
       const updateData: any = {
         eventId: eventResponse.data.data.id,
-        title: buildPrepChainTitle(task.title, eventResponse.data.data.title, isPrepTask(task.title)),
+        title: task.title.replace(/^Prep for:\s*/i, ''), // Keep clean title, event relationship shown separately
         // Keep all other task properties unchanged
         description: task.description,
         priority: task.priority,

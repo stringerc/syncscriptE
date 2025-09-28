@@ -129,7 +129,7 @@ router.post('/handle-ended-event-tasks', authenticateToken, asyncHandler(async (
           },
           data: {
             eventId: null,
-            title: tasks.map(t => t.title.replace(/^Prep for: /, '')) // Remove "Prep for:" prefix
+            title: tasks.map(t => t.title.replace(/^Prep for:\s*/i, '')) // Keep clean titles
           }
         });
         result = { message: `${tasks.length} tasks kept and unlinked from event` };
@@ -189,7 +189,7 @@ router.post('/handle-ended-event-tasks', authenticateToken, asyncHandler(async (
           },
           data: {
             eventId: newEvent.id,
-            title: tasks.map(t => `Prep for: ${t.title.replace(/^Prep for: /, '')}`)
+            title: tasks.map(t => t.title.replace(/^Prep for:\s*/i, ''))
           }
         });
 

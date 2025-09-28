@@ -1,5 +1,6 @@
 /**
  * Utility functions for handling preparation task chains
+ * Note: "Prep for:" prefixes have been removed from all titles
  */
 
 export interface PrepChainItem {
@@ -9,18 +10,18 @@ export interface PrepChainItem {
 }
 
 /**
- * Builds a hierarchical preparation chain for a task
+ * Builds a task title with "Prep for:" prefix for event-related tasks
  * @param taskTitle - The current task title
  * @param eventTitle - The event title this task is preparing for
  * @param isAlreadyPrepTask - Whether the task already has "Prep for:" in its title
- * @returns The formatted preparation chain title
+ * @returns The task title with appropriate prep prefix
  */
 export function buildPrepChainTitle(
   taskTitle: string, 
   eventTitle: string, 
   isAlreadyPrepTask: boolean = false
 ): string {
-  // Remove existing "Prep for:" prefix if present
+  // Clean the task title first
   const cleanTaskTitle = taskTitle.replace(/^Prep for:\s*/i, '');
   
   // If this is already a prep task, build the chain
@@ -28,25 +29,25 @@ export function buildPrepChainTitle(
     return `Prep for: ${eventTitle} > ${cleanTaskTitle}`;
   }
   
-  // For new prep tasks, just add the event title
+  // For new prep tasks, add the event title
   return `Prep for: ${eventTitle}`;
 }
 
 /**
- * Extracts the base task title from a prep chain
- * @param prepTitle - The preparation chain title
- * @returns The base task title without prep prefixes
+ * Extracts the base task title from any title
+ * @param title - The task title
+ * @returns The clean task title without any prefixes
  */
-export function extractBaseTaskTitle(prepTitle: string): string {
+export function extractBaseTaskTitle(title: string): string {
   // Remove "Prep for:" and any chain elements
-  return prepTitle
+  return title
     .replace(/^Prep for:\s*/i, '')
     .split(' > ')
-    .pop() || prepTitle;
+    .pop() || title;
 }
 
 /**
- * Checks if a task title is already a preparation task
+ * Checks if a task title contains "Prep for:" (for cleanup purposes)
  * @param title - The task title to check
  * @returns True if the title starts with "Prep for:"
  */
@@ -55,7 +56,7 @@ export function isPrepTask(title: string): boolean {
 }
 
 /**
- * Gets the event title from a prep task title
+ * Gets the event title from a prep task title (for cleanup purposes)
  * @param prepTitle - The preparation task title
  * @returns The event title or null if not found
  */
@@ -65,7 +66,7 @@ export function getEventTitleFromPrepTask(prepTitle: string): string | null {
 }
 
 /**
- * Builds a hierarchical preparation chain for nested prep tasks
+ * Builds a hierarchical task title with prep chains for nested events
  * @param currentTaskTitle - The current task title
  * @param parentEventTitle - The parent event title
  * @param grandparentEventTitle - The grandparent event title (if any)

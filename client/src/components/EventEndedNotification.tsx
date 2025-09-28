@@ -300,7 +300,7 @@ export function EventEndedNotification({
                         <span className="font-medium">Keep Tasks</span>
                       </div>
                       <p className="text-sm text-muted-foreground text-left">
-                        Keep the tasks in your task list but remove the "Prep for:" label
+                        Keep the tasks in your task list but remove the preparation label
                       </p>
                     </Button>
 

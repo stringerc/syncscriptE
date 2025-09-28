@@ -438,7 +438,9 @@ export function TasksPage() {
                           <div className="flex items-center justify-center w-6 h-6 rounded-full bg-primary text-primary-foreground text-xs font-bold">
                             {index + 1}
                           </div>
-                          <h4 className="font-medium text-sm">{task.title}</h4>
+                          <h4 className="font-medium text-sm">
+                            {task.title.replace(/^Prep for:\s*/i, '')}
+                          </h4>
                           <span className={`px-2 py-1 rounded-full text-xs ${getPriorityColor(task.priority)}`}>
                             {task.priority}
                           </span>
@@ -518,14 +520,7 @@ export function TasksPage() {
                         {/* Event indicator for prep tasks */}
                         {relatedEvent && (
                           <div className="text-xs text-blue-600">
-                            {(() => {
-                              // If task title already contains prep chain, use it
-                              if (isPrepTask(task.title)) {
-                                return task.title;
-                              }
-                              // Otherwise, build the basic prep chain
-                              return `Prep for: ${relatedEvent.title}`;
-                            })()}
+                            Prep for: {relatedEvent.title}
                           </div>
                         )}
                       </div>
@@ -606,7 +601,7 @@ export function TasksPage() {
                                     ✓
                                   </div>
                                   <h4 className="font-medium text-sm line-through text-green-700 dark:text-green-300">
-                                    {task.title}
+                                    {task.title.replace(/^Prep for:\s*/i, '')}
                                   </h4>
                                   <span className={`px-2 py-1 rounded-full text-xs ${getPriorityColor(task.priority)}`}>
                                     {task.priority}
@@ -664,14 +659,7 @@ export function TasksPage() {
                                 {/* Event indicator for prep tasks */}
                                 {relatedEvent && (
                                   <div className="text-xs text-blue-600">
-                                    {(() => {
-                                      // If task title already contains prep chain, use it
-                                      if (isPrepTask(task.title)) {
-                                        return task.title;
-                                      }
-                                      // Otherwise, build the basic prep chain
-                                      return `Prep for: ${relatedEvent.title}`;
-                                    })()}
+                                    Prep for: {relatedEvent.title}
                                   </div>
                                 )}
                               </div>
@@ -755,7 +743,7 @@ export function TasksPage() {
                                     🗑️
                                   </div>
                                   <h4 className="font-medium text-sm text-red-700 dark:text-red-300">
-                                    {task.title}
+                                    {task.title.replace(/^Prep for:\s*/i, '')}
                                   </h4>
                                   <span className={`px-2 py-1 rounded-full text-xs ${getPriorityColor(task.priority)}`}>
                                     {task.priority}
@@ -814,14 +802,7 @@ export function TasksPage() {
                                 {/* Event indicator for prep tasks */}
                                 {relatedEvent && (
                                   <div className="text-xs text-blue-600">
-                                    {(() => {
-                                      // If task title already contains prep chain, use it
-                                      if (isPrepTask(task.title)) {
-                                        return task.title;
-                                      }
-                                      // Otherwise, build the basic prep chain
-                                      return `Prep for: ${relatedEvent.title}`;
-                                    })()}
+                                    Prep for: {relatedEvent.title}
                                   </div>
                                 )}
                               </div>

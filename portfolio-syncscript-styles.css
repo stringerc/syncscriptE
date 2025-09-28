@@ -1,0 +1,68 @@
+/* SyncScript Navigation Button Styles */
+/* Copy this CSS and add it to your main stylesheet */
+
+.syncscript-nav-link {
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 16px;
+  margin-left: 15px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  text-decoration: none;
+  border-radius: 25px;
+  font-weight: 600;
+  font-size: 14px;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 10px rgba(102, 126, 234, 0.3);
+  position: relative;
+  overflow: hidden;
+}
+
+.syncscript-nav-link:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 20px rgba(102, 126, 234, 0.4);
+  color: white;
+  text-decoration: none;
+}
+
+.syncscript-nav-link:active {
+  transform: translateY(0);
+}
+
+.syncscript-icon {
+  margin-right: 6px;
+  font-size: 16px;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+  .syncscript-nav-link {
+    padding: 6px 12px;
+    font-size: 12px;
+    margin-left: 10px;
+  }
+  
+  .syncscript-icon {
+    font-size: 14px;
+    margin-right: 4px;
+  }
+}
+
+/* Alternative: Simple version (if you prefer minimal styling) */
+.syncscript-simple {
+  color: #667eea;
+  font-weight: 600;
+  border-bottom: 2px solid transparent;
+  transition: all 0.3s ease;
+}
+
+.syncscript-simple:hover {
+  border-bottom-color: #667eea;
+  color: #764ba2;
+}

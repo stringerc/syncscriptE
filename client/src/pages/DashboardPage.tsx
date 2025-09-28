@@ -7,6 +7,7 @@ import { LoadingSpinner } from '@/components/ui/loading-spinner'
 import { useToast } from '@/hooks/use-toast'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '@/stores/authStore'
+import { ConfirmationModal } from '@/components/ConfirmationModal'
 import { useAnimation } from '@/contexts/AnimationContext'
 import { 
   CheckSquare, 
@@ -143,19 +144,20 @@ const TaskItem = memo(({ task, onComplete, onDelete, onView, order, showOrder, e
 })
 
 // Memoized event item component for performance
-const EventItem = memo(({ event, onView, onDelete, weatherData, preparationTasks }: { 
+const EventItem = memo(({ event, onView, onDelete, weatherData, preparationTasks, events }: { 
   event: Event, 
   onView: (id: string) => void, 
   onDelete: (id: string) => void,
   weatherData?: { emoji: string; temperature: number; condition: string } | null,
-  preparationTasks?: any[]
+  preparationTasks?: any[],
+  events?: Event[]
 }) => {
   const [showAllTasks, setShowAllTasks] = useState(false)
   
   // Removed excessive logging for performance
   return (
   <div className="flex items-center justify-between p-3 rounded-lg border bg-card">
-    <div className="flex-1">
+    <div className="flex-1 pr-8">
       <h4 className="font-medium text-sm">{event.title}</h4>
       {event.description && (
         <p className="text-xs text-muted-foreground mt-1">
@@ -225,21 +227,87 @@ const EventItem = memo(({ event, onView, onDelete, weatherData, preparationTasks
           )}
         </div>
     </div>
-    <div className="flex space-x-2">
-      <Button 
-        size="sm" 
-        variant="outline"
-        onClick={() => onView(event.id)}
-      >
-        View
-      </Button>
-      <Button 
-        size="sm" 
-        variant="destructive"
-        onClick={() => onDelete(event.id)}
-      >
-        <Trash2 className="w-4 h-4" />
-      </Button>
+    <div className="flex flex-col items-end space-y-2">
+      {/* Prep relationship indicator - top right with proper spacing */}
+      {(() => {
+        // Check if this event was created from a task that was preparing for another event
+        // We'll look for tasks that are linked to this event and also have their own eventId
+        // (meaning they're prep tasks for other events)
+        const linkedTasks = preparationTasks || [];
+        console.log(`🔍 Dashboard EventItem: Checking event ${event.id} (${event.title}):`, {
+          linkedTasks,
+          linkedTasksLength: linkedTasks.length,
+          eventsLength: events?.length
+        });
+        
+        const prepTask = linkedTasks.find((task: any) => 
+          task.eventId && task.eventId !== event.id
+        );
+        
+        if (prepTask) {
+          console.log(`✅ Dashboard EventItem: Found prep task for event ${event.id}:`, prepTask);
+          // This task is preparing for another event, so this event should show that relationship
+          // We need to find the parent event to get its title
+          const parentEvent = events?.find((e: any) => e.id === prepTask.eventId);
+          if (parentEvent) {
+            console.log(`✅ Dashboard EventItem: Found parent event:`, parentEvent);
+            return (
+              <div className="text-xs text-blue-600 mb-2">
+                Prep for: {parentEvent.title}
+              </div>
+            );
+          }
+        }
+        
+        // Fallback: Check if event title suggests it's a prep event
+        // Look for events that might be prep events based on their titles and timing
+        const prepKeywords = ['prepare', 'coordinate', 'create', 'plan', 'organize', 'set up'];
+        const isLikelyPrepEvent = prepKeywords.some(keyword => 
+          event.title.toLowerCase().includes(keyword)
+        );
+        
+        if (isLikelyPrepEvent && events && events.length > 1) {
+          // Find the main event (usually the one without prep keywords and earliest time)
+          const mainEvents = events.filter((e: any) => 
+            !prepKeywords.some(keyword => e.title.toLowerCase().includes(keyword)) &&
+            e.id !== event.id
+          );
+          
+          if (mainEvents.length > 0) {
+            // Find the closest main event by time
+            const closestMainEvent = mainEvents.reduce((closest: any, current: any) => {
+              const currentTimeDiff = Math.abs(new Date(current.startTime).getTime() - new Date(event.startTime).getTime());
+              const closestTimeDiff = Math.abs(new Date(closest.startTime).getTime() - new Date(event.startTime).getTime());
+              return currentTimeDiff < closestTimeDiff ? current : closest;
+            });
+            
+            console.log(`🔄 Dashboard EventItem: Fallback: Found likely prep event ${event.id} for main event:`, closestMainEvent);
+            return (
+              <div className="text-xs text-blue-600 mb-2">
+                Prep for: {closestMainEvent.title}
+              </div>
+            );
+          }
+        }
+        
+        return null;
+      })()}
+      <div className="flex space-x-2">
+        <Button 
+          size="sm" 
+          variant="outline"
+          onClick={() => onView(event.id)}
+        >
+          View
+        </Button>
+        <Button 
+          size="sm" 
+          variant="destructive"
+          onClick={() => onDelete(event.id)}
+        >
+          <Trash2 className="w-4 h-4" />
+        </Button>
+      </div>
     </div>
   </div>
   )
@@ -259,6 +327,8 @@ export function DashboardPage() {
   const [currentWeather, setCurrentWeather] = useState<{ emoji: string; temperature: number; condition: string; location: string } | null>(null)
   const [eventPreparationTasks, setEventPreparationTasks] = useState<Record<string, any[]>>({})
   const [isHydrated, setIsHydrated] = useState(false)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [eventToDelete, setEventToDelete] = useState<{ id: string; title: string } | null>(null)
 
   // Wait for Zustand store to hydrate from localStorage
   useEffect(() => {
@@ -289,11 +359,38 @@ export function DashboardPage() {
     gcTime: 5 * 60 * 1000, // 5 minutes
     refetchOnWindowFocus: false, // Don't refetch on window focus
     refetchOnMount: true, // Always refetch when component mounts
-    refetchInterval: 5 * 60 * 1000, // Refetch every 5 minutes instead of 30 seconds
+    refetchInterval: 10 * 60 * 1000, // Refetch every 10 minutes
     retry: 1, // Only retry once for faster error handling
     retryDelay: 500, // Faster retry
     enabled: !!token && isHydrated // Only run if user is authenticated and store is hydrated
   })
+
+  // Fetch tasks directly from /tasks endpoint to match Tasks page
+  const { data: allTasks } = useQuery<Task[]>({
+    queryKey: ['tasks'],
+    queryFn: async () => {
+      const response = await api.get('/tasks')
+      return response.data.data
+    },
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes
+    refetchOnWindowFocus: false,
+    enabled: !!token && isHydrated
+  })
+
+  // Filter and sort tasks the same way as Tasks page
+  const standardizedTasks = useMemo(() => {
+    if (!allTasks) return []
+    
+    // Filter out completed tasks for today's tasks
+    const pendingTasks = allTasks.filter(task => task.status !== 'COMPLETED')
+    
+    // Sort by priority: URGENT > HIGH > MEDIUM > LOW
+    return pendingTasks.sort((a, b) => {
+      const priorityOrder = { URGENT: 4, HIGH: 3, MEDIUM: 2, LOW: 1 }
+      return priorityOrder[b.priority] - priorityOrder[a.priority]
+    })
+  }, [allTasks])
 
   // Fetch gamification data for dashboard widget
   const { data: gamificationData } = useQuery({
@@ -416,13 +513,24 @@ export function DashboardPage() {
   }, [updateTaskStatusMutation])
 
   const handleDeleteEvent = useCallback((eventId: string) => {
-    if (confirm('Are you sure you want to delete this event? This action cannot be undone.')) {
-      deleteEventMutation.mutate(eventId)
+    // Find the event to get its title
+    const event = dashboardData?.upcomingEvents?.find(e => e.id === eventId)
+    if (event) {
+      setEventToDelete({ id: eventId, title: event.title })
+      setShowDeleteConfirm(true)
     }
-  }, [deleteEventMutation])
+  }, [dashboardData])
+
+  const handleConfirmDelete = useCallback(() => {
+    if (eventToDelete) {
+      deleteEventMutation.mutate(eventToDelete.id)
+      setShowDeleteConfirm(false)
+      setEventToDelete(null)
+    }
+  }, [deleteEventMutation, eventToDelete])
 
   const handlePrioritizeTasks = useCallback(() => {
-    if (!dashboardData?.todayTasks || dashboardData.todayTasks.length === 0) {
+    if (!standardizedTasks || standardizedTasks.length === 0) {
       toast({
         title: "No Tasks to Prioritize",
         description: "You don't have any tasks to prioritize right now.",
@@ -431,9 +539,9 @@ export function DashboardPage() {
       return
     }
 
-    const taskIds = dashboardData.todayTasks.map(task => task.id)
+    const taskIds = standardizedTasks.map(task => task.id)
     prioritizeTasksMutation.mutate(taskIds)
-  }, [dashboardData?.todayTasks, prioritizeTasksMutation, toast])
+  }, [standardizedTasks, prioritizeTasksMutation, toast])
 
   const handleViewEvent = useCallback((eventId: string) => {
     const event = dashboardData?.upcomingEvents.find(e => e.id === eventId)
@@ -449,12 +557,12 @@ export function DashboardPage() {
   }, [])
 
   const handleViewTask = useCallback((taskId: string) => {
-    const task = dashboardData?.todayTasks.find(t => t.id === taskId)
+    const task = standardizedTasks.find(t => t.id === taskId)
     if (task) {
       setSelectedTask(task)
       setIsTaskModalOpen(true)
     }
-  }, [dashboardData?.todayTasks])
+  }, [standardizedTasks])
 
   const handleCloseTaskModal = useCallback(() => {
     setIsTaskModalOpen(false)
@@ -516,7 +624,7 @@ export function DashboardPage() {
       })
       
       // Find the completed task to check if it's a prep task
-      const completedTask = dashboardData?.todayTasks.find(t => t.id === taskId)
+      const completedTask = allTasks?.find(t => t.id === taskId)
       const relatedEventId = completedTask?.eventId
       
       // Invalidate and refetch dashboard data
@@ -565,7 +673,7 @@ export function DashboardPage() {
         variant: "destructive"
       })
     }
-  }, [queryClient, toast, dashboardData?.todayTasks])
+  }, [queryClient, toast, allTasks])
 
   // Fetch weather data for events
   const fetchEventWeather = useCallback(async (events: Event[]) => {
@@ -1033,10 +1141,10 @@ export function DashboardPage() {
   }, [])
 
   // Memoized calculations for performance - must be before any conditional returns
-  const completedTasksCount = useMemo(() => 
-    dashboardData?.todayTasks?.filter(t => t.status === 'COMPLETED').length || 0, 
-    [dashboardData?.todayTasks]
-  )
+  const completedTasksCount = useMemo(() => {
+    if (!allTasks) return 0
+    return allTasks.filter(t => t.status === 'COMPLETED').length
+  }, [allTasks])
   
   const nextEventTitle = useMemo(() => 
     dashboardData?.upcomingEvents?.[0]?.title || 'None', 
@@ -1134,7 +1242,7 @@ export function DashboardPage() {
     )
   }
 
-  const { user, todayTasks, upcomingEvents, recentAchievements, activeStreaks, unreadNotifications } = dashboardData
+  const { user, upcomingEvents, recentAchievements, activeStreaks, unreadNotifications } = dashboardData
 
   return (
     <div className="space-y-6">
@@ -1414,7 +1522,7 @@ export function DashboardPage() {
             <CheckSquare className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{todayTasks.filter(task => task.status !== 'COMPLETED').length}</div>
+            <div className="text-2xl font-bold">{standardizedTasks.length}</div>
             <p className="text-xs text-muted-foreground">
               {completedTasksCount} completed
             </p>
@@ -1490,22 +1598,22 @@ export function DashboardPage() {
                   Your tasks for today, ordered by AI priority (1 = highest priority)
                 </CardDescription>
               </div>
-              {todayTasks.length > 0 && (
-                <Button 
-                  size="sm" 
-                  variant="outline"
-                  onClick={handlePrioritizeTasks}
-                  disabled={prioritizeTasksMutation.isPending}
-                  className="flex items-center space-x-2"
-                >
-                  <Sparkles className="w-4 h-4" />
-                  <span>{prioritizeTasksMutation.isPending ? 'Prioritizing...' : 'Prioritize'}</span>
-                </Button>
-              )}
+            {standardizedTasks.length > 0 && (
+              <Button 
+                size="sm" 
+                variant="outline"
+                onClick={handlePrioritizeTasks}
+                disabled={prioritizeTasksMutation.isPending}
+                className="flex items-center space-x-2"
+              >
+                <Sparkles className="w-4 h-4" />
+                <span>{prioritizeTasksMutation.isPending ? 'Prioritizing...' : 'Prioritize'}</span>
+              </Button>
+            )}
             </div>
           </CardHeader>
           <CardContent>
-            {todayTasks.length === 0 ? (
+            {standardizedTasks.length === 0 ? (
               <div className="text-center py-8">
                 <CheckSquare className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
                 <p className="text-muted-foreground">No tasks for today!</p>
@@ -1515,13 +1623,7 @@ export function DashboardPage() {
               </div>
             ) : (
               <div className="space-y-3">
-                {todayTasks
-                  .filter(task => task.status !== 'COMPLETED')
-                  .sort((a, b) => {
-                    // Sort by priority: URGENT > HIGH > MEDIUM > LOW
-                    const priorityOrder = { URGENT: 4, HIGH: 3, MEDIUM: 2, LOW: 1 }
-                    return priorityOrder[b.priority] - priorityOrder[a.priority]
-                  })
+                {standardizedTasks
                   .slice(0, 5)
                   .map((task, index) => (
                     <TaskItem
@@ -1535,13 +1637,13 @@ export function DashboardPage() {
                       events={dashboardData?.upcomingEvents}
                     />
                   ))}
-                {todayTasks.filter(task => task.status !== 'COMPLETED').length > 5 && (
+                {standardizedTasks.length > 5 && (
                   <Button 
                     variant="ghost" 
                     className="w-full mt-2"
                     onClick={() => navigate('/tasks')}
                   >
-                    View All Tasks ({todayTasks.filter(task => task.status !== 'COMPLETED').length})
+                    View All Tasks ({standardizedTasks.length})
                   </Button>
                 )}
               </div>
@@ -1579,6 +1681,7 @@ export function DashboardPage() {
                     onDelete={handleDeleteEvent}
                     weatherData={eventWeatherData[event.id]}
                     preparationTasks={eventPreparationTasks[event.id]}
+                    events={upcomingEvents}
                   />
                 ))}
                 <Button 
@@ -1652,6 +1755,23 @@ export function DashboardPage() {
         onClose={handleCloseTaskModal}
         onTaskUpdated={handleTaskUpdated}
         onTaskDeleted={handleTaskDeleted}
+      />
+
+      {/* Delete Event Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={showDeleteConfirm}
+        onClose={() => {
+          setShowDeleteConfirm(false)
+          setEventToDelete(null)
+        }}
+        onConfirm={handleConfirmDelete}
+        title="Delete Event"
+        message="Are you sure you want to permanently delete this event? All associated tasks and preparation items will also be removed."
+        confirmText="Delete Forever"
+        cancelText="Keep Event"
+        variant="delete"
+        isLoading={deleteEventMutation.isPending}
+        eventTitle={eventToDelete?.title}
       />
     </div>
   )

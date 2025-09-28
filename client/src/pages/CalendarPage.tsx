@@ -9,6 +9,7 @@ import { useToast } from '@/hooks/use-toast'
 import { formatDate, formatTime, formatCurrency } from '@/lib/utils'
 import { Event } from '@/shared/types'
 import { EventModal } from '@/components/EventModal'
+import { ConfirmationModal } from '@/components/ConfirmationModal'
 
 export function CalendarPage() {
   const [newEvent, setNewEvent] = useState({
@@ -26,6 +27,8 @@ export function CalendarPage() {
   const [eventWeatherData, setEventWeatherData] = useState<Record<string, { emoji: string; temperature: number; condition: string } | null>>({})
   const [eventPreparationTasks, setEventPreparationTasks] = useState<Record<string, any[]>>({})
   const [expandedEvents, setExpandedEvents] = useState<Set<string>>(new Set())
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [eventToDelete, setEventToDelete] = useState<{ id: string; title: string } | null>(null)
 
   const { toast } = useToast()
   const queryClient = useQueryClient()
@@ -120,8 +123,19 @@ export function CalendarPage() {
   }
 
     const handleDeleteEvent = (eventId: string) => {
-      if (confirm('Are you sure you want to delete this event? This action cannot be undone.')) {
-        deleteEventMutation.mutate(eventId)
+      // Find the event to get its title
+      const event = events?.find(e => e.id === eventId)
+      if (event) {
+        setEventToDelete({ id: eventId, title: event.title })
+        setShowDeleteConfirm(true)
+      }
+    }
+
+    const handleConfirmDelete = () => {
+      if (eventToDelete) {
+        deleteEventMutation.mutate(eventToDelete.id)
+        setShowDeleteConfirm(false)
+        setEventToDelete(null)
       }
     }
 
@@ -421,21 +435,87 @@ export function CalendarPage() {
                         )}
                       </div>
                     </div>
-                    <div className="flex space-x-2">
-                      <Button 
-                        size="sm" 
-                        variant="outline"
-                        onClick={() => handleViewEvent(event)}
-                      >
-                        View
-                      </Button>
-                      <Button 
-                        size="sm" 
-                        variant="destructive"
-                        onClick={() => handleDeleteEvent(event.id)}
+                    <div className="flex flex-col items-end space-y-2">
+                      {/* Prep relationship indicator - top right */}
+                      {(() => {
+                        // Check if this event was created from a task that was preparing for another event
+                        // We'll look for tasks that are linked to this event and also have their own eventId
+                        // (meaning they're prep tasks for other events)
+                        const linkedTasks = eventPreparationTasks[event.id] || [];
+                        console.log(`🔍 Checking event ${event.id} (${event.title}):`, {
+                          linkedTasks,
+                          linkedTasksLength: linkedTasks.length,
+                          eventPreparationTasksKeys: Object.keys(eventPreparationTasks)
+                        });
+                        
+                        const prepTask = linkedTasks.find((task: any) => 
+                          task.eventId && task.eventId !== event.id
+                        );
+                        
+                        if (prepTask) {
+                          console.log(`✅ Found prep task for event ${event.id}:`, prepTask);
+                          // This task is preparing for another event, so this event should show that relationship
+                          // We need to find the parent event to get its title
+                          const parentEvent = events?.find((e: any) => e.id === prepTask.eventId);
+                          if (parentEvent) {
+                            console.log(`✅ Found parent event:`, parentEvent);
+                            return (
+                              <div className="text-xs text-blue-600 mb-2">
+                                Prep for: {parentEvent.title}
+                              </div>
+                            );
+                          }
+                        }
+                        
+                        // Fallback: Check if event title suggests it's a prep event
+                        // Look for events that might be prep events based on their titles and timing
+                        const prepKeywords = ['prepare', 'coordinate', 'create', 'plan', 'organize', 'set up'];
+                        const isLikelyPrepEvent = prepKeywords.some(keyword => 
+                          event.title.toLowerCase().includes(keyword)
+                        );
+                        
+                        if (isLikelyPrepEvent && events && events.length > 1) {
+                          // Find the main event (usually the one without prep keywords and earliest time)
+                          const mainEvents = events.filter((e: any) => 
+                            !prepKeywords.some(keyword => e.title.toLowerCase().includes(keyword)) &&
+                            e.id !== event.id
+                          );
+                          
+                          if (mainEvents.length > 0) {
+                            // Find the closest main event by time
+                            const closestMainEvent = mainEvents.reduce((closest: any, current: any) => {
+                              const currentTimeDiff = Math.abs(new Date(current.startTime).getTime() - new Date(event.startTime).getTime());
+                              const closestTimeDiff = Math.abs(new Date(closest.startTime).getTime() - new Date(event.startTime).getTime());
+                              return currentTimeDiff < closestTimeDiff ? current : closest;
+                            });
+                            
+                            console.log(`🔄 Fallback: Found likely prep event ${event.id} for main event:`, closestMainEvent);
+                            return (
+                              <div className="text-xs text-blue-600 mb-2">
+                                Prep for: {closestMainEvent.title}
+                              </div>
+                            );
+                          }
+                        }
+                        
+                        return null;
+                      })()}
+                      <div className="flex space-x-2">
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          onClick={() => handleViewEvent(event)}
+                        >
+                          View
+                        </Button>
+                        <Button 
+                          size="sm" 
+                          variant="destructive"
+                          onClick={() => handleDeleteEvent(event.id)}
                       >
                         <Trash2 className="w-4 h-4" />
                       </Button>
+                      </div>
                     </div>
                   </div>
                 )
@@ -453,6 +533,23 @@ export function CalendarPage() {
           onEventUpdated={() => {
             queryClient.invalidateQueries({ queryKey: ['events'] })
           }}
+        />
+
+        {/* Delete Event Confirmation Modal */}
+        <ConfirmationModal
+          isOpen={showDeleteConfirm}
+          onClose={() => {
+            setShowDeleteConfirm(false)
+            setEventToDelete(null)
+          }}
+          onConfirm={handleConfirmDelete}
+          title="Delete Event"
+          message="Are you sure you want to permanently delete this event? All associated tasks and preparation items will also be removed."
+          confirmText="Delete Forever"
+          cancelText="Keep Event"
+          variant="delete"
+          isLoading={deleteEventMutation.isPending}
+          eventTitle={eventToDelete?.title}
         />
       </div>
     )

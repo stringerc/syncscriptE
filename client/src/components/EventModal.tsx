@@ -54,7 +54,7 @@ export function EventModal({ event, isOpen, onClose, onEventUpdated }: EventModa
       return response.data.data || []
     },
     enabled: !!event && isOpen,
-    refetchInterval: 5000, // Refetch every 5 seconds to get real-time updates
+    refetchInterval: 60 * 1000, // Refetch every 60 seconds for real-time updates
   })
 
   // Initialize form data when event changes
@@ -888,11 +888,12 @@ export function EventModal({ event, isOpen, onClose, onEventUpdated }: EventModa
         onClose={() => setShowDeleteConfirm(false)}
         onConfirm={handleConfirmDelete}
         title="Delete Event"
-        message="Are you sure you want to delete this event? This action cannot be undone."
-        confirmText="Delete Event"
-        cancelText="Cancel"
-        variant="danger"
+        message="Are you sure you want to permanently delete this event? All associated tasks and preparation items will also be removed."
+        confirmText="Delete Forever"
+        cancelText="Keep Event"
+        variant="delete"
         isLoading={deleteEventMutation.isPending}
+        eventTitle={event?.title}
       />
     </div>
   )
