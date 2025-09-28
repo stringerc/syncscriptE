@@ -41,7 +41,7 @@ export const useAuthStore = create<AuthStore>()(
         set({ user: null, token: null, error: null, isLoading: true })
         delete api.defaults.headers.common['Authorization']
         
-        // Clear AI chat data from localStorage
+        // Clear only AI chat data from localStorage (not all localStorage)
         localStorage.removeItem('syncscript-chats')
         localStorage.removeItem('syncscript-current-chat-id')
         
@@ -76,7 +76,7 @@ export const useAuthStore = create<AuthStore>()(
         set({ user: null, token: null, error: null, isLoading: true })
         delete api.defaults.headers.common['Authorization']
         
-        // Clear AI chat data from localStorage
+        // Clear only AI chat data from localStorage (not all localStorage)
         localStorage.removeItem('syncscript-chats')
         localStorage.removeItem('syncscript-current-chat-id')
         
@@ -108,7 +108,7 @@ export const useAuthStore = create<AuthStore>()(
         set({ user: null, token: null, error: null })
         delete api.defaults.headers.common['Authorization']
         
-        // Clear AI chat data from localStorage
+        // Clear only AI chat data from localStorage (not all localStorage)
         localStorage.removeItem('syncscript-chats')
         localStorage.removeItem('syncscript-current-chat-id')
         console.log('🔐 AuthStore: Cleared AI chat data from localStorage')
@@ -119,7 +119,7 @@ export const useAuthStore = create<AuthStore>()(
         set({ user: null, token: null, error: null, isLoading: false })
         delete api.defaults.headers.common['Authorization']
         
-        // Clear AI chat data from localStorage
+        // Clear only AI chat data from localStorage (not all localStorage)
         localStorage.removeItem('syncscript-chats')
         localStorage.removeItem('syncscript-current-chat-id')
         console.log('🔐 AuthStore: Cleared AI chat data from localStorage')
