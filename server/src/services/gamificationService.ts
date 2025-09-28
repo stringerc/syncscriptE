@@ -629,6 +629,65 @@ export class GamificationService {
       progress: Math.max(0, Math.min(100, progress))
     };
   }
+
+  // Check and unlock eligible achievements for existing users
+  static async checkAndUnlockEligibleAchievements(userId: string): Promise<void> {
+    try {
+      // Get user stats
+      const userStats = await this.getOrCreateUserStats(userId);
+      
+      // Get already unlocked achievements
+      const unlockedAchievements = await prisma.achievement.findMany({
+        where: { userId },
+        select: { type: true }
+      });
+      
+      const unlockedTypes = unlockedAchievements.map(a => a.type);
+      
+      // Check each achievement definition
+      for (const achievement of ACHIEVEMENTS) {
+        // Skip if already unlocked
+        if (unlockedTypes.includes(achievement.id)) {
+          continue;
+        }
+        
+        // Check if user meets the condition
+        if (achievement.condition(userStats)) {
+          await this.unlockAchievement(userId, achievement);
+          logger.info('Retroactively unlocked achievement', { 
+            userId, 
+            achievement: achievement.id,
+            title: achievement.title 
+          });
+        }
+      }
+      
+      // Check badges too
+      const unlockedBadges = await prisma.badge.findMany({
+        where: { userId },
+        select: { type: true }
+      });
+      
+      const unlockedBadgeTypes = unlockedBadges.map(b => b.type);
+      
+      for (const badge of BADGES) {
+        if (unlockedBadgeTypes.includes(badge.id)) {
+          continue;
+        }
+        
+        if (badge.condition(userStats)) {
+          await this.unlockBadge(userId, badge);
+          logger.info('Retroactively unlocked badge', { 
+            userId, 
+            badge: badge.id,
+            title: badge.title 
+          });
+        }
+      }
+    } catch (error) {
+      logger.error('Error checking eligible achievements:', error);
+    }
+  }
 }
 
 export default GamificationService;

@@ -40,9 +40,16 @@ router.get('/', authenticateToken, asyncHandler(async (req: AuthRequest, res) =>
       });
     }
 
+    // For existing users, check if they should unlock any new achievements
+    // This ensures existing users get achievements they've earned but haven't been awarded
+    await GamificationService.checkAndUnlockEligibleAchievements(userId);
+    
+    // Refresh data after checking achievements
+    const updatedData = await GamificationService.getUserGamificationData(userId);
+
     res.json({
       success: true,
-      data: gamificationData
+      data: updatedData
     });
   } catch (error) {
     logger.error('Error getting gamification data:', error);
