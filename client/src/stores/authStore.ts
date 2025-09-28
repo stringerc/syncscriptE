@@ -36,7 +36,11 @@ export const useAuthStore = create<AuthStore>()(
       login: async (email: string, password: string) => {
         console.log('🔐 AuthStore: Starting login for:', email)
         console.log('🔐 AuthStore: API Base URL:', api.defaults.baseURL)
-        set({ isLoading: true, error: null })
+        
+        // Clear any existing authentication state before login
+        set({ user: null, token: null, error: null, isLoading: true })
+        delete api.defaults.headers.common['Authorization']
+        
         try {
           const response = await api.post('/auth/login', { email, password })
           console.log('🔐 AuthStore: Login response:', response.data)
@@ -63,7 +67,11 @@ export const useAuthStore = create<AuthStore>()(
       register: async (email: string, password: string, name?: string) => {
         console.log('🔐 AuthStore: Starting registration for:', email)
         console.log('🔐 AuthStore: API Base URL:', api.defaults.baseURL)
-        set({ isLoading: true, error: null })
+        
+        // Clear any existing authentication state before registration
+        set({ user: null, token: null, error: null, isLoading: true })
+        delete api.defaults.headers.common['Authorization']
+        
         try {
           const response = await api.post('/auth/register', { email, password, name })
           console.log('🔐 AuthStore: Registration response:', response.data)
@@ -88,7 +96,14 @@ export const useAuthStore = create<AuthStore>()(
       },
 
       logout: () => {
+        console.log('🔐 AuthStore: Logging out user')
         set({ user: null, token: null, error: null })
+        delete api.defaults.headers.common['Authorization']
+      },
+
+      clearAuth: () => {
+        console.log('🔐 AuthStore: Clearing authentication state')
+        set({ user: null, token: null, error: null, isLoading: false })
         delete api.defaults.headers.common['Authorization']
       },
 
