@@ -302,7 +302,7 @@ router.get('/advanced', authenticateToken, asyncHandler(async (req: AuthRequest,
   }
 }));
 
-// Helper function to get sort order
+// Helper function to get sort order for Railway deployment
 function getSortOrder(sortBy: string, sortOrder: string) {
   const order: 'asc' | 'desc' = sortOrder === 'asc' ? 'asc' : 'desc';
   
