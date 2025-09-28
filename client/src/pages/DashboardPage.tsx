@@ -1242,7 +1242,8 @@ export function DashboardPage() {
     )
   }
 
-  const { user, upcomingEvents, recentAchievements, activeStreaks, unreadNotifications } = dashboardData
+  // Destructure dashboard data for use in the component
+  const { user, upcomingEvents, recentAchievements, activeStreaks, unreadNotifications } = dashboardData || {}
 
   return (
     <div className="space-y-6">
