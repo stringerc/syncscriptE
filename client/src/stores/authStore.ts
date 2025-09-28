@@ -95,7 +95,7 @@ export const useAuthStore = create<AuthStore>()(
       checkAuth: async () => {
         const { token, isLoading, user } = get()
         
-        console.log('🔐 AuthStore: checkAuth called', { hasToken: !!token, isLoading, hasUser: !!user })
+        console.log('🔐 AuthStore: checkAuth called', { hasToken: !!token, isLoading, hasUser: !!user, tokenLength: token?.length })
         
         // Prevent multiple simultaneous calls
         if (isLoading) {

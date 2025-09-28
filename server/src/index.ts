@@ -77,33 +77,9 @@ const isCloudflareTunnel = (origin: string) => {
   return origin.includes('.trycloudflare.com');
 };
 
-// CORS configuration with debugging
+// CORS configuration - temporarily allow all origins for debugging
 app.use(cors({
-  origin: (origin, callback) => {
-    // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) return callback(null, true);
-    
-    // Log the origin for debugging
-    logger.info(`🌐 CORS request from origin: ${origin}`);
-    
-    // Check if origin is in allowed list or matches regex patterns
-    const isAllowed = allowedOrigins.some(allowedOrigin => {
-      if (typeof allowedOrigin === 'string') {
-        return origin === allowedOrigin;
-      } else if (allowedOrigin instanceof RegExp) {
-        return allowedOrigin.test(origin);
-      }
-      return false;
-    });
-    
-    if (isAllowed || isCloudflareTunnel(origin)) {
-      logger.info(`✅ CORS allowed for origin: ${origin}`);
-      return callback(null, true);
-    } else {
-      logger.warn(`❌ CORS blocked for origin: ${origin}`);
-      return callback(new Error('Not allowed by CORS'));
-    }
-  },
+  origin: true, // Allow all origins temporarily
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
