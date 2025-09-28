@@ -36,7 +36,10 @@ const io = new Server(server, {
       process.env.FRONTEND_URL || "http://localhost:3000",
       "https://stringerc.github.io",
       "https://stringerc.github.io/syncscriptE",
-      "http://localhost:3000"
+      "http://localhost:3000",
+      "https://syncscript-e-qlwn.vercel.app",
+      "https://syncscript-e-qlwn-o4qi2mzmc-christopher-stringers-projects.vercel.app",
+      /^https:\/\/.*\.vercel\.app$/
     ],
     methods: ["GET", "POST"],
     credentials: true
@@ -63,7 +66,10 @@ const allowedOrigins = [
   "https://stringerc.github.io",
   "https://stringerc.github.io/syncscriptE",
   "http://localhost:3000",
-  "https://syncscript-local.loca.lt" // LocalTunnel
+  "https://syncscript-local.loca.lt", // LocalTunnel
+  "https://syncscript-e-qlwn.vercel.app", // Vercel production
+  "https://syncscript-e-qlwn-o4qi2mzmc-christopher-stringers-projects.vercel.app", // Vercel preview
+  /^https:\/\/.*\.vercel\.app$/ // All Vercel domains
 ];
 
 // Allow all Cloudflare tunnel domains
@@ -71,9 +77,33 @@ const isCloudflareTunnel = (origin: string) => {
   return origin.includes('.trycloudflare.com');
 };
 
-// Temporarily allow all origins for testing
+// CORS configuration with debugging
 app.use(cors({
-  origin: true, // Allow all origins temporarily
+  origin: (origin, callback) => {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    // Log the origin for debugging
+    logger.info(`🌐 CORS request from origin: ${origin}`);
+    
+    // Check if origin is in allowed list or matches regex patterns
+    const isAllowed = allowedOrigins.some(allowedOrigin => {
+      if (typeof allowedOrigin === 'string') {
+        return origin === allowedOrigin;
+      } else if (allowedOrigin instanceof RegExp) {
+        return allowedOrigin.test(origin);
+      }
+      return false;
+    });
+    
+    if (isAllowed || isCloudflareTunnel(origin)) {
+      logger.info(`✅ CORS allowed for origin: ${origin}`);
+      return callback(null, true);
+    } else {
+      logger.warn(`❌ CORS blocked for origin: ${origin}`);
+      return callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
