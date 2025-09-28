@@ -1,5 +1,5 @@
 {
-  "name": "syncscript-server-railway",
+  "name": "syncscript-server-railway-v2",
   "version": "1.0.0",
   "description": "SyncScript backend server",
   "main": "dist/index.js",
