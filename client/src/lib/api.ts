@@ -7,15 +7,16 @@ const getApiBaseUrl = () => {
     return (import.meta as any).env.VITE_API_URL
   }
   
-  // If running on GitHub Pages, use Cloudflare tunnel backend (working)
-  if (window.location.hostname === 'stringerc.github.io') {
-    console.log('🌐 Running on GitHub Pages - using Cloudflare tunnel backend')
-    return 'https://location-printed-competitions-leads.trycloudflare.com/api'
+  // If running on Vercel, use Render backend
+  if (window.location.hostname.includes('vercel.app')) {
+    console.log('🌐 Running on Vercel - using Render backend')
+    return 'https://syncscripte.onrender.com/api'
   }
   
-  // If running on Cloudflare tunnel, use the tunnel domain for API calls
-  if (window.location.hostname.includes('.trycloudflare.com')) {
-    return `https://${window.location.hostname}/api`
+  // If running on GitHub Pages, use Render backend
+  if (window.location.hostname === 'stringerc.github.io') {
+    console.log('🌐 Running on GitHub Pages - using Render backend')
+    return 'https://syncscripte.onrender.com/api'
   }
   
   // If running on local network IP, use the same IP for API calls
@@ -34,21 +35,8 @@ console.log('🔗 API Base URL:', API_BASE_URL)
 console.log('🌐 Current hostname:', window.location.hostname)
 console.log('🔗 Full URL being used:', API_BASE_URL)
 
-// Validate the base URL
-if (API_BASE_URL === '/api' || API_BASE_URL === 'api') {
-  console.error('❌ Invalid base URL detected:', API_BASE_URL)
-  console.log('🔧 Forcing correct base URL for IP 192.168.1.246')
-  const correctedUrl = 'http://192.168.1.246:3001/api'
-  console.log('🔧 Corrected URL:', correctedUrl)
-}
-
-// Force correct base URL for debugging
-let finalBaseURL = API_BASE_URL
-if (API_BASE_URL === '/api' || API_BASE_URL === 'api' || !API_BASE_URL.includes('://')) {
-  console.log('🔧 Forcing correct base URL due to invalid detection')
-  finalBaseURL = 'http://192.168.1.246:3001/api'
-  console.log('🔧 Final base URL:', finalBaseURL)
-}
+// Use the detected API base URL
+const finalBaseURL = API_BASE_URL
 
 export const api = axios.create({
   baseURL: finalBaseURL,
