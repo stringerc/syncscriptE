@@ -144,7 +144,7 @@ export function GoogleCalendarPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['google-calendar-status'] })
       queryClient.invalidateQueries({ queryKey: ['google-calendar-calendars'] })
-      queryClient.invalidateQueries({ queryKey: ['google-calendar-events'] })
+      queryClient.invalidateQueries({ queryKey: ['calendar'] })
       toast({
         title: "Disconnected",
         description: "Google Calendar has been disconnected."
@@ -175,9 +175,6 @@ export function GoogleCalendarPage() {
       
       queryClient.invalidateQueries({ queryKey: ['calendar'] })
       queryClient.invalidateQueries({ queryKey: ['dashboard'] })
-      queryClient.invalidateQueries({ queryKey: ['google-calendar-events'] })
-      queryClient.invalidateQueries({ queryKey: ['google-calendar-events-all'] })
-      queryClient.refetchQueries({ queryKey: ['google-calendar-events-all'] })
       toast({
         title: "Sync Complete",
         description: `Synced ${data.data.stats.created} new events, updated ${data.data.stats.updated} events.`
