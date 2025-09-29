@@ -49,6 +49,12 @@ router.get('/', authenticateToken, asyncHandler(async (req: AuthRequest, res) =>
       select: { showHolidays: true }
     });
 
+    logger.info('Calendar API - User holiday preference', { 
+      userId: req.user!.id, 
+      showHolidays: user?.showHolidays,
+      willFilterHolidays: user?.showHolidays === false
+    });
+
     const where: any = {
       userId: req.user!.id
     };
@@ -132,6 +138,11 @@ router.get('/', authenticateToken, asyncHandler(async (req: AuthRequest, res) =>
       provider: e.calendarProvider,
       isAllDay: e.isAllDay
     }))
+  });
+
+  logger.info('Calendar API - Final where clause', { 
+    userId: req.user!.id,
+    whereClause: JSON.stringify(where, null, 2)
   });
 
   if (search) {
