@@ -62,14 +62,14 @@ router.post('/auth/login-callback', asyncHandler(async (req, res) => {
 
     if (!user) {
       // Create new user
-      user = await prisma.user.create({
-        data: {
-          email: userInfo.email,
-          name: userInfo.name,
-          googleId: userInfo.id,
-          isEmailVerified: true
-        }
-      });
+        user = await prisma.user.create({
+          data: {
+            email: userInfo.email,
+            name: userInfo.name,
+            googleId: userInfo.id,
+            emailVerified: true
+          }
+        });
     } else {
       // Update existing user with Google ID if not set
       if (!user.googleId) {
