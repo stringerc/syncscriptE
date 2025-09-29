@@ -34,7 +34,7 @@ export function GoogleCallbackPage() {
         }
 
         // Send the code to our backend
-        const response = await fetch('/api/google-calendar/auth/login-callback', {
+        const response = await fetch('https://syncscripte.onrender.com/api/google-calendar/auth/login-callback', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -42,7 +42,24 @@ export function GoogleCallbackPage() {
           body: JSON.stringify({ code }),
         })
 
-        const data = await response.json()
+        // Check if response is ok
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`)
+        }
+
+        // Check if response has content
+        const text = await response.text()
+        if (!text) {
+          throw new Error('Empty response from server')
+        }
+
+        let data
+        try {
+          data = JSON.parse(text)
+        } catch (parseError) {
+          console.error('Failed to parse JSON:', text)
+          throw new Error('Invalid response format from server')
+        }
 
         if (data.success) {
           // Set user and token in auth store
