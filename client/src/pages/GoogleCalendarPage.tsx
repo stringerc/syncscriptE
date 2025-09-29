@@ -211,7 +211,7 @@ export function GoogleCalendarPage() {
       console.log('🎉 Removed', sortedEvents.length - uniqueEvents.length, 'duplicates')
       return uniqueEvents
     },
-    enabled: !!user && !!token && statusData?.connected && !statusError && !!calendarsData,
+    enabled: !!user && !!token,
     retry: false,
     refetchOnWindowFocus: false,
     onSuccess: () => {
@@ -785,8 +785,7 @@ export function GoogleCalendarPage() {
       )}
 
       {/* Google Calendar Events */}
-      {statusData?.connected && (
-        <Card>
+      <Card>
           <CardHeader>
             <CardTitle className="flex items-center justify-between">
               <span>Google Calendar Events</span>
@@ -823,7 +822,8 @@ export function GoogleCalendarPage() {
                   size="sm"
                   onClick={() => {
                     // Invalidate and refetch the events query
-                    queryClient.invalidateQueries({ queryKey: ['google-calendar-events-all', timeRange] })
+                    queryClient.invalidateQueries({ queryKey: ['google-calendar-events-all'] })
+                    refetchEvents()
                     setLastUpdated(new Date())
                   }}
                   disabled={eventsLoading}
@@ -949,7 +949,6 @@ export function GoogleCalendarPage() {
             )}
           </CardContent>
         </Card>
-      )}
     </div>
   )
 }
