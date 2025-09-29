@@ -280,6 +280,24 @@ router.get('/dashboard', authenticateToken, asyncHandler(async (req: AuthRequest
       ],
       take: 10
     }),
+    prisma.achievement.findMany({
+      where: { userId: req.user!.id },
+      orderBy: { unlockedAt: 'desc' },
+      take: 5
+    }),
+    prisma.streak.findMany({
+      where: { userId: req.user!.id },
+      orderBy: { count: 'desc' }
+    }),
+    prisma.notification.findMany({
+      where: {
+        userId: req.user!.id,
+        isRead: false
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 10
+    })
+  ]);
 
   // Build events query based on showHolidays preference
   const eventsWhere: any = {
