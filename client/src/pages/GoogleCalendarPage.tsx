@@ -199,7 +199,7 @@ export function GoogleCalendarPage() {
             dateTime: event.endTime,
             date: event.endTime.split('T')[0]
           },
-          calendarId: 'local',
+          calendarId: event.calendarProvider === 'google' ? 'google' : 'local',
           description: event.description,
           location: event.location
         })))
@@ -310,8 +310,8 @@ export function GoogleCalendarPage() {
     onSuccess: (data) => {
       // Store recently synced events for display
       const syncedEvents = [
-        ...(data.data.stats.createdEvents || []),
-        ...(data.data.stats.updatedEvents || [])
+        ...(data.data.createdEvents || []),
+        ...(data.data.updatedEvents || [])
       ]
       setRecentlySyncedEvents(syncedEvents)
       
@@ -944,11 +944,13 @@ export function GoogleCalendarPage() {
                               <Badge 
                                 variant={
                                   event.calendarId === 'holiday' ? 'default' : 
+                                  event.calendarId === 'google' ? 'default' :
                                   event.calendarId === 'local' ? 'secondary' : 'outline'
                                 } 
                                 className="text-xs"
                               >
                                 {event.calendarId === 'holiday' ? 'Holiday' : 
+                                 event.calendarId === 'google' ? 'G' :
                                  event.calendarId === 'local' ? 'Synced' : 'Primary'}
                               </Badge>
                             </div>
