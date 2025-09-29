@@ -3,6 +3,7 @@ import { memo, useMemo, useCallback, useState, useEffect } from 'react'
 import { api } from '@/lib/api'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 import { LoadingSpinner } from '@/components/ui/loading-spinner'
 import { useToast } from '@/hooks/use-toast'
 import { useNavigate } from 'react-router-dom'
@@ -167,7 +168,14 @@ const EventItem = memo(({ event, onView, onDelete, weatherData, preparationTasks
   return (
   <div className="flex items-center justify-between p-3 rounded-lg border bg-card">
     <div className="flex-1 pr-8">
-      <h4 className="font-medium text-sm">{event.title}</h4>
+      <div className="flex items-center space-x-2">
+        <h4 className="font-medium text-sm">{event.title}</h4>
+        {event.calendarProvider === 'google' && (
+          <Badge variant="default" className="text-xs bg-blue-100 text-blue-800">
+            G
+          </Badge>
+        )}
+      </div>
       {event.description && (
         <p className="text-xs text-muted-foreground mt-1">
           {event.description}

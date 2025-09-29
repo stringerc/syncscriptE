@@ -279,7 +279,8 @@ export function GoogleCalendarPage() {
       
       queryClient.invalidateQueries({ queryKey: ['calendar'] })
       queryClient.invalidateQueries({ queryKey: ['google-calendar-events'] })
-      queryClient.invalidateQueries({ queryKey: ['google-calendar-events-all', timeRange] })
+      queryClient.invalidateQueries({ queryKey: ['google-calendar-events-all'] })
+      queryClient.refetchQueries({ queryKey: ['google-calendar-events-all', timeRange] })
       toast({
         title: "Sync Complete",
         description: `Synced ${data.data.stats.created} new events, updated ${data.data.stats.updated} events.`

@@ -357,6 +357,11 @@ export function CalendarPage() {
                     <div className="flex-1">
                       <div className="flex items-center space-x-2 mb-2">
                         <h4 className="font-medium text-sm">{event.title}</h4>
+                        {event.calendarProvider === 'google' && (
+                          <span className="px-2 py-1 rounded-full text-xs bg-blue-100 text-blue-800">
+                            G
+                          </span>
+                        )}
                         {isPastEvent && (
                           <span className="px-2 py-1 rounded-full text-xs bg-gray-100 text-gray-600">
                             Past Event
