@@ -51,6 +51,8 @@ export function GoogleCalendarPage() {
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
   const [timeRange, setTimeRange] = useState<'3months' | '6months' | '1year' | '2years'>('1year')
   const [showPastEvents, setShowPastEvents] = useState(false)
+  const [recentlySyncedEvents, setRecentlySyncedEvents] = useState<any[]>([])
+  const [showHolidays, setShowHolidays] = useState(true)
   const { toast } = useToast()
   const queryClient = useQueryClient()
   const { user, token } = useAuthStore()
@@ -289,8 +291,16 @@ export function GoogleCalendarPage() {
       return response.data
     },
     onSuccess: (data) => {
+      // Store recently synced events for display
+      const syncedEvents = [
+        ...(data.data.stats.createdEvents || []),
+        ...(data.data.stats.updatedEvents || [])
+      ]
+      setRecentlySyncedEvents(syncedEvents)
+      
       queryClient.invalidateQueries({ queryKey: ['calendar'] })
       queryClient.invalidateQueries({ queryKey: ['google-calendar-events'] })
+      queryClient.invalidateQueries({ queryKey: ['google-calendar-events-all', timeRange] })
       toast({
         title: "Sync Complete",
         description: `Synced ${data.data.stats.created} new events, updated ${data.data.stats.updated} events.`
@@ -605,6 +615,55 @@ export function GoogleCalendarPage() {
           </CardContent>
         </Card>
 
+      {/* Recently Synced Events */}
+      {recentlySyncedEvents.length > 0 && (
+        <Card className="border-2 border-blue-500">
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2">
+              <RefreshCw className="w-5 h-5" />
+              <span>Recently Synced Events</span>
+              <Badge variant="secondary" className="ml-2">{recentlySyncedEvents.length} events</Badge>
+            </CardTitle>
+            <CardDescription>
+              Events that were just synced from Google Calendar
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2 max-h-64 overflow-y-auto">
+              {recentlySyncedEvents.map((event, index) => (
+                <div key={index} className="p-3 border rounded-lg bg-blue-50">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <h4 className="font-medium text-blue-900">{event.title}</h4>
+                      <div className="text-sm text-blue-700 mt-1">
+                        <span>
+                          {event.startTime ? new Date(event.startTime).toLocaleString() : 'All Day'}
+                        </span>
+                        {event.endTime && (
+                          <span> - {new Date(event.endTime).toLocaleString()}</span>
+                        )}
+                      </div>
+                    </div>
+                    <Badge variant="default" className="bg-blue-100 text-blue-800">
+                      Synced
+                    </Badge>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="mt-4 flex justify-end">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setRecentlySyncedEvents([])}
+              >
+                Clear List
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Calendar Selection and Sync */}
       {statusData?.connected && (
         <Card>
@@ -714,12 +773,20 @@ export function GoogleCalendarPage() {
             <CardTitle className="flex items-center justify-between">
               <span>Google Calendar Events</span>
               <div className="flex items-center gap-2">
-          <select
-            value={timeRange}
-            onChange={(e) => setTimeRange(e.target.value as '3months' | '6months' | '1year' | '2years')}
-            className="px-2 py-1 text-sm border rounded-md bg-background text-foreground"
-            title="Select how far into the future to fetch events"
-          >
+                <Button
+                  variant={showHolidays ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setShowHolidays(!showHolidays)}
+                  title={showHolidays ? "Hide holiday events" : "Show holiday events"}
+                >
+                  {showHolidays ? "Hide Holidays" : "Show Holidays"}
+                </Button>
+                <select
+                  value={timeRange}
+                  onChange={(e) => setTimeRange(e.target.value as '3months' | '6months' | '1year' | '2years')}
+                  className="px-2 py-1 text-sm border rounded-md bg-background text-foreground"
+                  title="Select how far into the future to fetch events"
+                >
                   <option value="3months">Next 3 months</option>
                   <option value="6months">Next 6 months</option>
                   <option value="1year">Next year</option>
@@ -761,18 +828,23 @@ export function GoogleCalendarPage() {
             ) : eventsData && eventsData.length > 0 ? (
               (() => {
                 const now = new Date()
-                const filteredEvents = showPastEvents 
+                let filteredEvents = showPastEvents 
                   ? eventsData 
                   : eventsData.filter(event => {
                       const eventTime = new Date(event.start?.dateTime || event.start?.date)
                       return eventTime >= now
                     })
                 
+                // Filter out holiday events if showHolidays is false
+                if (!showHolidays) {
+                  filteredEvents = filteredEvents.filter(event => event.calendarId !== 'holiday')
+                }
+                
                 if (filteredEvents.length === 0) {
                   return (
                     <div className="text-center py-8 text-muted-foreground">
                       <Calendar className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                      <p>No upcoming events found</p>
+                      <p>No events found</p>
                       <p className="text-sm mt-2">
                         {!showPastEvents && eventsData.some(event => {
                           const eventTime = new Date(event.start?.dateTime || event.start?.date)
@@ -784,6 +856,17 @@ export function GoogleCalendarPage() {
                               className="text-primary hover:underline"
                             >
                               Show past events
+                            </button>
+                          </>
+                        )}
+                        {!showHolidays && eventsData.some(event => event.calendarId === 'holiday') && (
+                          <>
+                            {!showPastEvents && ' • '}
+                            Holiday events are hidden. <button 
+                              onClick={() => setShowHolidays(true)}
+                              className="text-primary hover:underline"
+                            >
+                              Show holidays
                             </button>
                           </>
                         )}
