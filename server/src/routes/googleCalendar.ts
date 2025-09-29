@@ -131,7 +131,7 @@ router.post('/auth/login-callback', asyncHandler(async (req, res) => {
           id: user.id,
           email: user.email,
           name: user.name,
-          isEmailVerified: user.isEmailVerified
+          isEmailVerified: user.emailVerified
         },
         token
       },
