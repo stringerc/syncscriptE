@@ -190,6 +190,7 @@ const EnergyAnalysisPage: React.FC = () => {
             </CardContent>
           </Card>
 
+
           {/* Energy Patterns */}
           <Card>
             <CardHeader>

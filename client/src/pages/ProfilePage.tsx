@@ -499,7 +499,7 @@ export function ProfilePage() {
                 <span className="font-semibold">{stats?.totalEvents || 0}</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Current Streak</span>
+                <span className="text-sm text-gray-600">Current Streak</span>
                 <span className="font-semibold">{stats?.streakDays || 0} days</span>
               </div>
             </CardContent>

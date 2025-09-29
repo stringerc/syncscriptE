@@ -1,0 +1,294 @@
+import express from 'express';
+import { PrismaClient } from '@prisma/client';
+import { asyncHandler, createError } from '../middleware/errorHandler';
+import { authenticateToken, AuthRequest } from '../middleware/auth';
+import { logger } from '../utils/logger';
+import EnergyEngineService from '../services/energyEngineService';
+import DailyChallengeService from '../services/dailyChallengeService';
+
+const router = express.Router();
+const prisma = new PrismaClient();
+
+// Get user's energy status
+router.get('/status', authenticateToken, asyncHandler(async (req: AuthRequest, res) => {
+  const userId = req.user!.id;
+
+  try {
+    const energyStatus = await EnergyEngineService.getEnergyStatus(userId);
+    
+    res.json({
+      success: true,
+      data: energyStatus
+    });
+  } catch (error) {
+    logger.error('Error getting energy status:', error);
+    throw createError('Failed to get energy status', 500);
+  }
+}));
+
+// Get daily challenges
+router.get('/challenges', authenticateToken, asyncHandler(async (req: AuthRequest, res) => {
+  const userId = req.user!.id;
+  const { date } = req.query;
+
+  try {
+    const targetDate = date ? new Date(date as string) : undefined;
+    const challenges = await DailyChallengeService.getDailyChallenges(userId, targetDate);
+    
+    res.json({
+      success: true,
+      data: challenges
+    });
+  } catch (error) {
+    logger.error('Error getting daily challenges:', error);
+    throw createError('Failed to get daily challenges', 500);
+  }
+}));
+
+// Complete a daily challenge
+router.post('/challenges/:challengeId/complete', authenticateToken, asyncHandler(async (req: AuthRequest, res) => {
+  const userId = req.user!.id;
+  const { challengeId } = req.params;
+
+  try {
+    const result = await DailyChallengeService.completeChallenge(challengeId, userId);
+    
+    res.json({
+      success: true,
+      data: {
+        challenge: result.challenge,
+        epAwarded: result.epAwarded,
+        capped: result.capped
+      },
+      message: `Challenge completed! You earned ${result.epAwarded} EP.`
+    });
+  } catch (error) {
+    logger.error('Error completing challenge:', error);
+    throw createError('Failed to complete challenge', 500);
+  }
+}));
+
+// Get challenge statistics
+router.get('/challenges/stats', authenticateToken, asyncHandler(async (req: AuthRequest, res) => {
+  const userId = req.user!.id;
+
+  try {
+    const stats = await DailyChallengeService.getChallengeStats(userId);
+    
+    res.json({
+      success: true,
+      data: stats
+    });
+  } catch (error) {
+    logger.error('Error getting challenge stats:', error);
+    throw createError('Failed to get challenge statistics', 500);
+  }
+}));
+
+// Award EP manually (for testing or special events)
+router.post('/award-ep', authenticateToken, asyncHandler(async (req: AuthRequest, res) => {
+  const userId = req.user!.id;
+  const { amount, source, domain, description, metadata } = req.body;
+
+  if (!amount || !source) {
+    throw createError('Amount and source are required', 400);
+  }
+
+  try {
+    const result = await EnergyEngineService.awardEnergyPoints(
+      userId,
+      amount,
+      source,
+      domain,
+      description,
+      metadata
+    );
+    
+    res.json({
+      success: true,
+      data: {
+        epAwarded: result.awarded,
+        capped: result.capped,
+        energyPoint: result.energyPoint
+      },
+      message: `Awarded ${result.awarded} EP${result.capped ? ' (daily cap reached)' : ''}.`
+    });
+  } catch (error) {
+    logger.error('Error awarding EP:', error);
+    throw createError('Failed to award EP', 500);
+  }
+}));
+
+// Convert EP to Energy (usually done automatically at night)
+router.post('/convert', authenticateToken, asyncHandler(async (req: AuthRequest, res) => {
+  const userId = req.user!.id;
+  const { date } = req.body;
+
+  try {
+    const result = await EnergyEngineService.convertEPToEnergy(userId, date ? new Date(date) : undefined);
+    
+    res.json({
+      success: true,
+      data: result,
+      message: `Converted ${result.epEarned} EP to ${result.energyGained} Energy.`
+    });
+  } catch (error) {
+    logger.error('Error converting EP to Energy:', error);
+    throw createError('Failed to convert EP to Energy', 500);
+  }
+}));
+
+// Get user's energy profile
+router.get('/profile', authenticateToken, asyncHandler(async (req: AuthRequest, res) => {
+  const userId = req.user!.id;
+
+  try {
+    const profile = await EnergyEngineService.getOrCreateEnergyProfile(userId);
+    
+    res.json({
+      success: true,
+      data: profile
+    });
+  } catch (error) {
+    logger.error('Error getting energy profile:', error);
+    throw createError('Failed to get energy profile', 500);
+  }
+}));
+
+// Get user's emblems
+router.get('/emblems', authenticateToken, asyncHandler(async (req: AuthRequest, res) => {
+  const userId = req.user!.id;
+
+  try {
+    const emblems = await prisma.energyEmblem.findMany({
+      where: { userId },
+      orderBy: { emblemType: 'asc' }
+    });
+    
+    res.json({
+      success: true,
+      data: emblems
+    });
+  } catch (error) {
+    logger.error('Error getting emblems:', error);
+    throw createError('Failed to get emblems', 500);
+  }
+}));
+
+// Activate an emblem
+router.post('/emblems/:emblemType/activate', authenticateToken, asyncHandler(async (req: AuthRequest, res) => {
+  const userId = req.user!.id;
+  const { emblemType } = req.params;
+
+  try {
+    // First, deactivate all other emblems
+    await prisma.energyEmblem.updateMany({
+      where: { userId },
+      data: { isActive: false }
+    });
+
+    // Then activate the selected emblem
+    const emblem = await prisma.energyEmblem.updateMany({
+      where: {
+        userId,
+        emblemType,
+        isUnlocked: true
+      },
+      data: { isActive: true }
+    });
+
+    if (emblem.count === 0) {
+      throw createError('Emblem not found or not unlocked', 404);
+    }
+    
+    res.json({
+      success: true,
+      message: `Activated ${emblemType} emblem.`
+    });
+  } catch (error) {
+    logger.error('Error activating emblem:', error);
+    throw createError('Failed to activate emblem', 500);
+  }
+}));
+
+// Get EP history
+router.get('/ep-history', authenticateToken, asyncHandler(async (req: AuthRequest, res) => {
+  const userId = req.user!.id;
+  const { days = 7 } = req.query;
+
+  try {
+    const daysAgo = new Date();
+    daysAgo.setDate(daysAgo.getDate() - parseInt(days as string));
+
+    const epHistory = await prisma.energyPoint.findMany({
+      where: {
+        userId,
+        earnedAt: {
+          gte: daysAgo
+        }
+      },
+      orderBy: { earnedAt: 'desc' }
+    });
+    
+    res.json({
+      success: true,
+      data: epHistory
+    });
+  } catch (error) {
+    logger.error('Error getting EP history:', error);
+    throw createError('Failed to get EP history', 500);
+  }
+}));
+
+// Get energy conversion history
+router.get('/conversion-history', authenticateToken, asyncHandler(async (req: AuthRequest, res) => {
+  const userId = req.user!.id;
+  const { days = 30 } = req.query;
+
+  try {
+    const daysAgo = new Date();
+    daysAgo.setDate(daysAgo.getDate() - parseInt(days as string));
+
+    const conversionHistory = await prisma.energyConversion.findMany({
+      where: {
+        userId,
+        date: {
+          gte: daysAgo
+        }
+      },
+      orderBy: { date: 'desc' }
+    });
+    
+    res.json({
+      success: true,
+      data: conversionHistory
+    });
+  } catch (error) {
+    logger.error('Error getting conversion history:', error);
+    throw createError('Failed to get conversion history', 500);
+  }
+}));
+
+// Check and unlock new emblems
+router.post('/check-emblems', authenticateToken, asyncHandler(async (req: AuthRequest, res) => {
+  const userId = req.user!.id;
+
+  try {
+    const unlockedEmblems = await EnergyEngineService.checkAndUnlockEmblems(userId);
+    
+    res.json({
+      success: true,
+      data: {
+        unlockedEmblems
+      },
+      message: unlockedEmblems.length > 0 ? 
+        `Unlocked ${unlockedEmblems.length} new emblem(s)!` : 
+        'No new emblems to unlock.'
+    });
+  } catch (error) {
+    logger.error('Error checking emblems:', error);
+    throw createError('Failed to check emblems', 500);
+  }
+}));
+
+export default router;

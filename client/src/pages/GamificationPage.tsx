@@ -1,16 +1,22 @@
 import React, { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Trophy, Star, Zap, Target, Calendar, Award, TrendingUp, Users, Crown, Medal, Flame, Clock, CheckCircle } from 'lucide-react'
+import { Trophy, Star, Zap, Target, Calendar, Award, TrendingUp, Users, Crown, Medal, Flame, Clock, CheckCircle, Eye, EyeOff, Battery } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { Switch } from '@/components/ui/switch'
 import { api } from '@/lib/api'
 import { cn } from '@/lib/utils'
+import { useAchievements } from '@/contexts/AchievementsContext'
+import DailyChallenges from '@/components/DailyChallenges'
+import EnhancedAchievements from '@/components/EnhancedAchievements'
+import EnergyEngine from '@/components/EnergyEngine'
 
 const GamificationPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState('overview')
+  const { showAchievements, setShowAchievements } = useAchievements()
 
   // Fetch gamification data
   const { data: gamificationData, isLoading, error } = useQuery({
@@ -87,14 +93,48 @@ const GamificationPage: React.FC = () => {
   return (
     <div className="container mx-auto p-6 space-y-6">
       {/* Header */}
-      <div className="flex items-center gap-3">
-        <Trophy className="h-8 w-8 text-yellow-600" />
-        <div>
-          <h1 className="text-3xl font-bold">Gamification</h1>
-          <p className="text-gray-600">
-            Track your progress, earn achievements, and level up!
-          </p>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <Trophy className="h-8 w-8 text-yellow-600" />
+          <div>
+            <h1 className="text-3xl font-bold">Gamification</h1>
+            <p className="text-gray-600">
+              Track your progress, earn achievements, and level up!
+            </p>
+          </div>
         </div>
+        
+        {/* Achievements Toggle */}
+        <Card className="w-80">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center justify-between text-lg">
+              <div className="flex items-center gap-2">
+                <Trophy className="h-5 w-5 text-yellow-600" />
+                Achievements Display
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="text-sm text-gray-600">
+                  {showAchievements ? 'Visible' : 'Hidden'}
+                </span>
+                <div className="flex items-center gap-2">
+                  {showAchievements ? (
+                    <Eye className="h-4 w-4 text-green-600" />
+                  ) : (
+                    <EyeOff className="h-4 w-4 text-red-600" />
+                  )}
+                  <Switch
+                    checked={showAchievements}
+                    onCheckedChange={setShowAchievements}
+                    className="data-[state=checked]:bg-green-600 data-[state=unchecked]:bg-red-500"
+                  />
+                </div>
+              </div>
+            </CardTitle>
+            <CardDescription className="text-sm">
+              Toggle to show or hide points and achievements throughout the app. Achievements will still be earned in the background.
+            </CardDescription>
+          </CardHeader>
+        </Card>
       </div>
 
       {/* Level Progress */}
@@ -187,10 +227,12 @@ const GamificationPage: React.FC = () => {
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-7">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="challenges">Daily Challenges</TabsTrigger>
+          <TabsTrigger value="energy">Energy Engine</TabsTrigger>
           <TabsTrigger value="achievements">Achievements</TabsTrigger>
+          <TabsTrigger value="enhanced-achievements">Enhanced</TabsTrigger>
           <TabsTrigger value="badges">Badges</TabsTrigger>
           <TabsTrigger value="leaderboard">Leaderboard</TabsTrigger>
         </TabsList>
@@ -238,15 +280,15 @@ const GamificationPage: React.FC = () => {
                     <div className="flex items-center gap-3">
                       <div className="text-2xl">🔥</div>
                       <div>
-                        <h4 className="font-medium capitalize">{streak.type.replace('_', ' ')}</h4>
-                        <p className="text-sm text-gray-600">{streak.count} days</p>
+                        <h4 className="font-medium capitalize text-gray-900">{streak.type.replace('_', ' ')}</h4>
+                        <p className="text-sm text-gray-700">{streak.count} days</p>
                       </div>
                     </div>
                     <Badge variant="secondary">{streak.count} days</Badge>
                   </div>
                 ))}
                 {(!streaks || streaks.length === 0) && (
-                  <p className="text-center text-gray-500 py-8">No active streaks. Complete tasks daily to start building streaks!</p>
+                  <p className="text-center text-gray-600 py-8">No active streaks. Complete tasks daily to start building streaks!</p>
                 )}
               </div>
             </CardContent>
@@ -324,6 +366,10 @@ const GamificationPage: React.FC = () => {
           </Card>
         </TabsContent>
 
+        <TabsContent value="enhanced-achievements" className="space-y-6">
+          <EnhancedAchievements />
+        </TabsContent>
+
         <TabsContent value="leaderboard" className="space-y-6">
           <Card>
             <CardHeader>
@@ -375,86 +421,11 @@ const GamificationPage: React.FC = () => {
         </TabsContent>
 
         <TabsContent value="challenges" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Target className="h-5 w-5 text-blue-600" />
-                Today's Challenges
-              </CardTitle>
-              <CardDescription>
-                Complete these challenges to earn bonus points and level up faster!
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {challengesLoading ? (
-                <div className="flex items-center justify-center py-8">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                </div>
-              ) : (
-                <div className="grid gap-4">
-                  {dailyChallenges?.map((challenge: any) => (
-                    <div 
-                      key={challenge.id} 
-                      className="flex items-center gap-4 p-4 border rounded-lg hover:bg-gray-50 transition-colors group cursor-pointer"
-                      title={`${challenge.title}: ${challenge.description}`}
-                    >
-                      <div className="text-3xl">{challenge.icon}</div>
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <h4 className="font-medium text-gray-900 group-hover:text-blue-600 transition-colors">{challenge.title}</h4>
-                          <Badge variant={challenge.difficulty === 'easy' ? 'default' : challenge.difficulty === 'medium' ? 'secondary' : 'destructive'}>
-                            {challenge.difficulty}
-                          </Badge>
-                        </div>
-                        <p className="text-sm text-gray-600 mb-2">{challenge.description}</p>
-                        <div className="flex items-center gap-4 text-sm">
-                          <span className="text-green-600 font-medium">+{challenge.reward} points</span>
-                          <span className="text-gray-500">Target: {challenge.target}</span>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center">
-                          <CheckCircle className="h-4 w-4 text-gray-400" />
-                        </div>
-                        <p className="text-xs text-gray-500 mt-1">In Progress</p>
-                      </div>
-                    </div>
-                  ))}
-                  {(!dailyChallenges || dailyChallenges.length === 0) && (
-                    <div className="text-center py-12">
-                      <Target className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                      <p className="text-gray-500">No challenges available today</p>
-                      <p className="text-sm text-gray-400">Check back tomorrow for new challenges!</p>
-                    </div>
-                  )}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+          <DailyChallenges />
+        </TabsContent>
 
-          {/* Challenge Progress */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Flame className="h-5 w-5 text-orange-600" />
-                Challenge Streak
-              </CardTitle>
-              <CardDescription>Keep completing daily challenges to build your streak!</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center gap-4">
-                <div className="text-3xl">🔥</div>
-                <div className="flex-1">
-                  <p className="text-2xl font-bold">0</p>
-                  <p className="text-sm text-gray-600">Day streak</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-sm text-gray-600">Next milestone</p>
-                  <p className="font-medium">7 days</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+        <TabsContent value="energy" className="space-y-6">
+          <EnergyEngine />
         </TabsContent>
       </Tabs>
     </div>

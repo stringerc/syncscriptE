@@ -401,7 +401,7 @@ export function EventModal({ event, isOpen, onClose, onEventUpdated }: EventModa
     deletePrepTaskMutation.mutate(taskId)
   }
 
-  if (!isOpen || !event) return null
+  if (!isOpen) return null
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -411,7 +411,7 @@ export function EventModal({ event, isOpen, onClose, onEventUpdated }: EventModa
           <div className="flex items-center space-x-2">
             <Calendar className="w-5 h-5" />
             <h2 className="text-xl font-semibold">
-              {isEditing ? 'Edit Event' : 'Event Details'}
+              {!event ? 'Create New Event' : (isEditing ? 'Edit Event' : 'Event Details')}
             </h2>
           </div>
           <div className="flex items-center space-x-2">
@@ -436,7 +436,7 @@ export function EventModal({ event, isOpen, onClose, onEventUpdated }: EventModa
 
         {/* Content */}
         <div className="p-6 space-y-6">
-          {isEditing ? (
+          {!event || isEditing ? (
             /* Edit Form */
             <div className="space-y-4">
               <div>

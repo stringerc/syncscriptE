@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { asyncHandler, createError } from '../middleware/errorHandler';
 import { authenticateToken, AuthRequest } from '../middleware/auth';
 import { logger } from '../utils/logger';
+import EnergyEngineService from '../services/energyEngineService';
 
 const router = express.Router();
 const prisma = new PrismaClient();
@@ -406,6 +407,99 @@ router.post('/sync/:provider', authenticateToken, asyncHandler(async (req: AuthR
       estimatedTime: '2-5 minutes'
     }
   });
+}));
+
+// Complete event and award EP based on completion percentage
+router.patch('/:id/complete', authenticateToken, asyncHandler(async (req: AuthRequest, res) => {
+  const { id } = req.params;
+  const { completionPercentage } = req.body;
+
+  if (!completionPercentage || completionPercentage < 0 || completionPercentage > 100) {
+    throw createError('Completion percentage must be between 0 and 100', 400);
+  }
+
+  const event = await prisma.event.findFirst({
+    where: {
+      id,
+      userId: req.user!.id
+    },
+    include: {
+      preparationTasks: true
+    }
+  });
+
+  if (!event) {
+    throw createError('Event not found', 404);
+  }
+
+  // Calculate EP based on completion percentage
+  let epAwarded = 0;
+  let bonusMessage = '';
+
+  if (completionPercentage >= 80) {
+    // 80%+ completion gets bonus EP
+    const baseEP = 20;
+    const bonusMultiplier = Math.min(completionPercentage / 100, 1.5); // Max 1.5x bonus
+    epAwarded = Math.round(baseEP * bonusMultiplier);
+    bonusMessage = `Excellent! You completed ${completionPercentage}% of "${event.title}" and earned a completion bonus!`;
+  } else if (completionPercentage >= 50) {
+    // 50-79% completion gets standard EP
+    epAwarded = Math.round(15 * (completionPercentage / 100));
+    bonusMessage = `Good work! You completed ${completionPercentage}% of "${event.title}".`;
+  } else {
+    // Below 50% gets minimal EP
+    epAwarded = Math.round(5 * (completionPercentage / 100));
+    bonusMessage = `You completed ${completionPercentage}% of "${event.title}". Keep going!`;
+  }
+
+  // Award EP for event completion
+  try {
+    const epResult = await EnergyEngineService.awardEnergyPoints(
+      req.user!.id,
+      epAwarded,
+      'event_completion',
+      'order', // Events generally fall under the "order" domain
+      `Completed ${completionPercentage}% of event: ${event.title}`,
+      {
+        eventId: id,
+        completionPercentage,
+        eventTitle: event.title,
+        completedAt: new Date()
+      }
+    );
+
+    logger.info('Event completion EP awarded', {
+      userId: req.user!.id,
+      eventId: id,
+      completionPercentage,
+      epAwarded: epResult.awarded,
+      capped: epResult.capped
+    });
+
+    res.json({
+      success: true,
+      data: {
+        event,
+        completionPercentage,
+        epAwarded: epResult.awarded,
+        capped: epResult.capped
+      },
+      message: bonusMessage + ` You earned ${epResult.awarded} EP!`
+    });
+  } catch (error) {
+    logger.error('Failed to award EP for event completion:', error);
+    // Still return success for the event completion, but note EP award failed
+    res.json({
+      success: true,
+      data: {
+        event,
+        completionPercentage,
+        epAwarded: 0,
+        capped: false
+      },
+      message: bonusMessage + ' (EP award failed)'
+    });
+  }
 }));
 
 // Clear all synced events (from Google Calendar)

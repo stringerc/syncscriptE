@@ -26,7 +26,7 @@ const navigation = [
   { name: 'AI Assistant', href: '/ai-assistant', icon: Brain },
   { name: 'Energy Analysis', href: '/energy-analysis', icon: Zap },
   { name: 'Profile', href: '/profile', icon: User },
-  { name: 'Gamification', href: '/gamification', icon: Trophy },
+  { name: 'Achievements', href: '/gamification', icon: Trophy },
   { name: 'Notifications', href: '/notifications', icon: Bell },
   { name: 'Settings', href: '/settings', icon: Settings },
 ]

@@ -248,6 +248,42 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) f
 4. Test thoroughly
 5. Submit a pull request
 
+## 💬 Feedback System
+
+SyncScript includes a built-in feedback system that allows users to submit feedback directly from the app.
+
+### Features
+- **Floating Feedback Button**: Always visible in the bottom-left corner
+- **User-Friendly Modal**: Clean interface for submitting feedback
+- **Email Notifications**: Feedback is automatically sent to admin email
+- **Gamification Rewards**: Users earn 50 points for submitting feedback
+- **Achievement System**: First-time feedback submitters earn a "Feedback Contributor" achievement
+
+### Setup
+1. Configure email settings in your environment variables:
+   ```bash
+   FEEDBACK_EMAIL_USER=your-email@gmail.com
+   FEEDBACK_EMAIL_PASSWORD=your-gmail-app-password
+   ADMIN_EMAIL=admin@yourdomain.com
+   ```
+
+2. For Gmail, you'll need to:
+   - Enable 2-factor authentication
+   - Generate an App Password (not your regular password)
+   - Use the App Password in `FEEDBACK_EMAIL_PASSWORD`
+
+3. The feedback system will automatically:
+   - Send formatted emails with user information
+   - Award points to users who submit feedback
+   - Track feedback count in the gamification system
+
+### Email Format
+Feedback emails include:
+- User information (name, email, user ID)
+- Timestamp of submission
+- Full feedback message
+- Professional HTML formatting
+
 ## 📄 License
 
 MIT License - see [LICENSE](LICENSE) for details.

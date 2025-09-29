@@ -6,9 +6,97 @@ import { authenticateToken, AuthRequest } from '../middleware/auth';
 import { logger } from '../utils/logger';
 import { Priority, TaskStatus } from '../types';
 import GamificationService from '../services/gamificationService';
+import EnergyEngineService from '../services/energyEngineService';
 
 const router = express.Router();
 const prisma = new PrismaClient();
+
+// Helper functions for Energy Engine integration
+function calculateTaskEP(task: any, actualDuration?: number): number {
+  let baseEP = 10; // Base EP for any task completion
+  
+  // Priority multiplier
+  const priorityMultipliers = {
+    LOW: 1.0,
+    MEDIUM: 1.2,
+    HIGH: 1.5,
+    URGENT: 2.0
+  };
+  baseEP *= priorityMultipliers[task.priority] || 1.0;
+  
+  // Duration bonus (if actual duration is provided)
+  if (actualDuration) {
+    const durationBonus = Math.min(actualDuration / 10, 20); // Max 20 EP bonus
+    baseEP += durationBonus;
+  }
+  
+  // Energy required bonus
+  if (task.energyRequired) {
+    const energyBonus = task.energyRequired * 2; // 2 EP per energy level
+    baseEP += energyBonus;
+  }
+  
+  return Math.round(baseEP);
+}
+
+function determineTaskDomain(task: any): string {
+  // Simple domain mapping based on task tags and title
+  const title = task.title.toLowerCase();
+  const tags = task.tags?.toLowerCase() || '';
+  const description = task.description?.toLowerCase() || '';
+  
+  // Body domain
+  if (title.includes('workout') || title.includes('exercise') || title.includes('run') || 
+      title.includes('walk') || title.includes('gym') || tags.includes('fitness') ||
+      tags.includes('health') || tags.includes('exercise')) {
+    return 'body';
+  }
+  
+  // Mind domain
+  if (title.includes('read') || title.includes('learn') || title.includes('study') ||
+      title.includes('research') || title.includes('write') || tags.includes('learning') ||
+      tags.includes('education') || tags.includes('reading')) {
+    return 'mind';
+  }
+  
+  // Social domain
+  if (title.includes('meet') || title.includes('call') || title.includes('email') ||
+      title.includes('friend') || title.includes('family') || tags.includes('social') ||
+      tags.includes('communication') || tags.includes('meeting')) {
+    return 'social';
+  }
+  
+  // Order domain
+  if (title.includes('organize') || title.includes('clean') || title.includes('tidy') ||
+      title.includes('plan') || title.includes('schedule') || tags.includes('organization') ||
+      tags.includes('planning') || tags.includes('cleaning')) {
+    return 'order';
+  }
+  
+  // Finance domain
+  if (title.includes('budget') || title.includes('expense') || title.includes('bill') ||
+      title.includes('payment') || title.includes('money') || tags.includes('finance') ||
+      tags.includes('budget') || tags.includes('money')) {
+    return 'finance';
+  }
+  
+  // Outdoors domain
+  if (title.includes('outdoor') || title.includes('garden') || title.includes('hike') ||
+      title.includes('nature') || title.includes('park') || tags.includes('outdoor') ||
+      tags.includes('nature') || tags.includes('garden')) {
+    return 'outdoors';
+  }
+  
+  // Rest domain
+  if (title.includes('rest') || title.includes('relax') || title.includes('sleep') ||
+      title.includes('break') || title.includes('meditate') || tags.includes('rest') ||
+      tags.includes('wellness') || tags.includes('relaxation')) {
+    return 'rest';
+  }
+  
+  // Default to mind for work-related tasks
+  return 'mind';
+}
 
 // Validation schemas
 const createTaskSchema = z.object({
@@ -311,6 +399,29 @@ router.patch('/:id/complete', authenticateToken, asyncHandler(async (req: AuthRe
     // Don't fail the task completion if gamification fails
   }
 
+  // Award Energy Points for task completion
+  try {
+    const epAmount = calculateTaskEP(task, actualDuration);
+    const domain = determineTaskDomain(task);
+    
+    await EnergyEngineService.awardEnergyPoints(
+      req.user!.id,
+      epAmount,
+      'task_completion',
+      domain,
+      `Completed task: ${task.title}`,
+      {
+        taskId: id,
+        priority: task.priority,
+        duration: actualDuration,
+        completedAt: new Date()
+      }
+    );
+  } catch (error) {
+    logger.error('Energy Points award failed:', error);
+    // Don't fail the task completion if EP award fails
+  }
+
   logger.info('Task completed', { userId: req.user!.id, taskId: id });
 
   res.json({
@@ -361,6 +472,23 @@ router.patch('/:id/status', authenticateToken, asyncHandler(async (req: AuthRequ
     }
   });
 
+  // Award points if task was completed
+  let pointsAwarded = 0;
+  if (status === TaskStatus.COMPLETED && task.status !== TaskStatus.COMPLETED) {
+    const completionPoints = 10; // Points for completing a task
+    
+    // Use the gamification service to properly update totalPoints
+    await GamificationService.addPoints(req.user!.id, completionPoints, 'task_completion', `Completed task: ${task.title}`);
+
+    pointsAwarded = completionPoints;
+    
+    logger.info('Task completion points awarded', { 
+      userId: req.user!.id, 
+      taskId: id, 
+      points: completionPoints 
+    });
+  }
+
   logger.info('Task status updated', { 
     userId: req.user!.id, 
     taskId: id, 
@@ -370,7 +498,10 @@ router.patch('/:id/status', authenticateToken, asyncHandler(async (req: AuthRequ
 
   res.json({
     success: true,
-    data: updatedTask,
+    data: {
+      ...updatedTask,
+      pointsAwarded
+    },
     message: `Task status updated to ${status}`
   });
 }));

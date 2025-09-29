@@ -1,7 +1,7 @@
 import React from 'react'
 
 // Shared weather icon component - uses API-provided emojis with intelligent combining
-export const getWeatherIcon = (condition: string, emoji?: string) => {
+export const getWeatherIcon = (condition: string, emoji?: string, eventTime?: Date) => {
   // If we have an emoji from the API, process it to combine multiple emojis intelligently
   if (emoji) {
     let processedEmoji = emoji
@@ -46,8 +46,9 @@ export const getWeatherIcon = (condition: string, emoji?: string) => {
   const conditionLower = condition?.toLowerCase() || ''
   
   if (conditionLower.includes('clear') || conditionLower.includes('sunny')) {
-    // Check if it's nighttime (between 6 PM and 6 AM)
-    const currentHour = new Date().getHours()
+    // Check if it's nighttime (between 6 PM and 6 AM) - use event time if provided
+    const timeToCheck = eventTime || new Date()
+    const currentHour = timeToCheck.getHours()
     const isNight = currentHour >= 18 || currentHour < 6
     
     return (

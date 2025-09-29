@@ -119,48 +119,6 @@ export class GoogleCalendarService {
     }
   }
 
-  /**
-   * Subscribe to a holiday calendar
-   */
-  async subscribeToHolidayCalendar(calendarId: string): Promise<any> {
-    try {
-      const response = await this.calendar.calendarList.insert({
-        resource: {
-          id: calendarId
-        }
-      });
-      
-      logger.info('Subscribed to holiday calendar', { calendarId });
-      return response.data;
-    } catch (error) {
-      logger.error('Error subscribing to holiday calendar:', error);
-      throw new Error(`Failed to subscribe to holiday calendar: ${calendarId}`);
-    }
-  }
-
-  /**
-   * Get available holiday calendars
-   */
-  async getAvailableHolidayCalendars(): Promise<any[]> {
-    const holidayCalendars = [
-      {
-        id: 'en.usa#holiday@group.v.calendar.google.com',
-        summary: 'US Holidays',
-        description: 'Holidays in United States',
-        accessRole: 'reader',
-        primary: false
-      },
-      {
-        id: 'en.usa.official#holiday@group.v.calendar.google.com',
-        summary: 'US Official Holidays',
-        description: 'Official holidays in United States',
-        accessRole: 'reader',
-        primary: false
-      }
-    ];
-    
-    return holidayCalendars;
-  }
 
   /**
    * Get list of calendars

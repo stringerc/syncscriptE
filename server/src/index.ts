@@ -20,6 +20,9 @@ import locationRoutes from './routes/location';
 import searchRoutes from './routes/search';
 import gamificationRoutes from './routes/gamification';
 import taskSchedulingRoutes from './routes/taskScheduling';
+import feedbackRoutes from './routes/feedback';
+import energyEngineRoutes from './routes/energyEngine';
+import enhancedAchievementsRoutes from './routes/enhancedAchievements';
 
 // Import middleware
 import { errorHandler } from './middleware/errorHandler';
@@ -127,7 +130,10 @@ app.get('/', (req, res) => {
       notifications: '/api/notifications',
       location: '/api/location',
       gamification: '/api/gamification',
-      taskScheduling: '/api/task-scheduling'
+      taskScheduling: '/api/task-scheduling',
+      feedback: '/api/feedback',
+      energyEngine: '/api/energy-engine',
+      achievements: '/api/achievements'
     },
     documentation: 'https://github.com/stringerc/syncscriptE'
   });
@@ -189,6 +195,9 @@ app.use('/api/location', locationRoutes);
 app.use('/api/search', searchRoutes);
 app.use('/api/gamification', gamificationRoutes);
 app.use('/api/task-scheduling', taskSchedulingRoutes);
+app.use('/api/feedback', feedbackRoutes);
+app.use('/api/energy-engine', energyEngineRoutes);
+app.use('/api/achievements', enhancedAchievementsRoutes);
 
 // Socket.IO for real-time updates
 io.on('connection', (socket) => {

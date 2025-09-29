@@ -53,6 +53,13 @@ model User {
   badges       Badge[]
   points       Point[]
   
+  // Energy Engine
+  energyPoints       EnergyPoint[]
+  dailyChallenges    DailyChallenge[]
+  energyConversions  EnergyConversion[]
+  energyEmblems      EnergyEmblem[]
+  energyProfile      UserEnergyProfile?
+  
   // Settings
   settings UserSettings?
 
@@ -266,11 +273,22 @@ model NotificationPreferences {
 model Achievement {
   id          String   @id @default(cuid())
   userId      String
-  type        String   // "streak", "completion", "budget", etc.
+  type        String   // "streak", "completion", "budget", "energy", "domain", etc.
   title       String
   description String
   points      Int      @default(0)
   unlockedAt  DateTime @default(now())
+  
+  // Enhanced criteria and progress tracking
+  criteria    String?  // JSON string with exact criteria
+  progress    Int      @default(0) // Current progress (0-100)
+  target      Int      @default(100) // Target value for completion
+  isUnlocked  Boolean  @default(false) // Whether achievement is unlocked
+  rarity      String   @default("common") // "common", "rare", "epic", "legendary"
+  category    String?  // "productivity", "wellness", "social", "learning", etc.
+  domain      String?  // "body", "mind", "social", "order", "finance", "outdoors", "rest"
+  icon        String?  // Icon name or emoji
+  metadata    String?  // JSON string for additional data
   
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -351,6 +369,85 @@ model Point {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("points")
+}
+
+// Energy Engine Models
+model EnergyPoint {
+  id          String   @id @default(cuid())
+  userId      String
+  amount      Int      // EP earned (always positive)
+  source      String   // "task_completion", "challenge_completion", "achievement", "event_completion"
+  domain      String?  // "body", "mind", "social", "order", "finance", "outdoors", "rest"
+  description String?
+  metadata    String?  // JSON string for additional data
+  earnedAt    DateTime @default(now())
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("energy_points")
+}
+
+model DailyChallenge {
+  id          String   @id @default(cuid())
+  userId      String
+  title       String
+  description String
+  domain      String   // "body", "mind", "social", "order", "finance", "outdoors", "rest"
+  type        String   // "core" or "stretch"
+  target      String   // What needs to be completed
+  epReward    Int      // EP to be awarded
+  isCompleted Boolean  @default(false)
+  completedAt DateTime?
+  date        DateTime @default(now()) // Date the challenge is for
+  metadata    String?  // JSON string for additional data
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("daily_challenges")
+}
+
+model EnergyConversion {
+  id            String   @id @default(cuid())
+  userId        String
+  epEarned      Int      // Total EP earned that day
+  energyGained  Int      // Energy gained from conversion (0-100)
+  conversionRate Float   // Rate used for conversion
+  date          DateTime @default(now())
+  metadata      String?  // JSON string for conversion details
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("energy_conversions")
+}
+
+model EnergyEmblem {
+  id          String   @id @default(cuid())
+  userId      String
+  emblemType  String   // "bolt", "heart", "comet", "wave"
+  isUnlocked  Boolean  @default(false)
+  unlockedAt  DateTime?
+  isActive    Boolean  @default(false)
+  metadata    String?  // JSON string for emblem data
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("energy_emblems")
+}
+
+model UserEnergyProfile {
+  id                String   @id @default(cuid())
+  userId            String   @unique
+  currentEnergy     Int      @default(50) // 0-100 scale
+  energyLevel       Int      @default(5)  // 1-10 scale (legacy)
+  domainWeights     String?  // JSON object with domain weights
+  personalizationData String? // JSON object for personalization
+  lastConversion    DateTime?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_energy_profiles")
 }
 
 // Enums removed for SQLite compatibility - using String types instead

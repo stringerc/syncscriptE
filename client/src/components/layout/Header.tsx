@@ -1,4 +1,4 @@
-import { Search, User, LogOut, Settings, UserCircle, Zap, Clock, Calendar, CheckCircle, MessageSquare, Loader2 } from 'lucide-react'
+import { Search, User, LogOut, Settings, UserCircle, Zap, Clock, Calendar, CheckCircle, MessageSquare, Loader2, Trophy } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useAuthStore } from '@/stores/authStore'
@@ -7,10 +7,12 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import { NotificationCenter } from '@/components/notifications/NotificationCenter'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '@/lib/api'
+import { AnimatedCounter } from '@/components/AnimatedCounter'
 // Removed animation context import
 import { getWeatherIcon } from '@/utils/weatherIcons'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
+import { useAchievements } from '@/contexts/AchievementsContext'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -28,6 +30,7 @@ export function Header() {
   // Removed animation functionality
   const navigate = useNavigate()
   const location = useLocation()
+  const { showAchievements } = useAchievements()
 
   // Check if we're on the dashboard
   const isDashboard = location.pathname === '/dashboard'
@@ -95,6 +98,17 @@ export function Header() {
     enabled: !isDashboard, // Only fetch weather if not on dashboard
     staleTime: 10 * 60 * 1000, // 10 minutes
     refetchOnWindowFocus: false,
+  })
+
+  // Gamification query for header - only fetch if not on dashboard
+  const { data: gamificationData } = useQuery({
+    queryKey: ['gamification-summary'],
+    queryFn: async () => {
+      const response = await api.get('/gamification')
+      return response.data.data
+    },
+    enabled: !isDashboard, // Only fetch if not on dashboard
+    staleTime: 30 * 1000, // 30 seconds
   })
 
 
@@ -803,6 +817,21 @@ export function Header() {
             >
               <User className="w-5 h-5" />
             </Button>
+
+            {/* Points Display - only show if not on dashboard and achievements are enabled */}
+            {!isDashboard && gamificationData && showAchievements && (
+              <div 
+                onClick={() => navigate('/gamification')}
+                className="text-lg font-bold text-yellow-500 dark:text-yellow-400 cursor-pointer hover:text-yellow-600 dark:hover:text-yellow-300 transition-colors"
+                title="View Achievements"
+              >
+                <AnimatedCounter 
+                  value={gamificationData?.stats?.totalPoints || 0}
+                  duration={1000}
+                  className="text-yellow-500 dark:text-yellow-400"
+                />
+              </div>
+            )}
             
             {/* Keep logout button separate for now */}
             <Button 

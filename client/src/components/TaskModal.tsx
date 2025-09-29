@@ -72,6 +72,30 @@ export function TaskModal({ task, isOpen, onClose, onTaskUpdated, onTaskDeleted 
     }
   }, [task])
 
+  const createTaskMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const response = await api.post('/tasks', data)
+      return response.data
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "Task Created",
+        description: "Task has been created successfully"
+      })
+      queryClient.invalidateQueries({ queryKey: ['tasks'] })
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+      onTaskUpdated?.(data.data)
+      onClose()
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Creation Failed",
+        description: error.response?.data?.error || "Failed to create task",
+        variant: "destructive"
+      })
+    }
+  })
+
   const updateTaskMutation = useMutation({
     mutationFn: async (data: any) => {
       if (!task) throw new Error('No task to update')
@@ -275,7 +299,11 @@ export function TaskModal({ task, isOpen, onClose, onTaskUpdated, onTaskDeleted 
   })
 
   const handleSave = () => {
-    updateTaskMutation.mutate(formData)
+    if (task) {
+      updateTaskMutation.mutate(formData)
+    } else {
+      createTaskMutation.mutate(formData)
+    }
   }
 
   const handleDelete = () => {
@@ -330,14 +358,16 @@ export function TaskModal({ task, isOpen, onClose, onTaskUpdated, onTaskDeleted 
     setShowNotesSuggestion(false)
   }
 
-  if (!task) return null
+  if (!isOpen) return null
 
   return (
-    <div className={`fixed inset-0 z-50 flex items-center justify-center bg-black/50 ${isOpen ? '' : 'hidden'}`}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
       <div className="bg-background rounded-lg shadow-xl w-full max-w-2xl mx-4 max-h-[90vh] flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b">
-          <h2 className="text-2xl font-bold">{isEditing ? 'Edit Task' : 'Task Details'}</h2>
+          <h2 className="text-2xl font-bold">
+            {!task ? 'Create New Task' : (isEditing ? 'Edit Task' : 'Task Details')}
+          </h2>
           <Button variant="ghost" size="icon" onClick={handleClose}>
             <X className="w-5 h-5" />
           </Button>
@@ -345,7 +375,7 @@ export function TaskModal({ task, isOpen, onClose, onTaskUpdated, onTaskDeleted 
 
         {/* Content */}
         <div className="p-6 flex-1 overflow-y-auto">
-          {isEditing ? (
+          {!task || isEditing ? (
             <div className="space-y-4">
               <div>
                 <Label htmlFor="title">Title</Label>
@@ -406,7 +436,7 @@ export function TaskModal({ task, isOpen, onClose, onTaskUpdated, onTaskDeleted 
                     id="priority"
                     value={formData.priority}
                     onChange={(e) => setFormData({ ...formData, priority: e.target.value as Priority })}
-                    className="w-full p-2 border rounded-md"
+                    className="w-full p-2 border rounded-md text-black"
                   >
                     <option value="LOW">Low</option>
                     <option value="MEDIUM">Medium</option>
@@ -429,8 +459,8 @@ export function TaskModal({ task, isOpen, onClose, onTaskUpdated, onTaskDeleted 
           ) : (
             <div>
               <div className="mb-4">
-                <h3 className="text-lg font-semibold">{task.title}</h3>
-                {task.description && (
+                <h3 className="text-lg font-semibold">{task?.title}</h3>
+                {task?.description && (
                   <p className="text-muted-foreground mt-2">{task.description}</p>
                 )}
               </div>
@@ -438,37 +468,37 @@ export function TaskModal({ task, isOpen, onClose, onTaskUpdated, onTaskDeleted 
               <div className="space-y-3">
                 <div className="flex items-center space-x-2">
                   <span className={`px-2 py-1 text-xs rounded-full ${
-                    task.priority === 'URGENT' ? 'bg-red-100 text-red-800' :
-                    task.priority === 'HIGH' ? 'bg-orange-100 text-orange-800' :
-                    task.priority === 'MEDIUM' ? 'bg-yellow-100 text-yellow-800' :
+                    task?.priority === 'URGENT' ? 'bg-red-100 text-red-800' :
+                    task?.priority === 'HIGH' ? 'bg-orange-100 text-orange-800' :
+                    task?.priority === 'MEDIUM' ? 'bg-yellow-100 text-yellow-800' :
                     'bg-green-100 text-green-800'
                   }`}>
-                    {task.priority}
+                    {task?.priority}
                   </span>
                   <span className={`px-2 py-1 text-xs rounded-full ${
-                    task.status === 'COMPLETED' ? 'bg-green-100 text-green-800' :
-                    task.status === 'IN_PROGRESS' ? 'bg-blue-100 text-blue-800' :
+                    task?.status === 'COMPLETED' ? 'bg-green-100 text-green-800' :
+                    task?.status === 'IN_PROGRESS' ? 'bg-blue-100 text-blue-800' :
                     'bg-gray-100 text-gray-800'
                   }`}>
-                    {task.status}
+                    {task?.status}
                   </span>
                 </div>
 
-                {task.estimatedDuration && (
+                {task?.estimatedDuration && (
                   <div className="flex items-center space-x-2">
                     <Clock className="w-4 h-4 text-muted-foreground" />
                     <span className="text-sm">{task.estimatedDuration} minutes</span>
                   </div>
                 )}
 
-                {task.location && (
+                {task?.location && (
                   <div className="flex items-center space-x-2">
                     <MapPin className="w-4 h-4 text-muted-foreground" />
                     <span className="text-sm">{task.location}</span>
                   </div>
                 )}
 
-                {task.notes && (
+                {task?.notes && (
                   <div className="mt-4">
                     <h4 className="font-medium mb-2">Notes</h4>
                     <p className="text-sm text-muted-foreground bg-muted p-3 rounded-md">
@@ -477,7 +507,7 @@ export function TaskModal({ task, isOpen, onClose, onTaskUpdated, onTaskDeleted 
                   </div>
                 )}
 
-                {task.dueDate && (
+                {task?.dueDate && (
                   <div className="flex items-center space-x-2">
                     <Calendar className="w-4 h-4 text-muted-foreground" />
                     <span className="text-sm">Due: {new Date(task.dueDate).toLocaleDateString()}</span>
@@ -670,7 +700,7 @@ export function TaskModal({ task, isOpen, onClose, onTaskUpdated, onTaskDeleted 
         {/* Footer */}
         <div className="flex items-center justify-between p-6 border-t">
           <div className="flex space-x-2">
-            {!isEditing && (
+            {!isEditing && task && (
               <>
                 <Button
                   variant="outline"
@@ -699,7 +729,7 @@ export function TaskModal({ task, isOpen, onClose, onTaskUpdated, onTaskDeleted 
             )}
           </div>
           <div className="flex space-x-2">
-            {!isEditing && (
+            {!isEditing && task && (
               <Button
                 variant="outline"
                 size="sm"
@@ -721,14 +751,17 @@ export function TaskModal({ task, isOpen, onClose, onTaskUpdated, onTaskDeleted 
                 </Button>
                 <Button
                   onClick={handleSave}
-                  disabled={updateTaskMutation.isPending}
+                  disabled={task ? updateTaskMutation.isPending : createTaskMutation.isPending}
                 >
                   <Save className="w-4 h-4 mr-2" />
-                  {updateTaskMutation.isPending ? 'Saving...' : 'Save Changes'}
+                  {task 
+                    ? (updateTaskMutation.isPending ? 'Saving...' : 'Save Changes')
+                    : (createTaskMutation.isPending ? 'Creating...' : 'Create Task')
+                  }
                 </Button>
               </>
             )}
-            {!isEditing && (
+            {!isEditing && task && (
               <Button
                 variant="outline"
                 onClick={handleEdit}

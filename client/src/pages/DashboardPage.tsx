@@ -9,8 +9,11 @@ import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '@/stores/authStore'
 import { ConfirmationModal } from '@/components/ConfirmationModal'
 import { useEnergyAnalysisPrefetch } from '@/hooks/useEnergyAnalysisPrefetch'
+import { usePointAnimation } from '@/contexts/PointAnimationContext'
+import { AnimatedCounter } from '@/components/AnimatedCounter'
 // Removed animation context import
 import { getWeatherIcon } from '@/utils/weatherIcons'
+import { useAchievements } from '@/contexts/AchievementsContext'
 import { 
   CheckSquare, 
   Calendar, 
@@ -32,7 +35,8 @@ import {
   MapPin,
   Star,
   Flame,
-  CheckCircle
+  CheckCircle,
+  Plus
 } from 'lucide-react'
 import { formatDate, formatTime, formatCurrency, getPriorityColor } from '@/lib/utils'
 import { EventModal } from '@/components/EventModal'
@@ -147,15 +151,17 @@ const TaskItem = memo(({ task, onComplete, onDelete, onView, order, showOrder, e
 })
 
 // Memoized event item component for performance
-const EventItem = memo(({ event, onView, onDelete, weatherData, preparationTasks, events }: { 
+const EventItem = memo(({ event, onView, onDelete, weatherData, preparationTasks, events, allTasks }: { 
   event: Event, 
   onView: (id: string) => void, 
   onDelete: (id: string) => void,
   weatherData?: { emoji: string; temperature: number; condition: string } | null,
   preparationTasks?: any[],
-  events?: Event[]
+  events?: Event[],
+  allTasks?: any[]
 }) => {
   const [showAllTasks, setShowAllTasks] = useState(false)
+  const [showAllNestedTasks, setShowAllNestedTasks] = useState<Record<string, boolean>>({})
   
   // Removed excessive logging for performance
   return (
@@ -178,18 +184,113 @@ const EventItem = memo(({ event, onView, onDelete, weatherData, preparationTasks
                 const priorityOrder = { URGENT: 4, HIGH: 3, MEDIUM: 2, LOW: 1 }
                 return (priorityOrder[b.priority as keyof typeof priorityOrder] || 0) - (priorityOrder[a.priority as keyof typeof priorityOrder] || 0)
               })
-              .map((task: any) => (
-              <div 
-                key={task.id} 
-                className={`text-xs text-muted-foreground transition-all duration-200 ${
-                  task.status === 'COMPLETED' 
-                    ? 'line-through text-green-600' 
-                    : ''
-                }`}
-              >
-                {task.status === 'COMPLETED' ? '✓' : '•'} {task.title}
-              </div>
-            ))}
+              .map((task: any) => {
+                // Check if this task has its own event (nested event)
+                const hasNestedEvent = events?.find((e: any) => e.title === task.title)
+                
+                console.log(`🔍 Nested task check for task "${task.title}":`, {
+                  taskId: task.id,
+                  taskTitle: task.title,
+                  hasNestedEvent: !!hasNestedEvent,
+                  nestedEventId: hasNestedEvent?.id,
+                  allEvents: events?.map(e => ({ id: e.id, title: e.title }))
+                })
+                
+                return (
+                  <div key={task.id}>
+                    <div 
+                      className={`text-xs text-muted-foreground transition-all duration-200 ${
+                        task.status === 'COMPLETED' 
+                          ? 'line-through text-green-600' 
+                          : ''
+                      }`}
+                    >
+                      {task.status === 'COMPLETED' ? '✓' : '•'} {task.title}
+                    </div>
+                    
+                    {/* Show nested tasks if this task has its own event */}
+                    {hasNestedEvent && (
+                      <div className="ml-4 mt-1 space-y-1">
+                        {(() => {
+                          // Find tasks that belong to this nested event
+                          // First try to find them in preparationTasks, but if not found, 
+                          // we need to look for tasks that are specifically for this nested event
+                          let nestedEventTasks = preparationTasks.filter((t: any) => 
+                            t.eventId === hasNestedEvent.id && t.id !== task.id
+                          )
+                          
+                          // If no tasks found in preparationTasks, look for tasks that might be 
+                          // associated with this nested event by checking if they have the same eventId
+                          if (nestedEventTasks.length === 0) {
+                            // Look for all tasks that belong to this nested event
+                            nestedEventTasks = allTasks?.filter((t: any) => 
+                              t.eventId === hasNestedEvent.id && t.id !== task.id
+                            ) || []
+                          }
+                          
+                          console.log(`🔍 Nested tasks for event "${hasNestedEvent.title}":`, {
+                            nestedEventId: hasNestedEvent.id,
+                            nestedEventTitle: hasNestedEvent.title,
+                            foundTasks: nestedEventTasks.map(t => ({ id: t.id, title: t.title, eventId: t.eventId })),
+                            allPrepTasks: preparationTasks.map(t => ({ id: t.id, title: t.title, eventId: t.eventId })),
+                            filterCondition: `t.eventId === hasNestedEvent.id && t.id !== task.id`,
+                            taskId: task.id,
+                            taskTitle: task.title,
+                            detailedComparison: preparationTasks.map(t => ({
+                              id: t.id,
+                              title: t.title,
+                              eventId: t.eventId,
+                              matchesEventId: t.eventId === hasNestedEvent.id,
+                              isNotCurrentTask: t.id !== task.id,
+                              wouldMatch: t.eventId === hasNestedEvent.id && t.id !== task.id
+                            }))
+                          })
+                          
+                          // Sort nested tasks by priority to match main prep tasks
+                          const priorityOrder = { URGENT: 4, HIGH: 3, MEDIUM: 2, LOW: 1 }
+                          const sortedNestedTasks = nestedEventTasks.sort((a: any, b: any) => {
+                            const aPriority = priorityOrder[a.priority as keyof typeof priorityOrder] || 0
+                            const bPriority = priorityOrder[b.priority as keyof typeof priorityOrder] || 0
+                            return bPriority - aPriority
+                          })
+                          
+                          const maxNestedTasks = 2
+                          const shouldShowAll = showAllNestedTasks[task.id] || false
+                          const tasksToShow = shouldShowAll ? sortedNestedTasks : sortedNestedTasks.slice(0, maxNestedTasks)
+                          
+                          return (
+                            <>
+                              {tasksToShow.map((nestedTask: any) => (
+                                <div 
+                                  key={nestedTask.id}
+                                  className={`text-xs text-muted-foreground/80 transition-all duration-200 ${
+                                    nestedTask.status === 'COMPLETED' 
+                                      ? 'line-through text-green-500' 
+                                      : ''
+                                  }`}
+                                >
+                                  {nestedTask.status === 'COMPLETED' ? '✓' : '◦'} {nestedTask.title}
+                                </div>
+                              ))}
+                              {sortedNestedTasks.length > maxNestedTasks && (
+                                <button
+                                  onClick={() => setShowAllNestedTasks(prev => ({
+                                    ...prev,
+                                    [task.id]: !prev[task.id]
+                                  }))}
+                                  className="text-xs text-blue-600 hover:text-blue-800 underline cursor-pointer transition-colors duration-200"
+                                >
+                                  {shouldShowAll ? 'Show less' : `+${sortedNestedTasks.length - maxNestedTasks} more`}
+                                </button>
+                              )}
+                            </>
+                          )
+                        })()}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
             {preparationTasks.length > 3 && (
               <button
                 onClick={() => setShowAllTasks(!showAllTasks)}
@@ -218,7 +319,11 @@ const EventItem = memo(({ event, onView, onDelete, weatherData, preparationTasks
                   className="text-lg"
                   style={{ fontSize: '16px' }}
                 >
-                  {weatherData?.emoji || '🌤️'}
+                  {getWeatherIcon(
+                    weatherData?.condition || 'Unknown',
+                    weatherData?.emoji,
+                    new Date(event.startTime)
+                  )}
                 </span>
               </>
             ) : weatherData ? (
@@ -229,7 +334,11 @@ const EventItem = memo(({ event, onView, onDelete, weatherData, preparationTasks
                   className="text-lg"
                   style={{ fontSize: '16px' }}
                 >
-                  {weatherData?.emoji || '🌤️'}
+                  {getWeatherIcon(
+                    weatherData?.condition || 'Unknown',
+                    weatherData?.emoji,
+                    new Date(event.startTime)
+                  )}
                 </span>
               </>
             ) : (
@@ -374,6 +483,8 @@ export function DashboardPage() {
   const queryClient = useQueryClient()
   const { token, user: authUser } = useAuthStore()
   const { prefetchEnergyAnalysis } = useEnergyAnalysisPrefetch()
+  const { showAchievements } = useAchievements()
+  const { showPointAnimation } = usePointAnimation()
   // Removed animation functionality
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -485,7 +596,7 @@ export function DashboardPage() {
       const response = await api.get('/gamification')
       return response.data.data
     },
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: 30 * 1000, // 30 seconds - shorter for more frequent updates
     enabled: !!token && isHydrated
   })
 
@@ -547,9 +658,26 @@ export function DashboardPage() {
         throw error
       }
     },
-    onSuccess: (data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['dashboard'] })
-      queryClient.invalidateQueries({ queryKey: ['tasks'] })
+    onSuccess: async (data, variables) => {
+      // Invalidate and refetch all relevant queries immediately
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['dashboard'] }),
+        queryClient.invalidateQueries({ queryKey: ['tasks'] }),
+        queryClient.invalidateQueries({ queryKey: ['gamification-summary'] }),
+        queryClient.invalidateQueries({ queryKey: ['gamification'] }),
+        queryClient.invalidateQueries({ queryKey: ['user-dashboard'] })
+      ])
+      
+      // Force refetch the gamification data if points were awarded
+      if (variables.status === 'COMPLETED' && data.data?.pointsAwarded) {
+        await queryClient.refetchQueries({ queryKey: ['gamification-summary'] })
+        
+        // Small delay to ensure data is updated before showing animation
+        setTimeout(() => {
+          showPointAnimation(data.data.pointsAwarded)
+        }, 100)
+      }
+      
       toast({
         title: "Status Updated!",
         description: `Task status changed to ${variables.status.replace('_', ' ').toLowerCase()}`
@@ -983,12 +1111,16 @@ export function DashboardPage() {
   }, [currentWeatherData])
 
   const handleAddTask = useCallback(() => {
-    navigate('/tasks')
-  }, [navigate])
+    console.log('➕ handleAddTask called')
+    setSelectedTask(null)
+    setIsTaskModalOpen(true)
+  }, [])
 
   const handleAddEvent = useCallback(() => {
-    navigate('/calendar')
-  }, [navigate])
+    console.log('➕ handleAddEvent called')
+    setSelectedEvent(null)
+    setIsModalOpen(true)
+  }, [])
 
   // Memoized calculations for performance - must be before any conditional returns
   const completedTasksCount = useMemo(() => {
@@ -1216,16 +1348,20 @@ export function DashboardPage() {
           </CardContent>
         </Card>
 
-        <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate('/gamification')}>
+        <Card className="cursor-pointer hover:shadow-md transition-all duration-300 hover:scale-105" onClick={() => navigate('/gamification')}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Points</CardTitle>
             <Trophy className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-yellow-600">
-              {gamificationData?.stats?.totalPoints || 0}
+            <div className={`text-2xl font-bold ${showAchievements ? 'text-yellow-600' : 'text-gray-400'}`}>
+              <AnimatedCounter 
+                value={gamificationData?.stats?.totalPoints || 0}
+                duration={1500}
+                className="font-bold"
+              />
             </div>
-            <p className="text-xs text-muted-foreground">
+            <p className={`text-xs ${showAchievements ? 'text-muted-foreground' : 'text-gray-400'}`}>
               Level {gamificationData?.stats?.currentLevel || 1} • {gamificationData?.achievements?.length || 0} achievements
             </p>
           </CardContent>
@@ -1246,18 +1382,28 @@ export function DashboardPage() {
                   Your tasks for today, ordered by AI priority (1 = highest priority)
                 </CardDescription>
               </div>
-            {standardizedTasks.length > 0 && (
-              <Button 
-                size="sm" 
-                variant="outline"
-                onClick={handlePrioritizeTasks}
-                disabled={prioritizeTasksMutation.isPending}
-                className="flex items-center space-x-2"
-              >
-                <Sparkles className="w-4 h-4" />
-                <span>{prioritizeTasksMutation.isPending ? 'Prioritizing...' : 'Prioritize'}</span>
-              </Button>
-            )}
+              <div className="flex items-center space-x-2">
+                {standardizedTasks.length > 0 && (
+                  <Button 
+                    size="sm" 
+                    variant="outline"
+                    onClick={handlePrioritizeTasks}
+                    disabled={prioritizeTasksMutation.isPending}
+                    className="flex items-center space-x-2"
+                  >
+                    <Sparkles className="w-4 h-4" />
+                    <span>{prioritizeTasksMutation.isPending ? 'Prioritizing...' : 'Prioritize'}</span>
+                  </Button>
+                )}
+                <Button 
+                  size="sm" 
+                  variant="outline"
+                  onClick={handleAddTask}
+                  className="flex items-center space-x-1"
+                >
+                  <Plus className="w-4 h-4" />
+                </Button>
+              </div>
             </div>
           </CardHeader>
           <CardContent>
@@ -1302,13 +1448,25 @@ export function DashboardPage() {
         {/* Upcoming Events */}
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center space-x-2">
-              <Calendar className="w-5 h-5" />
-              <span>Upcoming Events</span>
-            </CardTitle>
-            <CardDescription>
-              Your scheduled events and meetings
-            </CardDescription>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center space-x-2">
+                  <Calendar className="w-5 h-5" />
+                  <span>Upcoming Events</span>
+                </CardTitle>
+                <CardDescription>
+                  Your scheduled events and meetings
+                </CardDescription>
+              </div>
+              <Button 
+                size="sm" 
+                variant="outline"
+                onClick={handleAddEvent}
+                className="flex items-center space-x-1"
+              >
+                <Plus className="w-4 h-4" />
+              </Button>
+            </div>
           </CardHeader>
           <CardContent>
             {upcomingEvents.length === 0 ? (
@@ -1330,6 +1488,7 @@ export function DashboardPage() {
                     weatherData={eventWeatherData[event.id]}
                     preparationTasks={eventPreparationTasks[event.id]}
                     events={upcomingEvents}
+                    allTasks={allTasks}
                   />
                 ))}
                 <Button 

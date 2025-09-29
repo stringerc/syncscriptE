@@ -280,7 +280,7 @@ router.post('/cleanup-duplicates', authenticateToken, asyncHandler(async (req: A
     })));
 
     // Find and remove duplicate events - try multiple approaches
-    const duplicates = await prisma.$queryRaw`
+    const duplicates = await prisma.$queryRaw<Array<{ title: string; startTime: string; count: number }>>`
       SELECT title, "startTime", COUNT(*) as count
       FROM "events"
       WHERE "userId" = ${req.user!.id}
@@ -291,7 +291,7 @@ router.post('/cleanup-duplicates', authenticateToken, asyncHandler(async (req: A
     console.log('🔍 Found duplicates (exact match):', duplicates);
 
     // Also check for duplicates with similar titles (case-insensitive)
-    const similarDuplicates = await prisma.$queryRaw`
+    const similarDuplicates = await prisma.$queryRaw<Array<{ title_lower: string; startTime: string; count: number }>>`
       SELECT LOWER(title) as title_lower, "startTime", COUNT(*) as count
       FROM "events"
       WHERE "userId" = ${req.user!.id}
@@ -302,7 +302,7 @@ router.post('/cleanup-duplicates', authenticateToken, asyncHandler(async (req: A
     console.log('🔍 Found duplicates (similar titles):', similarDuplicates);
 
     // Check for events with same title but different times (might be recurring)
-    const titleDuplicates = await prisma.$queryRaw`
+    const titleDuplicates = await prisma.$queryRaw<Array<{ title: string; count: number }>>`
       SELECT title, COUNT(*) as count
       FROM "events"
       WHERE "userId" = ${req.user!.id}
@@ -340,14 +340,18 @@ router.post('/cleanup-duplicates', authenticateToken, asyncHandler(async (req: A
       const events = await prisma.event.findMany({
         where: {
           userId: req.user!.id,
-          title: { mode: 'insensitive', equals: duplicate.title_lower },
           startTime: new Date(duplicate.startTime)
         },
         orderBy: { createdAt: 'asc' }
       });
 
-      if (events.length > 1) {
-        const idsToDelete = events.slice(1).map(e => e.id);
+      // Filter by case-insensitive title match
+      const matchingEvents = events.filter(event => 
+        event.title.toLowerCase() === duplicate.title_lower
+      );
+
+      if (matchingEvents.length > 1) {
+        const idsToDelete = matchingEvents.slice(1).map(e => e.id);
         await prisma.event.deleteMany({
           where: { id: { in: idsToDelete } }
         });
