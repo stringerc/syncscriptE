@@ -143,46 +143,7 @@ export function GoogleCalendarPage() {
       const allEvents = []
       const { timeMin, timeMax } = getTimeRange(timeRange, true) // Get time range including past events
       
-      // Get events from primary calendar
-      try {
-        const primaryResponse = await api.get(`/google-calendar/events?calendarId=primary&maxResults=50&timeMin=${timeMin}&timeMax=${timeMax}`)
-        allEvents.push(...primaryResponse.data.data.map(event => ({ 
-          ...event, 
-          calendarId: 'primary',
-          title: event.summary || event.title || 'Untitled Event' // Map summary to title
-        })))
-      } catch (error) {
-        console.error('Error fetching primary calendar events:', error)
-      }
-      
-      // Get events from holiday calendars if subscribed
-      const holidayCalendars = calendarsData?.filter(cal => 
-        cal.id === 'en.usa#holiday@group.v.calendar.google.com' || 
-        cal.id === 'en.usa.official#holiday@group.v.calendar.google.com'
-      ) || []
-      
-      console.log('🎉 Found holiday calendars:', holidayCalendars.map(cal => cal.id))
-      
-      for (const holidayCalendar of holidayCalendars) {
-        try {
-          console.log('🎉 Fetching holiday calendar events from:', holidayCalendar.id)
-          const holidayResponse = await api.get(`/google-calendar/events?calendarId=${holidayCalendar.id}&maxResults=50&timeMin=${timeMin}&timeMax=${timeMax}`)
-          console.log('🎉 Holiday calendar events received:', holidayResponse.data.data)
-          allEvents.push(...holidayResponse.data.data.map(event => ({ 
-            ...event, 
-            calendarId: 'holiday',
-            title: event.summary || event.title || 'Untitled Holiday' // Map summary to title
-          })))
-        } catch (error) {
-          console.error('❌ Error fetching holiday calendar events from', holidayCalendar.id, ':', error)
-        }
-      }
-      
-      if (holidayCalendars.length === 0) {
-        console.log('❌ No holiday calendars subscribed. Available calendars:', calendarsData?.map(cal => cal.id))
-      }
-      
-      // Also get events from local database (includes synced holidays)
+      // Only get events from local database (synced events)
       try {
         const localEventsResponse = await api.get(`/calendar?timeMin=${timeMin}&timeMax=${timeMax}&includePast=true`)
         const localEvents = localEventsResponse.data.events || []
@@ -208,7 +169,8 @@ export function GoogleCalendarPage() {
         console.log('🎉 Local events details:', localEvents.map(event => ({ 
           title: event.title, 
           startTime: event.startTime,
-          isFuture: new Date(event.startTime) >= new Date()
+          isFuture: new Date(event.startTime) >= new Date(),
+          calendarProvider: event.calendarProvider
         })))
       } catch (error) {
         console.error('❌ Error fetching local events:', error)
@@ -656,54 +618,6 @@ export function GoogleCalendarPage() {
           </CardContent>
         </Card>
 
-      {/* Recently Synced Events */}
-      {recentlySyncedEvents.length > 0 && (
-        <Card className="border-2 border-blue-500">
-          <CardHeader>
-            <CardTitle className="flex items-center space-x-2">
-              <RefreshCw className="w-5 h-5" />
-              <span>Recently Synced Events</span>
-              <Badge variant="secondary" className="ml-2">{recentlySyncedEvents.length} events</Badge>
-            </CardTitle>
-            <CardDescription>
-              Events that were just synced from Google Calendar
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2 max-h-64 overflow-y-auto">
-              {recentlySyncedEvents.map((event, index) => (
-                <div key={index} className="p-3 border rounded-lg bg-blue-50">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <h4 className="font-medium text-blue-900">{event.title}</h4>
-                      <div className="text-sm text-blue-700 mt-1">
-                        <span>
-                          {event.startTime ? new Date(event.startTime).toLocaleString() : 'All Day'}
-                        </span>
-                        {event.endTime && (
-                          <span> - {new Date(event.endTime).toLocaleString()}</span>
-                        )}
-                      </div>
-                    </div>
-                    <Badge variant="default" className="bg-blue-100 text-blue-800">
-                      Synced
-                    </Badge>
-                  </div>
-                </div>
-              ))}
-            </div>
-            <div className="mt-4 flex justify-end">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setRecentlySyncedEvents([])}
-              >
-                Clear List
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       {/* Calendar Selection and Sync */}
       {statusData?.connected && (
@@ -803,6 +717,64 @@ export function GoogleCalendarPage() {
               <Trash2 className="w-4 h-4 mr-2" />
               Clean Up Duplicates
             </Button>
+
+            {/* Recently Synced Events */}
+            {recentlySyncedEvents.length > 0 && (
+              <div className="mt-6 p-4 border-2 border-blue-500 rounded-lg bg-blue-50">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="font-medium text-blue-900 flex items-center space-x-2">
+                    <RefreshCw className="w-4 h-4" />
+                    <span>Recently Synced Events</span>
+                    <Badge variant="secondary" className="ml-2">{recentlySyncedEvents.length} events</Badge>
+                  </h3>
+                  <div className="flex space-x-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setRecentlySyncedEvents([])}
+                    >
+                      Clear List
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        // Move recently synced events to previously synced
+                        setRecentlySyncedEvents([])
+                        toast({
+                          title: "Moved to Previously Synced",
+                          description: "Events have been moved to the previously synced section"
+                        })
+                      }}
+                    >
+                      Move to Previously Synced
+                    </Button>
+                  </div>
+                </div>
+                <div className="space-y-2 max-h-48 overflow-y-auto">
+                  {recentlySyncedEvents.map((event, index) => (
+                    <div key={index} className="p-3 border rounded-lg bg-white">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <h4 className="font-medium text-blue-900">{event.title}</h4>
+                          <div className="text-sm text-blue-700 mt-1">
+                            <span>
+                              {event.startTime ? new Date(event.startTime).toLocaleString() : 'All Day'}
+                            </span>
+                            {event.endTime && (
+                              <span> - {new Date(event.endTime).toLocaleString()}</span>
+                            )}
+                          </div>
+                        </div>
+                        <Badge variant="default" className="bg-blue-100 text-blue-800">
+                          Synced
+                        </Badge>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
       )}
@@ -858,7 +830,7 @@ export function GoogleCalendarPage() {
               </div>
             </CardTitle>
             <CardDescription>
-              Events from your primary calendar and holiday calendars
+              Synced events from your Google Calendar
             </CardDescription>
           </CardHeader>
           <CardContent>
