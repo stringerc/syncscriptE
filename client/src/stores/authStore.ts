@@ -46,6 +46,25 @@ export const useAuthStore = create<AuthStore>()(
         localStorage.removeItem('syncscript-current-chat-id')
         
         try {
+          console.log('🔐 AuthStore: About to make login request to:', api.defaults.baseURL + '/auth/login')
+          console.log('🔐 AuthStore: Request payload:', { email, password: '***' })
+          
+          // First, test if the backend is reachable
+          try {
+            console.log('🔐 AuthStore: Testing backend connectivity...')
+            const healthResponse = await api.get('/health')
+            console.log('🔐 AuthStore: Backend health check:', healthResponse.status)
+          } catch (healthError: any) {
+            console.error('🔐 AuthStore: Backend health check failed:', healthError)
+            console.error('🔐 AuthStore: Health check error details:', {
+              status: healthError.response?.status,
+              statusText: healthError.response?.statusText,
+              data: healthError.response?.data,
+              message: healthError.message,
+              code: healthError.code
+            })
+          }
+          
           const response = await api.post('/auth/login', { email, password })
           console.log('🔐 AuthStore: Login response:', response.data)
           const { user, token } = response.data.data
