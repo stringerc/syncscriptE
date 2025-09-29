@@ -1,15 +1,8 @@
 import React, { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { useAuthStore } from '../stores/authStore'
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
-import { Button } from '../components/ui/button'
-import { Loader2 } from 'lucide-react'
 
 export function GoogleCallbackPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const navigate = useNavigate()
-  const { setUser, setToken } = useAuthStore()
 
   useEffect(() => {
     const handleGoogleCallback = async () => {
@@ -60,12 +53,12 @@ export function GoogleCallbackPage() {
         }
 
         if (data.success) {
-          // Set user and token in auth store
-          setUser(data.data.user)
-          setToken(data.data.token)
-
+          // Store user and token in localStorage (simple approach)
+          localStorage.setItem('syncscript_user', JSON.stringify(data.data.user))
+          localStorage.setItem('syncscript_token', data.data.token)
+          
           // Redirect to dashboard
-          navigate('/dashboard')
+          window.location.href = '/dashboard'
         } else {
           setError(data.error || 'Login failed')
           setIsLoading(false)
@@ -78,43 +71,87 @@ export function GoogleCallbackPage() {
     }
 
     handleGoogleCallback()
-  }, [navigate, setUser, setToken])
+  }, [])
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5 flex items-center justify-center p-4">
-        <Card className="w-full max-w-md">
-          <CardHeader className="text-center">
-            <CardTitle className="text-2xl">Completing Google Login</CardTitle>
-          </CardHeader>
-          <CardContent className="text-center">
-            <div className="flex items-center justify-center space-x-2">
-              <Loader2 className="h-6 w-6 animate-spin" />
-              <span>Please wait...</span>
-            </div>
-          </CardContent>
-        </Card>
+      <div style={{ 
+        minHeight: '100vh', 
+        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '16px'
+      }}>
+        <div style={{
+          background: 'white',
+          borderRadius: '8px',
+          padding: '32px',
+          textAlign: 'center',
+          boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+          maxWidth: '400px',
+          width: '100%'
+        }}>
+          <h2 style={{ marginBottom: '16px', color: '#333' }}>Completing Google Login</h2>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+            <div style={{
+              width: '24px',
+              height: '24px',
+              border: '2px solid #f3f3f3',
+              borderTop: '2px solid #667eea',
+              borderRadius: '50%',
+              animation: 'spin 1s linear infinite'
+            }}></div>
+            <span>Please wait...</span>
+          </div>
+        </div>
+        <style>{`
+          @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+          }
+        `}</style>
       </div>
     )
   }
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5 flex items-center justify-center p-4">
-        <Card className="w-full max-w-md">
-          <CardHeader className="text-center">
-            <CardTitle className="text-2xl text-destructive">Login Failed</CardTitle>
-          </CardHeader>
-          <CardContent className="text-center space-y-4">
-            <p className="text-muted-foreground">{error}</p>
-            <Button 
-              onClick={() => navigate('/auth')}
-              className="w-full"
-            >
-              Try Again
-            </Button>
-          </CardContent>
-        </Card>
+      <div style={{ 
+        minHeight: '100vh', 
+        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '16px'
+      }}>
+        <div style={{
+          background: 'white',
+          borderRadius: '8px',
+          padding: '32px',
+          textAlign: 'center',
+          boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+          maxWidth: '400px',
+          width: '100%'
+        }}>
+          <h2 style={{ marginBottom: '16px', color: '#dc2626' }}>Login Failed</h2>
+          <p style={{ color: '#666', marginBottom: '24px' }}>{error}</p>
+          <button 
+            onClick={() => window.location.href = '/auth'}
+            style={{
+              width: '100%',
+              background: '#667eea',
+              color: 'white',
+              border: 'none',
+              borderRadius: '6px',
+              padding: '12px',
+              fontSize: '16px',
+              cursor: 'pointer'
+            }}
+          >
+            Try Again
+          </button>
+        </div>
       </div>
     )
   }
