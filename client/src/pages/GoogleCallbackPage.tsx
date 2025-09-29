@@ -5,7 +5,6 @@ import { useToast } from '../hooks/use-toast'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Button } from '../components/ui/button'
 import { Loader2 } from 'lucide-react'
-import api from '../lib/api'
 
 export function GoogleCallbackPage() {
   const [isLoading, setIsLoading] = useState(true)
@@ -66,9 +65,6 @@ export function GoogleCallbackPage() {
           // Set user and token in auth store
           setUser(data.data.user)
           setToken(data.data.token)
-          
-          // Set token in API client
-          api.defaults.headers.common['Authorization'] = `Bearer ${data.data.token}`
 
           toast({
             title: "Login successful!",
