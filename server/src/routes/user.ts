@@ -322,13 +322,42 @@ router.get('/dashboard', authenticateToken, asyncHandler(async (req: AuthRequest
     };
   }
 
-  const upcomingEvents = await prisma.event.findMany({
-    where: eventsWhere,
-    orderBy: { startTime: 'asc' },
-    take: 5
-  });
-
-  const [recentAchievements, activeStreaks, unreadNotifications] = await Promise.all([
+  const [
+    user,
+    todayTasks,
+    recentAchievements,
+    activeStreaks,
+    unreadNotifications
+  ] = await Promise.all([
+    prisma.user.findUnique({
+      where: { id: req.user!.id },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        energyLevel: true,
+        timezone: true,
+        showHolidays: true
+      }
+    }),
+    prisma.task.findMany({
+      where: {
+        userId: req.user!.id,
+        deletedAt: null, // Exclude soft-deleted tasks
+        OR: [
+          { dueDate: { gte: today, lt: tomorrow } },
+          { scheduledAt: { gte: today, lt: tomorrow } },
+          { dueDate: null, scheduledAt: null }
+        ]
+      },
+      include: { subtasks: true },
+      orderBy: [
+        { status: 'asc' }, // Show completed tasks last
+        { priority: 'desc' },
+        { dueDate: 'asc' }
+      ],
+      take: 10
+    }),
     prisma.achievement.findMany({
       where: { userId: req.user!.id },
       orderBy: { unlockedAt: 'desc' },
@@ -347,6 +376,52 @@ router.get('/dashboard', authenticateToken, asyncHandler(async (req: AuthRequest
       take: 10
     })
   ]);
+
+  // Build events query based on showHolidays preference
+  const eventsWhere: any = {
+    userId: req.user!.id,
+    startTime: {
+      gte: new Date()
+    }
+  };
+
+  // Filter out holiday events if user has disabled them
+  if (user?.showHolidays === false) {
+    eventsWhere.NOT = {
+      OR: [
+        { title: { contains: 'Holiday' } },
+        { title: { contains: 'Christmas' } },
+        { title: { contains: 'Thanksgiving' } },
+        { title: { contains: 'New Year' } },
+        { title: { contains: 'Independence Day' } },
+        { title: { contains: 'Memorial Day' } },
+        { title: { contains: 'Labor Day' } },
+        { title: { contains: 'Veterans Day' } },
+        { title: { contains: 'Presidents Day' } },
+        { title: { contains: 'Martin Luther King' } },
+        { title: { contains: 'Columbus Day' } },
+        { title: { contains: 'Halloween' } },
+        { title: { contains: 'Easter' } },
+        { title: { contains: 'Valentine' } },
+        { title: { contains: 'Mother' } },
+        { title: { contains: 'Father' } },
+        { title: { contains: 'Juneteenth' } },
+        { title: { contains: 'Flag Day' } },
+        { title: { contains: 'Tax Day' } },
+        { title: { contains: 'Cinco de Mayo' } },
+        { title: { contains: 'St. Patrick' } },
+        { title: { contains: 'Daylight Saving' } },
+        { title: { contains: 'Election Day' } },
+        { title: { contains: 'Black Friday' } }
+      ]
+    };
+  }
+
+  const upcomingEvents = await prisma.event.findMany({
+    where: eventsWhere,
+    orderBy: { startTime: 'asc' },
+    take: 5
+  });
 
   if (!user) {
     throw createError('User not found', 404);
