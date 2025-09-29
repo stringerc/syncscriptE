@@ -280,7 +280,7 @@ router.get('/dashboard', authenticateToken, asyncHandler(async (req: AuthRequest
         { dueDate: 'asc' }
       ],
       take: 10
-  ]);
+    }),
 
   // Build events query based on showHolidays preference
   const eventsWhere: any = {
