@@ -288,7 +288,6 @@ export function GoogleCalendarPage() {
     }
   }
 
-
   // Check if user is authenticated
   if (!user || !token) {
     return (
