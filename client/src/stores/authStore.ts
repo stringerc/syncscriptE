@@ -166,6 +166,33 @@ export const useAuthStore = create<AuthStore>()(
         
         console.log('🔐 AuthStore: checkAuth called', { hasToken: !!token, isLoading, hasUser: !!user, tokenLength: token?.length })
         
+        // Check localStorage for Google OAuth data first
+        const storedUser = localStorage.getItem('syncscript_user')
+        const storedToken = localStorage.getItem('syncscript_token')
+        
+        if (storedUser && storedToken && !user && !token) {
+          console.log('🔐 AuthStore: Found Google OAuth data in localStorage, loading it')
+          try {
+            const parsedUser = JSON.parse(storedUser)
+            set({ user: parsedUser, token: storedToken })
+            
+            // Set token in API client
+            api.defaults.headers.common['Authorization'] = `Bearer ${storedToken}`
+            
+            // Clear localStorage after loading
+            localStorage.removeItem('syncscript_user')
+            localStorage.removeItem('syncscript_token')
+            
+            console.log('🔐 AuthStore: Successfully loaded Google OAuth data from localStorage')
+            return
+          } catch (error) {
+            console.error('🔐 AuthStore: Error parsing stored user data:', error)
+            // Clear invalid data
+            localStorage.removeItem('syncscript_user')
+            localStorage.removeItem('syncscript_token')
+          }
+        }
+        
         // Prevent multiple simultaneous calls
         if (isLoading) {
           console.log('🔐 AuthStore: Already loading, skipping checkAuth')
