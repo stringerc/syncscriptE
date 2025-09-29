@@ -247,7 +247,6 @@ router.get('/dashboard', authenticateToken, asyncHandler(async (req: AuthRequest
   const [
     user,
     todayTasks,
-    upcomingEvents,
     recentAchievements,
     activeStreaks,
     unreadNotifications
