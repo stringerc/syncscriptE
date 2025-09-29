@@ -45,13 +45,23 @@ export function AuthPage() {
       }
     } catch (error: any) {
       console.error('🔐 AuthPage: Authentication error:', error)
+      console.error('🔐 AuthPage: Error response:', error.response?.data)
+      console.error('🔐 AuthPage: Error status:', error.response?.status)
+      console.error('🔐 AuthPage: Full error object:', error)
+      
       // Use the error from the auth store, or fallback to the thrown error
       const errorMessage = error.response?.data?.error || error.message || "Something went wrong. Please try again."
+      
+      // Show error for longer duration
       toast({
         title: "Authentication Error",
         description: errorMessage,
-        variant: "destructive"
+        variant: "destructive",
+        duration: 10000 // Show for 10 seconds instead of default
       })
+      
+      // Also log to console for debugging
+      console.error('🔐 AuthPage: Final error message:', errorMessage)
     }
   }
 

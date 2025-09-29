@@ -58,7 +58,11 @@ export const useAuthStore = create<AuthStore>()(
         } catch (error: any) {
           console.error('🔐 AuthStore: Login error:', error)
           console.error('🔐 AuthStore: Error response:', error.response?.data)
-          const errorMessage = error.response?.data?.error || 'Login failed'
+          console.error('🔐 AuthStore: Error status:', error.response?.status)
+          console.error('🔐 AuthStore: Error message:', error.message)
+          console.error('🔐 AuthStore: Full error object:', error)
+          
+          const errorMessage = error.response?.data?.error || error.message || 'Login failed'
           set({ 
             error: errorMessage, 
             isLoading: false 
@@ -156,11 +160,18 @@ export const useAuthStore = create<AuthStore>()(
           api.defaults.headers.common['Authorization'] = `Bearer ${token}`
           
           console.log('🔐 AuthStore: Making checkAuth request to /auth/me')
+          console.log('🔐 AuthStore: API Base URL:', api.defaults.baseURL)
+          console.log('🔐 AuthStore: Authorization header:', api.defaults.headers.common['Authorization'])
+          
           const response = await api.get('/auth/me')
           console.log('🔐 AuthStore: checkAuth response:', response.data)
           set({ user: response.data.data, isLoading: false })
-        } catch (error) {
+        } catch (error: any) {
           console.error('🔐 AuthStore: checkAuth error:', error)
+          console.error('🔐 AuthStore: Error response:', error.response?.data)
+          console.error('🔐 AuthStore: Error status:', error.response?.status)
+          console.error('🔐 AuthStore: Error message:', error.message)
+          
           // Token is invalid, clear it
           set({ user: null, token: null, isLoading: false })
           delete api.defaults.headers.common['Authorization']
