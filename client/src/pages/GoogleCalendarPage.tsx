@@ -49,38 +49,12 @@ export function GoogleCalendarPage() {
   const [selectedCalendar, setSelectedCalendar] = useState<string>('primary')
   const [syncDirection, setSyncDirection] = useState<'from_google' | 'to_google' | 'bidirectional'>('from_google')
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
-  const [timeRange, setTimeRange] = useState<'3months' | '6months' | '1year' | '2years'>('1year')
-  const [showPastEvents, setShowPastEvents] = useState(false)
   const [recentlySyncedEvents, setRecentlySyncedEvents] = useState<any[]>([])
   const [showHolidays, setShowHolidays] = useState(true)
   const { toast } = useToast()
   const queryClient = useQueryClient()
   const { user, token } = useAuthStore()
 
-  // Helper function to calculate time range
-  const getTimeRange = (range: string, includePast = false) => {
-    const now = new Date()
-    const timeMin = includePast ? new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000).toISOString() : now.toISOString() // Include past year if needed
-    
-    let timeMax: Date
-    switch (range) {
-      case '3months':
-        timeMax = new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000) // 3 months
-        break
-      case '6months':
-        timeMax = new Date(now.getTime() + 180 * 24 * 60 * 60 * 1000) // 6 months
-        break
-      case '1year':
-        timeMax = new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000) // 1 year
-        break
-      case '2years':
-        timeMax = new Date(now.getTime() + 730 * 24 * 60 * 60 * 1000) // 2 years
-        break
-      default:
-        timeMax = new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000) // 1 year default
-    }
-    
-    return { timeMin, timeMax: timeMax.toISOString() }
   }
 
   // Fetch user profile to get holiday preference
@@ -136,88 +110,7 @@ export function GoogleCalendarPage() {
     refetchOnWindowFocus: false
   })
 
-  // Fetch Google Calendar events from all calendars
-  const { data: eventsData, isLoading: eventsLoading, refetch: refetchEvents, error: eventsError } = useQuery<GoogleCalendarEvent[]>({
-    queryKey: ['google-calendar-events-all'],
-    queryFn: async () => {
-      const allEvents = []
-      const { timeMin, timeMax } = getTimeRange(timeRange, true) // Get time range including past events
-      
-      // Only get events from local database (synced events)
-      try {
-        const localEventsResponse = await api.get(`/calendar?includePast=true`)
-        const localEvents = localEventsResponse.data.events || []
-        
-        // Add local events with proper formatting
-        allEvents.push(...localEvents.map(event => ({
-          id: event.id,
-          title: event.title,
-          start: {
-            dateTime: event.startTime,
-            date: event.startTime.split('T')[0] // Extract date part for all-day events
-          },
-          end: {
-            dateTime: event.endTime,
-            date: event.endTime.split('T')[0]
-          },
-          calendarId: event.calendarProvider === 'google' ? 'google' : 'local',
-          description: event.description,
-          location: event.location
-        })))
-        
-        console.log('🎉 Added local events:', localEvents.length, 'events')
-        console.log('🎉 Local events details:', localEvents.map(event => ({ 
-          title: event.title, 
-          startTime: event.startTime,
-          isFuture: new Date(event.startTime) >= new Date(),
-          calendarProvider: event.calendarProvider
-        })))
-        console.log('🎉 Google Calendar Events Query - Raw API Response:', localEventsResponse.data)
-        console.log('🎉 Google Calendar Events Query - Events Array:', localEvents)
-        console.log('🎉 Google Calendar Events Query - Google Events:', localEvents.filter(e => e.calendarProvider === 'google'))
-      } catch (error) {
-        console.error('❌ Error fetching local events:', error)
-      }
-      
-      // Sort events by start time
-      const sortedEvents = allEvents.sort((a, b) => {
-        const aTime = a.start?.dateTime || a.start?.date
-        const bTime = b.start?.dateTime || b.start?.date
-        return new Date(aTime).getTime() - new Date(bTime).getTime()
-      })
-      
-      // Remove duplicates based on title and start time
-      const uniqueEvents = sortedEvents.filter((event, index, array) => {
-        return array.findIndex(e => {
-          // Compare title (case insensitive)
-          const titleMatch = e.title?.toLowerCase() === event.title?.toLowerCase()
-          
-          // Compare start time (handle both dateTime and date formats)
-          const eventStartTime = event.start?.dateTime || event.start?.date
-          const eStartTime = e.start?.dateTime || e.start?.date
-          const timeMatch = eventStartTime === eStartTime
-          
-          return titleMatch && timeMatch
-        }) === index
-      })
-      
-      console.log('🎉 All events combined and sorted:', sortedEvents.length, 'events')
-      console.log('🎉 Event details for debugging:')
-      sortedEvents.forEach((event, index) => {
-        console.log(`  ${index}: "${event.title}" - ${event.start?.dateTime || event.start?.date}`)
-      })
-      
-      console.log('🎉 Unique events after deduplication:', uniqueEvents.length, 'events')
-      console.log('🎉 Removed', sortedEvents.length - uniqueEvents.length, 'duplicates')
-      return uniqueEvents
-    },
-    enabled: !!user && !!token,
-    retry: false,
-    refetchOnWindowFocus: false,
-    onSuccess: () => {
-      setLastUpdated(new Date())
-    }
-  })
+  // Connect Google Calendar mutation
 
   // Connect Google Calendar mutation
   const connectMutation = useMutation({
@@ -398,18 +291,6 @@ export function GoogleCalendarPage() {
     }
   }
 
-  const formatDateTime = (dateTime?: string, date?: string) => {
-    if (dateTime) {
-      return new Date(dateTime).toLocaleString()
-    } else if (date) {
-      return new Date(date).toLocaleDateString()
-    }
-    return 'No time specified'
-  }
-
-  const isAllDay = (event: GoogleCalendarEvent) => {
-    return !event.start.dateTime && !event.end.dateTime
-  }
 
   // Check if user is authenticated
   if (!user || !token) {
@@ -783,172 +664,6 @@ export function GoogleCalendarPage() {
           </CardContent>
         </Card>
       )}
-
-      {/* Google Calendar Events */}
-      <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center justify-between">
-              <span>Google Calendar Events</span>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant={showHolidays ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => updateHolidayPreference(!showHolidays)}
-                  title={showHolidays ? "Hide holiday events" : "Show holiday events"}
-                >
-                  {showHolidays ? "Hide Holidays" : "Show Holidays"}
-                </Button>
-                <select
-                  value={timeRange}
-                  onChange={(e) => setTimeRange(e.target.value as '3months' | '6months' | '1year' | '2years')}
-                  className="px-2 py-1 text-sm border rounded-md bg-background text-foreground"
-                  title="Select how far into the future to fetch events"
-                >
-                  <option value="3months">Next 3 months</option>
-                  <option value="6months">Next 6 months</option>
-                  <option value="1year">Next year</option>
-                  <option value="2years">Next 2 years</option>
-                </select>
-                <Button
-                  variant={showPastEvents ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setShowPastEvents(!showPastEvents)}
-                  title={showPastEvents ? "Hide past events" : "Show past events"}
-                >
-                  {showPastEvents ? "Hide Past" : "Show Past"}
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    // Invalidate and refetch the events query
-                    queryClient.invalidateQueries({ queryKey: ['google-calendar-events-all'] })
-                    refetchEvents()
-                    setLastUpdated(new Date())
-                  }}
-                  disabled={eventsLoading}
-                  title="Refresh events from Google Calendar to show the latest changes"
-                >
-                  <RefreshCw className="w-4 h-4 mr-2" />
-                  Refresh
-                </Button>
-              </div>
-            </CardTitle>
-            <CardDescription>
-              Synced events from your Google Calendar
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {eventsLoading ? (
-              <div className="flex items-center justify-center h-32">
-                <div className="w-6 h-6 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-              </div>
-            ) : eventsData && eventsData.length > 0 ? (
-              (() => {
-                const now = new Date()
-                let filteredEvents = showPastEvents 
-                  ? eventsData 
-                  : eventsData.filter(event => {
-                      const eventTime = new Date(event.start?.dateTime || event.start?.date)
-                      return eventTime >= now
-                    })
-                
-                // Filter out holiday events if showHolidays is false
-                if (!showHolidays) {
-                  filteredEvents = filteredEvents.filter(event => event.calendarId !== 'holiday')
-                }
-                
-                if (filteredEvents.length === 0) {
-                  return (
-                    <div className="text-center py-8 text-muted-foreground">
-                      <Calendar className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                      <p>No events found</p>
-                      <p className="text-sm mt-2">
-                        {!showPastEvents && eventsData.some(event => {
-                          const eventTime = new Date(event.start?.dateTime || event.start?.date)
-                          return eventTime < now
-                        }) && (
-                          <>
-                            Past events are hidden. <button 
-                              onClick={() => setShowPastEvents(true)}
-                              className="text-primary hover:underline"
-                            >
-                              Show past events
-                            </button>
-                          </>
-                        )}
-                        {!showHolidays && eventsData.some(event => event.calendarId === 'holiday') && (
-                          <>
-                            {!showPastEvents && ' • '}
-                            Holiday events are hidden. <button 
-                              onClick={() => setShowHolidays(true)}
-                              className="text-primary hover:underline"
-                            >
-                              Show holidays
-                            </button>
-                          </>
-                        )}
-                      </p>
-                    </div>
-                  )
-                }
-                
-                return (
-                  <div className="space-y-3">
-                    {filteredEvents.map((event) => (
-                      <div key={event.id} className="p-4 border rounded-lg">
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <h3 className="font-medium">{event.title || event.summary || 'Untitled Event'}</h3>
-                            {event.description && (
-                              <p className="text-sm text-muted-foreground mt-1">
-                                {event.description}
-                              </p>
-                            )}
-                            <div className="flex items-center space-x-4 mt-2 text-sm text-muted-foreground">
-                              <span>
-                                {isAllDay(event) ? (
-                                  <span>
-                                    All Day • {new Date(event.start.dateTime || event.start.date).toLocaleDateString()}
-                                  </span>
-                                ) : (
-                                  formatDateTime(event.start.dateTime)
-                                )}
-                              </span>
-                              {event.location && (
-                                <span>📍 {event.location}</span>
-                              )}
-                              <Badge 
-                                variant={
-                                  event.calendarId === 'holiday' ? 'default' : 
-                                  event.calendarId === 'google' ? 'default' :
-                                  event.calendarId === 'local' ? 'secondary' : 'outline'
-                                } 
-                                className="text-xs"
-                              >
-                                {event.calendarId === 'holiday' ? 'Holiday' : 
-                                 event.calendarId === 'google' ? 'G' :
-                                 event.calendarId === 'local' ? 'Synced' : 'Primary'}
-                              </Badge>
-                            </div>
-                          </div>
-                          {isAllDay(event) && (
-                            <Badge variant="secondary">All Day</Badge>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )
-              })()
-            ) : (
-              <div className="text-center py-8 text-muted-foreground">
-                <Calendar className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                <p>No events found in this calendar</p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
     </div>
   )
 }
