@@ -100,6 +100,7 @@ router.put('/profile', authenticateToken, asyncHandler(async (req: AuthRequest, 
       name: true,
       timezone: true,
       energyLevel: true,
+      showHolidays: true,
       createdAt: true,
       updatedAt: true,
       emailVerified: true

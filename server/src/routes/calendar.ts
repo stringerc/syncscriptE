@@ -43,9 +43,47 @@ router.get('/', authenticateToken, asyncHandler(async (req: AuthRequest, res) =>
 
     const skip = (page - 1) * limit;
 
+    // Get user's holiday preference
+    const user = await prisma.user.findUnique({
+      where: { id: req.user!.id },
+      select: { showHolidays: true }
+    });
+
     const where: any = {
       userId: req.user!.id
     };
+
+    // Filter out holiday events if user has disabled them
+    if (user?.showHolidays === false) {
+      where.NOT = {
+        OR: [
+          { title: { contains: 'Holiday' } },
+          { title: { contains: 'Christmas' } },
+          { title: { contains: 'Thanksgiving' } },
+          { title: { contains: 'New Year' } },
+          { title: { contains: 'Independence Day' } },
+          { title: { contains: 'Memorial Day' } },
+          { title: { contains: 'Labor Day' } },
+          { title: { contains: 'Veterans Day' } },
+          { title: { contains: 'Presidents Day' } },
+          { title: { contains: 'Martin Luther King' } },
+          { title: { contains: 'Columbus Day' } },
+          { title: { contains: 'Halloween' } },
+          { title: { contains: 'Easter' } },
+          { title: { contains: 'Valentine' } },
+          { title: { contains: 'Mother' } },
+          { title: { contains: 'Father' } },
+          { title: { contains: 'Juneteenth' } },
+          { title: { contains: 'Flag Day' } },
+          { title: { contains: 'Tax Day' } },
+          { title: { contains: 'Cinco de Mayo' } },
+          { title: { contains: 'St. Patrick' } },
+          { title: { contains: 'Daylight Saving' } },
+          { title: { contains: 'Election Day' } },
+          { title: { contains: 'Black Friday' } }
+        ]
+      };
+    }
 
   // Only filter by time if explicitly requested
   if (startDate || endDate || includePast === false) {

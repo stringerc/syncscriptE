@@ -32,6 +32,7 @@ model User {
   energyLevel  Int?     @default(5) // 1-10 scale
   avatar       String?   // URL to avatar image
   dailyEnergy  EnergyLevel[]
+  showHolidays Boolean? @default(true) // Whether to show holiday events
   
   // Location
   currentLocation String? // Current city/location

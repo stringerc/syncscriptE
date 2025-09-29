@@ -83,6 +83,23 @@ export function GoogleCalendarPage() {
     return { timeMin, timeMax: timeMax.toISOString() }
   }
 
+  // Fetch user profile to get holiday preference
+  const { data: userProfile } = useQuery({
+    queryKey: ['user-profile'],
+    queryFn: async () => {
+      const response = await api.get('/user/profile')
+      return response.data.data
+    },
+    enabled: !!user && !!token,
+    retry: false,
+    refetchOnWindowFocus: false,
+    onSuccess: (data) => {
+      if (data.showHolidays !== undefined) {
+        setShowHolidays(data.showHolidays)
+      }
+    }
+  })
+
   // Fetch Google Calendar integration status
   const { data: statusData, isLoading: statusLoading, error: statusError } = useQuery<GoogleCalendarStatus>({
     queryKey: ['google-calendar-status'],
@@ -388,6 +405,30 @@ export function GoogleCalendarPage() {
       calendarId: selectedCalendar,
       direction: syncDirection
     })
+  }
+
+  // Update holiday preference when toggle changes
+  const updateHolidayPreference = async (showHolidays: boolean) => {
+    try {
+      await api.put('/user/profile', { showHolidays })
+      setShowHolidays(showHolidays)
+      
+      // Invalidate calendar queries to update dashboard
+      queryClient.invalidateQueries({ queryKey: ['calendar'] })
+      queryClient.invalidateQueries({ queryKey: ['user-dashboard'] })
+      
+      toast({
+        title: "Preference Updated",
+        description: `Holiday events ${showHolidays ? 'enabled' : 'disabled'}`
+      })
+    } catch (error) {
+      console.error('Failed to update holiday preference:', error)
+      toast({
+        title: "Update Failed",
+        description: "Failed to update holiday preference",
+        variant: "destructive"
+      })
+    }
   }
 
   const formatDateTime = (dateTime?: string, date?: string) => {
@@ -776,7 +817,7 @@ export function GoogleCalendarPage() {
                 <Button
                   variant={showHolidays ? "default" : "outline"}
                   size="sm"
-                  onClick={() => setShowHolidays(!showHolidays)}
+                  onClick={() => updateHolidayPreference(!showHolidays)}
                   title={showHolidays ? "Hide holiday events" : "Show holiday events"}
                 >
                   {showHolidays ? "Hide Holidays" : "Show Holidays"}
