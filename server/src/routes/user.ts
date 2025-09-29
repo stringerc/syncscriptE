@@ -310,32 +310,32 @@ router.get('/dashboard', authenticateToken, asyncHandler(async (req: AuthRequest
   // Filter out holiday events if user has disabled them
   if (user?.showHolidays === false) {
     eventsWhere.NOT = {
-      OR: [
-        { title: { contains: 'Holiday' } },
-        { title: { contains: 'Christmas' } },
-        { title: { contains: 'Thanksgiving' } },
-        { title: { contains: 'New Year' } },
-        { title: { contains: 'Independence Day' } },
-        { title: { contains: 'Memorial Day' } },
-        { title: { contains: 'Labor Day' } },
-        { title: { contains: 'Veterans Day' } },
-        { title: { contains: 'Presidents Day' } },
-        { title: { contains: 'Martin Luther King' } },
-        { title: { contains: 'Columbus Day' } },
-        { title: { contains: 'Halloween' } },
-        { title: { contains: 'Easter' } },
-        { title: { contains: 'Valentine' } },
-        { title: { contains: 'Mother' } },
-        { title: { contains: 'Father' } },
-        { title: { contains: 'Juneteenth' } },
-        { title: { contains: 'Flag Day' } },
-        { title: { contains: 'Tax Day' } },
-        { title: { contains: 'Cinco de Mayo' } },
-        { title: { contains: 'St. Patrick' } },
-        { title: { contains: 'Daylight Saving' } },
-        { title: { contains: 'Election Day' } },
-        { title: { contains: 'Black Friday' } }
-      ]
+        OR: [
+          { title: { contains: 'Holiday' } },
+          { title: { contains: 'Christmas' } },
+          { title: { contains: 'Thanksgiving' } },
+          { title: { contains: 'New Year' } },
+          { title: { contains: 'Independence Day' } },
+          { title: { contains: 'Memorial Day' } },
+          { title: { contains: 'Labor Day' } },
+          { title: { contains: 'Veterans Day' } },
+          { title: { contains: 'Presidents Day' } },
+          { title: { contains: 'Martin Luther King' } },
+          { title: { contains: 'Columbus Day' } },
+          { title: { contains: 'Halloween' } },
+          { title: { contains: 'Easter' } },
+          { title: { contains: 'Valentine' } },
+          { title: { contains: 'Mother\'s Day' } },
+          { title: { contains: 'Father\'s Day' } },
+          { title: { contains: 'Juneteenth' } },
+          { title: { contains: 'Flag Day' } },
+          { title: { contains: 'Tax Day' } },
+          { title: { contains: 'Cinco de Mayo' } },
+          { title: { contains: 'St. Patrick' } },
+          { title: { contains: 'Daylight Saving' } },
+          { title: { contains: 'Election Day' } },
+          { title: { contains: 'Black Friday' } }
+        ]
     };
   }
 
