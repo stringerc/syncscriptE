@@ -575,6 +575,19 @@ router.get('/events', authenticateToken, asyncHandler(async (req: AuthRequest, r
     });
   } catch (error) {
     logger.error('Error fetching Google Calendar events:', error);
+    
+    // For holiday calendars, return empty array instead of throwing error
+    if (decodedCalendarId.includes('holiday')) {
+      logger.warn('Holiday calendar access failed, returning empty events', { 
+        calendarId: decodedCalendarId,
+        error: error.message 
+      });
+      return res.json({
+        success: true,
+        data: []
+      });
+    }
+    
     throw createError('Failed to fetch events', 500);
   }
 }));
@@ -677,14 +690,19 @@ router.post('/sync', authenticateToken, asyncHandler(async (req: AuthRequest, re
     });
 
     let stats;
+    let createdEvents = [];
+    let updatedEvents = [];
 
     if (direction === 'from_google') {
       // Sync from Google Calendar to local database
-      stats = await googleCalendarService.syncEventsToLocal(
+      const syncResult = await googleCalendarService.syncEventsToLocal(
         calendarId,
         req.user!.id,
         prisma
       );
+      stats = syncResult.stats;
+      createdEvents = syncResult.createdEvents || [];
+      updatedEvents = syncResult.updatedEvents || [];
     } else if (direction === 'to_google') {
       // Sync from local database to Google Calendar
       const localEvents = await prisma.event.findMany({
@@ -700,7 +718,7 @@ router.post('/sync', authenticateToken, asyncHandler(async (req: AuthRequest, re
       );
     } else {
       // Bidirectional sync
-      const fromGoogleStats = await googleCalendarService.syncEventsToLocal(
+      const fromGoogleResult = await googleCalendarService.syncEventsToLocal(
         calendarId,
         req.user!.id,
         prisma
@@ -719,10 +737,12 @@ router.post('/sync', authenticateToken, asyncHandler(async (req: AuthRequest, re
       );
 
       stats = {
-        created: fromGoogleStats.created + toGoogleStats.created,
-        updated: fromGoogleStats.updated + toGoogleStats.updated,
-        errors: fromGoogleStats.errors + toGoogleStats.errors
+        created: fromGoogleResult.stats.created + toGoogleStats.created,
+        updated: fromGoogleResult.stats.updated + toGoogleStats.updated,
+        errors: fromGoogleResult.stats.errors + toGoogleStats.errors
       };
+      createdEvents = fromGoogleResult.createdEvents || [];
+      updatedEvents = fromGoogleResult.updatedEvents || [];
     }
 
     logger.info('Calendar sync completed', { 
@@ -736,7 +756,9 @@ router.post('/sync', authenticateToken, asyncHandler(async (req: AuthRequest, re
       data: {
         direction,
         calendarId,
-        stats
+        stats,
+        createdEvents,
+        updatedEvents
       },
       message: 'Calendar sync completed successfully'
     });

@@ -259,7 +259,8 @@ router.get('/dashboard', authenticateToken, asyncHandler(async (req: AuthRequest
         name: true,
         email: true,
         energyLevel: true,
-        timezone: true
+        timezone: true,
+        showHolidays: true
       }
     }),
     prisma.task.findMany({
@@ -279,18 +280,55 @@ router.get('/dashboard', authenticateToken, asyncHandler(async (req: AuthRequest
         { dueDate: 'asc' }
       ],
       take: 10
-    }),
-      prisma.event.findMany({
-        where: {
-          userId: req.user!.id,
-          // Only show future events
-          startTime: {
-            gte: new Date()
-          }
-        },
-        orderBy: { startTime: 'asc' },
-        take: 5
-      }),
+  ]);
+
+  // Build events query based on showHolidays preference
+  const eventsWhere: any = {
+    userId: req.user!.id,
+    startTime: {
+      gte: new Date()
+    }
+  };
+
+  // Filter out holiday events if user has disabled them
+  if (user?.showHolidays === false) {
+    eventsWhere.NOT = {
+      OR: [
+        { title: { contains: 'Holiday' } },
+        { title: { contains: 'Christmas' } },
+        { title: { contains: 'Thanksgiving' } },
+        { title: { contains: 'New Year' } },
+        { title: { contains: 'Independence Day' } },
+        { title: { contains: 'Memorial Day' } },
+        { title: { contains: 'Labor Day' } },
+        { title: { contains: 'Veterans Day' } },
+        { title: { contains: 'Presidents Day' } },
+        { title: { contains: 'Martin Luther King' } },
+        { title: { contains: 'Columbus Day' } },
+        { title: { contains: 'Halloween' } },
+        { title: { contains: 'Easter' } },
+        { title: { contains: 'Valentine' } },
+        { title: { contains: 'Mother' } },
+        { title: { contains: 'Father' } },
+        { title: { contains: 'Juneteenth' } },
+        { title: { contains: 'Flag Day' } },
+        { title: { contains: 'Tax Day' } },
+        { title: { contains: 'Cinco de Mayo' } },
+        { title: { contains: 'St. Patrick' } },
+        { title: { contains: 'Daylight Saving' } },
+        { title: { contains: 'Election Day' } },
+        { title: { contains: 'Black Friday' } }
+      ]
+    };
+  }
+
+  const upcomingEvents = await prisma.event.findMany({
+    where: eventsWhere,
+    orderBy: { startTime: 'asc' },
+    take: 5
+  });
+
+  const [recentAchievements, activeStreaks, unreadNotifications] = await Promise.all([
     prisma.achievement.findMany({
       where: { userId: req.user!.id },
       orderBy: { unlockedAt: 'desc' },
