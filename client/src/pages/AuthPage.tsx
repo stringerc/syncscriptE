@@ -274,21 +274,27 @@ export function AuthPage() {
                 className="w-full"
                 onClick={async () => {
                   try {
-                    // Get Google auth URL
-                    const response = await fetch('/api/google-calendar/auth-url')
+                    console.log('🔐 AuthPage: Starting Google OAuth flow')
+                    // Get Google auth URL from Render backend
+                    const response = await fetch('https://syncscripte.onrender.com/api/google-calendar/auth-url')
                     const data = await response.json()
                     
+                    console.log('🔐 AuthPage: Google auth response:', data)
+                    
                     if (data.success) {
+                      console.log('🔐 AuthPage: Redirecting to Google OAuth:', data.data.authUrl)
                       // Redirect to Google OAuth
                       window.location.href = data.data.authUrl
                     } else {
+                      console.error('🔐 AuthPage: Google auth failed:', data.error)
                       toast({
                         title: "Error",
-                        description: "Failed to get Google login URL",
+                        description: data.error || "Failed to get Google login URL",
                         variant: "destructive"
                       })
                     }
                   } catch (error) {
+                    console.error('🔐 AuthPage: Google OAuth error:', error)
                     toast({
                       title: "Error",
                       description: "Failed to connect to Google",
