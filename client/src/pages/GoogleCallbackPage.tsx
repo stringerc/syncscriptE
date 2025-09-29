@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../stores/authStore'
-import { useToast } from '../hooks/use-toast'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Button } from '../components/ui/button'
 import { Loader2 } from 'lucide-react'
@@ -11,7 +10,6 @@ export function GoogleCallbackPage() {
   const [error, setError] = useState<string | null>(null)
   const navigate = useNavigate()
   const { setUser, setToken } = useAuthStore()
-  const { toast } = useToast()
 
   useEffect(() => {
     const handleGoogleCallback = async () => {
@@ -66,11 +64,6 @@ export function GoogleCallbackPage() {
           setUser(data.data.user)
           setToken(data.data.token)
 
-          toast({
-            title: "Login successful!",
-            description: "Welcome back to SyncScript!",
-          })
-
           // Redirect to dashboard
           navigate('/dashboard')
         } else {
@@ -85,7 +78,7 @@ export function GoogleCallbackPage() {
     }
 
     handleGoogleCallback()
-  }, [navigate, setUser, setToken, toast])
+  }, [navigate, setUser, setToken])
 
   if (isLoading) {
     return (
