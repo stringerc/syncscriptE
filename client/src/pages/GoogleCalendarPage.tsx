@@ -662,4 +662,3 @@ export function GoogleCalendarPage() {
       )}
     </div>
   )
-}
