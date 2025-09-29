@@ -18,6 +18,7 @@ import NotificationsPage from '@/pages/NotificationsPage'
 import SearchPage from '@/pages/SearchPage'
 import GamificationPage from '@/pages/GamificationPage'
 import { VerifyEmailPage } from '@/pages/VerifyEmailPage'
+import { GoogleCallbackPage } from '@/pages/GoogleCallbackPage'
 import { LoadingSpinner } from '@/components/ui/loading-spinner'
 import { ThemeProvider } from '@/contexts/ThemeContext'
 import { NotificationProvider } from '@/contexts/NotificationContext'
@@ -63,6 +64,7 @@ function AppContent() {
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/reset-password" element={<PasswordResetPage />} />
         <Route path="/verify-email" element={<VerifyEmailPage />} />
+        <Route path="/google-callback" element={<GoogleCallbackPage />} />
         <Route path="*" element={<Navigate to="/auth" replace />} />
       </Routes>
     )

@@ -24,8 +24,8 @@ const createGoogleEventSchema = z.object({
   calendarId: z.string().default('primary')
 });
 
-// Get Google Calendar authorization URL
-router.get('/auth-url', authenticateToken, asyncHandler(async (req: AuthRequest, res) => {
+// Get Google Calendar authorization URL (no auth required for initial login)
+router.get('/auth-url', asyncHandler(async (req, res) => {
   try {
     const authUrl = GoogleCalendarService.getAuthUrl();
     
@@ -40,7 +40,110 @@ router.get('/auth-url', authenticateToken, asyncHandler(async (req: AuthRequest,
   }
 }));
 
-// Handle Google Calendar OAuth callback
+// Handle Google Calendar OAuth callback for login (no auth required)
+router.post('/auth/login-callback', asyncHandler(async (req, res) => {
+  const { code } = req.body;
+
+  if (!code) {
+    throw createError('Authorization code is required', 400);
+  }
+
+  try {
+    // Exchange code for tokens
+    const credentials = await GoogleCalendarService.getTokensFromCode(code);
+    
+    // Get user info from Google
+    const userInfo = await GoogleCalendarService.getUserInfo(credentials.accessToken);
+    
+    // Find or create user
+    let user = await prisma.user.findUnique({
+      where: { email: userInfo.email }
+    });
+
+    if (!user) {
+      // Create new user
+      user = await prisma.user.create({
+        data: {
+          email: userInfo.email,
+          name: userInfo.name,
+          googleId: userInfo.id,
+          isEmailVerified: true
+        }
+      });
+    } else {
+      // Update existing user with Google ID if not set
+      if (!user.googleId) {
+        user = await prisma.user.update({
+          where: { id: user.id },
+          data: { googleId: userInfo.id }
+        });
+      }
+    }
+
+    // Create or update Google Calendar integration
+    const existingIntegration = await prisma.calendarIntegration.findFirst({
+      where: {
+        userId: user.id,
+        provider: 'google'
+      }
+    });
+
+    if (existingIntegration) {
+      await prisma.calendarIntegration.update({
+        where: { id: existingIntegration.id },
+        data: {
+          accessToken: credentials.accessToken,
+          refreshToken: credentials.refreshToken,
+          expiresAt: credentials.expiresAt,
+          isActive: true
+        }
+      });
+    } else {
+      await prisma.calendarIntegration.create({
+        data: {
+          userId: user.id,
+          provider: 'google',
+          accessToken: credentials.accessToken,
+          refreshToken: credentials.refreshToken,
+          expiresAt: credentials.expiresAt,
+          isActive: true
+        }
+      });
+    }
+
+    // Generate JWT token
+    const jwt = require('jsonwebtoken');
+    const token = jwt.sign(
+      { userId: user.id, email: user.email },
+      process.env.JWT_SECRET || 'fallback-secret',
+      { expiresIn: '7d' }
+    );
+
+    logger.info('Google Calendar login successful', { 
+      userId: user.id,
+      email: user.email
+    });
+
+    res.json({
+      success: true,
+      data: {
+        user: {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          isEmailVerified: user.isEmailVerified
+        },
+        token
+      },
+      message: 'Login successful'
+    });
+  } catch (error) {
+    logger.error('Error handling Google Calendar login callback:', error);
+    throw createError('Failed to login with Google', 500);
+  }
+}));
+
+// Handle Google Calendar OAuth callback (requires auth)
 router.post('/auth/callback', authenticateToken, asyncHandler(async (req: AuthRequest, res) => {
   const { code } = req.body;
 

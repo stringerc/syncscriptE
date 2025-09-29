@@ -43,7 +43,7 @@ export class GoogleCalendarService {
     this.oauth2Client = new google.auth.OAuth2(
       process.env.GOOGLE_CLIENT_ID,
       process.env.GOOGLE_CLIENT_SECRET,
-      process.env.GOOGLE_REDIRECT_URI || 'http://localhost:3000/google-calendar'
+      process.env.GOOGLE_REDIRECT_URI || 'http://localhost:3000/google-callback'
     );
 
     this.oauth2Client.setCredentials({
@@ -62,7 +62,7 @@ export class GoogleCalendarService {
     const oauth2Client = new google.auth.OAuth2(
       process.env.GOOGLE_CLIENT_ID,
       process.env.GOOGLE_CLIENT_SECRET,
-      process.env.GOOGLE_REDIRECT_URI || 'http://localhost:3000/google-calendar'
+      process.env.GOOGLE_REDIRECT_URI || 'http://localhost:3000/google-callback'
     );
 
     const scopes = [
@@ -84,7 +84,7 @@ export class GoogleCalendarService {
     const oauth2Client = new google.auth.OAuth2(
       process.env.GOOGLE_CLIENT_ID,
       process.env.GOOGLE_CLIENT_SECRET,
-      process.env.GOOGLE_REDIRECT_URI || 'http://localhost:3000/google-calendar'
+      process.env.GOOGLE_REDIRECT_URI || 'http://localhost:3000/google-callback'
     );
 
     try {
@@ -489,5 +489,61 @@ export class GoogleCalendarService {
       logger.error('Error getting available holiday calendars:', error);
       throw error;
     }
+  }
+
+  // Static methods for OAuth flow
+  static getAuthUrl(): string {
+    const oauth2Client = new google.auth.OAuth2(
+      process.env.GOOGLE_CLIENT_ID,
+      process.env.GOOGLE_CLIENT_SECRET,
+      process.env.GOOGLE_REDIRECT_URI || 'http://localhost:3000/google-callback'
+    );
+
+    const scopes = [
+      'https://www.googleapis.com/auth/calendar',
+      'https://www.googleapis.com/auth/userinfo.email',
+      'https://www.googleapis.com/auth/userinfo.profile'
+    ];
+
+    return oauth2Client.generateAuthUrl({
+      access_type: 'offline',
+      scope: scopes,
+      prompt: 'consent'
+    });
+  }
+
+  static async getTokensFromCode(code: string): Promise<GoogleCalendarCredentials> {
+    const oauth2Client = new google.auth.OAuth2(
+      process.env.GOOGLE_CLIENT_ID,
+      process.env.GOOGLE_CLIENT_SECRET,
+      process.env.GOOGLE_REDIRECT_URI || 'http://localhost:3000/google-callback'
+    );
+
+    const { tokens } = await oauth2Client.getToken(code);
+    
+    return {
+      accessToken: tokens.access_token!,
+      refreshToken: tokens.refresh_token,
+      expiresAt: tokens.expiry_date ? new Date(tokens.expiry_date) : undefined
+    };
+  }
+
+  static async getUserInfo(accessToken: string): Promise<{ id: string; email: string; name: string }> {
+    const oauth2Client = new google.auth.OAuth2(
+      process.env.GOOGLE_CLIENT_ID,
+      process.env.GOOGLE_CLIENT_SECRET,
+      process.env.GOOGLE_REDIRECT_URI || 'http://localhost:3000/google-callback'
+    );
+
+    oauth2Client.setCredentials({ access_token: accessToken });
+    
+    const oauth2 = google.oauth2({ version: 'v2', auth: oauth2Client });
+    const { data } = await oauth2.userinfo.get();
+    
+    return {
+      id: data.id!,
+      email: data.email!,
+      name: data.name || data.email!
+    };
   }
 }
