@@ -34,7 +34,7 @@ export const useAuthStore = create<AuthStore>()(
 
       // Actions
       login: async (email: string, password: string) => {
-        console.log('🔐 AuthStore: Starting login for:', email)
+        console.log('🔐 AuthStore: Starting login for user')
         console.log('🔐 AuthStore: API Base URL:', api.defaults.baseURL)
         
         // Clear any existing authentication state before login
@@ -46,7 +46,7 @@ export const useAuthStore = create<AuthStore>()(
         localStorage.removeItem('syncscript-current-chat-id')
         
         try {
-          console.log('🔐 AuthStore: Attempting login for user:', email)
+          console.log('🔐 AuthStore: Attempting login for user')
           
           // First, test if the backend is reachable
           try {
@@ -100,7 +100,7 @@ export const useAuthStore = create<AuthStore>()(
       },
 
       register: async (email: string, password: string, name?: string) => {
-        console.log('🔐 AuthStore: Starting registration for:', email)
+        console.log('🔐 AuthStore: Starting registration for user')
         console.log('🔐 AuthStore: API Base URL:', api.defaults.baseURL)
         
         // Clear any existing authentication state before registration
@@ -120,7 +120,7 @@ export const useAuthStore = create<AuthStore>()(
           
           // Set token in API client
           api.defaults.headers.common['Authorization'] = `Bearer ${token}`
-          console.log('🔐 AuthStore: Registration successful for:', email)
+          console.log('🔐 AuthStore: Registration successful')
         } catch (error: any) {
           console.error('🔐 AuthStore: Registration error:', error)
           console.error('🔐 AuthStore: Error response:', error.response?.data)

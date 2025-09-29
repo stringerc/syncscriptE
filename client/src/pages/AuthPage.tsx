@@ -37,7 +37,7 @@ export function AuthPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    console.log('🔐 AuthPage: handleSubmit called', { isLogin, email: formData.email, hasPassword: !!formData.password })
+    console.log('🔐 AuthPage: handleSubmit called', { isLogin, hasEmail: !!formData.email, hasPassword: !!formData.password })
     clearError()
     
     // Clear any previous debug error

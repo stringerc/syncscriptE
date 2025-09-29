@@ -32,7 +32,6 @@ const API_BASE_URL = getApiBaseUrl()
 
 // Log the API URL for debugging
 console.log('🔗 API Base URL:', API_BASE_URL)
-console.log('🌐 Current hostname:', window.location.hostname)
 console.log('🔗 Full URL being used:', API_BASE_URL)
 
 // Use the detected API base URL

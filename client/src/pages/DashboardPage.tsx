@@ -911,7 +911,7 @@ export function DashboardPage() {
     }
 
     try {
-      console.log('🌤️ Fetching weather for events:', events.map(e => ({ id: e.id, title: e.title, location: e.location })))
+      console.log('🌤️ Fetching weather for events:', events.map(e => ({ id: e.id, title: e.title, hasLocation: !!e.location })))
       
       // Include user coordinates for fallback location
       const requestData: any = { events }

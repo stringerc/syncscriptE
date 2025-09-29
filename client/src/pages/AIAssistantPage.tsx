@@ -191,7 +191,7 @@ export function AIAssistantPage() {
             if (key === 'LOCATION') {
               // Clean up the location value - remove any extra characters
               const cleanLocation = value.trim()
-              console.log(`Setting location: "${value}" -> cleaned: "${cleanLocation}"`)
+              console.log(`Setting location: cleaned value length: ${cleanLocation.length}`)
               eventData.location = cleanLocation
             }
           } else {
