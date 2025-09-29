@@ -26,7 +26,6 @@ interface Event {
   description?: string
   startTime: string
   endTime: string
-  location?: string
   calendarId?: string
   calendarProvider?: string
   isAllDay?: boolean
