@@ -1235,6 +1235,19 @@ export function DashboardPage() {
   // Destructure dashboard data for use in the component
   const { user, upcomingEvents, recentAchievements, activeStreaks, unreadNotifications } = dashboardData || {}
 
+  // Debug logging for dashboard events
+  console.log('🎉 Dashboard Events Debug:', {
+    totalEvents: upcomingEvents?.length || 0,
+    events: upcomingEvents?.map(event => ({
+      id: event.id,
+      title: event.title,
+      startTime: event.startTime,
+      calendarProvider: event.calendarProvider,
+      isGoogleEvent: event.calendarProvider === 'google'
+    })) || [],
+    googleEvents: upcomingEvents?.filter(e => e.calendarProvider === 'google') || []
+  })
+
   return (
     <div className="space-y-6">
       {/* Welcome Section */}

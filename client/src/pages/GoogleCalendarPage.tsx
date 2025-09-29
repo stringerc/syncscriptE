@@ -172,6 +172,9 @@ export function GoogleCalendarPage() {
           isFuture: new Date(event.startTime) >= new Date(),
           calendarProvider: event.calendarProvider
         })))
+        console.log('🎉 Google Calendar Events Query - Raw API Response:', localEventsResponse.data)
+        console.log('🎉 Google Calendar Events Query - Events Array:', localEvents)
+        console.log('🎉 Google Calendar Events Query - Google Events:', localEvents.filter(e => e.calendarProvider === 'google'))
       } catch (error) {
         console.error('❌ Error fetching local events:', error)
       }
@@ -278,6 +281,7 @@ export function GoogleCalendarPage() {
       setRecentlySyncedEvents(syncedEvents)
       
       queryClient.invalidateQueries({ queryKey: ['calendar'] })
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] })
       queryClient.invalidateQueries({ queryKey: ['google-calendar-events'] })
       queryClient.invalidateQueries({ queryKey: ['google-calendar-events-all'] })
       queryClient.refetchQueries({ queryKey: ['google-calendar-events-all', timeRange] })
