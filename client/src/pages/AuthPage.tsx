@@ -21,19 +21,37 @@ export function AuthPage() {
   const { login, register, isLoading, error, clearError } = useAuthStore()
   const { toast } = useToast()
 
-  // Check for saved debug error on component mount
-  React.useEffect(() => {
-    try {
-      const savedError = localStorage.getItem('syncscript-debug-error')
-      if (savedError) {
-        const errorData = JSON.parse(savedError)
-        setDebugError(JSON.stringify(errorData, null, 2))
-        console.log('🔐 AuthPage: Found saved debug error:', errorData)
-      }
-    } catch (e) {
-      console.error('Failed to load debug error:', e)
-    }
-  }, [])
+        // Check for saved debug error on component mount
+        React.useEffect(() => {
+          try {
+            const savedError = localStorage.getItem('syncscript-debug-error')
+            if (savedError) {
+              const errorData = JSON.parse(savedError)
+              setDebugError(JSON.stringify(errorData, null, 2))
+              console.log('🔐 AuthPage: Found saved debug error:', errorData)
+            }
+          } catch (e) {
+            console.error('Failed to load debug error:', e)
+          }
+        }, [])
+
+        // Also check for debug error every 2 seconds to catch new errors
+        React.useEffect(() => {
+          const interval = setInterval(() => {
+            try {
+              const savedError = localStorage.getItem('syncscript-debug-error')
+              if (savedError && !debugError) {
+                const errorData = JSON.parse(savedError)
+                setDebugError(JSON.stringify(errorData, null, 2))
+                console.log('🔐 AuthPage: Found new debug error:', errorData)
+              }
+            } catch (e) {
+              console.error('Failed to check debug error:', e)
+            }
+          }, 2000)
+
+          return () => clearInterval(interval)
+        }, [debugError])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -47,7 +65,18 @@ export function AuthPage() {
     try {
       if (isLogin) {
         console.log('🔐 AuthPage: Calling login function')
-        await login(formData.email, formData.password)
+        const result = await login(formData.email, formData.password)
+        if (result && !result.success) {
+          // Login failed, error is already set in store
+          console.log('🔐 AuthPage: Login failed, error:', result.error)
+          toast({
+            title: "Login failed",
+            description: result.error || "Login failed",
+            variant: "destructive",
+            duration: 10000
+          })
+          return // Don't proceed with success flow
+        }
         console.log('🔐 AuthPage: Login successful')
         toast({
           title: "Welcome back!",
@@ -62,24 +91,24 @@ export function AuthPage() {
           description: "Your account has been created successfully."
         })
       }
-        } catch (error: any) {
-          console.error('🔐 AuthPage: Authentication failed:', {
-            status: error.response?.status,
-            message: error.message,
-            hasResponse: !!error.response
-          })
-          
-          // Use the error from the auth store, or fallback to the thrown error
-          const errorMessage = error.response?.data?.error || error.message || "Something went wrong. Please try again."
-          
-          // Show error for longer duration
-          toast({
-            title: "Authentication Error",
-            description: errorMessage,
-            variant: "destructive",
-            duration: 10000 // Show for 10 seconds instead of default
-          })
-        }
+    } catch (error: any) {
+      console.error('🔐 AuthPage: Authentication failed:', {
+        status: error.response?.status,
+        message: error.message,
+        hasResponse: !!error.response
+      })
+      
+      // Use the error from the auth store, or fallback to the thrown error
+      const errorMessage = error.response?.data?.error || error.message || "Something went wrong. Please try again."
+      
+      // Show error for longer duration
+      toast({
+        title: "Authentication Error",
+        description: errorMessage,
+        variant: "destructive",
+        duration: 10000 // Show for 10 seconds instead of default
+      })
+    }
   }
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -189,24 +218,29 @@ export function AuthPage() {
                 </div>
               )}
 
-              {debugError && (
-                <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-md">
-                  <p className="text-sm font-medium text-yellow-800 mb-2">Debug Error Details:</p>
-                  <pre className="text-xs text-yellow-700 whitespace-pre-wrap overflow-auto max-h-32">
-                    {debugError}
-                  </pre>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setDebugError(null)
-                      localStorage.removeItem('syncscript-debug-error')
-                    }}
-                    className="mt-2 text-xs text-yellow-600 hover:text-yellow-800 underline"
-                  >
-                    Clear Debug Info
-                  </button>
-                </div>
-              )}
+               {debugError && (
+                 <div className="p-4 bg-red-50 border-2 border-red-300 rounded-md mb-4">
+                   <div className="flex items-center justify-between mb-2">
+                     <p className="text-sm font-bold text-red-800">🚨 LOGIN DEBUG ERROR DETECTED:</p>
+                     <button
+                       type="button"
+                       onClick={() => {
+                         setDebugError(null)
+                         localStorage.removeItem('syncscript-debug-error')
+                       }}
+                       className="text-xs text-red-600 hover:text-red-800 underline font-bold"
+                     >
+                       CLEAR DEBUG INFO
+                     </button>
+                   </div>
+                   <pre className="text-xs text-red-700 whitespace-pre-wrap overflow-auto max-h-40 bg-white p-2 rounded border">
+                     {debugError}
+                   </pre>
+                   <p className="text-xs text-red-600 mt-2 font-medium">
+                     ⚠️ This error was automatically captured. Please try logging in again to see if the issue persists.
+                   </p>
+                 </div>
+               )}
 
               <Button 
                 type="submit" 

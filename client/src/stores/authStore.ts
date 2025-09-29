@@ -77,7 +77,9 @@ export const useAuthStore = create<AuthStore>()(
             hasResponse: !!error.response,
             timestamp: new Date().toISOString(),
             url: error.config?.url,
-            method: error.config?.method
+            method: error.config?.method,
+            responseData: error.response?.data,
+            fullError: error.toString()
           }
           
           console.error('🔐 AuthStore: Login failed:', errorDetails)
@@ -85,6 +87,7 @@ export const useAuthStore = create<AuthStore>()(
           // Save error to localStorage for debugging
           try {
             localStorage.setItem('syncscript-debug-error', JSON.stringify(errorDetails))
+            console.log('🔐 AuthStore: Debug error saved to localStorage')
           } catch (e) {
             console.error('Failed to save debug error:', e)
           }
@@ -94,8 +97,10 @@ export const useAuthStore = create<AuthStore>()(
             error: errorMessage, 
             isLoading: false 
           })
-          // Throw a custom error with the clean message
-          throw new Error(errorMessage)
+          
+          // Don't throw error immediately - let the UI handle it
+          console.log('🔐 AuthStore: Login error set in state, not throwing')
+          return { success: false, error: errorMessage }
         }
       },
 
