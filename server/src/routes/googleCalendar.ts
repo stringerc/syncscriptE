@@ -700,7 +700,7 @@ router.post('/sync', authenticateToken, asyncHandler(async (req: AuthRequest, re
         req.user!.id,
         prisma
       );
-      stats = syncResult.stats;
+      stats = syncResult;
       createdEvents = syncResult.createdEvents || [];
       updatedEvents = syncResult.updatedEvents || [];
     } else if (direction === 'to_google') {
@@ -737,9 +737,9 @@ router.post('/sync', authenticateToken, asyncHandler(async (req: AuthRequest, re
       );
 
       stats = {
-        created: fromGoogleResult.stats.created + toGoogleStats.created,
-        updated: fromGoogleResult.stats.updated + toGoogleStats.updated,
-        errors: fromGoogleResult.stats.errors + toGoogleStats.errors
+        created: fromGoogleResult.created + toGoogleStats.created,
+        updated: fromGoogleResult.updated + toGoogleStats.updated,
+        errors: fromGoogleResult.errors + toGoogleStats.errors
       };
       createdEvents = fromGoogleResult.createdEvents || [];
       updatedEvents = fromGoogleResult.updatedEvents || [];

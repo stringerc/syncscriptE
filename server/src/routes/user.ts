@@ -339,61 +339,6 @@ router.get('/dashboard', authenticateToken, asyncHandler(async (req: AuthRequest
     };
   }
 
-  const [
-    user,
-    todayTasks,
-    recentAchievements,
-    activeStreaks,
-    unreadNotifications
-  ] = await Promise.all([
-    prisma.user.findUnique({
-      where: { id: req.user!.id },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        energyLevel: true,
-        timezone: true,
-        showHolidays: true
-      }
-    }),
-    prisma.task.findMany({
-      where: {
-        userId: req.user!.id,
-        deletedAt: null, // Exclude soft-deleted tasks
-        OR: [
-          { dueDate: { gte: today, lt: tomorrow } },
-          { scheduledAt: { gte: today, lt: tomorrow } },
-          { dueDate: null, scheduledAt: null }
-        ]
-      },
-      include: { subtasks: true },
-      orderBy: [
-        { status: 'asc' }, // Show completed tasks last
-        { priority: 'desc' },
-        { dueDate: 'asc' }
-      ],
-      take: 10
-    }),
-    prisma.achievement.findMany({
-      where: { userId: req.user!.id },
-      orderBy: { unlockedAt: 'desc' },
-      take: 5
-    }),
-    prisma.streak.findMany({
-      where: { userId: req.user!.id },
-      orderBy: { count: 'desc' }
-    }),
-    prisma.notification.findMany({
-      where: {
-        userId: req.user!.id,
-        isRead: false
-      },
-      orderBy: { createdAt: 'desc' },
-      take: 10
-    })
-  ]);
-
   // Build events query based on showHolidays preference
   const eventsWhere: any = {
     userId: req.user!.id,
