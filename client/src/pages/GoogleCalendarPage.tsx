@@ -43,7 +43,7 @@ interface GoogleCalendarEvent {
 }
 
 export function GoogleCalendarPage() {
-  console.log('🚀 GoogleCalendarPage: Component loaded - Google Calendar Events section removed');
+  console.log('🚀 GoogleCalendarPage: Component loaded - Google Calendar Events section COMPLETELY REMOVED');
   
   const [authUrl, setAuthUrl] = useState<string>('')
   const [selectedCalendar, setSelectedCalendar] = useState<string>('primary')
