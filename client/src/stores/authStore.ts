@@ -46,8 +46,7 @@ export const useAuthStore = create<AuthStore>()(
         localStorage.removeItem('syncscript-current-chat-id')
         
         try {
-          console.log('🔐 AuthStore: About to make login request to:', api.defaults.baseURL + '/auth/login')
-          console.log('🔐 AuthStore: Request payload:', { email, password: '***' })
+          console.log('🔐 AuthStore: Attempting login for user:', email)
           
           // First, test if the backend is reachable
           try {
@@ -55,31 +54,40 @@ export const useAuthStore = create<AuthStore>()(
             const healthResponse = await api.get('/health')
             console.log('🔐 AuthStore: Backend health check:', healthResponse.status)
           } catch (healthError: any) {
-            console.error('🔐 AuthStore: Backend health check failed:', healthError)
-            console.error('🔐 AuthStore: Health check error details:', {
+            console.error('🔐 AuthStore: Backend health check failed:', {
               status: healthError.response?.status,
               statusText: healthError.response?.statusText,
-              data: healthError.response?.data,
               message: healthError.message,
               code: healthError.code
             })
           }
           
           const response = await api.post('/auth/login', { email, password })
-          console.log('🔐 AuthStore: Login response:', response.data)
           const { user, token } = response.data.data
           
           set({ user, token, isLoading: false })
           
           // Set token in API client
           api.defaults.headers.common['Authorization'] = `Bearer ${token}`
-          console.log('🔐 AuthStore: Login successful for:', email)
+          console.log('🔐 AuthStore: Login successful')
         } catch (error: any) {
-          console.error('🔐 AuthStore: Login error:', error)
-          console.error('🔐 AuthStore: Error response:', error.response?.data)
-          console.error('🔐 AuthStore: Error status:', error.response?.status)
-          console.error('🔐 AuthStore: Error message:', error.message)
-          console.error('🔐 AuthStore: Full error object:', error)
+          const errorDetails = {
+            status: error.response?.status,
+            message: error.message,
+            hasResponse: !!error.response,
+            timestamp: new Date().toISOString(),
+            url: error.config?.url,
+            method: error.config?.method
+          }
+          
+          console.error('🔐 AuthStore: Login failed:', errorDetails)
+          
+          // Save error to localStorage for debugging
+          try {
+            localStorage.setItem('syncscript-debug-error', JSON.stringify(errorDetails))
+          } catch (e) {
+            console.error('Failed to save debug error:', e)
+          }
           
           const errorMessage = error.response?.data?.error || error.message || 'Login failed'
           set({ 
@@ -186,10 +194,11 @@ export const useAuthStore = create<AuthStore>()(
           console.log('🔐 AuthStore: checkAuth response:', response.data)
           set({ user: response.data.data, isLoading: false })
         } catch (error: any) {
-          console.error('🔐 AuthStore: checkAuth error:', error)
-          console.error('🔐 AuthStore: Error response:', error.response?.data)
-          console.error('🔐 AuthStore: Error status:', error.response?.status)
-          console.error('🔐 AuthStore: Error message:', error.message)
+          console.error('🔐 AuthStore: Token validation failed:', {
+            status: error.response?.status,
+            message: error.message,
+            hasResponse: !!error.response
+          })
           
           // Token is invalid, clear it
           set({ user: null, token: null, isLoading: false })

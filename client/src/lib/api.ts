@@ -50,14 +50,8 @@ console.log('🔗 Final API instance baseURL:', api.defaults.baseURL)
 // Request interceptor
 api.interceptors.request.use(
   (config) => {
-    console.log('🔗 API Request:', config.method?.toUpperCase(), config.baseURL + config.url)
-    console.log('🔗 Request config:', {
-      method: config.method,
-      url: config.url,
-      baseURL: config.baseURL,
-      fullURL: config.baseURL + config.url,
-      data: config.data
-    })
+    // Only log non-sensitive request info
+    console.log('🔗 API Request:', config.method?.toUpperCase(), config.url)
     
     // Add auth token if available
     const token = localStorage.getItem('syncscript-auth')
@@ -66,18 +60,15 @@ api.interceptors.request.use(
         const authData = JSON.parse(token)
         if (authData.state?.token) {
           config.headers.Authorization = `Bearer ${authData.state.token}`
-          console.log('🔐 Auth token added to request')
         }
       } catch (error) {
-        console.log('🔐 Invalid token format:', error)
+        console.log('🔐 Invalid token format')
       }
-    } else {
-      console.log('🔐 No auth token found')
     }
     return config
   },
   (error) => {
-    console.error('🔗 API Request Error:', error)
+    console.error('🔗 API Request Error:', error.message)
     return Promise.reject(error)
   }
 )
@@ -89,7 +80,11 @@ api.interceptors.response.use(
     return response
   },
   (error) => {
-    console.error('❌ API Error:', error.response?.status, error.config?.url, error.response?.data)
+    console.error('❌ API Error:', {
+      status: error.response?.status,
+      url: error.config?.url,
+      message: error.message
+    })
     if (error.response?.status === 401) {
       // Unauthorized - clear auth data
       localStorage.removeItem('syncscript-auth')

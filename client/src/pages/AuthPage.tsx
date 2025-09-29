@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import React, { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Brain, Eye, EyeOff } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -16,14 +16,33 @@ export function AuthPage() {
     password: '',
     name: ''
   })
+  const [debugError, setDebugError] = useState<string | null>(null)
   
   const { login, register, isLoading, error, clearError } = useAuthStore()
   const { toast } = useToast()
+
+  // Check for saved debug error on component mount
+  React.useEffect(() => {
+    try {
+      const savedError = localStorage.getItem('syncscript-debug-error')
+      if (savedError) {
+        const errorData = JSON.parse(savedError)
+        setDebugError(JSON.stringify(errorData, null, 2))
+        console.log('🔐 AuthPage: Found saved debug error:', errorData)
+      }
+    } catch (e) {
+      console.error('Failed to load debug error:', e)
+    }
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     console.log('🔐 AuthPage: handleSubmit called', { isLogin, email: formData.email, hasPassword: !!formData.password })
     clearError()
+    
+    // Clear any previous debug error
+    setDebugError(null)
+    localStorage.removeItem('syncscript-debug-error')
 
     try {
       if (isLogin) {
@@ -43,26 +62,24 @@ export function AuthPage() {
           description: "Your account has been created successfully."
         })
       }
-    } catch (error: any) {
-      console.error('🔐 AuthPage: Authentication error:', error)
-      console.error('🔐 AuthPage: Error response:', error.response?.data)
-      console.error('🔐 AuthPage: Error status:', error.response?.status)
-      console.error('🔐 AuthPage: Full error object:', error)
-      
-      // Use the error from the auth store, or fallback to the thrown error
-      const errorMessage = error.response?.data?.error || error.message || "Something went wrong. Please try again."
-      
-      // Show error for longer duration
-      toast({
-        title: "Authentication Error",
-        description: errorMessage,
-        variant: "destructive",
-        duration: 10000 // Show for 10 seconds instead of default
-      })
-      
-      // Also log to console for debugging
-      console.error('🔐 AuthPage: Final error message:', errorMessage)
-    }
+        } catch (error: any) {
+          console.error('🔐 AuthPage: Authentication failed:', {
+            status: error.response?.status,
+            message: error.message,
+            hasResponse: !!error.response
+          })
+          
+          // Use the error from the auth store, or fallback to the thrown error
+          const errorMessage = error.response?.data?.error || error.message || "Something went wrong. Please try again."
+          
+          // Show error for longer duration
+          toast({
+            title: "Authentication Error",
+            description: errorMessage,
+            variant: "destructive",
+            duration: 10000 // Show for 10 seconds instead of default
+          })
+        }
   }
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -166,6 +183,25 @@ export function AuthPage() {
               {error && (
                 <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-md">
                   <p className="text-sm text-destructive">{error}</p>
+                </div>
+              )}
+
+              {debugError && (
+                <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-md">
+                  <p className="text-sm font-medium text-yellow-800 mb-2">Debug Error Details:</p>
+                  <pre className="text-xs text-yellow-700 whitespace-pre-wrap overflow-auto max-h-32">
+                    {debugError}
+                  </pre>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDebugError(null)
+                      localStorage.removeItem('syncscript-debug-error')
+                    }}
+                    className="mt-2 text-xs text-yellow-600 hover:text-yellow-800 underline"
+                  >
+                    Clear Debug Info
+                  </button>
                 </div>
               )}
 
