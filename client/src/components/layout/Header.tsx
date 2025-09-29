@@ -1,4 +1,4 @@
-import { Search, User, LogOut, Settings, UserCircle, Zap, Clock, Calendar, CheckCircle, MessageSquare, Loader2, Trophy } from 'lucide-react'
+import { Search, User, LogOut, Settings, UserCircle, Zap, Clock, Calendar, CheckCircle, MessageSquare, Loader2, Trophy, Menu } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useAuthStore } from '@/stores/authStore'
@@ -13,6 +13,7 @@ import { getWeatherIcon } from '@/utils/weatherIcons'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
 import { useAchievements } from '@/contexts/AchievementsContext'
+import { useSidebar } from '@/contexts/SidebarContext'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -23,6 +24,7 @@ import {
 
 export function Header() {
   const { user, logout } = useAuthStore()
+  const { toggleSidebar } = useSidebar()
   const [searchQuery, setSearchQuery] = useState('')
   const [debouncedQuery, setDebouncedQuery] = useState('')
   const [showDropdown, setShowDropdown] = useState(false)
@@ -166,8 +168,18 @@ export function Header() {
   const events = searchResults?.events || []
 
   return (
-    <header className="bg-card border-b border-border px-6 py-4">
+    <header className="bg-card border-b border-border px-4 lg:px-6 py-4">
       <div className="flex items-center justify-between">
+        {/* Mobile Sidebar Toggle */}
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={toggleSidebar}
+          className="lg:hidden mr-2"
+        >
+          <Menu className="w-5 h-5" />
+        </Button>
+
         {/* Search */}
         <div className="flex-1 max-w-md">
           <div className="relative">

@@ -16,6 +16,7 @@ import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/stores/authStore'
 import { useQueryClient } from '@tanstack/react-query'
 import api from '@/lib/api'
+import { useSidebar } from '@/contexts/SidebarContext'
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
@@ -33,6 +34,7 @@ const navigation = [
 
 export function Sidebar() {
   const { user } = useAuthStore()
+  const { closeSidebar } = useSidebar()
   const queryClient = useQueryClient()
 
   const prefetchData = (href: string) => {
@@ -150,6 +152,10 @@ export function Sidebar() {
             key={item.name}
             to={item.href}
             onMouseEnter={() => prefetchData(item.href)}
+            onClick={() => {
+              // Close sidebar on mobile when navigation item is clicked
+              closeSidebar()
+            }}
             className={({ isActive }) =>
               cn(
                 'flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors',

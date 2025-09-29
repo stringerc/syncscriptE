@@ -24,6 +24,7 @@ import { ThemeProvider } from '@/contexts/ThemeContext'
 import { NotificationProvider } from '@/contexts/NotificationContext'
 import { PointAnimationProvider } from '@/contexts/PointAnimationContext'
 import { AchievementsProvider } from '@/contexts/AchievementsContext'
+import { SidebarProvider } from '@/contexts/SidebarContext'
 // Removed animation context import
 import DemoMode from '@/components/DemoMode'
 import { FeedbackButton } from '@/components/FeedbackButton'
@@ -72,26 +73,28 @@ function AppContent() {
 
   return (
     <AchievementsProvider>
-      <Layout>
-        <Routes>
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
-          <Route path="/dashboard" element={<DashboardPage />} />
-          <Route path="/tasks" element={<TasksPage />} />
-          <Route path="/calendar" element={<CalendarPage />} />
-          <Route path="/google-calendar" element={<GoogleCalendarPage />} />
-          <Route path="/financial" element={<FinancialPage />} />
-          <Route path="/ai-assistant" element={<AIAssistantPage />} />
-          <Route path="/energy-analysis" element={<EnergyAnalysisPage />} />
-          <Route path="/notifications" element={<NotificationsPage />} />
-          <Route path="/search" element={<SearchPage />} />
-          <Route path="/gamification" element={<GamificationPage />} />
-          <Route path="/settings" element={<SettingsPage />} />
-          <Route path="/profile" element={<ProfilePage />} />
-          <Route path="/verify-email" element={<VerifyEmailPage />} />
-          <Route path="*" element={<Navigate to="/dashboard" replace />} />
-        </Routes>
-        <FeedbackButton />
-      </Layout>
+      <SidebarProvider>
+        <Layout>
+          <Routes>
+            <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            <Route path="/dashboard" element={<DashboardPage />} />
+            <Route path="/tasks" element={<TasksPage />} />
+            <Route path="/calendar" element={<CalendarPage />} />
+            <Route path="/google-calendar" element={<GoogleCalendarPage />} />
+            <Route path="/financial" element={<FinancialPage />} />
+            <Route path="/ai-assistant" element={<AIAssistantPage />} />
+            <Route path="/energy-analysis" element={<EnergyAnalysisPage />} />
+            <Route path="/notifications" element={<NotificationsPage />} />
+            <Route path="/search" element={<SearchPage />} />
+            <Route path="/gamification" element={<GamificationPage />} />
+            <Route path="/settings" element={<SettingsPage />} />
+            <Route path="/profile" element={<ProfilePage />} />
+            <Route path="/verify-email" element={<VerifyEmailPage />} />
+            <Route path="*" element={<Navigate to="/dashboard" replace />} />
+          </Routes>
+          <FeedbackButton />
+        </Layout>
+      </SidebarProvider>
     </AchievementsProvider>
   )
 }
