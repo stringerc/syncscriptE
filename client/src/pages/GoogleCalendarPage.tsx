@@ -138,14 +138,14 @@ export function GoogleCalendarPage() {
 
   // Fetch Google Calendar events from all calendars
   const { data: eventsData, isLoading: eventsLoading, refetch: refetchEvents, error: eventsError } = useQuery<GoogleCalendarEvent[]>({
-    queryKey: ['google-calendar-events-all', timeRange],
+    queryKey: ['google-calendar-events-all'],
     queryFn: async () => {
       const allEvents = []
       const { timeMin, timeMax } = getTimeRange(timeRange, true) // Get time range including past events
       
       // Only get events from local database (synced events)
       try {
-        const localEventsResponse = await api.get(`/calendar?timeMin=${timeMin}&timeMax=${timeMax}&includePast=true`)
+        const localEventsResponse = await api.get(`/calendar?includePast=true`)
         const localEvents = localEventsResponse.data.events || []
         
         // Add local events with proper formatting
@@ -284,7 +284,7 @@ export function GoogleCalendarPage() {
       queryClient.invalidateQueries({ queryKey: ['dashboard'] })
       queryClient.invalidateQueries({ queryKey: ['google-calendar-events'] })
       queryClient.invalidateQueries({ queryKey: ['google-calendar-events-all'] })
-      queryClient.refetchQueries({ queryKey: ['google-calendar-events-all', timeRange] })
+      queryClient.refetchQueries({ queryKey: ['google-calendar-events-all'] })
       toast({
         title: "Sync Complete",
         description: `Synced ${data.data.stats.created} new events, updated ${data.data.stats.updated} events.`
