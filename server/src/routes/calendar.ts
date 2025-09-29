@@ -73,6 +73,23 @@ router.get('/', authenticateToken, asyncHandler(async (req: AuthRequest, res) =>
     });
   }
 
+  // Debug: Log all events before filtering
+  const allEvents = await prisma.event.findMany({
+    where: { userId: req.user!.id },
+    select: { id: true, title: true, startTime: true, calendarProvider: true, isAllDay: true }
+  });
+  
+  logger.info('All events for user before filtering', { 
+    totalEvents: allEvents.length,
+    events: allEvents.map(e => ({
+      id: e.id,
+      title: e.title,
+      startTime: e.startTime,
+      provider: e.calendarProvider,
+      isAllDay: e.isAllDay
+    }))
+  });
+
   if (search) {
     where.OR = [
       { title: { contains: search, mode: 'insensitive' } },

@@ -55,27 +55,51 @@ router.post('/auth/login-callback', asyncHandler(async (req, res) => {
     // Get user info from Google
     const userInfo = await GoogleCalendarService.getUserInfo(credentials.accessToken);
     
+    // Debug logging
+    logger.info('Google OAuth user info', { 
+      email: userInfo.email, 
+      name: userInfo.name, 
+      googleId: userInfo.id 
+    });
+    
     // Find or create user
     let user = await prisma.user.findUnique({
       where: { email: userInfo.email }
     });
 
+    logger.info('User lookup result', { 
+      foundUser: !!user, 
+      userId: user?.id, 
+      userEmail: user?.email,
+      hasGoogleId: !!user?.googleId
+    });
+
     if (!user) {
       // Create new user
-        user = await prisma.user.create({
-          data: {
-            email: userInfo.email,
-            name: userInfo.name,
-            googleId: userInfo.id,
-            emailVerified: true
-          }
-        });
+      logger.info('Creating new user for Google OAuth', { email: userInfo.email });
+      user = await prisma.user.create({
+        data: {
+          email: userInfo.email,
+          name: userInfo.name,
+          googleId: userInfo.id,
+          emailVerified: true
+        }
+      });
     } else {
       // Update existing user with Google ID if not set
       if (!user.googleId) {
+        logger.info('Linking existing user to Google account', { 
+          userId: user.id, 
+          email: user.email 
+        });
         user = await prisma.user.update({
           where: { id: user.id },
           data: { googleId: userInfo.id }
+        });
+      } else {
+        logger.info('User already linked to Google', { 
+          userId: user.id, 
+          email: user.email 
         });
       }
     }
