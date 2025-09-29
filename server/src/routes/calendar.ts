@@ -60,8 +60,7 @@ router.get('/', authenticateToken, asyncHandler(async (req: AuthRequest, res) =>
     };
 
     // Filter out holiday events if user has disabled them
-    // TEMPORARILY DISABLED FOR DEBUGGING
-    if (false && user?.showHolidays === false) {
+    if (user?.showHolidays === false) {
       where.NOT = {
         OR: [
           { title: { contains: 'Holiday' } },
