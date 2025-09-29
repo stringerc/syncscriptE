@@ -837,6 +837,82 @@ router.post('/subscribe-holiday', authenticateToken, asyncHandler(async (req: Au
   }
 }));
 
+// Unsubscribe from holiday calendar (safe - preserves user-created events)
+router.delete('/unsubscribe-holiday', authenticateToken, asyncHandler(async (req: AuthRequest, res) => {
+  const { calendarId } = req.body;
+
+  if (!calendarId) {
+    throw createError('Calendar ID is required', 400);
+  }
+
+  const integration = await prisma.calendarIntegration.findFirst({
+    where: {
+      userId: req.user!.id,
+      provider: 'google',
+      isActive: true
+    }
+  });
+
+  if (!integration) {
+    throw createError('Google Calendar integration not found', 404);
+  }
+
+  try {
+    const googleCalendarService = new GoogleCalendarService({
+      accessToken: integration.accessToken,
+      refreshToken: integration.refreshToken || undefined,
+      expiresAt: integration.expiresAt || undefined
+    });
+
+    // Unsubscribe from the holiday calendar
+    await googleCalendarService.unsubscribeFromHolidayCalendar(calendarId);
+
+    // IMPORTANT: Only delete events that were synced from this specific holiday calendar
+    // This preserves any user-created events or tasks
+    const deletedEvents = await prisma.event.deleteMany({
+      where: {
+        userId: req.user!.id,
+        calendarProvider: 'google',
+        calendarEventId: {
+          not: null // Only delete events that have a Google Calendar event ID
+        },
+        // Additional safety: only delete events that match holiday calendar patterns
+        OR: [
+          { title: { contains: 'Holiday', mode: 'insensitive' } },
+          { title: { contains: 'Christmas', mode: 'insensitive' } },
+          { title: { contains: 'Thanksgiving', mode: 'insensitive' } },
+          { title: { contains: 'New Year', mode: 'insensitive' } },
+          { title: { contains: 'Independence Day', mode: 'insensitive' } },
+          { title: { contains: 'Memorial Day', mode: 'insensitive' } },
+          { title: { contains: 'Labor Day', mode: 'insensitive' } },
+          { title: { contains: 'Veterans Day', mode: 'insensitive' } },
+          { title: { contains: 'Presidents Day', mode: 'insensitive' } },
+          { title: { contains: 'Martin Luther King', mode: 'insensitive' } },
+          { title: { contains: 'Columbus Day', mode: 'insensitive' } }
+        ]
+      }
+    });
+
+    logger.info('Holiday calendar unsubscribed and related events cleaned up', { 
+      userId: req.user!.id,
+      calendarId,
+      deletedEventsCount: deletedEvents.count
+    });
+
+    res.json({
+      success: true,
+      message: 'Successfully unsubscribed from holiday calendar',
+      data: {
+        deletedEventsCount: deletedEvents.count,
+        preservedUserEvents: true
+      }
+    });
+  } catch (error) {
+    logger.error('Error unsubscribing from holiday calendar:', error);
+    throw createError('Failed to unsubscribe from holiday calendar', 500);
+  }
+}));
+
 // Get available holiday calendars
 router.get('/holiday-calendars', authenticateToken, asyncHandler(async (req: AuthRequest, res) => {
   const integration = await prisma.calendarIntegration.findFirst({

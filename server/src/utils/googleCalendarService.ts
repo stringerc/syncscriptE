@@ -179,6 +179,17 @@ export class GoogleCalendarService {
       return events;
     } catch (error) {
       logger.error('Error fetching events:', error);
+      
+      // If it's a holiday calendar and we get a 500 error, it might be a subscription issue
+      if (calendarId.includes('holiday') && error.response?.status === 500) {
+        logger.warn('Holiday calendar access denied - may need to resubscribe', { 
+          calendarId,
+          error: error.message 
+        });
+        // Return empty array instead of throwing error for holiday calendars
+        return [];
+      }
+      
       throw new Error('Failed to fetch events');
     }
   }
@@ -465,6 +476,20 @@ export class GoogleCalendarService {
       logger.info('Successfully subscribed to holiday calendar', { calendarId });
     } catch (error) {
       logger.error('Error subscribing to holiday calendar:', error);
+      throw error;
+    }
+  }
+
+  // Unsubscribe from a holiday calendar
+  async unsubscribeFromHolidayCalendar(calendarId: string): Promise<void> {
+    try {
+      await this.calendar.calendarList.delete({
+        calendarId: calendarId
+      });
+      
+      logger.info('Successfully unsubscribed from holiday calendar', { calendarId });
+    } catch (error) {
+      logger.error('Error unsubscribing from holiday calendar:', error);
       throw error;
     }
   }

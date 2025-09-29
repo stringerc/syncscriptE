@@ -47,29 +47,35 @@ router.get('/', authenticateToken, asyncHandler(async (req: AuthRequest, res) =>
       userId: req.user!.id
     };
 
-  // Default to only show future events if no date range is specified and includePast is false
-  if (!startDate && !endDate && !includePast) {
-    const now = new Date();
-    
-    where.startTime = { 
-      gte: now
-    };
-    
-    logger.info('Filtering events to show only future events', { 
-      currentTime: now.toISOString(),
-      currentTimeLocal: now.toLocaleString(),
-      userId: req.user!.id,
-      includePast: false
-    });
-  } else {
+  // Only filter by time if explicitly requested
+  if (startDate || endDate || includePast === false) {
     where.startTime = {};
     if (startDate) where.startTime.gte = new Date(startDate);
     if (endDate) where.startTime.lte = new Date(endDate);
-    logger.info('Using custom date range', { 
-      startDate, 
-      endDate, 
-      includePast,
-      userId: req.user!.id
+    
+    // Only filter to future events if includePast is explicitly false
+    if (includePast === false && !startDate && !endDate) {
+      const now = new Date();
+      where.startTime.gte = now;
+      
+      logger.info('Filtering events to show only future events', { 
+        currentTime: now.toISOString(),
+        currentTimeLocal: now.toLocaleString(),
+        userId: req.user!.id,
+        includePast: false
+      });
+    } else {
+      logger.info('Using custom date range', { 
+        startDate, 
+        endDate, 
+        includePast,
+        userId: req.user!.id
+      });
+    }
+  } else {
+    logger.info('Showing all events (no time filtering)', { 
+      userId: req.user!.id,
+      includePast: includePast
     });
   }
 
