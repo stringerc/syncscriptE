@@ -878,17 +878,17 @@ router.delete('/unsubscribe-holiday', authenticateToken, asyncHandler(async (req
         },
         // Additional safety: only delete events that match holiday calendar patterns
         OR: [
-          { title: { contains: 'Holiday', mode: 'insensitive' } },
-          { title: { contains: 'Christmas', mode: 'insensitive' } },
-          { title: { contains: 'Thanksgiving', mode: 'insensitive' } },
-          { title: { contains: 'New Year', mode: 'insensitive' } },
-          { title: { contains: 'Independence Day', mode: 'insensitive' } },
-          { title: { contains: 'Memorial Day', mode: 'insensitive' } },
-          { title: { contains: 'Labor Day', mode: 'insensitive' } },
-          { title: { contains: 'Veterans Day', mode: 'insensitive' } },
-          { title: { contains: 'Presidents Day', mode: 'insensitive' } },
-          { title: { contains: 'Martin Luther King', mode: 'insensitive' } },
-          { title: { contains: 'Columbus Day', mode: 'insensitive' } }
+          { title: { contains: 'Holiday' } },
+          { title: { contains: 'Christmas' } },
+          { title: { contains: 'Thanksgiving' } },
+          { title: { contains: 'New Year' } },
+          { title: { contains: 'Independence Day' } },
+          { title: { contains: 'Memorial Day' } },
+          { title: { contains: 'Labor Day' } },
+          { title: { contains: 'Veterans Day' } },
+          { title: { contains: 'Presidents Day' } },
+          { title: { contains: 'Martin Luther King' } },
+          { title: { contains: 'Columbus Day' } }
         ]
       }
     });
