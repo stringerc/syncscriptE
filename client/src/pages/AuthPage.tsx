@@ -131,6 +131,7 @@ export function AuthPage() {
                     onChange={handleInputChange}
                     placeholder="Enter your full name"
                     required={!isLogin}
+                    autoComplete="name"
                   />
                 </div>
               )}
@@ -147,6 +148,7 @@ export function AuthPage() {
                   onChange={handleInputChange}
                   placeholder="Enter your email"
                   required
+                  autoComplete="email"
                 />
               </div>
 
@@ -163,6 +165,7 @@ export function AuthPage() {
                     onChange={handleInputChange}
                     placeholder="Enter your password"
                     required
+                    autoComplete={isLogin ? "current-password" : "new-password"}
                   />
                   <Button
                     type="button"

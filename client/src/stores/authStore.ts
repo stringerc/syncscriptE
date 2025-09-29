@@ -113,7 +113,7 @@ export const useAuthStore = create<AuthStore>()(
         
         try {
           const response = await api.post('/auth/register', { email, password, name })
-          console.log('🔐 AuthStore: Registration response:', response.data)
+          console.log('🔐 AuthStore: Registration successful')
           const { user, token } = response.data.data
           
           set({ user, token, isLoading: false })
@@ -188,10 +188,9 @@ export const useAuthStore = create<AuthStore>()(
           
           console.log('🔐 AuthStore: Making checkAuth request to /auth/me')
           console.log('🔐 AuthStore: API Base URL:', api.defaults.baseURL)
-          console.log('🔐 AuthStore: Authorization header:', api.defaults.headers.common['Authorization'])
           
           const response = await api.get('/auth/me')
-          console.log('🔐 AuthStore: checkAuth response:', response.data)
+          console.log('🔐 AuthStore: checkAuth successful')
           set({ user: response.data.data, isLoading: false })
         } catch (error: any) {
           console.error('🔐 AuthStore: Token validation failed:', {
