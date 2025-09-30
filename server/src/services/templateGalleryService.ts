@@ -107,6 +107,7 @@ export class TemplateGalleryService {
             tags: JSON.parse(entry.tags || '[]'),
             quality: entry.quality,
             locale: entry.locale,
+            manifest: entry.script.manifest, // Include manifest for frontend parsing
             applyCount: stats?.applyCount || 0,
             lastApplied: stats?.lastApplied,
             createdBy: entry.script.user.name || entry.script.user.email,
