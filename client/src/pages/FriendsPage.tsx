@@ -19,8 +19,7 @@ import { FriendsSettings } from '@/components/FriendsSettings'
 export function FriendsPage() {
   const { toast } = useToast()
   const queryClient = useQueryClient()
-  const { isFlagEnabled } = useFeatureFlags()
-  const friendsCoreEnabled = isFlagEnabled('friends_core')
+  const friendsCoreEnabled = true // Always enabled for launch
 
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
   const [newFriendEmail, setNewFriendEmail] = useState('')
