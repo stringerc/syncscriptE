@@ -60,8 +60,6 @@ export function TaskModal({ task, isOpen, onClose, onTaskUpdated, onTaskDeleted 
     startTime: '',
     endTime: ''
   })
-  const [suggestedNotes, setSuggestedNotes] = useState<string[]>([])
-  const [showNotesSuggestion, setShowNotesSuggestion] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [isListening, setIsListening] = useState(false)
 
@@ -283,27 +281,6 @@ export function TaskModal({ task, isOpen, onClose, onTaskUpdated, onTaskDeleted 
     }
   })
 
-  const suggestNotesMutation = useMutation({
-    mutationFn: async () => {
-      if (!task) throw new Error('No task to suggest notes for')
-      const response = await api.post(`/ai/tasks/${task.id}/suggest-notes`, {
-        taskTitle: task.title,
-        taskDescription: task.description
-      })
-      return response.data
-    },
-    onSuccess: (data) => {
-      setSuggestedNotes(data.data.suggestedNotes)
-      setShowNotesSuggestion(true)
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Suggestion Failed",
-        description: error.response?.data?.error || "Failed to generate notes suggestion",
-        variant: "destructive"
-      })
-    }
-  })
 
   // AI Suggest Task Mutation
   const aiSuggestMutation = useMutation({
@@ -322,8 +299,8 @@ export function TaskModal({ task, isOpen, onClose, onTaskUpdated, onTaskDeleted 
       })
       toast({
         title: "✨ AI Suggested Task",
-        description: suggestion.reasoning,
-        duration: 5000
+        description: `${suggestion.reasoning}\n\nReview the suggestion below and click "Create Task" to save it!`,
+        duration: 8000
       })
     },
     onError: (error: any) => {
@@ -489,19 +466,6 @@ export function TaskModal({ task, isOpen, onClose, onTaskUpdated, onTaskDeleted 
     createCalendarEventMutation.mutate()
   }
 
-  const handleSuggestNotes = () => {
-    suggestNotesMutation.mutate()
-  }
-
-  const handleRegenerateNotes = () => {
-    suggestNotesMutation.mutate()
-  }
-
-  const handleDeleteNotes = () => {
-    setSuggestedNotes([])
-    setShowNotesSuggestion(false)
-  }
-
   const handleOpenResources = () => {
     setResourcesDrawerOpen(true)
   }
@@ -510,11 +474,6 @@ export function TaskModal({ task, isOpen, onClose, onTaskUpdated, onTaskDeleted 
     setResourcesDrawerOpen(false)
   }
 
-  const handleUseSuggestedNotes = () => {
-    const combinedNotes = suggestedNotes.join('\n\n')
-    setFormData({ ...formData, notes: formData.notes ? `${formData.notes}\n\n${combinedNotes}` : combinedNotes })
-    setShowNotesSuggestion(false)
-  }
 
   if (!isOpen) return null
 
@@ -626,19 +585,7 @@ export function TaskModal({ task, isOpen, onClose, onTaskUpdated, onTaskDeleted 
               </div>
 
               <div>
-                <div className="flex items-center justify-between mb-2">
-                  <Label htmlFor="notes">Notes</Label>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={handleSuggestNotes}
-                    disabled={suggestNotesMutation.isPending}
-                  >
-                    <Sparkles className="w-4 h-4 mr-2" />
-                    {suggestNotesMutation.isPending ? 'Generating...' : 'AI Suggest Notes'}
-                  </Button>
-                </div>
+                <Label htmlFor="notes">Notes</Label>
                 <SpeechToTextInput
                   value={formData.notes || ''}
                   onChange={(value) => setFormData({ ...formData, notes: value })}
@@ -872,59 +819,6 @@ export function TaskModal({ task, isOpen, onClose, onTaskUpdated, onTaskDeleted 
         )}
 
         {/* Notes Suggestion Section */}
-        {showNotesSuggestion && suggestedNotes.length > 0 && (
-          <div className="border-t p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold">AI Suggested Notes</h3>
-              <div className="flex space-x-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleRegenerateNotes}
-                  disabled={suggestNotesMutation.isPending}
-                >
-                  <Sparkles className="w-4 h-4 mr-2" />
-                  {suggestNotesMutation.isPending ? 'Regenerating...' : 'Regenerate'}
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleDeleteNotes}
-                >
-                  <X className="w-4 h-4" />
-                </Button>
-              </div>
-            </div>
-            
-            <div className="space-y-3 p-4 bg-green-50 rounded-lg">
-              <div className="space-y-2">
-                {suggestedNotes.map((note, index) => (
-                  <div key={index} className="flex items-start space-x-2">
-                    <div className="flex items-center justify-center w-5 h-5 rounded-full bg-green-200 text-green-800 text-xs font-bold mt-0.5">
-                      {index + 1}
-                    </div>
-                    <p className="text-sm text-green-800">{note}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-            
-            <div className="flex justify-end space-x-2 mt-4">
-              <Button
-                variant="outline"
-                onClick={handleDeleteNotes}
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={handleUseSuggestedNotes}
-                className="bg-green-600 hover:bg-green-700"
-              >
-                Use These Notes
-              </Button>
-            </div>
-          </div>
-        )}
 
         {/* AI Suggestions */}
         {isEditing && formData.title && (
