@@ -109,8 +109,20 @@ router.get('/recommend', auth, async (req, res) => {
  */
 router.post('/:versionId/apply-to/:eventId', auth, async (req, res) => {
   try {
-    const userId = req.user!.userId
+    console.log('Template apply route - req.user:', req.user)
+    
+    if (!req.user || !req.user.userId) {
+      console.error('No user in request! Auth middleware may have failed.')
+      return res.status(401).json({
+        success: false,
+        error: 'Authentication required - no user in request'
+      })
+    }
+    
+    const userId = req.user.userId
     const { versionId, eventId } = req.params
+
+    console.log('Applying template:', { userId, versionId, eventId })
 
     // Log apply
     await templateGalleryService.logRecommendationApply(userId, versionId, eventId)
