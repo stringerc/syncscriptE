@@ -92,7 +92,7 @@ export function ProjectsPage() {
         <div>
           <h1 className="text-3xl font-bold flex items-center gap-2">
             <Folder className="w-8 h-8" />
-            Projects
+            ShareSync
           </h1>
           <p className="text-muted-foreground mt-1">
             Collaborate with your team on shared events and tasks

@@ -30,7 +30,7 @@ const navigation = [
   { name: 'AI Assistant', href: '/ai-assistant', icon: Brain },
   { name: 'Energy Analysis', href: '/energy-analysis', icon: Zap },
   { name: 'Scripts', href: '/templates', icon: BookTemplate },
-  { name: 'Projects', href: '/projects', icon: Folder },
+  { name: 'ShareSync', href: '/projects', icon: Folder },
   { name: 'Profile', href: '/profile', icon: User },
   { name: 'Friends', href: '/friends', icon: Users },
   { name: 'Achievements', href: '/gamification', icon: Trophy },
