@@ -295,21 +295,46 @@ export function TemplateGalleryPage() {
               </DialogDescription>
             </DialogHeader>
             
-            {previewTemplate.showApply && events.length > 0 && (
-              <div className="px-6 pb-4">
-                <label className="block text-sm font-medium mb-2">Select Event to Apply To:</label>
-                <select
-                  className="w-full p-2 border rounded-md bg-white text-black"
-                  value={selectedEventId}
-                  onChange={(e) => setSelectedEventId(e.target.value)}
-                >
-                  <option value="">Choose an event...</option>
-                  {events.map((event: any) => (
-                    <option key={event.id} value={event.id}>
-                      {event.title} ({new Date(event.startTime).toLocaleDateString()})
-                    </option>
-                  ))}
-                </select>
+            {previewTemplate.showApply && (
+              <div className="px-6 pb-4 space-y-3">
+                <div>
+                  <label className="block text-sm font-medium mb-2">Select Event to Apply To:</label>
+                  <select
+                    className="w-full p-2 border rounded-md bg-white text-black"
+                    value={selectedEventId}
+                    onChange={(e) => setSelectedEventId(e.target.value)}
+                  >
+                    <option value="">Choose an event...</option>
+                    <option value="__CREATE_NEW__">+ Create New Event</option>
+                    {events.map((event: any) => (
+                      <option key={event.id} value={event.id}>
+                        {event.title} ({new Date(event.startTime).toLocaleDateString()})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                
+                {selectedEventId === '__CREATE_NEW__' && (
+                  <div className="space-y-2 p-3 border rounded-lg bg-muted/30">
+                    <p className="text-sm font-medium">New Event Details:</p>
+                    <Input
+                      placeholder="Event title (e.g., My Wedding)"
+                      value={previewTemplate.newEventTitle || ''}
+                      onChange={(e) => setPreviewTemplate({
+                        ...previewTemplate,
+                        newEventTitle: e.target.value
+                      })}
+                    />
+                    <Input
+                      type="datetime-local"
+                      value={previewTemplate.newEventStartTime || ''}
+                      onChange={(e) => setPreviewTemplate({
+                        ...previewTemplate,
+                        newEventStartTime: e.target.value
+                      })}
+                    />
+                  </div>
+                )}
               </div>
             )}
 
@@ -345,24 +370,67 @@ export function TemplateGalleryPage() {
               </Button>
               {previewTemplate.showApply && (
                 <Button
-                  onClick={() => {
+                  onClick={async () => {
                     if (!selectedEventId) {
                       toast({
                         title: 'Select an Event',
-                        description: 'Please choose which event to apply this script to',
+                        description: 'Please choose which event to apply this script to or create a new one',
                         variant: 'destructive'
                       })
                       return
                     }
-                    applyMutation.mutate({
-                      versionId: previewTemplate.versionId,
-                      eventId: selectedEventId
-                    })
+                    
+                    try {
+                      let targetEventId = selectedEventId
+                      
+                      // If creating new event, create it first
+                      if (selectedEventId === '__CREATE_NEW__') {
+                        if (!previewTemplate.newEventTitle || !previewTemplate.newEventStartTime) {
+                          toast({
+                            title: 'Missing Details',
+                            description: 'Please enter event title and start time',
+                            variant: 'destructive'
+                          })
+                          return
+                        }
+                        
+                        // Create the event
+                        const startTime = new Date(previewTemplate.newEventStartTime)
+                        const endTime = new Date(startTime.getTime() + 2 * 60 * 60 * 1000) // +2 hours default
+                        
+                        const eventResponse = await api.post('/calendar', {
+                          title: previewTemplate.newEventTitle,
+                          description: `Created from ${previewTemplate.title} script`,
+                          startTime: startTime.toISOString(),
+                          endTime: endTime.toISOString()
+                        })
+                        
+                        targetEventId = eventResponse.data.data.id
+                        
+                        toast({
+                          title: 'Event Created!',
+                          description: 'Now applying script tasks...'
+                        })
+                      }
+                      
+                      // Apply the script
+                      applyMutation.mutate({
+                        versionId: previewTemplate.versionId,
+                        eventId: targetEventId
+                      })
+                      
+                    } catch (error: any) {
+                      toast({
+                        title: 'Error',
+                        description: error.response?.data?.error || 'Failed to create event',
+                        variant: 'destructive'
+                      })
+                    }
                   }}
-                  disabled={!selectedEventId}
+                  disabled={!selectedEventId || (selectedEventId === '__CREATE_NEW__' && (!previewTemplate.newEventTitle || !previewTemplate.newEventStartTime))}
                 >
                   <Play className="w-4 h-4 mr-2" />
-                  Apply to Event
+                  {selectedEventId === '__CREATE_NEW__' ? 'Create & Apply' : 'Apply to Event'}
                 </Button>
               )}
             </div>
