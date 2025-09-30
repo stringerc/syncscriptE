@@ -30,9 +30,9 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ classNam
   const [selectedEventEndedNotification, setSelectedEventEndedNotification] = useState<any>(null)
   const [showEventEndedModal, setShowEventEndedModal] = useState(false)
 
-  const unreadNotifications = notifications.filter(n => !n.isRead)
-  const allNotifications = notifications
-  const eventEndedNotifications = notifications.filter(n => n.type === 'event_ended')
+  const unreadNotifications = notifications?.filter(n => !n.isRead) || []
+  const allNotifications = notifications || []
+  const eventEndedNotifications = notifications?.filter(n => n.type === 'event_ended') || []
 
   const handleEventEndedNotificationClick = (notification: any) => {
     setSelectedEventEndedNotification(notification)
