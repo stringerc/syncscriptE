@@ -166,21 +166,24 @@ export class ScriptsService {
       const generatedTaskIds: string[] = []
 
       for (const scriptTask of processedManifest.tasks) {
+        // Handle offsetDays if present, otherwise schedule for event date
         const taskDate = new Date(eventDate)
-        taskDate.setDate(taskDate.getDate() - scriptTask.offsetDays)
+        if (scriptTask.offsetDays !== undefined) {
+          taskDate.setDate(taskDate.getDate() - scriptTask.offsetDays)
+        }
 
         const task = await prisma.task.create({
           data: {
             userId,
             eventId: targetEventId,
             title: scriptTask.title,
-            description: scriptTask.description,
+            description: scriptTask.description || '',
             durationMin: scriptTask.durationMin,
             estimatedDuration: scriptTask.durationMin,
             priority: scriptTask.priority || 'MEDIUM',
             status: 'PENDING',
             scheduledAt: taskDate,
-            tags: scriptTask.tags?.join(',')
+            tags: scriptTask.tags?.join(',') || ''
           }
         })
 
