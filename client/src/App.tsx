@@ -15,6 +15,7 @@ import { ProfilePage } from '@/pages/ProfilePage'
 import { ProfileResourcesPage } from '@/pages/ProfileResourcesPage'
 import { AIAssistantPage } from '@/pages/AIAssistantPage'
 import { AnalyticsDashboardPage } from '@/pages/AnalyticsDashboardPage'
+import { FriendsPage } from '@/pages/FriendsPage'
 import EnergyAnalysisPage from '@/pages/EnergyAnalysisPage'
 import NotificationsPage from '@/pages/NotificationsPage'
 import SearchPage from '@/pages/SearchPage'
@@ -98,6 +99,7 @@ function AppContent() {
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/profile" element={<ProfilePage />} />
             <Route path="/profile/resources" element={<ProfileResourcesPage />} />
+            <Route path="/friends" element={<FriendsPage />} />
             <Route path="/admin/analytics" element={<AnalyticsDashboardPage />} />
             <Route path="/verify-email" element={<VerifyEmailPage />} />
             <Route path="*" element={<Navigate to="/dashboard" replace />} />

@@ -114,6 +114,16 @@ const TaskItem = memo(({ task, onComplete, onDelete, onView, onResourcesClick, o
             </div>
           )}
           <h4 className="font-medium text-sm">{task.title}</h4>
+          {task.isCritical && (
+            <Badge variant="destructive" className="text-xs">
+              🔴 Critical
+            </Badge>
+          )}
+          {task.lockedPriority && (
+            <Badge variant="secondary" className="text-xs">
+              🔒 Locked
+            </Badge>
+          )}
           {resourceCount > 0 && (
             <Badge 
               variant="outline" 

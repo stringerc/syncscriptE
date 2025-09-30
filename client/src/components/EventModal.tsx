@@ -415,6 +415,32 @@ export function EventModal({ event, isOpen, onClose, onEventUpdated }: EventModa
             </h2>
           </div>
           <div className="flex items-center space-x-2">
+            {!isEditing && event && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={async () => {
+                  try {
+                    const response = await api.post(`/scripts/events/${event.id}/save-as-script`, {
+                      title: `${event.title} Template`,
+                      description: 'Reusable script for similar events'
+                    })
+                    toast({
+                      title: response.data.data.containsPII ? 'Script Created (PII Warning)' : 'Script Created!',
+                      description: response.data.message || 'Event saved as reusable script'
+                    })
+                  } catch (error: any) {
+                    toast({
+                      title: 'Error',
+                      description: error.response?.data?.error || 'Failed to create script',
+                      variant: 'destructive'
+                    })
+                  }
+                }}
+              >
+                💾 Save as Script
+              </Button>
+            )}
             {!isEditing && (
               <Button
                 variant="outline"

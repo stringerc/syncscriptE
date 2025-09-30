@@ -9,6 +9,7 @@ import { useToast } from '@/hooks/use-toast'
 import { ConfirmationModal } from '@/components/ConfirmationModal'
 import { ResourcesBadge } from '@/components/ResourcesBadge'
 import { ResourcesDrawer } from '@/components/ResourcesDrawer'
+import { InlineSuggestions } from '@/components/InlineSuggestions'
 import { buildPrepChainTitle, isPrepTask } from '@/lib/prepChain'
 import { 
   X, 
@@ -752,6 +753,24 @@ export function TaskModal({ task, isOpen, onClose, onTaskUpdated, onTaskDeleted 
                 Use These Notes
               </Button>
             </div>
+          </div>
+        )}
+
+        {/* AI Suggestions */}
+        {isEditing && formData.title && (
+          <div className="px-6 pb-4 border-t pt-4">
+            <InlineSuggestions 
+              type="task"
+              context={formData.title}
+              onAccept={(suggestion, createdId) => {
+                queryClient.invalidateQueries({ queryKey: ['tasks'] })
+                queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+                toast({
+                  title: 'Task Created',
+                  description: `Created: ${suggestion.title}`
+                })
+              }}
+            />
           </div>
         )}
 
