@@ -27,7 +27,7 @@ const NotificationsPage: React.FC = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {isLoading ? '...' : (stats?.total || notifications.length || 0)}
+              {isLoading ? '...' : (stats?.total || notifications?.length || 0)}
             </div>
             <p className="text-xs text-muted-foreground">
               {stats?.recentActivity?.thisWeek || 0} this week
