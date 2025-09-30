@@ -882,14 +882,16 @@ export function TaskModal({ task, isOpen, onClose, onTaskUpdated, onTaskDeleted 
                 {deleteTaskMutation.isPending ? 'Deleting...' : 'Delete Task'}
               </Button>
             )}
-            {isEditing && (
+            {(isEditing || !task) && (
               <>
-                <Button
-                  variant="outline"
-                  onClick={() => setIsEditing(false)}
-                >
-                  Cancel
-                </Button>
+                {task && (
+                  <Button
+                    variant="outline"
+                    onClick={() => setIsEditing(false)}
+                  >
+                    Cancel
+                  </Button>
+                )}
                 <Button
                   onClick={handleSave}
                   disabled={task ? updateTaskMutation.isPending : createTaskMutation.isPending}
