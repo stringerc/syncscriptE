@@ -86,6 +86,11 @@ model User {
   friendRequestsReceived   Friendship[] @relation("Addressee")
   friendPrefs              FriendPrefs?
   privacySettings          PrivacySetting?
+  
+  // Phase 6 - ShareScript Collaboration
+  ownedProjects            Project[] @relation("ProjectOwner")
+  projectMemberships       ProjectMember[] @relation("ProjectMemberships")
+  assignments              Assignment[] @relation("Assignments")
 
   @@map("users")
 }
@@ -882,4 +887,115 @@ model RecommendationLog {
   @@index([versionId])
   @@index([createdAt])
   @@map("recommendation_logs")
+}
+
+// ============================================================
+// Phase 6: ShareScript Collaboration
+// ============================================================
+
+model Project {
+  id             String    @id @default(cuid())
+  name           String
+  description    String?
+  ownerId        String
+  privacyDefault String    @default("project") // 'project' | 'restricted'
+  archivedAt     DateTime?
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  owner   User @relation("ProjectOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  members ProjectMember[]
+  items   ProjectItem[]
+  audits  ProjectAuditLog[]
+  
+  @@index([ownerId])
+  @@index([archivedAt])
+  @@map("projects")
+}
+
+model ProjectMember {
+  projectId String
+  userId    String
+  role      String  // 'owner' | 'admin' | 'editor' | 'contributor' | 'viewer'
+  
+  invitedAt  DateTime  @default(now())
+  acceptedAt DateTime?
+  invitedBy  String?
+  
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user    User    @relation("ProjectMemberships", fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@id([projectId, userId])
+  @@index([userId])
+  @@index([role])
+  @@map("project_members")
+}
+
+model ProjectItem {
+  projectId String
+  itemId    String
+  itemType  String  // 'event' | 'task'
+  privacy   String  @default("project") // 'project' | 'restricted'
+  
+  addedAt DateTime @default(now())
+  addedBy String?
+  
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  
+  @@id([projectId, itemId])
+  @@index([itemId])
+  @@index([itemType])
+  @@index([privacy])
+  @@map("project_items")
+}
+
+model Assignment {
+  itemId   String
+  itemType String  // 'event' | 'task'
+  userId   String
+  role     String  // 'owner' | 'assignee' | 'watcher'
+  
+  assignedAt DateTime @default(now())
+  assignedBy String?
+  
+  user User @relation("Assignments", fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@id([itemId, userId])
+  @@index([userId])
+  @@index([itemId])
+  @@map("assignments")
+}
+
+model ProjectAuditLog {
+  id        String   @id @default(cuid())
+  projectId String
+  itemId    String?
+  actorId   String
+  action    String
+  before    String?  // JSON
+  after     String?  // JSON
+  
+  createdAt DateTime @default(now())
+  
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  
+  @@index([projectId])
+  @@index([itemId])
+  @@index([actorId])
+  @@index([createdAt])
+  @@map("project_audit_logs")
+}
+
+model Provenance {
+  itemId     String @id
+  itemType   String // 'event' | 'task'
+  sourceType String // 'template' | 'promotion' | 'import' | 'fork'
+  sourceRef  String // versionId, parentTaskId, calendarEventId, etc.
+  details    String // JSON
+  
+  createdAt DateTime @default(now())
+  
+  @@index([itemId])
+  @@map("provenance")
 }

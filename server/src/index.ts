@@ -35,6 +35,7 @@ import scriptsRoutes from './routes/scripts';
 import priorityRoutes from './routes/priority';
 import friendsRoutes from './routes/friends';
 import templateGalleryRoutes from './routes/templateGallery';
+import projectsRoutes from './routes/projects';
 
 // Import middleware
 import { errorHandler } from './middleware/errorHandler';
@@ -228,6 +229,7 @@ app.use('/api/scripts', scriptsRoutes);
 app.use('/api/priority', priorityRoutes);
 app.use('/api/friends', friendsRoutes);
 app.use('/api/templates', templateGalleryRoutes);
+app.use('/api/projects', projectsRoutes);
 
 // Socket.IO for real-time updates
 io.on('connection', (socket) => {
