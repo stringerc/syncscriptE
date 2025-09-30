@@ -97,7 +97,7 @@ const GamificationPage: React.FC = () => {
         <div className="flex items-center gap-3">
           <Trophy className="h-8 w-8 text-yellow-600" />
           <div>
-            <h1 className="text-3xl font-bold">Gamification</h1>
+            <h1 className="text-3xl font-bold">Achievements</h1>
             <p className="text-gray-600">
               Track your progress, earn achievements, and level up!
             </p>

@@ -102,7 +102,7 @@ export function Header() {
     refetchOnWindowFocus: false,
   })
 
-  // Gamification query for header - only fetch if not on dashboard
+  // Achievements query for header - only fetch if not on dashboard
   const { data: gamificationData } = useQuery({
     queryKey: ['gamification-summary'],
     queryFn: async () => {

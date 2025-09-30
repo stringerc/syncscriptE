@@ -25,7 +25,7 @@ export interface FeatureFlags {
   // Marketplace
   shareScript: boolean
   
-  // Energy & Gamification
+  // Energy & Achievements
   energyHUD: boolean
   energyGraph: boolean
 }
