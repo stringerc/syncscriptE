@@ -115,6 +115,12 @@ export class ScriptsService {
     variableValues?: Record<string, any>
   ): Promise<any> {
     try {
+      console.log('applyScript called with:', { userId, scriptId, targetEventId, variableValues })
+      
+      if (!userId) {
+        throw new Error('userId is required but was undefined')
+      }
+      
       // Check for existing application (idempotent)
       const existing = await prisma.scriptApplication.findUnique({
         where: { eventId: targetEventId }
@@ -174,7 +180,7 @@ export class ScriptsService {
           }
 
           const taskData: any = {
-            userId,
+            userId: userId, // Explicitly pass userId
             eventId: targetEventId,
             title: scriptTask.title,
             description: scriptTask.description || '',
@@ -185,7 +191,7 @@ export class ScriptsService {
             scheduledAt: taskDate
           }
 
-          console.log('Creating task with data:', JSON.stringify(taskData, null, 2))
+          console.log('Creating task - userId:', userId, 'taskData:', JSON.stringify(taskData, null, 2))
 
           const task = await prisma.task.create({
             data: taskData
