@@ -15,6 +15,7 @@ import { AnimatedCounter } from '@/components/AnimatedCounter'
 // Removed animation context import
 import { getWeatherIcon } from '@/utils/weatherIcons'
 import { useAchievements } from '@/contexts/AchievementsContext'
+import { PinnedEventsRail } from '@/components/PinnedEventsRail'
 import { 
   CheckSquare, 
   Calendar, 
@@ -1487,6 +1488,9 @@ export function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Pinned Events Rail */}
+      <PinnedEventsRail />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Today's Tasks */}

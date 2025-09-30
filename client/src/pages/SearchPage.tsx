@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { api } from '@/lib/api'
 import { cn } from '@/lib/utils'
+import { AISearchPanel } from '@/components/AISearchPanel'
 
 interface SearchResult {
   id: string
@@ -36,7 +37,8 @@ const SearchPage: React.FC = () => {
   const navigate = useNavigate()
   const [query, setQuery] = useState(searchParams.get('q') || '')
   const [debouncedQuery, setDebouncedQuery] = useState(searchParams.get('q') || '')
-  const [activeTab, setActiveTab] = useState('all')
+  const isAISearch = searchParams.get('ai') === 'true'
+  const [activeTab, setActiveTab] = useState(isAISearch ? 'ai' : 'all')
   const [isSearching, setIsSearching] = useState(false)
 
   // Debounce the search query to avoid too many API calls
@@ -479,32 +481,16 @@ const SearchPage: React.FC = () => {
               </TabsContent>
 
               <TabsContent value="ai">
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <MessageSquare className="h-5 w-5 text-purple-600" />
-                      AI Assistant
-                    </CardTitle>
-                    <CardDescription>
-                      Ask AI about your tasks, events, or get productivity advice
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      <div className="p-4 bg-gray-50 rounded-lg">
-                        <p className="text-sm text-gray-600">
-                          AI search functionality will be integrated here. For now, you can ask questions in the AI Assistant page.
-                        </p>
-                      </div>
-                      <Button 
-                        onClick={() => navigate('/ai-assistant')}
-                        className="w-full"
-                      >
-                        Go to AI Assistant
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
+                <AISearchPanel 
+                  query={debouncedQuery}
+                  onResultClick={(result) => {
+                    if (result.type === 'task') {
+                      navigate('/tasks')
+                    } else if (result.type === 'event') {
+                      navigate('/calendar')
+                    }
+                  }}
+                />
               </TabsContent>
             </Tabs>
           )}

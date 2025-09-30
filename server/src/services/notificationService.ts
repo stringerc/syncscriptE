@@ -229,7 +229,7 @@ export class NotificationService {
   /**
    * Schedule challenge reminder
    */
-  async scheduleChallenge Reminder(userId: string, challengeId: string, reminderTime: Date): Promise<void> {
+  async scheduleChallengeReminder(userId: string, challengeId: string, reminderTime: Date): Promise<void> {
     const delay = reminderTime.getTime() - Date.now()
     
     if (delay <= 0) {

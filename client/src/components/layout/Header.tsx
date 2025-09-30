@@ -203,7 +203,7 @@ export function Header() {
                     <div 
                       className="flex items-center gap-3 p-3 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg cursor-pointer transition-colors"
                       onClick={() => {
-                        navigate('/ai-assistant')
+                        navigate(`/search?q=${encodeURIComponent(searchQuery)}&ai=true`)
                         setSearchQuery('')
                         setShowDropdown(false)
                       }}
@@ -214,11 +214,11 @@ export function Header() {
                           Ask AI: "{searchQuery}"
                         </div>
                         <div className="text-sm text-gray-500 dark:text-gray-400">
-                          Get AI-powered help and advice
+                          Get AI-powered answer with citations
                         </div>
                       </div>
                       <Badge variant="secondary" className="text-xs">
-                        AI
+                        AI Search
                       </Badge>
                     </div>
                   )}

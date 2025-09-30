@@ -30,6 +30,9 @@ import analyticsRoutes from './routes/analytics';
 import privacyRoutes from './routes/privacy';
 import suggestionsRoutes from './routes/suggestions';
 import schedulingRoutes from './routes/scheduling';
+import pinnedEventsRoutes from './routes/pinnedEvents';
+import scriptsRoutes from './routes/scripts';
+import priorityRoutes from './routes/priority';
 
 // Import middleware
 import { errorHandler } from './middleware/errorHandler';
@@ -218,6 +221,9 @@ app.use('/api/analytics', analyticsRoutes);
 app.use('/api/privacy', privacyRoutes);
 app.use('/api/suggestions', suggestionsRoutes);
 app.use('/api/scheduling', schedulingRoutes);
+app.use('/api/pinned', pinnedEventsRoutes);
+app.use('/api/scripts', scriptsRoutes);
+app.use('/api/priority', priorityRoutes);
 
 // Socket.IO for real-time updates
 io.on('connection', (socket) => {

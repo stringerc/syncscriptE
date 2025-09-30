@@ -395,8 +395,16 @@ router.get('/challenges', authenticateToken, asyncHandler(async (req: AuthReques
   const userId = req.user!.id;
   
   try {
-    const DailyChallengeService = (await import('../services/dailyChallengeService')).default;
-    const challenges = await DailyChallengeService.generateDailyChallenges(userId);
+    // Fetch daily challenges from database
+    const challenges = await prisma.dailyChallenge.findMany({
+      where: {
+        userId,
+        date: {
+          gte: new Date(new Date().setHours(0, 0, 0, 0))
+        }
+      },
+      orderBy: { date: 'desc' }
+    });
     
     res.json({
       success: true,
