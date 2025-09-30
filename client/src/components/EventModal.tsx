@@ -624,11 +624,11 @@ export function EventModal({ event, isOpen, onClose, onEventUpdated }: EventModa
 
               <div>
                 <Label htmlFor="description">Description</Label>
-                <SpeechToTextInput
+                <Textarea
+                  id="description"
                   value={formData.description || ''}
-                  onChange={(value) => setFormData(prev => ({ ...prev, description: value }))}
-                  placeholder="Type or hold mic to speak event description..."
-                  multiline
+                  onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                  placeholder="Enter event description..."
                   rows={3}
                 />
               </div>
@@ -715,7 +715,7 @@ export function EventModal({ event, isOpen, onClose, onEventUpdated }: EventModa
             <div className="flex items-center justify-between mb-2">
               <h4 className="text-sm font-medium text-muted-foreground">Preparation Tasks:</h4>
               {console.log('🎯 EventModal: Rendering preparation tasks section, isEditing:', isEditing, 'showAddTaskForm:', showAddTaskForm, 'editingTaskId:', editingTaskId)}
-              {isEditing && !showAddTaskForm && !editingTaskId && (
+              {(isEditing || !event) && !showAddTaskForm && !editingTaskId && (
                 <Button
                   size="sm"
                   variant="outline"
@@ -726,13 +726,13 @@ export function EventModal({ event, isOpen, onClose, onEventUpdated }: EventModa
                   className="text-xs hover:bg-blue-50 hover:border-blue-300"
                 >
                   <Plus className="w-3 h-3 mr-1" />
-                  Add Prep
+                  Add Prep Task
                 </Button>
               )}
             </div>
             
-            {/* Add New Task Form - Only in Edit Mode */}
-            {isEditing && showAddTaskForm && !editingTaskId && (
+            {/* Add New Task Form */}
+            {(isEditing || !event) && showAddTaskForm && !editingTaskId && (
               <div className="border rounded-lg p-3 mb-3 bg-muted/50">
                 <div className="space-y-2">
                   <Input
