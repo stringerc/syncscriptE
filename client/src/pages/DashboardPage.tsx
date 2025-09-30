@@ -37,11 +37,13 @@ import {
   Star,
   Flame,
   CheckCircle,
-  Plus
+  Plus,
+  Paperclip
 } from 'lucide-react'
 import { formatDate, formatTime, formatCurrency, getPriorityColor } from '@/lib/utils'
 import { EventModal } from '@/components/EventModal'
 import { TaskModal } from '@/components/TaskModal'
+import { ResourcesDrawer } from '@/components/ResourcesDrawer'
 import { Task, Event, Achievement, Streak, Notification } from '@/shared/types'
 
 interface DashboardData {
@@ -61,16 +63,45 @@ interface DashboardData {
 
 
 // Memoized task item component for performance
-const TaskItem = memo(({ task, onComplete, onDelete, onView, order, showOrder, events }: { 
+const TaskItem = memo(({ task, onComplete, onDelete, onView, onResourcesClick, order, showOrder, events }: { 
   task: Task, 
   onComplete: (id: string) => void,
   onDelete: (id: string) => void,
   onView: (id: string) => void,
+  onResourcesClick?: (taskId: string) => void,
   order?: number,
   showOrder?: boolean,
   events?: Event[]
 }) => {
   const relatedEvent = events?.find(event => event.id === task.eventId)
+  
+  // Fetch resources for this task
+  const { data: resourceData } = useQuery({
+    queryKey: ['task-resources', task.id],
+    queryFn: async () => {
+      try {
+        const response = await api.get(`/resources/tasks/${task.id}/resources`)
+        return response.data.data.resources || []
+      } catch (error) {
+        return []
+      }
+    },
+    enabled: !!task.id,
+    staleTime: 30 * 1000, // 30 seconds cache to prevent flickering
+    gcTime: 5 * 60 * 1000, // 5 minutes
+    refetchOnWindowFocus: false, // Don't refetch on focus
+  })
+  
+  const resourceCount = Array.isArray(resourceData) ? resourceData.length : 0
+  const resourceNames = Array.isArray(resourceData) 
+    ? resourceData.map((r: any) => r.title || 'Untitled')
+    : []
+  
+  const tooltipText = resourceNames.length > 0 
+    ? `Resources: ${resourceNames.join(', ')}` 
+    : `${resourceCount} resources`
+  
+  console.log(`📎 TaskItem for "${task.title}": count=${resourceCount}, names=`, resourceNames, 'tooltip=', tooltipText)
   
   return (
     <div className="flex items-center justify-between p-3 rounded-lg border bg-card">
@@ -82,6 +113,20 @@ const TaskItem = memo(({ task, onComplete, onDelete, onView, order, showOrder, e
             </div>
           )}
           <h4 className="font-medium text-sm">{task.title}</h4>
+          {resourceCount > 0 && (
+            <Badge 
+              variant="outline" 
+              className="text-xs cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors" 
+              title={tooltipText}
+              onClick={(e) => {
+                e.stopPropagation()
+                onResourcesClick?.(task.id)
+              }}
+            >
+              <Paperclip className="w-3 h-3 mr-1" />
+              {resourceCount}
+            </Badge>
+          )}
           <span className={`px-2 py-1 rounded-full text-xs ${getPriorityColor(task.priority)}`}>
             {task.priority}
           </span>
@@ -151,15 +196,73 @@ const TaskItem = memo(({ task, onComplete, onDelete, onView, order, showOrder, e
   )
 })
 
+// Nested Task Item Component (for bullet list in event cards)
+const NestedTaskItem = memo(({ task, onResourcesClick }: {
+  task: any,
+  onResourcesClick?: (taskId: string) => void
+}) => {
+  // Fetch resources for this nested task
+  const { data: taskResourceData } = useQuery({
+    queryKey: ['task-resources', task.id],
+    queryFn: async () => {
+      try {
+        const response = await api.get(`/resources/tasks/${task.id}/resources`)
+        return response.data.data.resources || []
+      } catch (error) {
+        return []
+      }
+    },
+    enabled: !!task.id,
+    staleTime: 30 * 1000,
+    gcTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
+  })
+  
+  const taskResourceCount = Array.isArray(taskResourceData) ? taskResourceData.length : 0
+  const taskResourceNames = Array.isArray(taskResourceData) 
+    ? taskResourceData.map((r: any) => r.title || 'Untitled')
+    : []
+  const taskTooltipText = taskResourceNames.length > 0 
+    ? `Resources: ${taskResourceNames.join(', ')}` 
+    : `${taskResourceCount} resources`
+
+  return (
+    <div 
+      className={`flex items-center gap-1 text-xs text-muted-foreground transition-all duration-200 ${
+        task.status === 'COMPLETED' 
+          ? 'line-through text-green-600' 
+          : ''
+      }`}
+    >
+      <span>{task.status === 'COMPLETED' ? '✓' : '•'} {task.title}</span>
+      {taskResourceCount > 0 && (
+        <Badge 
+          variant="outline" 
+          className="text-[10px] px-1 py-0 h-4 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors" 
+          title={taskTooltipText}
+          onClick={(e) => {
+            e.stopPropagation()
+            onResourcesClick?.(task.id)
+          }}
+        >
+          <Paperclip className="w-2 h-2 mr-0.5" />
+          {taskResourceCount}
+        </Badge>
+      )}
+    </div>
+  )
+})
+
 // Memoized event item component for performance
-const EventItem = memo(({ event, onView, onDelete, weatherData, preparationTasks, events, allTasks }: { 
+const EventItem = memo(({ event, onView, onDelete, weatherData, preparationTasks, events, allTasks, onResourcesClick }: { 
   event: Event, 
   onView: (id: string) => void, 
   onDelete: (id: string) => void,
   weatherData?: { emoji: string; temperature: number; condition: string } | null,
   preparationTasks?: any[],
   events?: Event[],
-  allTasks?: any[]
+  allTasks?: any[],
+  onResourcesClick?: (taskId: string) => void
 }) => {
   const [showAllTasks, setShowAllTasks] = useState(false)
   const [showAllNestedTasks, setShowAllNestedTasks] = useState<Record<string, boolean>>({})
@@ -206,15 +309,10 @@ const EventItem = memo(({ event, onView, onDelete, weatherData, preparationTasks
                 
                 return (
                   <div key={task.id}>
-                    <div 
-                      className={`text-xs text-muted-foreground transition-all duration-200 ${
-                        task.status === 'COMPLETED' 
-                          ? 'line-through text-green-600' 
-                          : ''
-                      }`}
-                    >
-                      {task.status === 'COMPLETED' ? '✓' : '•'} {task.title}
-                    </div>
+                    <NestedTaskItem 
+                      task={task} 
+                      onResourcesClick={onResourcesClick}
+                    />
                     
                     {/* Show nested tasks if this task has its own event */}
                     {hasNestedEvent && (
@@ -496,6 +594,7 @@ export function DashboardPage() {
   // Removed animation functionality
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [resourcesDrawerTaskId, setResourcesDrawerTaskId] = useState<string | null>(null)
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false)
   const [eventWeatherData, setEventWeatherData] = useState<Record<string, { emoji: string; temperature: number; condition: string } | null>>({})
@@ -1447,6 +1546,7 @@ export function DashboardPage() {
                       onComplete={handleCompleteTask}
                       onDelete={handleDeleteTask}
                       onView={handleViewTask}
+                      onResourcesClick={(taskId) => setResourcesDrawerTaskId(taskId)}
                       order={index + 1}
                       showOrder={true}
                       events={dashboardData?.upcomingEvents}
@@ -1510,6 +1610,7 @@ export function DashboardPage() {
                     preparationTasks={eventPreparationTasks[event.id]}
                     events={upcomingEvents}
                     allTasks={allTasks}
+                    onResourcesClick={(taskId) => setResourcesDrawerTaskId(taskId)}
                   />
                 ))}
                 <Button 
@@ -1601,6 +1702,15 @@ export function DashboardPage() {
         isLoading={deleteEventMutation.isPending}
         eventTitle={eventToDelete?.title}
       />
+
+      {/* Resources Drawer */}
+      {resourcesDrawerTaskId && (
+        <ResourcesDrawer
+          taskId={resourcesDrawerTaskId}
+          isOpen={!!resourcesDrawerTaskId}
+          onClose={() => setResourcesDrawerTaskId(null)}
+        />
+      )}
 
     </div>
   )

@@ -1,15 +1,74 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, memo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Calendar, Plus, Clock, MapPin, DollarSign, Trash2 } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
+import { Calendar, Plus, Clock, MapPin, DollarSign, Trash2, Paperclip } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { formatDate, formatTime, formatCurrency } from '@/lib/utils'
 import { Event } from '@/shared/types'
 import { EventModal } from '@/components/EventModal'
 import { ConfirmationModal } from '@/components/ConfirmationModal'
+import { ResourcesDrawer } from '@/components/ResourcesDrawer'
+
+// Calendar Task Item Component (for bullet list in event cards)
+const CalendarTaskItem = memo(({ task, onResourcesClick }: {
+  task: any,
+  onResourcesClick?: (taskId: string) => void
+}) => {
+  // Fetch resources for this task
+  const { data: taskResourceData } = useQuery({
+    queryKey: ['task-resources', task.id],
+    queryFn: async () => {
+      try {
+        const response = await api.get(`/resources/tasks/${task.id}/resources`)
+        return response.data.data.resources || []
+      } catch (error) {
+        return []
+      }
+    },
+    enabled: !!task.id,
+    staleTime: 30 * 1000,
+    gcTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
+  })
+  
+  const resourceCount = Array.isArray(taskResourceData) ? taskResourceData.length : 0
+  const resourceNames = Array.isArray(taskResourceData) 
+    ? taskResourceData.map((r: any) => r.title || 'Untitled')
+    : []
+  const tooltipText = resourceNames.length > 0 
+    ? `Resources: ${resourceNames.join(', ')}` 
+    : `${resourceCount} resources`
+
+  return (
+    <div 
+      className={`flex items-center gap-1 text-xs text-muted-foreground transition-all duration-200 ${
+        task.status === 'COMPLETED' 
+          ? 'line-through text-green-600' 
+          : ''
+      }`}
+    >
+      <span>{task.status === 'COMPLETED' ? '✓' : '•'} {task.title}</span>
+      {resourceCount > 0 && (
+        <Badge 
+          variant="outline" 
+          className="text-[10px] px-1 py-0 h-4 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors" 
+          title={tooltipText}
+          onClick={(e) => {
+            e.stopPropagation()
+            onResourcesClick?.(task.id)
+          }}
+        >
+          <Paperclip className="w-2 h-2 mr-0.5" />
+          {resourceCount}
+        </Badge>
+      )}
+    </div>
+  )
+})
 
 export function CalendarPage() {
   const [newEvent, setNewEvent] = useState({
@@ -29,8 +88,9 @@ export function CalendarPage() {
   const [expandedEvents, setExpandedEvents] = useState<Set<string>>(new Set())
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [eventToDelete, setEventToDelete] = useState<{ id: string; title: string } | null>(null)
+  const [resourcesDrawerTaskId, setResourcesDrawerTaskId] = useState<string | null>(null)
 
-  const { toast } = useToast()
+  const { toast} = useToast()
   const queryClient = useQueryClient()
 
   const { data: events, isLoading } = useQuery<Event[]>({
@@ -390,16 +450,11 @@ export function CalendarPage() {
                                 return (priorityOrder[b.priority as keyof typeof priorityOrder] || 0) - (priorityOrder[a.priority as keyof typeof priorityOrder] || 0)
                               })
                               .map((task: any) => (
-                              <div 
-                                key={task.id} 
-                                className={`text-xs text-muted-foreground transition-all duration-200 ${
-                                  task.status === 'COMPLETED' 
-                                    ? 'line-through text-green-600' 
-                                    : ''
-                                }`}
-                              >
-                                {task.status === 'COMPLETED' ? '✓' : '•'} {task.title}
-                              </div>
+                              <CalendarTaskItem 
+                                key={task.id}
+                                task={task}
+                                onResourcesClick={setResourcesDrawerTaskId}
+                              />
                             ))}
                             {eventPreparationTasks[event.id].length > 3 && (
                               <button
@@ -556,6 +611,12 @@ export function CalendarPage() {
           isLoading={deleteEventMutation.isPending}
           eventTitle={eventToDelete?.title}
         />
+      
+      <ResourcesDrawer
+        taskId={resourcesDrawerTaskId || ''}
+        isOpen={!!resourcesDrawerTaskId}
+        onClose={() => setResourcesDrawerTaskId(null)}
+      />
       </div>
     )
   }

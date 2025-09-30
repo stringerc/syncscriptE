@@ -24,8 +24,10 @@ import {
   Calendar,
   Target,
   TrendingUp,
-  Settings
+  Settings,
+  FolderOpen
 } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 
 interface UserProfile {
   id: string
@@ -51,6 +53,7 @@ export function ProfilePage() {
   const { toast } = useToast()
   const queryClient = useQueryClient()
   const { theme, setTheme } = useTheme()
+  const navigate = useNavigate()
   const [isEditing, setIsEditing] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
@@ -473,6 +476,33 @@ export function ProfilePage() {
 
           {/* Location Settings */}
           <LocationSettings />
+
+          {/* Resources */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <FolderOpen className="w-5 h-5" />
+                My Resources
+              </CardTitle>
+              <CardDescription>
+                Manage all your resources across tasks and events
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <p className="text-sm text-muted-foreground">
+                  View and manage all your URLs, notes, and files from tasks and events in one place.
+                </p>
+                <Button 
+                  onClick={() => navigate('/profile/resources')}
+                  className="w-full"
+                >
+                  <FolderOpen className="w-4 h-4 mr-2" />
+                  Open Resources Library
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Sidebar */}

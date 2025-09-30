@@ -4,11 +4,13 @@ import { api } from '@/lib/api'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { CheckSquare, Plus, Clock, DollarSign, Zap, Trash2, Eye, EyeOff, CheckCircle, RotateCcw } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
+import { CheckSquare, Plus, Clock, DollarSign, Zap, Trash2, Eye, EyeOff, CheckCircle, RotateCcw, Paperclip } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { formatDate, formatDuration, formatCurrency, getPriorityColor } from '@/lib/utils'
 import { buildHierarchicalPrepChain, isPrepTask, getEventTitleFromPrepTask } from '@/lib/prepChain'
 import { TaskModal } from '@/components/TaskModal'
+import { ResourcesDrawer } from '@/components/ResourcesDrawer'
 import { Task, Priority } from '@/shared/types'
 
 export function TasksPage() {
@@ -25,6 +27,7 @@ export function TasksPage() {
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false)
   const [showCompletedTasks, setShowCompletedTasks] = useState(false)
   const [showDeletedTasks, setShowDeletedTasks] = useState(false)
+  const [resourcesDrawerTaskId, setResourcesDrawerTaskId] = useState<string | null>(null)
 
   const { toast } = useToast()
   const queryClient = useQueryClient()
@@ -428,6 +431,31 @@ export function TasksPage() {
                   // Find the related event for prep tasks
                   const relatedEvent = events?.find(event => event.id === task.eventId)
                   
+                  // Fetch resources for this task
+                  const { data: resourceData } = useQuery({
+                    queryKey: ['task-resources', task.id],
+                    queryFn: async () => {
+                      try {
+                        const response = await api.get(`/resources/tasks/${task.id}/resources`)
+                        return response.data.data.resources || []
+                      } catch (error) {
+                        return []
+                      }
+                    },
+                    enabled: !!task.id,
+                    staleTime: 30 * 1000,
+                    gcTime: 5 * 60 * 1000,
+                    refetchOnWindowFocus: false,
+                  })
+                  
+                  const resourceCount = Array.isArray(resourceData) ? resourceData.length : 0
+                  const resourceNames = Array.isArray(resourceData) 
+                    ? resourceData.map((r: any) => r.title || 'Untitled')
+                    : []
+                  const tooltipText = resourceNames.length > 0 
+                    ? `Resources: ${resourceNames.join(', ')}` 
+                    : `${resourceCount} resources`
+                  
                   return (
                     <div
                       key={task.id}
@@ -441,6 +469,20 @@ export function TasksPage() {
                           <h4 className="font-medium text-sm">
                             {task.title.replace(/^Prep for:\s*/i, '')}
                           </h4>
+                          {resourceCount > 0 && (
+                            <Badge 
+                              variant="outline" 
+                              className="text-xs cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors" 
+                              title={tooltipText}
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                setResourcesDrawerTaskId(task.id)
+                              }}
+                            >
+                              <Paperclip className="w-3 h-3 mr-1" />
+                              {resourceCount}
+                            </Badge>
+                          )}
                           <span className={`px-2 py-1 rounded-full text-xs ${getPriorityColor(task.priority)}`}>
                             {task.priority}
                           </span>
@@ -813,6 +855,12 @@ export function TasksPage() {
         onClose={handleCloseTaskModal}
         onTaskUpdated={handleTaskUpdated}
         onTaskDeleted={handleTaskDeleted}
+      />
+      
+      <ResourcesDrawer
+        taskId={resourcesDrawerTaskId || ''}
+        isOpen={!!resourcesDrawerTaskId}
+        onClose={() => setResourcesDrawerTaskId(null)}
       />
     </div>
   )

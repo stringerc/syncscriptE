@@ -12,6 +12,7 @@ import { GoogleCalendarPage } from '@/pages/GoogleCalendarPage'
 import { FinancialPage } from '@/pages/FinancialPage'
 import { SettingsPage } from '@/pages/SettingsPage'
 import { ProfilePage } from '@/pages/ProfilePage'
+import { ProfileResourcesPage } from '@/pages/ProfileResourcesPage'
 import { AIAssistantPage } from '@/pages/AIAssistantPage'
 import EnergyAnalysisPage from '@/pages/EnergyAnalysisPage'
 import NotificationsPage from '@/pages/NotificationsPage'
@@ -89,6 +90,7 @@ function AppContent() {
             <Route path="/gamification" element={<GamificationPage />} />
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/profile" element={<ProfilePage />} />
+            <Route path="/profile/resources" element={<ProfileResourcesPage />} />
             <Route path="/verify-email" element={<VerifyEmailPage />} />
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Routes>

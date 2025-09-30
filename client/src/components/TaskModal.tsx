@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -7,6 +7,8 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { useToast } from '@/hooks/use-toast'
 import { ConfirmationModal } from '@/components/ConfirmationModal'
+import { ResourcesBadge } from '@/components/ResourcesBadge'
+import { ResourcesDrawer } from '@/components/ResourcesDrawer'
 import { buildPrepChainTitle, isPrepTask } from '@/lib/prepChain'
 import { 
   X, 
@@ -40,6 +42,7 @@ export function TaskModal({ task, isOpen, onClose, onTaskUpdated, onTaskDeleted 
   const { toast } = useToast()
   const queryClient = useQueryClient()
   const [isEditing, setIsEditing] = useState(false)
+  const [resourcesDrawerOpen, setResourcesDrawerOpen] = useState(false)
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -335,6 +338,34 @@ export function TaskModal({ task, isOpen, onClose, onTaskUpdated, onTaskDeleted 
     suggestCalendarEventMutation.mutate()
   }
 
+  // Fetch resources for the task
+  const { data: resourceData } = useQuery({
+    queryKey: ['task-resources', task?.id],
+    queryFn: async () => {
+      if (!task?.id) return []
+      try {
+        const response = await api.get(`/resources/tasks/${task.id}/resources`)
+        console.log('🔍 Resource query response:', response.data)
+        return response.data.data.resources || []
+      } catch (error) {
+        console.error('🔍 Resource query error:', error)
+        return []
+      }
+    },
+    enabled: !!task?.id && isOpen,
+    staleTime: 30 * 1000, // 30 seconds cache to prevent flickering
+    gcTime: 5 * 60 * 1000, // 5 minutes
+    refetchOnMount: true, // Refetch when modal opens
+    refetchOnWindowFocus: false, // Don't refetch on focus
+  })
+  
+  const resourceCount = Array.isArray(resourceData) ? resourceData.length : 0
+  const resourceNames = Array.isArray(resourceData) 
+    ? resourceData.map((r: any) => r.title || 'Untitled')
+    : []
+  
+  console.log(`📎 TaskModal for "${task?.title}": count=${resourceCount}, names=`, resourceNames)
+
   const handleCreateCalendarEvent = () => {
     createCalendarEventMutation.mutate()
   }
@@ -352,6 +383,14 @@ export function TaskModal({ task, isOpen, onClose, onTaskUpdated, onTaskDeleted 
     setShowNotesSuggestion(false)
   }
 
+  const handleOpenResources = () => {
+    setResourcesDrawerOpen(true)
+  }
+
+  const handleCloseResources = () => {
+    setResourcesDrawerOpen(false)
+  }
+
   const handleUseSuggestedNotes = () => {
     const combinedNotes = suggestedNotes.join('\n\n')
     setFormData({ ...formData, notes: formData.notes ? `${formData.notes}\n\n${combinedNotes}` : combinedNotes })
@@ -365,12 +404,31 @@ export function TaskModal({ task, isOpen, onClose, onTaskUpdated, onTaskDeleted 
       <div className="bg-background rounded-lg shadow-xl w-full max-w-2xl mx-4 max-h-[90vh] flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b">
-          <h2 className="text-2xl font-bold">
-            {!task ? 'Create New Task' : (isEditing ? 'Edit Task' : 'Task Details')}
-          </h2>
-          <Button variant="ghost" size="icon" onClick={handleClose}>
-            <X className="w-5 h-5" />
-          </Button>
+          <div className="flex items-center space-x-3">
+            <h2 className="text-2xl font-bold">
+              {!task ? 'Create New Task' : (isEditing ? 'Edit Task' : 'Task Details')}
+            </h2>
+            {task && !isEditing && resourceCount > 0 && (
+              <ResourcesBadge 
+                count={resourceCount} 
+                onClick={handleOpenResources}
+                resourceNames={resourceNames}
+              />
+            )}
+          </div>
+          <div className="flex items-center space-x-2">
+            {task && isEditing && (
+              <ResourcesBadge 
+                count={resourceCount} 
+                onClick={handleOpenResources}
+                alwaysShow={true}
+                resourceNames={resourceNames}
+              />
+            )}
+            <Button variant="ghost" size="icon" onClick={handleClose}>
+              <X className="w-5 h-5" />
+            </Button>
+          </div>
         </div>
 
         {/* Content */}
@@ -785,6 +843,15 @@ export function TaskModal({ task, isOpen, onClose, onTaskUpdated, onTaskDeleted 
         variant="danger"
         isLoading={deleteTaskMutation.isPending}
       />
+      
+      {/* Resources Drawer */}
+      {task && (
+        <ResourcesDrawer
+          taskId={task.id}
+          isOpen={resourcesDrawerOpen}
+          onClose={handleCloseResources}
+        />
+      )}
     </div>
   )
 }

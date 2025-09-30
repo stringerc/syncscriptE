@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
+import multer from 'multer';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 import dotenv from 'dotenv';
@@ -23,6 +24,7 @@ import taskSchedulingRoutes from './routes/taskScheduling';
 import feedbackRoutes from './routes/feedback';
 import energyEngineRoutes from './routes/energyEngine';
 import enhancedAchievementsRoutes from './routes/enhancedAchievements';
+import resourcesRoutes from './routes/resources';
 
 // Import middleware
 import { errorHandler } from './middleware/errorHandler';
@@ -87,6 +89,7 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
+
 
 // Rate limiting - Temporarily disabled for development
 // const limiter = rateLimit({
@@ -198,6 +201,7 @@ app.use('/api/task-scheduling', taskSchedulingRoutes);
 app.use('/api/feedback', feedbackRoutes);
 app.use('/api/energy-engine', energyEngineRoutes);
 app.use('/api/achievements', enhancedAchievementsRoutes);
+app.use('/api/resources', resourcesRoutes);
 
 // Socket.IO for real-time updates
 io.on('connection', (socket) => {

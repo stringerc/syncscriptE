@@ -67,6 +67,35 @@ export function GoogleCalendarPage() {
     enabled: !!user && !!token
   })
 
+  // Sync mutation
+  const syncMutation = useMutation({
+    mutationFn: async () => {
+      const response = await api.post('/google-calendar/sync', {
+        direction: syncDirection,
+        calendarId: selectedCalendar
+      })
+      return response.data
+    },
+    onSuccess: (data) => {
+      setLastUpdated(new Date())
+      setRecentlySyncedEvents(data.data?.createdEvents || [])
+      queryClient.invalidateQueries({ queryKey: ['events'] })
+      queryClient.invalidateQueries({ queryKey: ['calendar'] })
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+      toast({
+        title: "Sync Successful",
+        description: `Synced ${data.data?.created || 0} events from Google Calendar`
+      })
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Sync Failed",
+        description: error.response?.data?.message || "Failed to sync with Google Calendar",
+        variant: "destructive"
+      })
+    }
+  })
+
   // Update holiday preference when toggle changes
   const updateHolidayPreference = async (showHolidays: boolean) => {
     try {
@@ -189,7 +218,7 @@ export function GoogleCalendarPage() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {!statusData?.connected ? (
+          {!statusData?.data?.connected ? (
             <div className="text-center py-8">
               <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
                 <Calendar className="w-8 h-8 text-blue-600" />
@@ -229,38 +258,37 @@ export function GoogleCalendarPage() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
+                  <label className="text-sm font-medium mb-2 block">Calendar</label>
+                  <select
+                    value={selectedCalendar}
+                    onChange={(e) => setSelectedCalendar(e.target.value)}
+                    className="w-full p-2 border rounded-md text-black"
+                  >
+                    <option value="primary">Primary Calendar</option>
+                  </select>
+                </div>
+                <div>
                   <label className="text-sm font-medium mb-2 block">Sync Direction</label>
                   <select
                     value={syncDirection}
                     onChange={(e) => setSyncDirection(e.target.value as any)}
-                    className="w-full p-2 border rounded-md"
+                    className="w-full p-2 border rounded-md text-black"
                   >
                     <option value="from_google">From Google to SyncScript</option>
                     <option value="to_google">From SyncScript to Google</option>
                     <option value="bidirectional">Bidirectional Sync</option>
                   </select>
                 </div>
-                <div>
-                  <label className="text-sm font-medium mb-2 block">Calendar</label>
-                  <select
-                    value={selectedCalendar}
-                    onChange={(e) => setSelectedCalendar(e.target.value)}
-                    className="w-full p-2 border rounded-md"
-                  >
-                    <option value="primary">Primary Calendar</option>
-                  </select>
-                </div>
               </div>
 
               <div className="flex items-center space-x-2">
                 <Button
-                  onClick={() => {
-                    // Sync logic here
-                  }}
+                  onClick={() => syncMutation.mutate()}
+                  disabled={syncMutation.isPending}
                   className="flex-1"
                 >
-                  <RefreshCw className="w-4 h-4 mr-2" />
-                  Sync Now
+                  <RefreshCw className={`w-4 h-4 mr-2 ${syncMutation.isPending ? 'animate-spin' : ''}`} />
+                  {syncMutation.isPending ? 'Syncing...' : 'Sync Now'}
                 </Button>
               </div>
 

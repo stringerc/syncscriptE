@@ -54,6 +54,7 @@ model User {
   userStats    UserStats?
   badges       Badge[]
   points       Point[]
+  resources    Resource[]
   
   // Energy Engine
   energyPoints       EnergyPoint[]
@@ -169,6 +170,7 @@ model Task {
   subtasks          Subtask[]
   eventId           String?  // Link to event for preparation tasks
   event             Event?   @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  resourceSet       ResourceSet? // Optional resource set for this task
   
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -213,6 +215,7 @@ model Event {
   
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   preparationTasks Task[] // Tasks generated for this event
+  resourceSet ResourceSet? // Optional resource set for this event
 
   @@map("events")
 }
@@ -453,3 +456,58 @@ model UserEnergyProfile {
 }
 
 // Enums removed for SQLite compatibility - using String types instead
+
+// Resource Management Models
+model ResourceSet {
+  id                 String   @id @default(cuid())
+  taskId             String?  @unique // Optional - can be associated with tasks
+  eventId            String?  @unique // Optional - can be associated with events
+  selectedResourceId String?  // ID of the currently selected resource
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  
+  // Relations
+  task               Task?      @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  event              Event?     @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  resources          Resource[]
+  decisionLogs       DecisionLog[]
+  
+  @@map("resource_sets")
+}
+
+model Resource {
+  id            String   @id @default(cuid())
+  resourceSetId String
+  kind          String   // 'url'|'image'|'file'|'note'
+  urlOrKey      String?  // URL or storage key
+  title         String?
+  previewImage  String?  // URL to thumbnail/preview
+  domain        String?  // normalized host for filter/search
+  merchant      String?  // merchant/store name
+  priceCents    Int?     // price in cents
+  note          String?  // user notes
+  tags          String   @default("[]") // JSON array of tags
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  createdById   String   // User who created this resource
+  isSelected    Boolean  @default(false) // denormalized for fast queries
+  
+  // Relations
+  resourceSet   ResourceSet @relation(fields: [resourceSetId], references: [id], onDelete: Cascade)
+  createdBy     User        @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  
+  @@map("resources")
+}
+
+model DecisionLog {
+  id                 String   @id @default(cuid())
+  resourceSetId      String
+  selectedResourceId String
+  changedAt          DateTime @default(now())
+  reason             String?  // Optional reason for the change
+  
+  // Relations
+  resourceSet        ResourceSet @relation(fields: [resourceSetId], references: [id], onDelete: Cascade)
+  
+  @@map("decision_logs")
+}
