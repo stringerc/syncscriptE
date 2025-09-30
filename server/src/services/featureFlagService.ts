@@ -158,8 +158,8 @@ export class FeatureFlagService {
       googleCalendar: false,
       outlookCalendar: false,
       appleCalendar: false,
-      friends: false,
-      shareScript: false,
+      friends: true, // Enable friends for launch
+      shareScript: true, // Enable ShareScript for launch
       energyHUD: false,
       energyGraph: false
     }

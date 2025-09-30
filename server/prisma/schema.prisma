@@ -598,10 +598,10 @@ model UserFeatureFlags {
   appleCalendar      Boolean @default(false)
   
   // Social Features
-  friends            Boolean @default(false)
+  friends            Boolean @default(true)
   
   // Marketplace
-  shareScript        Boolean @default(false)
+  shareScript        Boolean @default(true)
   
   // Energy & Gamification
   energyHUD          Boolean @default(false)

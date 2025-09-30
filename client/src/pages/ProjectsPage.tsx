@@ -20,7 +20,7 @@ export function ProjectsPage() {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
   const { isFlagEnabled } = useFeatureFlags()
-  const shareScriptEnabled = isFlagEnabled('sharescript_core')
+  const shareScriptEnabled = isFlagEnabled('shareScript')
 
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
   const [newProjectName, setNewProjectName] = useState('')
