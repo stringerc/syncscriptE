@@ -288,9 +288,12 @@ export function CalendarPage() {
             Manage your events and schedule
           </p>
         </div>
-        <Button onClick={() => setShowAddForm(!showAddForm)}>
+        <Button onClick={() => {
+          setSelectedEvent(null)
+          setIsModalOpen(true)
+        }}>
           <Plus className="w-4 h-4 mr-2" />
-          Add Event
+          New Event
         </Button>
       </div>
 
