@@ -313,7 +313,7 @@ export function TemplateGalleryPage() {
               </div>
             )}
 
-            <ScrollArea className="flex-1 px-6">
+            <div className="flex-1 overflow-y-auto px-6 py-4" style={{ maxHeight: '60vh' }}>
               <div className="space-y-3">
                 <h3 className="font-medium text-sm text-muted-foreground">
                   {previewTemplate.proposedTasks?.length || 0} Tasks in this Script:
@@ -337,7 +337,7 @@ export function TemplateGalleryPage() {
                   </div>
                 ))}
               </div>
-            </ScrollArea>
+            </div>
             
             <div className="flex justify-end gap-2 p-6 border-t">
               <Button variant="outline" onClick={() => setPreviewTemplate(null)}>
