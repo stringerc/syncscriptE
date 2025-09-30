@@ -215,22 +215,15 @@ export function TemplateGalleryPage() {
                     size="sm"
                     className="flex-1"
                     onClick={() => {
-                      if (events.length === 0) {
-                        toast({
-                          title: 'No Events',
-                          description: 'Create an event first to preview this template',
-                          variant: 'destructive'
-                        })
-                        return
-                      }
-                      // For now, use first event
-                      const eventId = events[0].id
-                      setSelectedEventId(eventId)
-                      previewMutation.mutate({ versionId: template.versionId, eventId })
+                      // Show template details directly
+                      setPreviewTemplate({
+                        ...template,
+                        proposedTasks: JSON.parse(template.manifest).tasks || []
+                      })
                     }}
                   >
                     <Eye className="w-4 h-4 mr-1" />
-                    Preview
+                    View Details
                   </Button>
                   <Button
                     size="sm"
@@ -238,18 +231,22 @@ export function TemplateGalleryPage() {
                     onClick={() => {
                       if (events.length === 0) {
                         toast({
-                          title: 'No Events',
-                          description: 'Create an event first to apply this template',
-                          variant: 'destructive'
+                          title: 'Create an Event First',
+                          description: 'You need at least one event to apply this script. Create one from the Dashboard!',
+                          duration: 5000
                         })
                         return
                       }
-                      const eventId = events[0].id
-                      applyMutation.mutate({ versionId: template.versionId, eventId })
+                      // Show event selection dialog
+                      setPreviewTemplate({
+                        ...template,
+                        proposedTasks: JSON.parse(template.manifest).tasks || [],
+                        showApply: true
+                      })
                     }}
                   >
                     <Play className="w-4 h-4 mr-1" />
-                    Apply
+                    Apply to Event
                   </Button>
                 </div>
               </CardContent>
@@ -261,23 +258,46 @@ export function TemplateGalleryPage() {
       {/* Preview Dialog */}
       {previewTemplate && (
         <Dialog open={!!previewTemplate} onOpenChange={() => setPreviewTemplate(null)}>
-          <DialogContent className="max-w-2xl">
+          <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col">
             <DialogHeader>
-              <DialogTitle>Template Preview</DialogTitle>
+              <DialogTitle>{previewTemplate.title || 'Script Details'}</DialogTitle>
               <DialogDescription>
-                Review what will be created when you apply this template
+                {previewTemplate.description || 'Review the tasks in this script'}
               </DialogDescription>
             </DialogHeader>
-            <ScrollArea className="max-h-96">
-              <div className="space-y-4 p-4">
-                <h3 className="font-medium">Proposed Tasks:</h3>
+            
+            {previewTemplate.showApply && events.length > 0 && (
+              <div className="px-6 pb-4">
+                <label className="block text-sm font-medium mb-2">Select Event to Apply To:</label>
+                <select
+                  className="w-full p-2 border rounded-md bg-white text-black"
+                  value={selectedEventId}
+                  onChange={(e) => setSelectedEventId(e.target.value)}
+                >
+                  <option value="">Choose an event...</option>
+                  {events.map((event: any) => (
+                    <option key={event.id} value={event.id}>
+                      {event.title} ({new Date(event.startTime).toLocaleDateString()})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            <ScrollArea className="flex-1 px-6">
+              <div className="space-y-3">
+                <h3 className="font-medium text-sm text-muted-foreground">
+                  {previewTemplate.proposedTasks?.length || 0} Tasks in this Script:
+                </h3>
                 {previewTemplate.proposedTasks?.map((task: any, index: number) => (
-                  <div key={index} className="flex items-start gap-3 p-3 border rounded-lg">
+                  <div key={index} className="flex items-start gap-3 p-3 border rounded-lg bg-muted/30">
+                    <div className="flex items-center justify-center w-6 h-6 rounded-full bg-primary text-primary-foreground text-xs font-bold flex-shrink-0">
+                      {index + 1}
+                    </div>
                     <div className="flex-1">
-                      <h4 className="font-medium">{task.title}</h4>
-                      <p className="text-sm text-muted-foreground">{task.notes}</p>
-                      <div className="flex items-center gap-2 mt-2">
-                        <Badge variant="outline">{task.priority}</Badge>
+                      <h4 className="font-medium text-sm">{task.title}</h4>
+                      <div className="flex items-center gap-2 mt-1">
+                        <Badge variant="outline" className="text-xs">{task.priority || 'MEDIUM'}</Badge>
                         {task.durationMin && (
                           <span className="text-xs text-muted-foreground">
                             {task.durationMin} min
@@ -289,23 +309,33 @@ export function TemplateGalleryPage() {
                 ))}
               </div>
             </ScrollArea>
-            <div className="flex justify-end gap-2">
+            
+            <div className="flex justify-end gap-2 p-6 border-t">
               <Button variant="outline" onClick={() => setPreviewTemplate(null)}>
-                Cancel
+                Close
               </Button>
-              <Button
-                onClick={() => {
-                  if (previewTemplate.versionId && selectedEventId) {
+              {previewTemplate.showApply && (
+                <Button
+                  onClick={() => {
+                    if (!selectedEventId) {
+                      toast({
+                        title: 'Select an Event',
+                        description: 'Please choose which event to apply this script to',
+                        variant: 'destructive'
+                      })
+                      return
+                    }
                     applyMutation.mutate({
                       versionId: previewTemplate.versionId,
                       eventId: selectedEventId
                     })
-                  }
-                }}
-              >
-                <Play className="w-4 h-4 mr-2" />
-                Apply Template
-              </Button>
+                  }}
+                  disabled={!selectedEventId}
+                >
+                  <Play className="w-4 h-4 mr-2" />
+                  Apply to Event
+                </Button>
+              )}
             </div>
           </DialogContent>
         </Dialog>
