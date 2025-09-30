@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Toaster } from '@/components/ui/toaster'
 import App from './App.tsx'
 import './index.css'
+import './styles/mobile.css'
 
 const queryClient = new QueryClient({
   defaultOptions: {

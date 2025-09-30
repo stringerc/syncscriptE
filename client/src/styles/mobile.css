@@ -1,0 +1,75 @@
+/**
+ * Mobile-first responsive styles
+ * Ensures touch-friendly targets and proper scaling
+ */
+
+/* Touch-friendly minimum sizes (44x44px Apple, 48x48px Google) */
+button,
+a[role="button"],
+input[type="checkbox"],
+input[type="radio"],
+.touch-target {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+/* Ensure form inputs are touch-friendly on mobile */
+@media (max-width: 1024px) {
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="search"],
+  input[type="tel"],
+  input[type="url"],
+  input[type="number"],
+  input[type="date"],
+  input[type="time"],
+  select,
+  textarea {
+    min-height: 44px;
+    font-size: 16px; /* Prevents zoom on iOS */
+  }
+}
+
+/* Responsive container spacing */
+@media (max-width: 640px) {
+  .container {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+}
+
+/* Fix overflow issues on small screens */
+@media (max-width: 1024px) {
+  body {
+    overflow-x: hidden;
+  }
+  
+  /* Ensure modals/dialogs fit on screen */
+  [role="dialog"],
+  .modal {
+    max-width: calc(100vw - 2rem);
+    max-height: calc(100vh - 2rem);
+  }
+}
+
+/* Mobile-friendly cards */
+@media (max-width: 640px) {
+  .card {
+    border-radius: 0.5rem;
+  }
+}
+
+/* Ensure scrollable areas work on mobile */
+.scroll-area {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Fix for iOS safe areas */
+@supports (padding: max(0px)) {
+  body {
+    padding-left: max(0px, env(safe-area-inset-left));
+    padding-right: max(0px, env(safe-area-inset-right));
+  }
+}
+
