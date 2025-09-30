@@ -80,6 +80,12 @@ model User {
   
   // Phase 3 - External Calendars
   externalCalendarAccounts ExternalCalendarAccount[]
+  
+  // Phase 4 - Friends & Social
+  friendRequestsSent       Friendship[] @relation("Requester")
+  friendRequestsReceived   Friendship[] @relation("Addressee")
+  friendPrefs              FriendPrefs?
+  privacySettings          PrivacySetting?
 
   @@map("users")
 }
@@ -754,4 +760,75 @@ model ExternalCalendarLink {
   @@index([canonicalEventId])
   @@index([clientEventKey])
   @@map("external_calendar_links")
+}
+
+// ============================================================
+// Phase 4: Friends & Social
+// ============================================================
+
+model Friendship {
+  id          String   @id @default(cuid())
+  requesterId String
+  addresseeId String
+  status      String   // 'pending' | 'accepted' | 'blocked'
+  
+  // Metadata
+  message     String?  // Optional message with request
+  blockedBy   String?  // 'requester' | 'addressee' (who initiated the block)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relations
+  requester User @relation("Requester", fields: [requesterId], references: [id], onDelete: Cascade)
+  addressee User @relation("Addressee", fields: [addresseeId], references: [id], onDelete: Cascade)
+  
+  @@unique([requesterId, addresseeId])
+  @@index([requesterId])
+  @@index([addresseeId])
+  @@index([status])
+  @@map("friendships")
+}
+
+model FriendPrefs {
+  userId            String  @id
+  showFriends       Boolean @default(true)   // Show friends list
+  showFriendEmblems Boolean @default(false)  // Show friend emblems (conservative default)
+  showFriendEnergy  Boolean @default(false)  // Show friend energy levels (conservative default)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("friend_prefs")
+}
+
+model PrivacySetting {
+  userId         String   @id
+  hideMyEmblems  Boolean  @default(false) // Hide emblems from everyone
+  hideLastActive Boolean  @default(false) // Hide last active timestamp
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  user               User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  energyHiddenFrom   EnergyHiddenFrom[]
+  
+  @@map("privacy_settings")
+}
+
+model EnergyHiddenFrom {
+  id               String @id @default(cuid())
+  privacySettingId String
+  hiddenFromUserId String
+  
+  createdAt DateTime @default(now())
+  
+  privacySetting PrivacySetting @relation(fields: [privacySettingId], references: [userId], onDelete: Cascade)
+  
+  @@unique([privacySettingId, hiddenFromUserId])
+  @@index([privacySettingId])
+  @@index([hiddenFromUserId])
+  @@map("energy_hidden_from")
 }

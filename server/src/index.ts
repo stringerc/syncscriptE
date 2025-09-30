@@ -33,6 +33,7 @@ import schedulingRoutes from './routes/scheduling';
 import pinnedEventsRoutes from './routes/pinnedEvents';
 import scriptsRoutes from './routes/scripts';
 import priorityRoutes from './routes/priority';
+import friendsRoutes from './routes/friends';
 
 // Import middleware
 import { errorHandler } from './middleware/errorHandler';
@@ -224,6 +225,7 @@ app.use('/api/scheduling', schedulingRoutes);
 app.use('/api/pinned', pinnedEventsRoutes);
 app.use('/api/scripts', scriptsRoutes);
 app.use('/api/priority', priorityRoutes);
+app.use('/api/friends', friendsRoutes);
 
 // Socket.IO for real-time updates
 io.on('connection', (socket) => {
