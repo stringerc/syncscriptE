@@ -215,11 +215,27 @@ export function TemplateGalleryPage() {
                     size="sm"
                     className="flex-1"
                     onClick={() => {
-                      // Show template details directly
-                      setPreviewTemplate({
-                        ...template,
-                        proposedTasks: JSON.parse(template.manifest).tasks || []
-                      })
+                      console.log('View Details clicked for template:', template)
+                      try {
+                        // Parse manifest to get tasks
+                        const manifest = typeof template.manifest === 'string' 
+                          ? JSON.parse(template.manifest)
+                          : template.manifest
+                        
+                        console.log('Parsed manifest:', manifest)
+                        
+                        setPreviewTemplate({
+                          ...template,
+                          proposedTasks: manifest.tasks || []
+                        })
+                      } catch (error) {
+                        console.error('Error parsing template:', error)
+                        toast({
+                          title: 'Error',
+                          description: 'Failed to load template details',
+                          variant: 'destructive'
+                        })
+                      }
                     }}
                   >
                     <Eye className="w-4 h-4 mr-1" />
@@ -229,6 +245,7 @@ export function TemplateGalleryPage() {
                     size="sm"
                     className="flex-1"
                     onClick={() => {
+                      console.log('Apply clicked, events:', events)
                       if (events.length === 0) {
                         toast({
                           title: 'Create an Event First',
@@ -237,12 +254,24 @@ export function TemplateGalleryPage() {
                         })
                         return
                       }
-                      // Show event selection dialog
-                      setPreviewTemplate({
-                        ...template,
-                        proposedTasks: JSON.parse(template.manifest).tasks || [],
-                        showApply: true
-                      })
+                      try {
+                        const manifest = typeof template.manifest === 'string' 
+                          ? JSON.parse(template.manifest)
+                          : template.manifest
+                        
+                        setPreviewTemplate({
+                          ...template,
+                          proposedTasks: manifest.tasks || [],
+                          showApply: true
+                        })
+                      } catch (error) {
+                        console.error('Error parsing template:', error)
+                        toast({
+                          title: 'Error',
+                          description: 'Failed to load template',
+                          variant: 'destructive'
+                        })
+                      }
                     }}
                   >
                     <Play className="w-4 h-4 mr-1" />
