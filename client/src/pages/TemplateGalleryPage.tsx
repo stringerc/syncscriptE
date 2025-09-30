@@ -246,24 +246,25 @@ export function TemplateGalleryPage() {
                     className="flex-1"
                     onClick={() => {
                       console.log('Apply clicked, events:', events)
-                      if (events.length === 0) {
-                        toast({
-                          title: 'Create an Event First',
-                          description: 'You need at least one event to apply this script. Create one from the Dashboard!',
-                          duration: 5000
-                        })
-                        return
-                      }
+                      console.log('Template:', template)
+                      
                       try {
                         const manifest = typeof template.manifest === 'string' 
                           ? JSON.parse(template.manifest)
                           : template.manifest
                         
-                        setPreviewTemplate({
+                        console.log('Manifest parsed:', manifest)
+                        console.log('Setting preview with showApply=true')
+                        
+                        const newPreview = {
                           ...template,
                           proposedTasks: manifest.tasks || [],
                           showApply: true
-                        })
+                        }
+                        
+                        console.log('New preview state:', newPreview)
+                        setPreviewTemplate(newPreview)
+                        console.log('setPreviewTemplate called successfully')
                       } catch (error) {
                         console.error('Error parsing template:', error)
                         toast({
