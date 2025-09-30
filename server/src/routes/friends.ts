@@ -1,6 +1,6 @@
 import express from 'express'
 import { friendsService } from '../services/friendsService'
-import { auth } from '../middleware/auth'
+import { authenticateToken as auth } from '../middleware/auth'
 import rateLimit from 'express-rate-limit'
 
 const router = express.Router()
@@ -12,7 +12,7 @@ const friendRequestRateLimit = rateLimit({
   message: 'Too many friend requests. Please try again later.',
   standardHeaders: true,
   legacyHeaders: false,
-  keyGenerator: (req) => req.user?.userId || req.ip
+  keyGenerator: (req) => (req.user?.userId || req.ip || 'unknown')
 })
 
 /**
