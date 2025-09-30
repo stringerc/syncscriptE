@@ -10,6 +10,7 @@ import {
   Bell,
   User,
   Users,
+  BookTemplate,
   ExternalLink,
   Zap
 } from 'lucide-react'
@@ -27,6 +28,7 @@ const navigation = [
   { name: 'Financial', href: '/financial', icon: DollarSign },
   { name: 'AI Assistant', href: '/ai-assistant', icon: Brain },
   { name: 'Energy Analysis', href: '/energy-analysis', icon: Zap },
+  { name: 'Templates', href: '/templates', icon: BookTemplate },
   { name: 'Profile', href: '/profile', icon: User },
   { name: 'Friends', href: '/friends', icon: Users },
   { name: 'Achievements', href: '/gamification', icon: Trophy },

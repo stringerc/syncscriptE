@@ -672,6 +672,7 @@ model Script {
   
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   applications ScriptApplication[]
+  catalogEntry TemplateCatalog?
 
   @@map("scripts")
 }
@@ -831,4 +832,54 @@ model EnergyHiddenFrom {
   @@index([privacySettingId])
   @@index([hiddenFromUserId])
   @@map("energy_hidden_from")
+}
+
+// ============================================================
+// Phase 5: Template Gallery & Recommendations
+// ============================================================
+
+model TemplateCatalog {
+  versionId String   @id // FK to Script.id (we use Script as TemplateVersion)
+  tags      String   // JSON array of normalized tags
+  category  String   // 'Move', 'Event', 'Launch', 'Wedding', etc.
+  locale    String   @default("en-US")
+  quality   Int      @default(0) // 0-100 curator score
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  script Script @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  
+  @@index([category])
+  @@index([quality])
+  @@map("template_catalog")
+}
+
+model TemplateStats {
+  versionId   String   @id
+  applyCount  Int      @default(0)
+  lastApplied DateTime?
+  
+  updatedAt DateTime @updatedAt
+  
+  @@map("template_stats")
+}
+
+model RecommendationLog {
+  id        String   @id @default(cuid())
+  userId    String
+  eventId   String?
+  versionId String
+  position  Int      // 1, 2, or 3
+  clicked   Boolean  @default(false)
+  applied   Boolean  @default(false)
+  reason    String?  // Why this was recommended
+  
+  createdAt DateTime @default(now())
+  
+  @@index([userId])
+  @@index([eventId])
+  @@index([versionId])
+  @@index([createdAt])
+  @@map("recommendation_logs")
 }
