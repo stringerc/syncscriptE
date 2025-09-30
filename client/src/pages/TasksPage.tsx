@@ -434,31 +434,6 @@ export function TasksPage() {
                   // Find the related event for prep tasks
                   const relatedEvent = events?.find(event => event.id === task.eventId)
                   
-                  // Fetch resources for this task
-                  const { data: resourceData } = useQuery({
-                    queryKey: ['task-resources', task.id],
-                    queryFn: async () => {
-                      try {
-                        const response = await api.get(`/resources/tasks/${task.id}/resources`)
-                        return response.data.data.resources || []
-                      } catch (error) {
-                        return []
-                      }
-                    },
-                    enabled: !!task.id,
-                    staleTime: 30 * 1000,
-                    gcTime: 5 * 60 * 1000,
-                    refetchOnWindowFocus: false,
-                  })
-                  
-                  const resourceCount = Array.isArray(resourceData) ? resourceData.length : 0
-                  const resourceNames = Array.isArray(resourceData) 
-                    ? resourceData.map((r: any) => r.title || 'Untitled')
-                    : []
-                  const tooltipText = resourceNames.length > 0 
-                    ? `Resources: ${resourceNames.join(', ')}` 
-                    : `${resourceCount} resources`
-                  
                   return (
                     <div
                       key={task.id}
@@ -472,20 +447,6 @@ export function TasksPage() {
                           <h4 className="font-medium text-sm">
                             {task.title.replace(/^Prep for:\s*/i, '')}
                           </h4>
-                          {resourceCount > 0 && (
-                            <Badge 
-                              variant="outline" 
-                              className="text-xs cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors" 
-                              title={tooltipText}
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                setResourcesDrawerTaskId(task.id)
-                              }}
-                            >
-                              <Paperclip className="w-3 h-3 mr-1" />
-                              {resourceCount}
-                            </Badge>
-                          )}
                           <span className={`px-2 py-1 rounded-full text-xs ${getPriorityColor(task.priority)}`}>
                             {task.priority}
                           </span>
