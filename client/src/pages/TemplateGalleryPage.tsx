@@ -15,8 +15,6 @@ import { useFeatureFlags } from '@/contexts/FeatureFlagsContext'
 export function TemplateGalleryPage() {
   const { toast } = useToast()
   const queryClient = useQueryClient()
-  const { isFlagEnabled } = useFeatureFlags()
-  const galleryEnabled = isFlagEnabled('templates_gallery')
 
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedCategory, setSelectedCategory] = useState<string>('')
@@ -36,7 +34,7 @@ export function TemplateGalleryPage() {
       const response = await api.get(`/templates/catalog?${params}`)
       return response.data
     },
-    enabled: galleryEnabled
+    enabled: true // Always enabled for launch
   })
 
   // Fetch user's events for apply
@@ -100,23 +98,8 @@ export function TemplateGalleryPage() {
     }
   })
 
-  if (!galleryEnabled) {
-    return (
-      <div className="container max-w-6xl mx-auto p-6">
-        <Card>
-          <CardContent className="flex items-center justify-center p-12">
-            <div className="text-center space-y-4">
-              <BookTemplate className="w-16 h-16 mx-auto text-muted-foreground" />
-              <h2 className="text-2xl font-bold">Template Gallery Not Enabled</h2>
-              <p className="text-muted-foreground">
-                The template gallery feature is currently disabled
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    )
-  }
+  // Gallery is always enabled for launch
+  // Feature flag check removed
 
   return (
     <div className="container max-w-7xl mx-auto p-6 space-y-6">
@@ -124,10 +107,10 @@ export function TemplateGalleryPage() {
       <div>
         <h1 className="text-3xl font-bold flex items-center gap-2">
           <BookTemplate className="w-8 h-8" />
-          Template Gallery
+          Script Gallery
         </h1>
         <p className="text-muted-foreground mt-1">
-          Browse curated templates to plan faster
+          Browse curated scripts to plan faster
         </p>
       </div>
 

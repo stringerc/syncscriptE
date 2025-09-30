@@ -29,7 +29,7 @@ const navigation = [
   { name: 'Financial', href: '/financial', icon: DollarSign },
   { name: 'AI Assistant', href: '/ai-assistant', icon: Brain },
   { name: 'Energy Analysis', href: '/energy-analysis', icon: Zap },
-  { name: 'Templates', href: '/templates', icon: BookTemplate },
+  { name: 'Scripts', href: '/templates', icon: BookTemplate },
   { name: 'Projects', href: '/projects', icon: Folder },
   { name: 'Profile', href: '/profile', icon: User },
   { name: 'Friends', href: '/friends', icon: Users },
