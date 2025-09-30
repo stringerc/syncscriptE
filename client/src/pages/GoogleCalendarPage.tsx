@@ -126,9 +126,9 @@ export function GoogleCalendarPage() {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold">Google Calendar Integration</h1>
+            <h1 className="text-3xl font-bold">Calendar Sync</h1>
             <p className="text-muted-foreground">
-              Connect and sync your Google Calendar with SyncScript
+              Connect and sync your calendars (Google, Outlook, Apple) with SyncScript
             </p>
           </div>
         </div>
@@ -167,9 +167,9 @@ export function GoogleCalendarPage() {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold">Google Calendar Integration</h1>
+            <h1 className="text-3xl font-bold">Calendar Sync</h1>
             <p className="text-muted-foreground">
-              Connect and sync your Google Calendar with SyncScript
+              Connect and sync your calendars (Google, Outlook, Apple) with SyncScript
             </p>
           </div>
         </div>
@@ -199,7 +199,7 @@ export function GoogleCalendarPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Google Calendar Integration</h1>
+          <h1 className="text-3xl font-bold">Calendar Sync</h1>
           <p className="text-muted-foreground">
             Connect and sync your Google Calendar with SyncScript
           </p>
