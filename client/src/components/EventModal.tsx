@@ -8,6 +8,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { useToast } from '@/hooks/use-toast'
 import { ConfirmationModal } from '@/components/ConfirmationModal'
 import { TemplateRecommendations } from '@/components/TemplateRecommendations'
+import { SpeechToTextInput } from '@/components/SpeechToTextInput'
 import { X, Save, Trash2, Calendar, Clock, MapPin, DollarSign, Sparkles, Plus, CheckCircle, Circle, Edit3, Eye, Pin, PinOff } from 'lucide-react'
 
 interface Event {
@@ -518,11 +519,11 @@ export function EventModal({ event, isOpen, onClose, onEventUpdated }: EventModa
 
               <div>
                 <Label htmlFor="description">Description</Label>
-                <Textarea
-                  id="description"
-                  value={formData.description}
-                  onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                  placeholder="Enter event description"
+                <SpeechToTextInput
+                  value={formData.description || ''}
+                  onChange={(value) => setFormData(prev => ({ ...prev, description: value }))}
+                  placeholder="Type or hold mic to speak event description..."
+                  multiline
                   rows={3}
                 />
               </div>

@@ -10,6 +10,7 @@ import { ConfirmationModal } from '@/components/ConfirmationModal'
 import { ResourcesBadge } from '@/components/ResourcesBadge'
 import { ResourcesDrawer } from '@/components/ResourcesDrawer'
 import { InlineSuggestions } from '@/components/InlineSuggestions'
+import { SpeechToTextInput } from '@/components/SpeechToTextInput'
 import { buildPrepChainTitle, isPrepTask } from '@/lib/prepChain'
 import { 
   X, 
@@ -469,11 +470,11 @@ export function TaskModal({ task, isOpen, onClose, onTaskUpdated, onTaskDeleted 
                     {suggestNotesMutation.isPending ? 'Generating...' : 'AI Suggest Notes'}
                   </Button>
                 </div>
-                <Textarea
-                  id="notes"
-                  value={formData.notes}
-                  onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                  placeholder="Add your personal notes about this task..."
+                <SpeechToTextInput
+                  value={formData.notes || ''}
+                  onChange={(value) => setFormData({ ...formData, notes: value })}
+                  placeholder="Type or hold mic to speak your notes..."
+                  multiline
                   rows={3}
                 />
               </div>
