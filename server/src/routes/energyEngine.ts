@@ -4,6 +4,7 @@ import { asyncHandler, createError } from '../middleware/errorHandler';
 import { authenticateToken, AuthRequest } from '../middleware/auth';
 import { logger } from '../utils/logger';
 import EnergyEngineService from '../services/energyEngineService';
+import { dailyChallengeService } from '../services/dailyChallengeService';
 import DailyChallengeService from '../services/dailyChallengeService';
 
 const router = express.Router();
@@ -356,6 +357,70 @@ router.post('/admin/override-energy', authenticateToken, asyncHandler(async (req
       displayEnergy: Math.floor(energy / 10)
     },
     message: `Energy manually set to ${energy}/100 (${Math.floor(energy / 10)}/10)`
+  })
+}))
+
+// POST /challenges/:challengeId/start - Start a challenge session
+router.post('/challenges/:challengeId/start', authenticateToken, asyncHandler(async (req: any, res) => {
+  const userId = req.user.id
+  const { challengeId } = req.params
+
+  const session = await dailyChallengeService.startChallenge(userId, challengeId)
+
+  res.json({
+    success: true,
+    data: session,
+    message: 'Challenge session started'
+  })
+}))
+
+// POST /challenges/sessions/:sessionId/pause - Pause a challenge session
+router.post('/challenges/sessions/:sessionId/pause', authenticateToken, asyncHandler(async (req: any, res) => {
+  const { sessionId } = req.params
+
+  await dailyChallengeService.pauseChallenge(sessionId)
+
+  res.json({
+    success: true,
+    message: 'Session paused'
+  })
+}))
+
+// POST /challenges/sessions/:sessionId/resume - Resume a challenge session
+router.post('/challenges/sessions/:sessionId/resume', authenticateToken, asyncHandler(async (req: any, res) => {
+  const { sessionId } = req.params
+
+  await dailyChallengeService.resumeChallenge(sessionId)
+
+  res.json({
+    success: true,
+    message: 'Session resumed'
+  })
+}))
+
+// POST /challenges/sessions/:sessionId/complete - Complete a challenge session
+router.post('/challenges/sessions/:sessionId/complete', authenticateToken, asyncHandler(async (req: any, res) => {
+  const { sessionId } = req.params
+  const { elapsedMinutes, partialCredit } = req.body
+
+  await dailyChallengeService.completeChallenge(sessionId, elapsedMinutes, partialCredit)
+
+  res.json({
+    success: true,
+    message: partialCredit ? 'Partial credit awarded' : 'Challenge completed!',
+    data: { elapsedMinutes, partialCredit }
+  })
+}))
+
+// GET /challenges/sessions/active - Get user's active session
+router.get('/challenges/sessions/active', authenticateToken, asyncHandler(async (req: any, res) => {
+  const userId = req.user.id
+
+  const session = dailyChallengeService.getActiveSession(userId)
+
+  res.json({
+    success: true,
+    data: session
   })
 }))
 

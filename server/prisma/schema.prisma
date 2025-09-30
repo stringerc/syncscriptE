@@ -59,6 +59,7 @@ model User {
   // Energy Engine
   energyPoints       EnergyPoint[]
   dailyChallenges    DailyChallenge[]
+  challengeSessions  ChallengeSession[]
   energyConversions  EnergyConversion[]
   energyEmblems      EnergyEmblem[]
   energyProfile      UserEnergyProfile?
@@ -422,10 +423,30 @@ model DailyChallenge {
   completedAt DateTime?
   date        DateTime @default(now()) // Date the challenge is for
   metadata    String?  // JSON string for additional data
+  requiredMinutes Int? // Duration for timed challenges
   
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sessions ChallengeSession[]
 
   @@map("daily_challenges")
+}
+
+model ChallengeSession {
+  id              String   @id @default(cuid())
+  userId          String
+  challengeId     String
+  startedAt       DateTime @default(now())
+  pausedAt        DateTime?
+  resumedAt       DateTime?
+  completedAt     DateTime?
+  elapsedSeconds  Int      @default(0)
+  status          String   @default("IN_PROGRESS") // "IN_PROGRESS", "PAUSED", "COMPLETED", "ABANDONED"
+  partialCredit   Boolean  @default(false)
+  
+  challenge DailyChallenge @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("challenge_sessions")
 }
 
 model EnergyConversion {

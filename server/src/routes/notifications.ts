@@ -5,6 +5,7 @@ import { asyncHandler, createError } from '../middleware/errorHandler';
 import { authenticateToken, AuthRequest } from '../middleware/auth';
 import { logger } from '../utils/logger';
 import { NotificationType } from '../types';
+import { notificationService } from '../services/notificationService';
 
 const router = express.Router();
 const prisma = new PrismaClient();
@@ -389,5 +390,28 @@ router.get('/recent', authenticateToken, asyncHandler(async (req: AuthRequest, r
   });
 }));
 
+// POST /send - Manually trigger notification (for testing/admin)
+router.post('/send', authenticateToken, asyncHandler(async (req: AuthRequest, res) => {
+  const { type, title, body, data } = req.body;
+  const userId = req.user!.id;
+
+  const success = await notificationService.sendNotification(userId, type, title, body, data);
+
+  res.json({
+    success,
+    message: success ? 'Notification sent' : 'Failed to send notification'
+  });
+}));
+
+// POST /check-due-tasks - Trigger due task notification check (cron job endpoint)
+router.post('/check-due-tasks', asyncHandler(async (req, res) => {
+  // TODO: Add admin/cron authentication
+  await notificationService.checkDueTaskNotifications();
+
+  res.json({
+    success: true,
+    message: 'Due task notifications checked'
+  });
+}));
 
 export default router;
