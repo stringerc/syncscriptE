@@ -1096,16 +1096,37 @@ export function EventModal({ event, isOpen, onClose, onEventUpdated }: EventModa
           </div>
           <div className="flex space-x-2">
             {!isEditing && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => addToGoogleCalendarMutation.mutate()}
-                disabled={addToGoogleCalendarMutation.isPending}
-                className="bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-200"
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                {addToGoogleCalendarMutation.isPending ? 'Adding...' : 'Add to Google Calendar'}
-              </Button>
+              <div className="flex gap-2 items-center">
+                <span className="text-sm text-muted-foreground">Add to:</span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => addToGoogleCalendarMutation.mutate()}
+                  disabled={addToGoogleCalendarMutation.isPending}
+                  className="bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-200 w-10 h-10 p-0"
+                  title="Add to Google Calendar"
+                >
+                  <span className="text-lg font-bold">G</span>
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled
+                  className="opacity-50 w-10 h-10 p-0"
+                  title="Outlook Calendar (Coming Soon)"
+                >
+                  <span className="text-lg font-bold">O</span>
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled
+                  className="opacity-50 w-10 h-10 p-0"
+                  title="Apple Calendar (Coming Soon)"
+                >
+                  <span className="text-lg font-bold"></span>
+                </Button>
+              </div>
             )}
             {isEditing && (
               <>
