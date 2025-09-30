@@ -208,9 +208,10 @@ const TaskItem = memo(({ task, onComplete, onDelete, onView, onResourcesClick, o
 })
 
 // Nested Task Item Component (for bullet list in event cards)
-const NestedTaskItem = memo(({ task, onResourcesClick }: {
+const NestedTaskItem = memo(({ task, onResourcesClick, onClick }: {
   task: any,
-  onResourcesClick?: (taskId: string) => void
+  onResourcesClick?: (taskId: string) => void,
+  onClick?: (task: any) => void
 }) => {
   // Fetch resources for this nested task
   const { data: taskResourceData } = useQuery({
@@ -239,11 +240,13 @@ const NestedTaskItem = memo(({ task, onResourcesClick }: {
 
   return (
     <div 
-      className={`flex items-center gap-1 text-xs text-muted-foreground transition-all duration-200 ${
+      className={`flex items-center gap-1 text-xs transition-all duration-200 ${
         task.status === 'COMPLETED' 
           ? 'line-through text-green-600' 
-          : ''
+          : 'text-muted-foreground cursor-pointer hover:text-foreground hover:underline'
       }`}
+      onClick={() => onClick?.(task)}
+      title="Click to view task details"
     >
       <span>{task.status === 'COMPLETED' ? '✓' : '•'} {task.title}</span>
       {taskResourceCount > 0 && (
@@ -265,7 +268,7 @@ const NestedTaskItem = memo(({ task, onResourcesClick }: {
 })
 
 // Memoized event item component for performance
-const EventItem = memo(({ event, onView, onDelete, weatherData, preparationTasks, events, allTasks, onResourcesClick }: { 
+const EventItem = memo(({ event, onView, onDelete, weatherData, preparationTasks, events, allTasks, onResourcesClick, onTaskClick }: { 
   event: Event, 
   onView: (id: string) => void, 
   onDelete: (id: string) => void,
@@ -273,7 +276,8 @@ const EventItem = memo(({ event, onView, onDelete, weatherData, preparationTasks
   preparationTasks?: any[],
   events?: Event[],
   allTasks?: any[],
-  onResourcesClick?: (taskId: string) => void
+  onResourcesClick?: (taskId: string) => void,
+  onTaskClick?: (task: any) => void
 }) => {
   const [showAllTasks, setShowAllTasks] = useState(false)
   const [showAllNestedTasks, setShowAllNestedTasks] = useState<Record<string, boolean>>({})
@@ -323,6 +327,7 @@ const EventItem = memo(({ event, onView, onDelete, weatherData, preparationTasks
                     <NestedTaskItem 
                       task={task} 
                       onResourcesClick={onResourcesClick}
+                      onClick={onTaskClick}
                     />
                     
                     {/* Show nested tasks if this task has its own event */}
@@ -1625,6 +1630,10 @@ export function DashboardPage() {
                     events={upcomingEvents}
                     allTasks={allTasks}
                     onResourcesClick={(taskId) => setResourcesDrawerTaskId(taskId)}
+                    onTaskClick={(task) => {
+                      setSelectedTask(task)
+                      setIsTaskModalOpen(true)
+                    }}
                   />
                 ))}
                 <Button 
