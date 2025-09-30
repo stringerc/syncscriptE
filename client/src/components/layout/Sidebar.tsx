@@ -11,6 +11,7 @@ import {
   User,
   Users,
   BookTemplate,
+  Folder,
   ExternalLink,
   Zap
 } from 'lucide-react'
@@ -29,6 +30,7 @@ const navigation = [
   { name: 'AI Assistant', href: '/ai-assistant', icon: Brain },
   { name: 'Energy Analysis', href: '/energy-analysis', icon: Zap },
   { name: 'Templates', href: '/templates', icon: BookTemplate },
+  { name: 'Projects', href: '/projects', icon: Folder },
   { name: 'Profile', href: '/profile', icon: User },
   { name: 'Friends', href: '/friends', icon: Users },
   { name: 'Achievements', href: '/gamification', icon: Trophy },

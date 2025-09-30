@@ -7,7 +7,8 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { useToast } from '@/hooks/use-toast'
 import { ConfirmationModal } from '@/components/ConfirmationModal'
-import { X, Save, Trash2, Calendar, Clock, MapPin, DollarSign, Sparkles, Plus, CheckCircle, Circle, Edit3, Eye } from 'lucide-react'
+import { TemplateRecommendations } from '@/components/TemplateRecommendations'
+import { X, Save, Trash2, Calendar, Clock, MapPin, DollarSign, Sparkles, Plus, CheckCircle, Circle, Edit3, Eye, Pin, PinOff } from 'lucide-react'
 
 interface Event {
   id: string
@@ -416,30 +417,70 @@ export function EventModal({ event, isOpen, onClose, onEventUpdated }: EventModa
           </div>
           <div className="flex items-center space-x-2">
             {!isEditing && event && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={async () => {
-                  try {
-                    const response = await api.post(`/scripts/events/${event.id}/save-as-script`, {
-                      title: `${event.title} Template`,
-                      description: 'Reusable script for similar events'
-                    })
-                    toast({
-                      title: response.data.data.containsPII ? 'Script Created (PII Warning)' : 'Script Created!',
-                      description: response.data.message || 'Event saved as reusable script'
-                    })
-                  } catch (error: any) {
-                    toast({
-                      title: 'Error',
-                      description: error.response?.data?.error || 'Failed to create script',
-                      variant: 'destructive'
-                    })
-                  }
-                }}
-              >
-                💾 Save as Script
-              </Button>
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={async () => {
+                    try {
+                      const endpoint = event.isPinned 
+                        ? `/pinned/events/${event.id}/unpin`
+                        : `/pinned/events/${event.id}/pin`
+                      
+                      await api.post(endpoint)
+                      
+                      queryClient.invalidateQueries({ queryKey: ['pinned-events'] })
+                      queryClient.invalidateQueries({ queryKey: ['calendar'] })
+                      queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+                      
+                      toast({
+                        title: event.isPinned ? 'Event Unpinned' : 'Event Pinned!',
+                        description: event.isPinned 
+                          ? 'Removed from dashboard rail' 
+                          : 'Added to dashboard rail'
+                      })
+                      
+                      onEventUpdated?.()
+                    } catch (error: any) {
+                      toast({
+                        title: 'Error',
+                        description: error.response?.data?.error || 'Failed to update pin status',
+                        variant: 'destructive'
+                      })
+                    }
+                  }}
+                >
+                  {event.isPinned ? (
+                    <><PinOff className="w-4 h-4 mr-2" />Unpin</>
+                  ) : (
+                    <><Pin className="w-4 h-4 mr-2" />Pin</>
+                  )}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={async () => {
+                    try {
+                      const response = await api.post(`/scripts/events/${event.id}/save-as-script`, {
+                        title: `${event.title} Template`,
+                        description: 'Reusable script for similar events'
+                      })
+                      toast({
+                        title: response.data.data.containsPII ? 'Script Created (PII Warning)' : 'Script Created!',
+                        description: response.data.message || 'Event saved as reusable script'
+                      })
+                    } catch (error: any) {
+                      toast({
+                        title: 'Error',
+                        description: error.response?.data?.error || 'Failed to create script',
+                        variant: 'destructive'
+                      })
+                    }
+                  }}
+                >
+                  💾 Save as Script
+                </Button>
+              </>
             )}
             {!isEditing && (
               <Button
@@ -844,6 +885,21 @@ export function EventModal({ event, isOpen, onClose, onEventUpdated }: EventModa
                 Add {selectedTasks.size} Selected Tasks
               </Button>
             </div>
+          </div>
+        )}
+
+        {/* Template Recommendations */}
+        {!isEditing && event && (
+          <div className="px-6 pb-4">
+            <TemplateRecommendations
+              eventId={event.id}
+              onApplied={() => {
+                queryClient.invalidateQueries({ queryKey: ['calendar'] })
+                queryClient.invalidateQueries({ queryKey: ['tasks'] })
+                queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+                onEventUpdated?.()
+              }}
+            />
           </div>
         )}
 
