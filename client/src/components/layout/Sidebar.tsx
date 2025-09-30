@@ -118,9 +118,9 @@ export function Sidebar() {
   }
 
   return (
-    <div className="w-64 bg-card border-r border-border flex flex-col">
+    <div className="w-64 bg-card border-r border-border flex flex-col h-screen overflow-hidden">
       {/* Logo */}
-      <div className="p-6 border-b border-border">
+      <div className="p-6 border-b border-border flex-shrink-0">
         <div className="flex items-center space-x-2">
           <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
             <Brain className="w-5 h-5 text-primary-foreground" />
@@ -133,7 +133,7 @@ export function Sidebar() {
       </div>
 
       {/* User Info */}
-      <div className="p-4 border-b border-border">
+      <div className="p-4 border-b border-border flex-shrink-0">
         <div className="flex items-center space-x-3">
           <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
             <span className="text-sm font-medium text-primary">
@@ -151,8 +151,8 @@ export function Sidebar() {
         </div>
       </div>
 
-      {/* Navigation */}
-      <nav className="flex-1 p-4 space-y-2">
+      {/* Navigation - Scrollable */}
+      <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
         {navigation.map((item) => (
           <NavLink
             key={item.name}
@@ -178,7 +178,7 @@ export function Sidebar() {
       </nav>
 
       {/* Footer */}
-      <div className="p-4 border-t border-border space-y-3">
+      <div className="p-4 border-t border-border space-y-3 flex-shrink-0">
         <div className="flex flex-col gap-2 text-xs text-center">
           <NavLink 
             to="/faq" 
