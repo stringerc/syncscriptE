@@ -217,4 +217,92 @@ If they say "finish urgent report for client meeting tomorrow", that's HIGH prio
   }
 })
 
+// POST /api/ai-suggestions/voice-to-event - Convert voice transcript to event fields
+router.post('/voice-to-event', authenticateToken, async (req, res) => {
+  try {
+    const { transcript } = req.body
+
+    if (!transcript || typeof transcript !== 'string' || transcript.trim().length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Transcript is required'
+      })
+    }
+
+    const prompt = `You are an event parser. Convert this natural speech into structured event data.
+
+USER SAID: "${transcript}"
+
+Extract and infer:
+1. Event title (what is the event)
+2. Event description (any details mentioned)
+3. Start date/time if mentioned (return as ISO string, null if not mentioned)
+4. End date/time if mentioned (return as ISO string, null if not mentioned)
+5. Location if mentioned
+6. Budget impact if mentioned (extract numeric value, 0 if not mentioned)
+
+Respond with JSON ONLY:
+{
+  "title": "Clear, descriptive event title",
+  "description": "Detailed description if provided, empty string if not",
+  "startTime": "ISO date-time string or null",
+  "endTime": "ISO date-time string or null",
+  "location": "Location if mentioned, empty string if not",
+  "budgetImpact": number or 0
+}
+
+Be smart about inferring times. If they say "dinner party Friday at 7pm", calculate Friday's date and set 7pm as start, maybe 10pm as end.
+If they say "team meeting tomorrow at 2", set tomorrow at 2pm start, maybe 3pm end.`
+
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [
+        { role: 'system', content: 'You are an event extraction assistant. Always respond with valid JSON.' },
+        { role: 'user', content: prompt }
+      ],
+      temperature: 0.3,
+      max_tokens: 400
+    })
+
+    const responseText = completion.choices[0]?.message?.content?.trim()
+    
+    if (!responseText) {
+      throw new Error('No response from AI')
+    }
+
+    // Parse JSON response
+    let parsed
+    try {
+      parsed = JSON.parse(responseText)
+    } catch (parseError) {
+      console.error('Failed to parse AI response:', responseText)
+      throw new Error('AI returned invalid response')
+    }
+
+    // Validate response
+    if (!parsed.title) {
+      throw new Error('AI response missing required fields')
+    }
+
+    res.json({
+      success: true,
+      data: {
+        title: parsed.title,
+        description: parsed.description || '',
+        startTime: parsed.startTime || null,
+        endTime: parsed.endTime || null,
+        location: parsed.location || '',
+        budgetImpact: parsed.budgetImpact || 0
+      }
+    })
+
+  } catch (error: any) {
+    console.error('Voice-to-event error:', error)
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to convert voice to event'
+    })
+  }
+})
+
 export default router

@@ -9,7 +9,7 @@ import { useToast } from '@/hooks/use-toast'
 import { ConfirmationModal } from '@/components/ConfirmationModal'
 import { TemplateRecommendations } from '@/components/TemplateRecommendations'
 import { SpeechToTextInput } from '@/components/SpeechToTextInput'
-import { X, Save, Trash2, Calendar, Clock, MapPin, DollarSign, Sparkles, Plus, CheckCircle, Circle, Edit3, Eye, Pin, PinOff } from 'lucide-react'
+import { X, Save, Trash2, Calendar, Clock, MapPin, DollarSign, Sparkles, Plus, CheckCircle, Circle, Edit3, Eye, Pin, PinOff, Mic } from 'lucide-react'
 
 interface Event {
   id: string
@@ -165,6 +165,7 @@ export function EventModal({ event, isOpen, onClose, onEventUpdated }: EventModa
   const [showTaskSelection, setShowTaskSelection] = useState(false)
   const [selectedTasks, setSelectedTasks] = useState<Set<string>>(new Set())
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [isListening, setIsListening] = useState(false)
   
   // Preparation task management
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null)
@@ -309,6 +310,87 @@ export function EventModal({ event, isOpen, onClose, onEventUpdated }: EventModa
     }
   })
 
+  // Voice to Event Mutation
+  const voiceInputMutation = useMutation({
+    mutationFn: async (transcript: string) => {
+      const response = await api.post('/ai-suggestions/voice-to-event', { transcript })
+      return response.data
+    },
+    onSuccess: (data) => {
+      const parsed = data.data
+      setFormData({
+        ...formData,
+        title: parsed.title || '',
+        description: parsed.description || '',
+        location: parsed.location || '',
+        startTime: parsed.startTime || formData.startTime,
+        endTime: parsed.endTime || formData.endTime,
+        budgetImpact: parsed.budgetImpact || 0
+      })
+      toast({
+        title: "🎤 Voice Understood!",
+        description: "Event details filled from your voice input. Review and adjust times if needed.",
+        duration: 5000
+      })
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Voice Input Failed",
+        description: error.response?.data?.error || "Failed to process voice input",
+        variant: "destructive"
+      })
+    }
+  })
+
+  const handleVoiceInput = () => {
+    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+      toast({
+        title: "Not Supported",
+        description: "Voice input is not supported in this browser. Try Chrome or Edge.",
+        variant: "destructive"
+      })
+      return
+    }
+
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
+    const recognition = new SpeechRecognition()
+    
+    recognition.continuous = false
+    recognition.interimResults = false
+    recognition.lang = 'en-US'
+
+    recognition.onstart = () => {
+      setIsListening(true)
+      toast({
+        title: "🎤 Listening...",
+        description: "Speak naturally about the event you want to create",
+        duration: 10000
+      })
+    }
+
+    recognition.onresult = (event: any) => {
+      const transcript = event.results[0][0].transcript
+      console.log('Voice transcript:', transcript)
+      voiceInputMutation.mutate(transcript)
+    }
+
+    recognition.onerror = (event: any) => {
+      console.error('Speech recognition error:', event.error)
+      setIsListening(false)
+      toast({
+        title: "Voice Error",
+        description: `Speech recognition error: ${event.error}`,
+        variant: "destructive"
+      })
+    }
+
+    recognition.onend = () => {
+      setIsListening(false)
+    }
+
+    recognition.start()
+  }
+
   const handleSave = () => {
     if (!formData.title.trim()) {
       toast({
@@ -417,6 +499,29 @@ export function EventModal({ event, isOpen, onClose, onEventUpdated }: EventModa
             </h2>
           </div>
           <div className="flex items-center space-x-2">
+            {/* Voice Input Button - Show when creating new event */}
+            {!event && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleVoiceInput}
+                disabled={voiceInputMutation.isPending}
+                className="flex items-center gap-2"
+              >
+                {voiceInputMutation.isPending ? (
+                  <>
+                    <Sparkles className="w-4 h-4 animate-spin" />
+                    Listening...
+                  </>
+                ) : (
+                  <>
+                    <Mic className="w-4 h-4" />
+                    Voice Create
+                  </>
+                )}
+              </Button>
+            )}
+            
             {!isEditing && event && (
               <>
                 <Button
@@ -483,7 +588,7 @@ export function EventModal({ event, isOpen, onClose, onEventUpdated }: EventModa
                 </Button>
               </>
             )}
-            {!isEditing && (
+            {!isEditing && event && (
               <Button
                 variant="outline"
                 size="sm"

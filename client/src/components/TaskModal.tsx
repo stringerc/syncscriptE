@@ -586,11 +586,11 @@ export function TaskModal({ task, isOpen, onClose, onTaskUpdated, onTaskDeleted 
 
               <div>
                 <Label htmlFor="notes">Notes</Label>
-                <SpeechToTextInput
+                <Textarea
+                  id="notes"
                   value={formData.notes || ''}
-                  onChange={(value) => setFormData({ ...formData, notes: value })}
-                  placeholder="Type or hold mic to speak your notes..."
-                  multiline
+                  onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                  placeholder="Add any additional notes..."
                   rows={3}
                 />
               </div>
