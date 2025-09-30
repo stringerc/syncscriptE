@@ -7,6 +7,7 @@ import { Badge } from '../components/ui/badge'
 import { Alert, AlertDescription, AlertTitle } from '../components/ui/alert'
 import { Loader2, Zap, Clock, TrendingUp, Lightbulb, Calendar, Target, Brain, RefreshCw } from 'lucide-react'
 import { toast } from '../hooks/use-toast'
+import { EnergyAnalysisGraph } from '../components/EnergyAnalysisGraph'
 
 interface EnergyAnalysis {
   energyAnalysis: {
@@ -42,9 +43,34 @@ interface EnergyAnalysis {
   }
 }
 
+// Generate mock energy data for the past 30 days
+const generateMockEnergyData = () => {
+  const data = []
+  const now = Date.now()
+  
+  for (let i = 29; i >= 0; i--) {
+    const date = new Date(now - i * 24 * 60 * 60 * 1000)
+    const baseEnergy = 50 + Math.sin(i / 7) * 20 // Simulate weekly patterns
+    const randomVariation = (Math.random() - 0.5) * 15
+    const energy = Math.max(10, Math.min(100, baseEnergy + randomVariation))
+    
+    data.push({
+      date: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+      timestamp: date.getTime(),
+      energy: energy,
+      displayEnergy: energy / 10, // Convert 0-100 to 0-10
+      energyPoints: Math.floor(Math.random() * 50) + 10,
+      challengesCompleted: Math.floor(Math.random() * 4)
+    })
+  }
+  
+  return data
+}
+
 const EnergyAnalysisPage: React.FC = () => {
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const queryClient = useQueryClient()
+  const mockEnergyData = generateMockEnergyData()
 
   // Energy analysis query - runs automatically with better caching
   const { data: energyData, isLoading, error, refetch, isFetching } = useQuery<EnergyAnalysis>({
@@ -186,7 +212,10 @@ const EnergyAnalysisPage: React.FC = () => {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-gray-700">{energyData.energyAnalysis.currentEnergyAssessment}</p>
+              <p className="text-gray-700 mb-6">{energyData.energyAnalysis.currentEnergyAssessment}</p>
+              
+              {/* Energy Trend Graph */}
+              <EnergyAnalysisGraph data={mockEnergyData} />
             </CardContent>
           </Card>
 

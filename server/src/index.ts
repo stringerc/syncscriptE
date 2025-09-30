@@ -25,9 +25,14 @@ import feedbackRoutes from './routes/feedback';
 import energyEngineRoutes from './routes/energyEngine';
 import enhancedAchievementsRoutes from './routes/enhancedAchievements';
 import resourcesRoutes from './routes/resources';
+import featureFlagsRoutes from './routes/featureFlags';
+import analyticsRoutes from './routes/analytics';
+import privacyRoutes from './routes/privacy';
 
 // Import middleware
 import { errorHandler } from './middleware/errorHandler';
+import { idempotencyMiddleware } from './middleware/idempotency';
+import { generalAPIRateLimit } from './middleware/rateLimitMiddleware';
 import { logger } from './utils/logger';
 
 // Load environment variables
@@ -113,6 +118,10 @@ app.use((req, res, next) => {
   });
   next();
 });
+
+// Apply global middleware
+app.use(generalAPIRateLimit); // Rate limiting
+app.use(idempotencyMiddleware); // Idempotency for write operations
 
 // Root endpoint
 app.get('/', (req, res) => {
@@ -202,6 +211,9 @@ app.use('/api/feedback', feedbackRoutes);
 app.use('/api/energy-engine', energyEngineRoutes);
 app.use('/api/achievements', enhancedAchievementsRoutes);
 app.use('/api/resources', resourcesRoutes);
+app.use('/api/feature-flags', featureFlagsRoutes);
+app.use('/api/analytics', analyticsRoutes);
+app.use('/api/privacy', privacyRoutes);
 
 // Socket.IO for real-time updates
 io.on('connection', (socket) => {

@@ -26,6 +26,7 @@ import { NotificationProvider } from '@/contexts/NotificationContext'
 import { PointAnimationProvider } from '@/contexts/PointAnimationContext'
 import { AchievementsProvider } from '@/contexts/AchievementsContext'
 import { SidebarProvider } from '@/contexts/SidebarContext'
+import { FeatureFlagsProvider } from '@/contexts/FeatureFlagsContext'
 // Removed animation context import
 import DemoMode from '@/components/DemoMode'
 import { FeedbackButton } from '@/components/FeedbackButton'
@@ -105,9 +106,11 @@ function App() {
   return (
     <ThemeProvider>
       <NotificationProvider>
-        <PointAnimationProvider>
-          <AppContent />
-        </PointAnimationProvider>
+        <FeatureFlagsProvider>
+          <PointAnimationProvider>
+            <AppContent />
+          </PointAnimationProvider>
+        </FeatureFlagsProvider>
       </NotificationProvider>
     </ThemeProvider>
   )

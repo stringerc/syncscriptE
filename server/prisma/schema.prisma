@@ -65,6 +65,13 @@ model User {
   
   // Settings
   settings UserSettings?
+  
+  // Feature Flags
+  featureFlags UserFeatureFlags?
+  
+  // Analytics & Audit
+  analyticsEvents AnalyticsEvent[]
+  auditLogs       AuditLog[]
 
   @@map("users")
 }
@@ -510,4 +517,81 @@ model DecisionLog {
   resourceSet        ResourceSet @relation(fields: [resourceSetId], references: [id], onDelete: Cascade)
   
   @@map("decision_logs")
+}
+
+// Feature Flags (per-user toggles for controlled rollouts)
+model UserFeatureFlags {
+  id     String @id @default(cuid())
+  userId String @unique
+  
+  // AI Features
+  askAI              Boolean @default(false)
+  
+  // Productivity Features
+  focusLock          Boolean @default(false)
+  mic                Boolean @default(false)
+  priorityHierarchy  Boolean @default(false)
+  templates          Boolean @default(false)
+  pinnedEvents       Boolean @default(false)
+  
+  // Calendar Integrations
+  googleCalendar     Boolean @default(false)
+  outlookCalendar    Boolean @default(false)
+  appleCalendar      Boolean @default(false)
+  
+  // Social Features
+  friends            Boolean @default(false)
+  
+  // Marketplace
+  shareScript        Boolean @default(false)
+  
+  // Energy & Gamification
+  energyHUD          Boolean @default(false)
+  energyGraph        Boolean @default(false)
+  
+  // Metadata
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("user_feature_flags")
+}
+
+// Analytics Events (canonical event tracking)
+model AnalyticsEvent {
+  id        String   @id @default(cuid())
+  userId    String
+  eventType String   // task_create, task_complete, suggestion_shown, etc.
+  eventData String   // JSON blob with event-specific data
+  metadata  String?  // JSON blob with context (UA, viewport, flags, etc.)
+  createdAt DateTime @default(now())
+  
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId, eventType, createdAt])
+  @@map("analytics_events")
+}
+
+// Audit Log (admin action tracking)
+model AuditLog {
+  id          String   @id @default(cuid())
+  userId      String   // Admin who performed the action
+  action      String   // Action type (e.g., "flag_override", "user_delete")
+  targetType  String   // Type of entity affected (e.g., "user", "task")
+  targetId    String   // ID of affected entity
+  beforeState String?  // JSON snapshot before change
+  afterState  String?  // JSON snapshot after change
+  reason      String?  // Why the action was taken
+  ipAddress   String?  // IP of admin
+  createdAt   DateTime @default(now())
+  
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId, action, createdAt])
+  @@index([targetType, targetId])
+  @@map("audit_logs")
 }

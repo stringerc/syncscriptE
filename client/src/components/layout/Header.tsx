@@ -382,7 +382,9 @@ export function Header() {
                     {currentWeatherData.weather?.temperature || currentWeatherData.temperature}°
                   </div>
                          <div className="text-slate-500 dark:text-slate-400">
-                           {currentWeatherData.weather?.location?.split(',')[0] || 'Current'}
+                           {(currentWeatherData.weather?.location || currentWeatherData.location || 'Loading...')
+                             .split(',')[0]
+                             .trim()}
                          </div>
                 </div>
               </div>

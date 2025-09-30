@@ -291,4 +291,72 @@ router.post('/check-emblems', authenticateToken, asyncHandler(async (req: AuthRe
   }
 }));
 
+// POST /admin/override-energy - Admin endpoint to manually set user energy (email-gated)
+router.post('/admin/override-energy', authenticateToken, asyncHandler(async (req: any, res) => {
+  const adminId = req.user.id
+  const { userId, energy, reason } = req.body
+
+  if (!userId || energy === undefined) {
+    throw createError('User ID and energy level are required', 400)
+  }
+
+  if (energy < 0 || energy > 100) {
+    throw createError('Energy must be between 0 and 100', 400)
+  }
+
+  // TODO: Add proper admin role check
+  // For now, check if admin email contains 'admin' or specific whitelist
+  const adminUser = await prisma.user.findUnique({ where: { id: adminId } })
+  
+  if (!adminUser || !adminUser.email.includes('admin')) {
+    logger.warn('Non-admin attempted energy override', { adminId, targetUserId: userId })
+    throw createError('Admin access required', 403)
+  }
+
+  // Get current energy for audit
+  const profile = await prisma.userEnergyProfile.findUnique({
+    where: { userId }
+  })
+
+  // Update energy
+  await prisma.userEnergyProfile.upsert({
+    where: { userId },
+    create: {
+      userId,
+      currentEnergy: energy,
+      energyLevel: Math.floor(energy / 10) // Convert to 0-10 scale
+    },
+    update: {
+      currentEnergy: energy,
+      energyLevel: Math.floor(energy / 10)
+    }
+  })
+
+  // Create audit log
+  await prisma.auditLog.create({
+    data: {
+      userId: adminId,
+      action: 'energy_override',
+      targetType: 'user',
+      targetId: userId,
+      beforeState: JSON.stringify({ energy: profile?.currentEnergy || 0 }),
+      afterState: JSON.stringify({ energy }),
+      reason: reason || 'Admin manual override',
+      ipAddress: req.ip
+    }
+  })
+
+  logger.warn('Admin overrode user energy', { adminId, targetUserId: userId, energy, reason })
+
+  res.json({
+    success: true,
+    data: {
+      userId,
+      energy,
+      displayEnergy: Math.floor(energy / 10)
+    },
+    message: `Energy manually set to ${energy}/100 (${Math.floor(energy / 10)}/10)`
+  })
+}))
+
 export default router;
