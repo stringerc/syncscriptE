@@ -110,7 +110,7 @@ export class TemplateGalleryService {
             manifest: entry.script.manifest, // Include manifest for frontend parsing
             applyCount: stats?.applyCount || 0,
             lastApplied: stats?.lastApplied,
-            createdBy: entry.script.user.name || entry.script.user.email,
+            createdBy: 'SyncScript', // Always show as SyncScript for curated templates
             createdAt: entry.createdAt
           }
         })

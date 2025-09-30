@@ -166,28 +166,41 @@ export class ScriptsService {
       const generatedTaskIds: string[] = []
 
       for (const scriptTask of processedManifest.tasks) {
-        // Handle offsetDays if present, otherwise schedule for event date
-        const taskDate = new Date(eventDate)
-        if (scriptTask.offsetDays !== undefined) {
-          taskDate.setDate(taskDate.getDate() - scriptTask.offsetDays)
-        }
+        try {
+          // Handle offsetDays if present, otherwise schedule for event date
+          const taskDate = new Date(eventDate)
+          if (scriptTask.offsetDays !== undefined) {
+            taskDate.setDate(taskDate.getDate() - scriptTask.offsetDays)
+          }
 
-        const task = await prisma.task.create({
-          data: {
+          const taskData: any = {
             userId,
             eventId: targetEventId,
             title: scriptTask.title,
             description: scriptTask.description || '',
-            durationMin: scriptTask.durationMin,
-            estimatedDuration: scriptTask.durationMin,
+            estimatedDuration: scriptTask.durationMin || 30,
+            durationMin: scriptTask.durationMin || 30,
             priority: scriptTask.priority || 'MEDIUM',
             status: 'PENDING',
-            scheduledAt: taskDate,
-            tags: scriptTask.tags?.join(',') || ''
+            scheduledAt: taskDate
           }
-        })
 
-        generatedTaskIds.push(task.id)
+          console.log('Creating task with data:', JSON.stringify(taskData, null, 2))
+
+          const task = await prisma.task.create({
+            data: taskData
+          })
+
+          generatedTaskIds.push(task.id)
+        } catch (taskError: any) {
+          console.error('Failed to create task:', scriptTask.title, taskError.message)
+          logger.error('Task creation failed', { 
+            task: scriptTask, 
+            error: taskError.message,
+            details: taskError 
+          })
+          throw new Error(`Failed to create task "${scriptTask.title}": ${taskError.message}`)
+        }
       }
 
       // Create application record
