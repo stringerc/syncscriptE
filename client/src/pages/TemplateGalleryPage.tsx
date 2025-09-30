@@ -44,7 +44,7 @@ export function TemplateGalleryPage() {
       const response = await api.get('/calendar')
       return response.data
     },
-    enabled: galleryEnabled
+    enabled: true
   })
 
   const templates = catalogData?.data?.templates || []
