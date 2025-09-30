@@ -111,7 +111,7 @@ router.post('/:versionId/apply-to/:eventId', auth, async (req, res) => {
   try {
     console.log('Template apply route - req.user:', req.user)
     
-    if (!req.user || !req.user.userId) {
+    if (!req.user) {
       console.error('No user in request! Auth middleware may have failed.')
       return res.status(401).json({
         success: false,
@@ -119,7 +119,8 @@ router.post('/:versionId/apply-to/:eventId', auth, async (req, res) => {
       })
     }
     
-    const userId = req.user.userId
+    // req.user has 'id', not 'userId'!
+    const userId = req.user.id || req.user.userId
     const { versionId, eventId } = req.params
 
     console.log('Applying template:', { userId, versionId, eventId })
