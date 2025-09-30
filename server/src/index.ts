@@ -36,6 +36,7 @@ import priorityRoutes from './routes/priority';
 import friendsRoutes from './routes/friends';
 import templateGalleryRoutes from './routes/templateGallery';
 import projectsRoutes from './routes/projects';
+import aiSuggestionsRoutes from './routes/aiSuggestions';
 
 // Import middleware
 import { errorHandler } from './middleware/errorHandler';
@@ -230,6 +231,7 @@ app.use('/api/priority', priorityRoutes);
 app.use('/api/friends', friendsRoutes);
 app.use('/api/templates', templateGalleryRoutes);
 app.use('/api/projects', projectsRoutes);
+app.use('/api/ai-suggestions', aiSuggestionsRoutes);
 
 // Socket.IO for real-time updates
 io.on('connection', (socket) => {

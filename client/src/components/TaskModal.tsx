@@ -21,7 +21,8 @@ import {
   Clock, 
   Calendar,
   Sparkles,
-  AlertCircle
+  AlertCircle,
+  Mic
 } from 'lucide-react'
 import { Task, Priority, TaskStatus } from '@/shared/types'
 
@@ -62,6 +63,7 @@ export function TaskModal({ task, isOpen, onClose, onTaskUpdated, onTaskDeleted 
   const [suggestedNotes, setSuggestedNotes] = useState<string[]>([])
   const [showNotesSuggestion, setShowNotesSuggestion] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [isListening, setIsListening] = useState(false)
 
   // Initialize form data when task changes
   useEffect(() => {
@@ -303,6 +305,121 @@ export function TaskModal({ task, isOpen, onClose, onTaskUpdated, onTaskDeleted 
     }
   })
 
+  // AI Suggest Task Mutation
+  const aiSuggestMutation = useMutation({
+    mutationFn: async () => {
+      const response = await api.post('/ai-suggestions/task')
+      return response.data
+    },
+    onSuccess: (data) => {
+      const suggestion = data.data
+      setFormData({
+        ...formData,
+        title: suggestion.title,
+        description: suggestion.description,
+        priority: suggestion.priority as Priority,
+        estimatedDuration: suggestion.estimatedDuration
+      })
+      toast({
+        title: "✨ AI Suggested Task",
+        description: suggestion.reasoning,
+        duration: 5000
+      })
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Suggestion Failed",
+        description: error.response?.data?.error || "Failed to generate task suggestion",
+        variant: "destructive"
+      })
+    }
+  })
+
+  // Voice to Task Mutation
+  const voiceInputMutation = useMutation({
+    mutationFn: async (transcript: string) => {
+      const response = await api.post('/ai-suggestions/voice-to-task', { transcript })
+      return response.data
+    },
+    onSuccess: (data) => {
+      const parsed = data.data
+      setFormData({
+        title: parsed.title,
+        description: parsed.description,
+        notes: parsed.notes,
+        location: parsed.location,
+        priority: parsed.priority as Priority,
+        estimatedDuration: parsed.estimatedDuration
+      })
+      toast({
+        title: "🎤 Voice Understood!",
+        description: "Task details filled from your voice input",
+        duration: 4000
+      })
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Voice Input Failed",
+        description: error.response?.data?.error || "Failed to process voice input",
+        variant: "destructive"
+      })
+    }
+  })
+
+  const handleAISuggest = () => {
+    aiSuggestMutation.mutate()
+  }
+
+  const handleVoiceInput = () => {
+    // Use Web Speech API
+    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+      toast({
+        title: "Not Supported",
+        description: "Voice input is not supported in this browser. Try Chrome or Edge.",
+        variant: "destructive"
+      })
+      return
+    }
+
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
+    const recognition = new SpeechRecognition()
+    
+    recognition.continuous = false
+    recognition.interimResults = false
+    recognition.lang = 'en-US'
+
+    recognition.onstart = () => {
+      setIsListening(true)
+      toast({
+        title: "🎤 Listening...",
+        description: "Speak naturally about the task you want to create",
+        duration: 10000
+      })
+    }
+
+    recognition.onresult = (event: any) => {
+      const transcript = event.results[0][0].transcript
+      console.log('Voice transcript:', transcript)
+      voiceInputMutation.mutate(transcript)
+    }
+
+    recognition.onerror = (event: any) => {
+      console.error('Speech recognition error:', event.error)
+      setIsListening(false)
+      toast({
+        title: "Voice Error",
+        description: `Speech recognition error: ${event.error}`,
+        variant: "destructive"
+      })
+    }
+
+    recognition.onend = () => {
+      setIsListening(false)
+    }
+
+    recognition.start()
+  }
+
   const handleSave = () => {
     if (task) {
       updateTaskMutation.mutate(formData)
@@ -419,21 +536,49 @@ export function TaskModal({ task, isOpen, onClose, onTaskUpdated, onTaskDeleted 
             )}
           </div>
           <div className="flex items-center space-x-2">
+            {/* Voice Input Button - Show when creating new task */}
+            {!task && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleVoiceInput}
+                disabled={voiceInputMutation.isPending}
+                className="flex items-center gap-2"
+              >
+                {voiceInputMutation.isPending ? (
+                  <>
+                    <Sparkles className="w-4 h-4 animate-spin" />
+                    Listening...
+                  </>
+                ) : (
+                  <>
+                    <Mic className="w-4 h-4" />
+                    Voice Create
+                  </>
+                )}
+              </Button>
+            )}
+            
             {/* Suggest Task Button - Show when creating new task */}
             {!task && (
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => {
-                  toast({
-                    title: "AI Suggestions",
-                    description: "AI task suggestions coming soon! For now, use InlineSuggestions after filling task details."
-                  })
-                }}
+                onClick={handleAISuggest}
+                disabled={aiSuggestMutation.isPending}
                 className="flex items-center gap-2"
               >
-                <Sparkles className="w-4 h-4" />
-                Suggest Task
+                {aiSuggestMutation.isPending ? (
+                  <>
+                    <Sparkles className="w-4 h-4 animate-spin" />
+                    Thinking...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-4 h-4" />
+                    AI Suggest
+                  </>
+                )}
               </Button>
             )}
             {task && !isEditing && resourceCount > 0 && (
