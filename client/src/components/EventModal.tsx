@@ -310,6 +310,37 @@ export function EventModal({ event, isOpen, onClose, onEventUpdated }: EventModa
     }
   })
 
+  // AI Suggest Event Mutation
+  const aiSuggestMutation = useMutation({
+    mutationFn: async () => {
+      const response = await api.post('/ai-suggestions/event')
+      return response.data
+    },
+    onSuccess: (data) => {
+      const suggestion = data.data
+      setFormData({
+        ...formData,
+        title: suggestion.title,
+        description: suggestion.description,
+        location: suggestion.location || '',
+        startTime: suggestion.suggestedStartTime || formData.startTime,
+        endTime: suggestion.suggestedEndTime || formData.endTime
+      })
+      toast({
+        title: "✨ AI Suggested Event",
+        description: `${suggestion.reasoning}\n\nReview the suggestion below and adjust times if needed!`,
+        duration: 8000
+      })
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Suggestion Failed",
+        description: error.response?.data?.error || "Failed to generate event suggestion",
+        variant: "destructive"
+      })
+    }
+  })
+
   // Voice to Event Mutation
   const voiceInputMutation = useMutation({
     mutationFn: async (transcript: string) => {
@@ -341,6 +372,10 @@ export function EventModal({ event, isOpen, onClose, onEventUpdated }: EventModa
       })
     }
   })
+
+  const handleAISuggest = () => {
+    aiSuggestMutation.mutate()
+  }
 
   const handleVoiceInput = () => {
     if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
@@ -517,6 +552,29 @@ export function EventModal({ event, isOpen, onClose, onEventUpdated }: EventModa
                   <>
                     <Mic className="w-4 h-4" />
                     Voice Create
+                  </>
+                )}
+              </Button>
+            )}
+            
+            {/* AI Suggest Button - Show when creating new event */}
+            {!event && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleAISuggest}
+                disabled={aiSuggestMutation.isPending}
+                className="flex items-center gap-2"
+              >
+                {aiSuggestMutation.isPending ? (
+                  <>
+                    <Sparkles className="w-4 h-4 animate-spin" />
+                    Thinking...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-4 h-4" />
+                    AI Suggest
                   </>
                 )}
               </Button>

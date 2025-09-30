@@ -305,4 +305,127 @@ If they say "team meeting tomorrow at 2", set tomorrow at 2pm start, maybe 3pm e
   }
 })
 
+// POST /api/ai-suggestions/event - Suggest a new event based on context
+router.post('/event', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user!.userId
+
+    // Get user's upcoming events (next 7 days)
+    const now = new Date()
+    const nextWeek = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000)
+
+    const upcomingEvents = await prisma.event.findMany({
+      where: {
+        userId,
+        startTime: {
+          gte: now,
+          lte: nextWeek
+        }
+      },
+      orderBy: { startTime: 'asc' },
+      take: 10
+    })
+
+    // Get user's recent events to learn patterns
+    const pastMonth = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
+    const recentEvents = await prisma.event.findMany({
+      where: {
+        userId,
+        startTime: {
+          gte: pastMonth,
+          lt: now
+        }
+      },
+      orderBy: { startTime: 'desc' },
+      take: 5
+    })
+
+    // Build context for AI
+    const upcomingContext = upcomingEvents.map(e => 
+      `- ${e.title} on ${e.startTime.toLocaleDateString()}`
+    ).join('\n')
+
+    const recentContext = recentEvents.map(e => 
+      `- ${e.title} on ${e.startTime.toLocaleDateString()}`
+    ).join('\n')
+
+    const prompt = `You are a calendar assistant. Based on the user's schedule, suggest ONE new event they should add.
+
+UPCOMING EVENTS (next 7 days):
+${upcomingContext || 'None scheduled'}
+
+RECENT EVENTS (past month):
+${recentContext || 'None'}
+
+Analyze for:
+1. Missing recurring events (weekly meetings, check-ins)
+2. Follow-up events needed
+3. Personal time/breaks if overbooked
+4. Social/networking opportunities
+5. Health/fitness events if missing
+
+Respond with JSON ONLY:
+{
+  "title": "Event title (max 60 chars)",
+  "description": "Why this event is important (1-2 sentences)",
+  "suggestedStartTime": "ISO date-time string for suggested start (next 7 days)",
+  "suggestedEndTime": "ISO date-time string for suggested end",
+  "location": "Suggested location if applicable, empty string if not",
+  "reasoning": "Brief explanation why you're suggesting this (1 sentence)"
+}
+
+Be specific and actionable. Suggest times that make sense based on their schedule.`
+
+    // Call OpenAI
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [
+        { role: 'system', content: 'You are a helpful calendar assistant. Always respond with valid JSON.' },
+        { role: 'user', content: prompt }
+      ],
+      temperature: 0.7,
+      max_tokens: 400
+    })
+
+    const responseText = completion.choices[0]?.message?.content?.trim()
+    
+    if (!responseText) {
+      throw new Error('No response from AI')
+    }
+
+    // Parse JSON response
+    let suggestion
+    try {
+      suggestion = JSON.parse(responseText)
+    } catch (parseError) {
+      console.error('Failed to parse AI response:', responseText)
+      throw new Error('AI returned invalid response')
+    }
+
+    // Validate response
+    if (!suggestion.title || !suggestion.reasoning) {
+      throw new Error('AI response missing required fields')
+    }
+
+    res.json({
+      success: true,
+      data: {
+        title: suggestion.title,
+        description: suggestion.description || '',
+        suggestedStartTime: suggestion.suggestedStartTime,
+        suggestedEndTime: suggestion.suggestedEndTime,
+        location: suggestion.location || '',
+        reasoning: suggestion.reasoning
+      }
+    })
+
+  } catch (error: any) {
+    console.error('Event suggestion error:', error)
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to generate event suggestion'
+    })
+  }
+})
+
 export default router
