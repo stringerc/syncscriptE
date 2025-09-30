@@ -90,12 +90,13 @@ export function SpeechToTextInput({
   }, [transcript])
 
   if (!isSupported) {
+    console.warn('⚠️ Speech recognition not supported in this browser')
     // Fallback to regular input
     return multiline ? (
       <Textarea
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
+        placeholder={`${placeholder} (Voice input not supported in this browser)`}
         rows={rows}
         className={className}
       />
@@ -103,11 +104,13 @@ export function SpeechToTextInput({
       <Input
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
+        placeholder={`${placeholder} (Voice input not supported)`}
         className={className}
       />
     )
   }
+
+  console.log('🎤 SpeechToTextInput rendering with mic button', { isSupported, hasPermission, isListening })
 
   return (
     <div className="space-y-2">

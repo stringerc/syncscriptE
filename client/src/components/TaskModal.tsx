@@ -419,6 +419,30 @@ export function TaskModal({ task, isOpen, onClose, onTaskUpdated, onTaskDeleted 
             )}
           </div>
           <div className="flex items-center space-x-2">
+            {/* Suggest Task Button - Show when creating new task */}
+            {!task && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  toast({
+                    title: "AI Suggestions",
+                    description: "AI task suggestions coming soon! For now, use InlineSuggestions after filling task details."
+                  })
+                }}
+                className="flex items-center gap-2"
+              >
+                <Sparkles className="w-4 h-4" />
+                Suggest Task
+              </Button>
+            )}
+            {task && !isEditing && resourceCount > 0 && (
+              <ResourcesBadge 
+                count={resourceCount} 
+                onClick={handleOpenResources}
+                resourceNames={resourceNames}
+              />
+            )}
             {task && isEditing && (
               <ResourcesBadge 
                 count={resourceCount} 
