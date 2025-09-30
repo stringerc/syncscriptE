@@ -19,6 +19,8 @@ import { FriendsPage } from '@/pages/FriendsPage'
 import { TemplateGalleryPage } from '@/pages/TemplateGalleryPage'
 import { ProjectsPage } from '@/pages/ProjectsPage'
 import { ProjectDetailPage } from '@/pages/ProjectDetailPage'
+import { FAQPage } from '@/pages/FAQPage'
+import { PrivacyPage } from '@/pages/PrivacyPage'
 import EnergyAnalysisPage from '@/pages/EnergyAnalysisPage'
 import NotificationsPage from '@/pages/NotificationsPage'
 import SearchPage from '@/pages/SearchPage'
@@ -107,6 +109,8 @@ function AppContent() {
             <Route path="/projects" element={<ProjectsPage />} />
             <Route path="/projects/:projectId" element={<ProjectDetailPage />} />
             <Route path="/admin/analytics" element={<AnalyticsDashboardPage />} />
+            <Route path="/faq" element={<FAQPage />} />
+            <Route path="/privacy" element={<PrivacyPage />} />
             <Route path="/verify-email" element={<VerifyEmailPage />} />
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Routes>

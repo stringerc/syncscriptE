@@ -178,8 +178,24 @@ export function Sidebar() {
       </nav>
 
       {/* Footer */}
-      <div className="p-4 border-t border-border">
-        <div className="text-xs text-muted-foreground text-center">
+      <div className="p-4 border-t border-border space-y-3">
+        <div className="flex flex-col gap-2 text-xs text-center">
+          <NavLink 
+            to="/faq" 
+            onClick={closeSidebar}
+            className="text-muted-foreground hover:text-foreground transition-colors"
+          >
+            FAQ & Help
+          </NavLink>
+          <NavLink 
+            to="/privacy" 
+            onClick={closeSidebar}
+            className="text-muted-foreground hover:text-foreground transition-colors"
+          >
+            Privacy Policy
+          </NavLink>
+        </div>
+        <div className="text-xs text-muted-foreground text-center pt-2 border-t border-border/50">
           <p>SyncScript v1.0.0</p>
           <p>Powered by AI</p>
         </div>
