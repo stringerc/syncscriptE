@@ -237,7 +237,7 @@ const GamificationPage: React.FC = () => {
           <TabsTrigger value="leaderboard">Leaderboard</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="overview" className="space-y-6">
+        <TabsContent value="overview" className="space-y-6 min-h-[400px]">
           {/* Recent Achievements */}
           <Card>
             <CardHeader>
@@ -295,7 +295,7 @@ const GamificationPage: React.FC = () => {
           </Card>
         </TabsContent>
 
-        <TabsContent value="achievements" className="space-y-6">
+        <TabsContent value="achievements" className="space-y-6 min-h-[400px]">
           <Card>
             <CardHeader>
               <CardTitle>All Achievements</CardTitle>
@@ -331,7 +331,7 @@ const GamificationPage: React.FC = () => {
           </Card>
         </TabsContent>
 
-        <TabsContent value="badges" className="space-y-6">
+        <TabsContent value="badges" className="space-y-6 min-h-[400px]">
           <Card>
             <CardHeader>
               <CardTitle>Badges</CardTitle>
@@ -366,11 +366,11 @@ const GamificationPage: React.FC = () => {
           </Card>
         </TabsContent>
 
-        <TabsContent value="enhanced-achievements" className="space-y-6">
+        <TabsContent value="enhanced-achievements" className="space-y-6 min-h-[400px]">
           <EnhancedAchievements />
         </TabsContent>
 
-        <TabsContent value="leaderboard" className="space-y-6">
+        <TabsContent value="leaderboard" className="space-y-6 min-h-[400px]">
           <Card>
             <CardHeader>
               <CardTitle>Leaderboard</CardTitle>
@@ -420,11 +420,11 @@ const GamificationPage: React.FC = () => {
           </Card>
         </TabsContent>
 
-        <TabsContent value="challenges" className="space-y-6">
+        <TabsContent value="challenges" className="space-y-6 min-h-[400px]">
           <DailyChallenges />
         </TabsContent>
 
-        <TabsContent value="energy" className="space-y-6">
+        <TabsContent value="energy" className="space-y-6 min-h-[400px]">
           <EnergyEngine />
         </TabsContent>
       </Tabs>
