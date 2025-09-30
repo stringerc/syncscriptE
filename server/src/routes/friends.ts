@@ -21,7 +21,7 @@ const friendRequestRateLimit = rateLimit({
  */
 router.get('/', auth, async (req, res) => {
   try {
-    const userId = req.user!.userId
+    const userId = req.user!.id
     const friends = await friendsService.getFriends(userId)
     
     res.json({
@@ -42,7 +42,7 @@ router.get('/', auth, async (req, res) => {
  */
 router.get('/requests', auth, async (req, res) => {
   try {
-    const userId = req.user!.userId
+    const userId = req.user!.id
     const requests = await friendsService.getPendingRequests(userId)
     
     res.json({
@@ -63,7 +63,7 @@ router.get('/requests', auth, async (req, res) => {
  */
 router.post('/request', auth, friendRequestRateLimit, async (req, res) => {
   try {
-    const userId = req.user!.userId
+    const userId = req.user!.id
     const { email, message } = req.body
 
     if (!email) {
@@ -96,7 +96,7 @@ router.post('/request', auth, friendRequestRateLimit, async (req, res) => {
  */
 router.post('/respond', auth, async (req, res) => {
   try {
-    const userId = req.user!.userId
+    const userId = req.user!.id
     const { friendshipId, action } = req.body
 
     if (!friendshipId || !action) {
@@ -134,7 +134,7 @@ router.post('/respond', auth, async (req, res) => {
  */
 router.delete('/:friendshipId', auth, async (req, res) => {
   try {
-    const userId = req.user!.userId
+    const userId = req.user!.id
     const { friendshipId } = req.params
 
     await friendsService.removeFriend(userId, friendshipId)
@@ -157,7 +157,7 @@ router.delete('/:friendshipId', auth, async (req, res) => {
  */
 router.post('/block', auth, async (req, res) => {
   try {
-    const userId = req.user!.userId
+    const userId = req.user!.id
     const { email } = req.body
 
     if (!email) {
@@ -187,7 +187,7 @@ router.post('/block', auth, async (req, res) => {
  */
 router.get('/prefs', auth, async (req, res) => {
   try {
-    const userId = req.user!.userId
+    const userId = req.user!.id
     const prefs = await friendsService.getFriendPrefs(userId)
     
     res.json({
@@ -208,7 +208,7 @@ router.get('/prefs', auth, async (req, res) => {
  */
 router.patch('/prefs', auth, async (req, res) => {
   try {
-    const userId = req.user!.userId
+    const userId = req.user!.id
     const { showFriends, showFriendEmblems, showFriendEnergy } = req.body
 
     const prefs = await friendsService.updateFriendPrefs(userId, {
@@ -236,7 +236,7 @@ router.patch('/prefs', auth, async (req, res) => {
  */
 router.get('/privacy', auth, async (req, res) => {
   try {
-    const userId = req.user!.userId
+    const userId = req.user!.id
     const settings = await friendsService.getPrivacySettings(userId)
     
     res.json({
@@ -257,7 +257,7 @@ router.get('/privacy', auth, async (req, res) => {
  */
 router.patch('/privacy', auth, async (req, res) => {
   try {
-    const userId = req.user!.userId
+    const userId = req.user!.id
     const { hideMyEmblems, hideLastActive, hideMyEnergyFrom } = req.body
 
     const settings = await friendsService.updatePrivacySettings(userId, {
