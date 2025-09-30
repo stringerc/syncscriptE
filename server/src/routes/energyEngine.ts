@@ -6,6 +6,7 @@ import { logger } from '../utils/logger';
 import EnergyEngineService from '../services/energyEngineService';
 import { dailyChallengeService } from '../services/dailyChallengeService';
 import DailyChallengeService from '../services/dailyChallengeService';
+import { runDailyEnergyReset } from '../jobs/energyResetJob';
 
 const router = express.Router();
 const prisma = new PrismaClient();
@@ -442,6 +443,18 @@ router.get('/challenges/sessions/active', authenticateToken, asyncHandler(async 
   res.json({
     success: true,
     data: session
+  })
+}))
+
+// POST /admin/daily-reset - Manual trigger for daily energy reset (cron job)
+router.post('/admin/daily-reset', asyncHandler(async (req: any, res) => {
+  // In production, add API key authentication here
+  const result = await runDailyEnergyReset()
+
+  res.json({
+    success: true,
+    message: 'Daily energy reset complete',
+    data: result
   })
 }))
 

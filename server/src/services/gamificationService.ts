@@ -1,5 +1,7 @@
 import { PrismaClient } from '@prisma/client';
 import { logger } from '../utils/logger';
+import { EnergyEngineService } from './energyEngineService';
+import { updateUserEnergyInRealtime } from '../jobs/energyResetJob';
 
 const prisma = new PrismaClient();
 
@@ -474,7 +476,25 @@ export class GamificationService {
       }
     });
 
+    // ALSO AWARD ENERGY POINTS (1 point = 1 EP)
+    const domain = this.determineDomain(source);
+    await EnergyEngineService.awardEP(userId, amount, source, domain, description || '');
+    
+    // Update energy in real-time
+    await updateUserEnergyInRealtime(userId, amount);
+
     await this.checkLevelUp(userId);
+  }
+
+  // Determine which energy domain to award EP to based on source
+  private static determineDomain(source: string): string {
+    // Map activity sources to energy domains
+    if (source.includes('task') || source.includes('Task')) return 'order';
+    if (source.includes('feedback')) return 'mind';
+    if (source.includes('challenge')) return 'body'; // Can be dynamic based on challenge type
+    if (source.includes('social') || source.includes('friend')) return 'social';
+    if (source.includes('finance')) return 'finance';
+    return 'order'; // Default
   }
 
   // Check for level up
