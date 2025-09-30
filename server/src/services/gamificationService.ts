@@ -478,7 +478,7 @@ export class GamificationService {
 
     // ALSO AWARD ENERGY POINTS (1 point = 1 EP)
     const domain = this.determineDomain(source);
-    await EnergyEngineService.awardEP(userId, amount, source, domain, description || '');
+    await EnergyEngineService.awardEnergyPoints(userId, amount, source, domain, description || '');
     
     // Update energy in real-time
     await updateUserEnergyInRealtime(userId, amount);
