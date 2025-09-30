@@ -297,16 +297,55 @@ export function TemplateGalleryPage() {
             </DialogHeader>
             
             {previewTemplate.showApply && (
-              <div className="px-6 pb-4 space-y-3">
-                <div>
-                  <label className="block text-sm font-medium mb-2">Select Event to Apply To:</label>
+              <div className="px-6 pb-4 space-y-3 border-b">
+                <p className="text-sm font-medium">Choose how to use this script:</p>
+                
+                {/* Option 1: Create New Event */}
+                <div className="space-y-2 p-3 border-2 border-purple-500/50 rounded-lg bg-purple-50/50 dark:bg-purple-900/20">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-semibold text-purple-700 dark:text-purple-300">Create New Event from Script</p>
+                    <Button
+                      size="sm"
+                      variant={selectedEventId === '__CREATE_NEW__' ? 'default' : 'outline'}
+                      onClick={() => setSelectedEventId('__CREATE_NEW__')}
+                    >
+                      {selectedEventId === '__CREATE_NEW__' ? '✓ Selected' : 'Select'}
+                    </Button>
+                  </div>
+                  
+                  {selectedEventId === '__CREATE_NEW__' && (
+                    <div className="space-y-2 mt-3">
+                      <Input
+                        placeholder="Event title (e.g., My Wedding)"
+                        value={previewTemplate.newEventTitle || ''}
+                        onChange={(e) => setPreviewTemplate({
+                          ...previewTemplate,
+                          newEventTitle: e.target.value
+                        })}
+                        className="bg-white dark:bg-gray-800"
+                      />
+                      <Input
+                        type="datetime-local"
+                        value={previewTemplate.newEventStartTime || ''}
+                        onChange={(e) => setPreviewTemplate({
+                          ...previewTemplate,
+                          newEventStartTime: e.target.value
+                        })}
+                        className="bg-white dark:bg-gray-800"
+                      />
+                    </div>
+                  )}
+                </div>
+                
+                {/* Option 2: Apply to Existing Event */}
+                <div className="space-y-2 p-3 border-2 border-blue-500/50 rounded-lg bg-blue-50/50 dark:bg-blue-900/20">
+                  <p className="text-sm font-semibold text-blue-700 dark:text-blue-300">Apply to Existing Event</p>
                   <select
-                    className="w-full p-2 border rounded-md bg-white text-black"
-                    value={selectedEventId}
+                    className="w-full p-2 border rounded-md bg-white text-black dark:bg-gray-800 dark:text-white"
+                    value={selectedEventId === '__CREATE_NEW__' ? '' : selectedEventId}
                     onChange={(e) => setSelectedEventId(e.target.value)}
                   >
                     <option value="">Choose an event...</option>
-                    <option value="__CREATE_NEW__">+ Create New Event</option>
                     {events.map((event: any) => (
                       <option key={event.id} value={event.id}>
                         {event.title} ({new Date(event.startTime).toLocaleDateString()})
@@ -314,28 +353,6 @@ export function TemplateGalleryPage() {
                     ))}
                   </select>
                 </div>
-                
-                {selectedEventId === '__CREATE_NEW__' && (
-                  <div className="space-y-2 p-3 border rounded-lg bg-muted/30">
-                    <p className="text-sm font-medium">New Event Details:</p>
-                    <Input
-                      placeholder="Event title (e.g., My Wedding)"
-                      value={previewTemplate.newEventTitle || ''}
-                      onChange={(e) => setPreviewTemplate({
-                        ...previewTemplate,
-                        newEventTitle: e.target.value
-                      })}
-                    />
-                    <Input
-                      type="datetime-local"
-                      value={previewTemplate.newEventStartTime || ''}
-                      onChange={(e) => setPreviewTemplate({
-                        ...previewTemplate,
-                        newEventStartTime: e.target.value
-                      })}
-                    />
-                  </div>
-                )}
               </div>
             )}
 
