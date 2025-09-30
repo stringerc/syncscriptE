@@ -14,6 +14,7 @@ import { SettingsPage } from '@/pages/SettingsPage'
 import { ProfilePage } from '@/pages/ProfilePage'
 import { ProfileResourcesPage } from '@/pages/ProfileResourcesPage'
 import { AIAssistantPage } from '@/pages/AIAssistantPage'
+import { AnalyticsDashboardPage } from '@/pages/AnalyticsDashboardPage'
 import EnergyAnalysisPage from '@/pages/EnergyAnalysisPage'
 import NotificationsPage from '@/pages/NotificationsPage'
 import SearchPage from '@/pages/SearchPage'
@@ -30,7 +31,10 @@ import { FeatureFlagsProvider } from '@/contexts/FeatureFlagsContext'
 // Removed animation context import
 import DemoMode from '@/components/DemoMode'
 import { FeedbackButton } from '@/components/FeedbackButton'
+import { SkipLink } from '@/components/accessibility/SkipLink'
+import { GlobalScreenReaderAnnouncer } from '@/components/accessibility/ScreenReaderAnnouncer'
 import { api } from '@/lib/api'
+import '@/styles/accessibility.css'
 
 function AppContent() {
   const { user, isLoading, checkAuth } = useAuthStore()
@@ -76,6 +80,8 @@ function AppContent() {
   return (
     <AchievementsProvider>
       <SidebarProvider>
+        <SkipLink />
+        <GlobalScreenReaderAnnouncer />
         <Layout>
           <Routes>
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
@@ -92,6 +98,7 @@ function AppContent() {
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/profile" element={<ProfilePage />} />
             <Route path="/profile/resources" element={<ProfileResourcesPage />} />
+            <Route path="/admin/analytics" element={<AnalyticsDashboardPage />} />
             <Route path="/verify-email" element={<VerifyEmailPage />} />
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Routes>

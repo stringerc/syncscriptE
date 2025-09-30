@@ -168,6 +168,11 @@ model Task {
   completedAt       DateTime?
   deletedAt         DateTime? // Soft delete timestamp
   
+  // Scheduling Constraints (Phase 1)
+  durationMin       Int? // Duration in minutes (alias for estimatedDuration)
+  dependencies      String? // JSON array of task IDs this depends on
+  storeHours        String? // JSON: { start: "09:00", end: "17:00", days: [1,2,3,4,5] }
+  
   // Additional fields
   notes             String?  // User notes for the task
   location          String?  // Location where task should be performed
@@ -219,6 +224,11 @@ model Event {
   
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  
+  // Scheduling Constraints (Phase 1)
+  projectedFinish DateTime? // When all tasks are projected to complete
+  bufferMinutes   Int? // Buffer time before event starts
+  hasConflicts    Boolean @default(false) // Flag for quick conflict detection
   
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   preparationTasks Task[] // Tasks generated for this event

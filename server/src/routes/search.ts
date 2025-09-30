@@ -3,11 +3,42 @@ import { PrismaClient } from '@prisma/client';
 import { asyncHandler, createError } from '../middleware/errorHandler';
 import { authenticateToken, AuthRequest } from '../middleware/auth';
 import { logger } from '../utils/logger';
+import { aiSearchService } from '../services/aiSearchService';
+import { askAIRateLimit } from '../middleware/rateLimitMiddleware';
 
 const router = express.Router();
 const prisma = new PrismaClient();
 
-// Search endpoint
+// AI-enhanced search endpoint
+router.get('/ai', authenticateToken, askAIRateLimit, asyncHandler(async (req: AuthRequest, res) => {
+  const { q: query } = req.query;
+  
+  if (!query || typeof query !== 'string') {
+    throw createError('Search query is required', 400);
+  }
+
+  const userId = req.user!.id;
+  
+  logger.info('AI search request', { userId, query: query.substring(0, 50) });
+
+  const searchResponse = await aiSearchService.search(userId, query.trim());
+
+  // Log search query event
+  const { analyticsService } = await import('../services/analyticsService');
+  await analyticsService.logEvent(userId, 'search_query', { 
+    query: query.substring(0, 100),
+    resultCount: searchResponse.keywordResults.length,
+    fallbackMode: searchResponse.fallbackMode,
+    latency: searchResponse.latency
+  });
+
+  res.json({
+    success: true,
+    data: searchResponse
+  });
+}));
+
+// Original keyword search endpoint (kept for backward compatibility)
 router.get('/', authenticateToken, asyncHandler(async (req: AuthRequest, res) => {
   const { q: query, type, limit = '20' } = req.query;
   
@@ -19,7 +50,7 @@ router.get('/', authenticateToken, asyncHandler(async (req: AuthRequest, res) =>
   const limitNumber = parseInt(limit as string);
   const userId = req.user!.id;
 
-  logger.info('Search request', { userId, query: searchQuery, type });
+  logger.info('Keyword search request', { userId, query: searchQuery, type });
 
   try {
     const results = {

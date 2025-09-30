@@ -1,20 +1,78 @@
-import { useState } from 'react'
-import { MessageCircle, Send, X } from 'lucide-react'
+import { useState, useRef } from 'react'
+import { MessageCircle, Send, X, Upload, Maximize2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { useToast } from '@/hooks/use-toast'
 import { useQueryClient } from '@tanstack/react-query'
 import { usePointAnimation } from '@/contexts/PointAnimationContext'
+import { useFeatureFlags } from '@/contexts/FeatureFlagsContext'
 import { api } from '@/lib/api'
 
 export function FeedbackButton() {
   const [isOpen, setIsOpen] = useState(false)
   const [feedback, setFeedback] = useState('')
+  const [category, setCategory] = useState('bug')
+  const [screenshot, setScreenshot] = useState<File | null>(null)
+  const [screenshotPreview, setScreenshotPreview] = useState<string | null>(null)
+  const [includeConsoleErrors, setIncludeConsoleErrors] = useState(true)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const { toast } = useToast()
   const queryClient = useQueryClient()
   const { showPointAnimation } = usePointAnimation()
+  const { flags } = useFeatureFlags()
+
+  // Capture context for feedback
+  const captureContext = () => {
+    const context: any = {
+      url: window.location.href,
+      userAgent: navigator.userAgent,
+      viewport: {
+        width: window.innerWidth,
+        height: window.innerHeight
+      },
+      timestamp: new Date().toISOString(),
+      flags: flags
+    }
+
+    // Capture console errors if enabled
+    if (includeConsoleErrors) {
+      const debugErrors = localStorage.getItem('syncscript_debug_errors')
+      if (debugErrors) {
+        try {
+          const errors = JSON.parse(debugErrors)
+          context.consoleErrors = errors.slice(-5) // Last 5 errors
+        } catch (e) {
+          // Ignore parse errors
+        }
+      }
+    }
+
+    return context
+  }
+
+  // Handle screenshot upload
+  const handleScreenshotChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      setScreenshot(file)
+      const reader = new FileReader()
+      reader.onloadend = () => {
+        setScreenshotPreview(reader.result as string)
+      }
+      reader.readAsDataURL(file)
+    }
+  }
+
+  // Remove screenshot
+  const removeScreenshot = () => {
+    setScreenshot(null)
+    setScreenshotPreview(null)
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
+    }
+  }
 
   const handleSubmitFeedback = async () => {
     if (!feedback.trim()) {
@@ -28,9 +86,21 @@ export function FeedbackButton() {
 
     setIsSubmitting(true)
     try {
-      const response = await api.post('/feedback', {
-        message: feedback.trim(),
-        timestamp: new Date().toISOString()
+      const context = captureContext()
+      
+      const formData = new FormData()
+      formData.append('message', feedback.trim())
+      formData.append('category', category)
+      formData.append('context', JSON.stringify(context))
+      
+      if (screenshot) {
+        formData.append('screenshot', screenshot)
+      }
+
+      const response = await api.post('/feedback', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
       })
 
       if (response.data.success) {
@@ -65,6 +135,8 @@ export function FeedbackButton() {
           })
         }
         setFeedback('')
+        setCategory('bug')
+        removeScreenshot()
         setIsOpen(false)
       } else {
         throw new Error(response.data.error || 'Failed to send feedback')
@@ -120,9 +192,29 @@ export function FeedbackButton() {
               </Button>
             </CardHeader>
             <CardContent className="space-y-4">
+              {/* Category Selector */}
+              <div className="space-y-2">
+                <label htmlFor="category" className="text-sm font-medium">
+                  Category
+                </label>
+                <select
+                  id="category"
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value)}
+                  className="w-full px-3 py-2 border border-border rounded-md bg-background text-black"
+                >
+                  <option value="bug">🐛 Bug Report</option>
+                  <option value="feature">✨ Feature Request</option>
+                  <option value="improvement">🚀 Improvement</option>
+                  <option value="general">💬 General Feedback</option>
+                  <option value="other">📝 Other</option>
+                </select>
+              </div>
+
+              {/* Feedback Text */}
               <div className="space-y-2">
                 <label htmlFor="feedback" className="text-sm font-medium">
-                  Help us improve SyncScript
+                  Your Feedback
                 </label>
                 <Textarea
                   id="feedback"
@@ -137,6 +229,61 @@ export function FeedbackButton() {
                   {feedback.length}/1000 characters
                 </div>
               </div>
+
+              {/* Screenshot Upload */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium">
+                  Screenshot (optional)
+                </label>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleScreenshotChange}
+                  className="hidden"
+                />
+                {screenshotPreview ? (
+                  <div className="relative">
+                    <img
+                      src={screenshotPreview}
+                      alt="Screenshot preview"
+                      className="w-full h-32 object-cover rounded-md border"
+                    />
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={removeScreenshot}
+                      className="absolute top-2 right-2"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ) : (
+                  <Button
+                    variant="outline"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="w-full"
+                  >
+                    <Upload className="h-4 w-4 mr-2" />
+                    Upload Screenshot
+                  </Button>
+                )}
+              </div>
+
+              {/* Include Console Errors Toggle */}
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="includeErrors"
+                  checked={includeConsoleErrors}
+                  onChange={(e) => setIncludeConsoleErrors(e.target.checked)}
+                  className="rounded"
+                />
+                <label htmlFor="includeErrors" className="text-sm text-muted-foreground">
+                  Include console errors (helps us debug issues)
+                </label>
+              </div>
+
               <div className="flex justify-end space-x-2">
                 <Button
                   variant="outline"

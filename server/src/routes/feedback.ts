@@ -24,7 +24,8 @@ const createEmailTransporter = () => {
 // Submit feedback
 router.post('/', authenticateToken, asyncHandler(async (req: AuthRequest, res) => {
   const userId = req.user!.id
-  const { message, timestamp } = req.body
+  const { message, category, context } = req.body
+  const screenshot = req.file // If multer is configured
 
   if (!message || !message.trim()) {
     return res.status(400).json({
@@ -51,29 +52,57 @@ router.post('/', authenticateToken, asyncHandler(async (req: AuthRequest, res) =
     try {
       const transporter = createEmailTransporter()
       
+      // Parse context if it's a string
+      let parsedContext = context
+      if (typeof context === 'string') {
+        try {
+          parsedContext = JSON.parse(context)
+        } catch (e) {
+          parsedContext = { raw: context }
+        }
+      }
+
+      const categoryEmoji = {
+        bug: '🐛',
+        feature: '✨',
+        improvement: '🚀',
+        general: '💬',
+        other: '📝'
+      }[category || 'general'] || '📝'
+
       const mailOptions = {
         from: process.env.EMAIL_USER || process.env.FEEDBACK_EMAIL_USER || 'your-email@gmail.com',
-        to: process.env.ADMIN_EMAIL || process.env.EMAIL_USER || 'admin@syncscript.com', // Your email address
-        subject: `SyncScript Feedback from ${user.name || user.email}`,
+        to: process.env.ADMIN_EMAIL || process.env.EMAIL_USER || 'admin@syncscript.com',
+        subject: `${categoryEmoji} SyncScript Feedback: ${category || 'general'} from ${user.name || user.email}`,
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <h2 style="color: #2563eb;">New Feedback from SyncScript User</h2>
+            <h2 style="color: #2563eb;">New ${category || 'General'} Feedback</h2>
             <div style="background-color: #f8fafc; padding: 20px; border-radius: 8px; margin: 20px 0;">
               <h3 style="margin-top: 0; color: #374151;">User Information</h3>
               <p><strong>Name:</strong> ${user.name || 'Not provided'}</p>
               <p><strong>Email:</strong> ${user.email}</p>
               <p><strong>User ID:</strong> ${userId}</p>
-              <p><strong>Timestamp:</strong> ${new Date(timestamp).toLocaleString()}</p>
+              <p><strong>Category:</strong> ${categoryEmoji} ${category || 'General'}</p>
             </div>
             <div style="background-color: #ffffff; padding: 20px; border: 1px solid #e5e7eb; border-radius: 8px;">
               <h3 style="margin-top: 0; color: #374151;">Feedback Message</h3>
               <p style="white-space: pre-wrap; line-height: 1.6;">${message}</p>
             </div>
-            <div style="margin-top: 20px; padding: 15px; background-color: #fef3c7; border-radius: 8px;">
-              <p style="margin: 0; font-size: 14px; color: #92400e;">
-                💡 This feedback was submitted through the SyncScript app's feedback system.
-              </p>
+            ${parsedContext ? `
+            <div style="background-color: #f3f4f6; padding: 15px; border-radius: 8px; margin-top: 20px;">
+              <h4 style="margin-top: 0; color: #374151; font-size: 14px;">Context</h4>
+              <p style="font-size: 12px; margin: 5px 0;"><strong>URL:</strong> ${parsedContext.url || 'N/A'}</p>
+              <p style="font-size: 12px; margin: 5px 0;"><strong>User Agent:</strong> ${parsedContext.userAgent || 'N/A'}</p>
+              <p style="font-size: 12px; margin: 5px 0;"><strong>Viewport:</strong> ${parsedContext.viewport ? `${parsedContext.viewport.width}x${parsedContext.viewport.height}` : 'N/A'}</p>
+              ${parsedContext.consoleErrors && parsedContext.consoleErrors.length > 0 ? `
+                <details style="margin-top: 10px;">
+                  <summary style="cursor: pointer; font-size: 12px; font-weight: bold;">Console Errors (${parsedContext.consoleErrors.length})</summary>
+                  <pre style="font-size: 11px; background: #fff; padding: 10px; border-radius: 4px; overflow-x: auto;">${JSON.stringify(parsedContext.consoleErrors, null, 2)}</pre>
+                </details>
+              ` : ''}
             </div>
+            ` : ''}
+            ${screenshot ? '<p style="margin-top: 15px; font-size: 14px;">📎 Screenshot attached</p>' : ''}
           </div>
         `
       }

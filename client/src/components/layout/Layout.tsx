@@ -14,7 +14,9 @@ export function Layout({ children }: LayoutProps) {
     <div className="min-h-screen bg-background">
       <div className="flex h-screen">
         {/* Sidebar */}
-        <div className={`
+        <nav
+          aria-label="Main navigation"
+          className={`
           ${isOpen ? 'translate-x-0' : '-translate-x-full'}
           lg:translate-x-0
           fixed lg:relative
@@ -24,20 +26,33 @@ export function Layout({ children }: LayoutProps) {
           lg:transition-none
         `}>
           <Sidebar />
-        </div>
+        </nav>
 
         {/* Mobile overlay */}
         {isOpen && (
           <div 
             className="fixed inset-0 bg-black/50 z-40 lg:hidden"
             onClick={closeSidebar}
+            role="button"
+            tabIndex={0}
+            aria-label="Close navigation"
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                closeSidebar()
+              }
+            }}
           />
         )}
 
         {/* Main content */}
         <div className="flex-1 flex flex-col overflow-hidden lg:ml-0">
           <Header />
-          <main className="flex-1 overflow-auto p-4 lg:p-6">
+          <main 
+            id="main-content"
+            className="flex-1 overflow-auto p-4 lg:p-6"
+            tabIndex={-1}
+            aria-label="Main content"
+          >
             {children}
           </main>
         </div>

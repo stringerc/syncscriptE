@@ -28,6 +28,8 @@ import resourcesRoutes from './routes/resources';
 import featureFlagsRoutes from './routes/featureFlags';
 import analyticsRoutes from './routes/analytics';
 import privacyRoutes from './routes/privacy';
+import suggestionsRoutes from './routes/suggestions';
+import schedulingRoutes from './routes/scheduling';
 
 // Import middleware
 import { errorHandler } from './middleware/errorHandler';
@@ -214,6 +216,8 @@ app.use('/api/resources', resourcesRoutes);
 app.use('/api/feature-flags', featureFlagsRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/privacy', privacyRoutes);
+app.use('/api/suggestions', suggestionsRoutes);
+app.use('/api/scheduling', schedulingRoutes);
 
 // Socket.IO for real-time updates
 io.on('connection', (socket) => {
