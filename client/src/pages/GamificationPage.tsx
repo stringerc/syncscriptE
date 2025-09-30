@@ -373,8 +373,8 @@ const GamificationPage: React.FC = () => {
         <TabsContent value="leaderboard" className="space-y-6 min-h-[400px]">
           <Card>
             <CardHeader>
-              <CardTitle>Leaderboard</CardTitle>
-              <CardDescription>See how you rank against other users</CardDescription>
+              <CardTitle>Friends Leaderboard</CardTitle>
+              <CardDescription>See how you rank against your friends</CardDescription>
             </CardHeader>
             <CardContent>
               <ScrollArea className="h-96">
@@ -412,7 +412,11 @@ const GamificationPage: React.FC = () => {
                     </div>
                   ))}
                   {(!leaderboard || leaderboard.length === 0) && (
-                    <p className="text-center text-gray-500 py-12">No leaderboard data available</p>
+                    <div className="text-center text-gray-500 py-12">
+                      <Users className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                      <p className="font-medium">No friends on leaderboard yet</p>
+                      <p className="text-sm mt-2">Add friends to see how you compare!</p>
+                    </div>
                   )}
                 </div>
               </ScrollArea>
