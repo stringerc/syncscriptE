@@ -310,9 +310,12 @@ export function TasksPage() {
             Manage your tasks with AI-powered prioritization
           </p>
         </div>
-        <Button onClick={() => setShowAddForm(!showAddForm)}>
+        <Button onClick={() => {
+          setSelectedTask(null)
+          setIsTaskModalOpen(true)
+        }}>
           <Plus className="w-4 h-4 mr-2" />
-          Add Task
+          New Task
         </Button>
       </div>
 
