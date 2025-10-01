@@ -1,6 +1,6 @@
 import express from 'express'
 import { projectsService } from '../services/projectsService'
-import { authenticateToken as auth } from '../middleware/auth'
+import { authenticateToken as auth, AuthRequest } from '../middleware/auth'
 
 const router = express.Router()
 
@@ -8,7 +8,7 @@ const router = express.Router()
  * GET /api/projects
  * Get user's projects
  */
-router.get('/', auth, async (req, res) => {
+router.get('/', auth, async (req: AuthRequest, res) => {
   try {
     const userId = req.user!.id
     const projects = await projectsService.getUserProjects(userId)
@@ -29,7 +29,7 @@ router.get('/', auth, async (req, res) => {
  * POST /api/projects
  * Create new project
  */
-router.post('/', auth, async (req, res) => {
+router.post('/', auth, async (req: AuthRequest, res) => {
   try {
     const userId = req.user!.id
     const { name, description } = req.body
@@ -60,7 +60,7 @@ router.post('/', auth, async (req, res) => {
  * GET /api/projects/:projectId
  * Get project details
  */
-router.get('/:projectId', auth, async (req, res) => {
+router.get('/:projectId', auth, async (req: AuthRequest, res) => {
   try {
     const userId = req.user!.id
     const { projectId } = req.params
@@ -83,7 +83,7 @@ router.get('/:projectId', auth, async (req, res) => {
  * POST /api/projects/:projectId/invite
  * Invite user to project
  */
-router.post('/:projectId/invite', auth, async (req, res) => {
+router.post('/:projectId/invite', auth, async (req: AuthRequest, res) => {
   try {
     const userId = req.user!.id
     const { projectId } = req.params
@@ -120,7 +120,7 @@ router.post('/:projectId/invite', auth, async (req, res) => {
  * POST /api/projects/:projectId/respond
  * Accept/decline project invite
  */
-router.post('/:projectId/respond', auth, async (req, res) => {
+router.post('/:projectId/respond', auth, async (req: AuthRequest, res) => {
   try {
     const userId = req.user!.id
     const { projectId } = req.params
@@ -145,7 +145,7 @@ router.post('/:projectId/respond', auth, async (req, res) => {
  * PATCH /api/projects/:projectId/members/:memberId
  * Change member role
  */
-router.patch('/:projectId/members/:memberId', auth, async (req, res) => {
+router.patch('/:projectId/members/:memberId', auth, async (req: AuthRequest, res) => {
   try {
     const userId = req.user!.id
     const { projectId, memberId } = req.params
@@ -177,7 +177,7 @@ router.patch('/:projectId/members/:memberId', auth, async (req, res) => {
  * DELETE /api/projects/:projectId/members/:memberId
  * Remove member from project
  */
-router.delete('/:projectId/members/:memberId', auth, async (req, res) => {
+router.delete('/:projectId/members/:memberId', auth, async (req: AuthRequest, res) => {
   try {
     const userId = req.user!.id
     const { projectId, memberId } = req.params
@@ -200,7 +200,7 @@ router.delete('/:projectId/members/:memberId', auth, async (req, res) => {
  * POST /api/projects/:projectId/items
  * Add item to project
  */
-router.post('/:projectId/items', auth, async (req, res) => {
+router.post('/:projectId/items', auth, async (req: AuthRequest, res) => {
   try {
     const userId = req.user!.id
     const { projectId } = req.params
@@ -238,7 +238,7 @@ router.post('/:projectId/items', auth, async (req, res) => {
  * POST /api/projects/:projectId/archive
  * Archive project
  */
-router.post('/:projectId/archive', auth, async (req, res) => {
+router.post('/:projectId/archive', auth, async (req: AuthRequest, res) => {
   try {
     const userId = req.user!.id
     const { projectId } = req.params
@@ -261,7 +261,7 @@ router.post('/:projectId/archive', auth, async (req, res) => {
  * GET /api/projects/:projectId/audit
  * Get project audit trail
  */
-router.get('/:projectId/audit', auth, async (req, res) => {
+router.get('/:projectId/audit', auth, async (req: AuthRequest, res) => {
   try {
     const userId = req.user!.id
     const { projectId } = req.params
@@ -289,7 +289,7 @@ router.get('/:projectId/audit', auth, async (req, res) => {
  * POST /api/assign/:itemId
  * Assign user to item
  */
-router.post('/assign/:itemId', auth, async (req, res) => {
+router.post('/assign/:itemId', auth, async (req: AuthRequest, res) => {
   try {
     const userId = req.user!.id
     const { itemId } = req.params
@@ -327,7 +327,7 @@ router.post('/assign/:itemId', auth, async (req, res) => {
  * GET /api/provenance/:itemId
  * Get item provenance
  */
-router.get('/provenance/:itemId', auth, async (req, res) => {
+router.get('/provenance/:itemId', auth, async (req: AuthRequest, res) => {
   try {
     const { itemId } = req.params
     const provenance = await projectsService.getProvenance(itemId)

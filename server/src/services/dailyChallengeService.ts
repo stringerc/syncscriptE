@@ -1,6 +1,6 @@
 import { PrismaClient } from '@prisma/client'
 import { logger } from '../utils/logger'
-import { notificationService } from './notificationService'
+// import { notificationService } from './notificationService'
 
 const prisma = new PrismaClient()
 

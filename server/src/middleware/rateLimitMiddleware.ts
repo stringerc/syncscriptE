@@ -22,7 +22,7 @@ function createRateLimiter(options: {
     legacyHeaders: false,
     keyGenerator: options.keyGenerator || ((req: any) => req.user?.id || req.ip),
     handler: (req, res) => {
-      throw createError(429, options.message || 'Too many requests, please try again later')
+      throw createError(options.message || 'Too many requests, please try again later', 429)
     }
   })
 }
