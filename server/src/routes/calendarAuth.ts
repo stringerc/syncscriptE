@@ -19,7 +19,7 @@ router.get('/google/url', async (req, res) => {
       })
     }
     
-    // Google Calendar scopes
+    // Google Calendar scopes - Updated for real OAuth
     const scopes = [
       'openid',
       'email', 
