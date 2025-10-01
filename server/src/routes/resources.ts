@@ -121,7 +121,7 @@ router.post('/tasks/:id/resources/url', authenticateToken, asyncHandler(async (r
   }
 
   // Import URL unfurl service
-  const { urlUnfurlService } = await import('../services/urlUnfurlService')
+  // const { urlUnfurlService } = await import('../services/urlUnfurlService')
   
   // Ensure URL has protocol
   let fullUrl = url
@@ -130,13 +130,13 @@ router.post('/tasks/:id/resources/url', authenticateToken, asyncHandler(async (r
   }
 
   // Unfurl the URL to get metadata and preview image
-  const unfurledData = await urlUnfurlService.unfurlUrl(fullUrl)
+  // const unfurledData = await urlUnfurlService.unfurlUrl(fullUrl)
   
-  const domain = unfurledData?.domain || null
-  const previewImage = unfurledData?.image || null
-  const suggestedTitle = unfurledData?.title || title || domain || 'Untitled'
-  const merchant = unfurledData?.siteName || null
-  const priceCents = unfurledData?.price || null
+  const domain = null // unfurledData?.domain || null
+  const previewImage = null // unfurledData?.image || null
+  const suggestedTitle = title || 'Untitled' // unfurledData?.title || title || domain || 'Untitled'
+  const merchant = null // unfurledData?.siteName || null
+  const priceCents = null // unfurledData?.price || null
 
   // Check for duplicate URL in this resource set
   const existingResource = await prisma.resource.findFirst({
