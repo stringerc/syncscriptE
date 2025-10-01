@@ -83,8 +83,19 @@ logger.info(`🔧 Environment variables:`, {
   DATABASE_URL: process.env.DATABASE_URL ? 'SET' : 'NOT SET'
 });
 
-// Security middleware
-app.use(helmet());
+// Security middleware with CSP configuration
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+      fontSrc: ["'self'", "https://fonts.gstatic.com"],
+      scriptSrc: ["'self'"],
+      imgSrc: ["'self'", "data:", "https:"],
+      connectSrc: ["'self'", "https://syncscripte.onrender.com"],
+    },
+  },
+}));
 
 // CORS configuration for multiple origins
 const allowedOrigins = [
