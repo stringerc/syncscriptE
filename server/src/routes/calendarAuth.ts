@@ -47,4 +47,40 @@ router.post('/google/callback', async (req, res) => {
   }
 })
 
+/**
+ * GET /api/calendar-auth/outlook/url
+ * Get Outlook Calendar auth URL
+ */
+router.get('/outlook/url', async (req, res) => {
+  try {
+    res.json({
+      success: false,
+      error: 'Outlook Calendar integration coming soon'
+    })
+  } catch (error: any) {
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get Outlook auth URL'
+    })
+  }
+})
+
+/**
+ * GET /api/calendar-auth/apple/url
+ * Get Apple Calendar auth URL
+ */
+router.get('/apple/url', async (req, res) => {
+  try {
+    res.json({
+      success: false,
+      error: 'Apple Calendar integration coming soon'
+    })
+  } catch (error: any) {
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get Apple auth URL'
+    })
+  }
+})
+
 export default router

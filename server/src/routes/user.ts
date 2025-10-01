@@ -41,6 +41,59 @@ const deleteAccountSchema = z.object({
 
 // Get user profile
 router.get('/profile', authenticateToken, asyncHandler(async (req: AuthRequest, res) => {
+  // Handle mock Google users
+  if (req.user!.id === 'google_mock_user') {
+    return res.json({
+      success: true,
+      data: {
+        id: 'google_mock_user',
+        name: 'Google User',
+        email: 'user@gmail.com',
+        timezone: 'UTC',
+        energyLevel: 5,
+        showHolidays: true,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        emailVerified: true,
+        isEmailVerified: true,
+        preferences: {
+          notifications: true,
+          darkMode: false,
+          timezone: 'UTC'
+        },
+        settings: {
+          emailNotifications: true,
+          pushNotifications: true,
+          smsNotifications: false,
+          aiSchedulingEnabled: true,
+          aiBudgetAdviceEnabled: true,
+          aiEnergyAdaptation: true,
+          dataSharingEnabled: false,
+          workHoursStart: '09:00',
+          workHoursEnd: '17:00',
+          breakDuration: 15
+        },
+        achievements: [
+          {
+            id: 'welcome',
+            title: 'Welcome to SyncScript!',
+            description: 'You\'ve discovered the gamification system!',
+            points: 10,
+            icon: '🎉',
+            rarity: 'common',
+            unlockedAt: new Date().toISOString()
+          }
+        ],
+        streaks: [],
+        _count: {
+          tasks: 0,
+          events: 0,
+          notifications: 0
+        }
+      }
+    });
+  }
+
   const user = await prisma.user.findUnique({
     where: { id: req.user!.id },
     include: {
