@@ -61,10 +61,13 @@ export function GoogleCallbackPage() {
         console.log('🔐 GoogleCallback: Redirect logic', {
           returnTo,
           shouldAutoSync,
-          allParams: Object.fromEntries(searchParams.entries())
+          allParams: Object.fromEntries(searchParams.entries()),
+          url: window.location.href
         })
         
-        if (shouldAutoSync) {
+        // Force redirect to calendar-sync if returnTo is calendar-sync
+        if (returnTo === '/calendar-sync') {
+          console.log('🔐 GoogleCallback: Forcing redirect to calendar-sync')
           setMessage('Successfully signed in! Syncing your Google Calendar events...')
           
           // Show success toast with sync info
@@ -74,25 +77,29 @@ export function GoogleCallbackPage() {
             variant: "default"
           })
           
-          // Redirect to calendar sync page after 3 seconds to allow sync message to show
+          // Redirect to calendar sync page after 2 seconds
           setTimeout(() => {
-            navigate(returnTo)
-          }, 3000)
-        } else {
-          setMessage('Successfully signed in with Google!')
-          
-          // Show success toast
-          toast({
-            title: "Welcome!",
-            description: "You've successfully signed in with Google.",
-            variant: "default"
-          })
-
-          // Redirect to dashboard after 2 seconds
-          setTimeout(() => {
-            navigate(returnTo)
+            console.log('🔐 GoogleCallback: Navigating to /calendar-sync')
+            navigate('/calendar-sync')
           }, 2000)
+          return
         }
+        
+        // Default redirect to dashboard
+        setMessage('Successfully signed in with Google!')
+        
+        // Show success toast
+        toast({
+          title: "Welcome!",
+          description: "You've successfully signed in with Google.",
+          variant: "default"
+        })
+
+        // Redirect to dashboard after 2 seconds
+        setTimeout(() => {
+          console.log('🔐 GoogleCallback: Navigating to dashboard')
+          navigate('/dashboard')
+        }, 2000)
       } catch (error: any) {
         console.error('Google callback error:', error)
         setStatus('error')
