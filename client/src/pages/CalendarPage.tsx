@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
-import { Calendar, Plus, Clock, MapPin, DollarSign, Trash2, Paperclip } from 'lucide-react'
+import { Calendar, Plus, Clock, MapPin, DollarSign, Trash2, Paperclip, RefreshCw, Download } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { formatDate, formatTime, formatCurrency } from '@/lib/utils'
 import { Event } from '@/shared/types'
@@ -89,6 +89,7 @@ export function CalendarPage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [eventToDelete, setEventToDelete] = useState<{ id: string; title: string } | null>(null)
   const [resourcesDrawerTaskId, setResourcesDrawerTaskId] = useState<string | null>(null)
+  const [syncTimeRange, setSyncTimeRange] = useState('30') // Default to 30 days
 
   const { toast} = useToast()
   const queryClient = useQueryClient()
@@ -106,6 +107,47 @@ export function CalendarPage() {
     staleTime: 5 * 60 * 1000, // 5 minutes
     gcTime: 10 * 60 * 1000, // 10 minutes
     refetchOnWindowFocus: false
+  })
+
+  // Check Google Calendar connection status
+  const { data: googleCalendarStatus } = useQuery({
+    queryKey: ['google-calendar-status'],
+    queryFn: async () => {
+      const response = await api.get('/google-calendar/status')
+      return response.data
+    },
+    retry: 1,
+    staleTime: 5 * 60 * 1000 // 5 minutes
+  })
+
+  // Sync from Google Calendar mutation
+  const syncFromGoogleMutation = useMutation({
+    mutationFn: async ({ timeRange }: { timeRange: string }) => {
+      const response = await api.post('/calendar/sync-from-google', {
+        calendarId: 'primary',
+        timeRange
+      })
+      return response.data
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['events'] })
+      queryClient.invalidateQueries({ queryKey: ['calendar'] })
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+      
+      const { stats } = data.data
+      toast({
+        title: "Sync Complete!",
+        description: `Synced ${stats.created} new events and updated ${stats.updated} existing events from Google Calendar`,
+        duration: 5000
+      })
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Sync Failed",
+        description: error.response?.data?.message || "Failed to sync events from Google Calendar",
+        variant: "destructive"
+      })
+    }
   })
 
   const createEventMutation = useMutation({
@@ -288,14 +330,103 @@ export function CalendarPage() {
             Manage your events and schedule
           </p>
         </div>
-        <Button onClick={() => {
-          setSelectedEvent(null)
-          setIsModalOpen(true)
-        }}>
-          <Plus className="w-4 h-4 mr-2" />
-          New Event
-        </Button>
+        <div className="flex items-center space-x-3">
+          {/* Google Calendar Sync Section */}
+          {googleCalendarStatus?.data?.connected && (
+            <div className="flex items-center space-x-2">
+              <div className="flex items-center space-x-2">
+                <label className="text-sm text-muted-foreground">Sync:</label>
+                <select
+                  value={syncTimeRange}
+                  onChange={(e) => setSyncTimeRange(e.target.value)}
+                  className="text-sm border rounded px-2 py-1"
+                >
+                  <option value="7">7 days</option>
+                  <option value="30">30 days</option>
+                  <option value="90">90 days</option>
+                </select>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => syncFromGoogleMutation.mutate({ timeRange: syncTimeRange })}
+                disabled={syncFromGoogleMutation.isPending}
+                className="flex items-center space-x-1"
+              >
+                {syncFromGoogleMutation.isPending ? (
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Download className="w-4 h-4" />
+                )}
+                <span>Sync from Google</span>
+              </Button>
+            </div>
+          )}
+          
+          <Button onClick={() => {
+            setSelectedEvent(null)
+            setIsModalOpen(true)
+          }}>
+            <Plus className="w-4 h-4 mr-2" />
+            New Event
+          </Button>
+        </div>
       </div>
+
+      {/* Google Calendar Status Banner */}
+      {!googleCalendarStatus?.data?.connected ? (
+        <Card className="border-blue-200 bg-blue-50">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                  <Calendar className="w-4 h-4 text-blue-600" />
+                </div>
+                <div>
+                  <h3 className="font-medium text-blue-900">Connect Google Calendar</h3>
+                  <p className="text-sm text-blue-700">
+                    Sync your Google Calendar events to see them in your events list
+                  </p>
+                </div>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => window.location.href = '/google-calendar'}
+                className="border-blue-300 text-blue-700 hover:bg-blue-100"
+              >
+                Connect Google Calendar
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      ) : (
+        <Card className="border-green-200 bg-green-50">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
+                  <Calendar className="w-4 h-4 text-green-600" />
+                </div>
+                <div>
+                  <h3 className="font-medium text-green-900">Google Calendar Connected</h3>
+                  <p className="text-sm text-green-700">
+                    Your Google Calendar is connected. Use the sync button above to import events.
+                  </p>
+                </div>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => window.location.href = '/google-calendar'}
+                className="border-green-300 text-green-700 hover:bg-green-100"
+              >
+                Manage Connection
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {showAddForm && (
         <Card>

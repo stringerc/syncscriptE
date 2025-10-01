@@ -653,4 +653,166 @@ router.delete('/clear-synced', authenticateToken, asyncHandler(async (req: AuthR
   });
 }));
 
+// Sync events from Google Calendar to local events
+router.post('/sync-from-google', authenticateToken, asyncHandler(async (req: AuthRequest, res) => {
+  const { calendarId = 'primary', timeRange = '30' } = req.body; // timeRange in days
+  const userId = req.user!.id;
+
+  logger.info('Starting Google Calendar sync to events', { userId, calendarId, timeRange });
+
+  try {
+    // Check if user has Google Calendar integration
+    const integration = await prisma.calendarIntegration.findFirst({
+      where: {
+        userId,
+        provider: 'google',
+        isActive: true
+      }
+    });
+
+    if (!integration) {
+      throw createError('Google Calendar integration not found. Please connect your Google Calendar first.', 404);
+    }
+
+    // Import GoogleCalendarService
+    const { GoogleCalendarService } = await import('../utils/googleCalendarService');
+    
+    const googleCalendarService = new GoogleCalendarService({
+      accessToken: integration.accessToken,
+      refreshToken: integration.refreshToken || undefined,
+      expiresAt: integration.expiresAt || undefined
+    });
+
+    // Calculate time range
+    const now = new Date();
+    const futureDate = new Date(now.getTime() + parseInt(timeRange) * 24 * 60 * 60 * 1000);
+
+    // Get events from Google Calendar
+    const googleEvents = await googleCalendarService.getEvents(calendarId, {
+      timeMin: now.toISOString(),
+      timeMax: futureDate.toISOString(),
+      maxResults: 100
+    });
+
+    logger.info('Fetched Google Calendar events', { 
+      userId, 
+      eventCount: googleEvents.length,
+      timeRange: `${now.toISOString()} to ${futureDate.toISOString()}`
+    });
+
+    let createdCount = 0;
+    let updatedCount = 0;
+    let skippedCount = 0;
+    const createdEvents = [];
+    const updatedEvents = [];
+
+    for (const googleEvent of googleEvents) {
+      try {
+        // Skip events without a title
+        if (!googleEvent.summary) {
+          skippedCount++;
+          continue;
+        }
+
+        // Parse event times
+        let startTime: Date;
+        let endTime: Date;
+        let isAllDay = false;
+
+        if (googleEvent.start.date || googleEvent.end.date) {
+          // All-day event
+          startTime = new Date(googleEvent.start.date + 'T00:00:00');
+          endTime = new Date(googleEvent.end.date + 'T23:59:59');
+          isAllDay = true;
+        } else {
+          startTime = new Date(googleEvent.start.dateTime);
+          endTime = new Date(googleEvent.end.dateTime);
+          isAllDay = false;
+        }
+
+        // Check if event already exists
+        const existingEvent = await prisma.event.findFirst({
+          where: {
+            userId,
+            calendarEventId: googleEvent.id,
+            calendarProvider: 'google'
+          }
+        });
+
+        const eventData = {
+          title: googleEvent.summary,
+          description: googleEvent.description || null,
+          startTime,
+          endTime,
+          location: googleEvent.location || null,
+          isAllDay,
+          calendarProvider: 'google',
+          calendarEventId: googleEvent.id
+        };
+
+        if (existingEvent) {
+          // Update existing event
+          await prisma.event.update({
+            where: { id: existingEvent.id },
+            data: eventData
+          });
+          updatedCount++;
+          updatedEvents.push({
+            id: existingEvent.id,
+            title: eventData.title,
+            startTime: eventData.startTime.toISOString(),
+            endTime: eventData.endTime.toISOString()
+          });
+        } else {
+          // Create new event
+          const newEvent = await prisma.event.create({
+            data: {
+              ...eventData,
+              userId
+            }
+          });
+          createdCount++;
+          createdEvents.push({
+            id: newEvent.id,
+            title: eventData.title,
+            startTime: eventData.startTime.toISOString(),
+            endTime: eventData.endTime.toISOString()
+          });
+        }
+      } catch (error) {
+        logger.error('Error processing individual Google event:', error);
+        skippedCount++;
+      }
+    }
+
+    logger.info('Google Calendar sync completed', { 
+      userId, 
+      createdCount, 
+      updatedCount, 
+      skippedCount 
+    });
+
+    res.json({
+      success: true,
+      data: {
+        stats: {
+          created: createdCount,
+          updated: updatedCount,
+          skipped: skippedCount,
+          total: googleEvents.length
+        },
+        createdEvents,
+        updatedEvents,
+        timeRange: `${timeRange} days`,
+        calendarId
+      },
+      message: `Successfully synced ${createdCount} new events and updated ${updatedCount} existing events from Google Calendar`
+    });
+
+  } catch (error) {
+    logger.error('Error syncing from Google Calendar:', error);
+    throw createError('Failed to sync events from Google Calendar', 500);
+  }
+}));
+
 export default router;
