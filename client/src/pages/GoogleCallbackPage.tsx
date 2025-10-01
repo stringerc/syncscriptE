@@ -34,88 +34,102 @@ export function GoogleCallbackPage() {
           return
         }
 
-        // Temporarily use mock OAuth flow while debugging real OAuth
-        console.log('🔐 GoogleCallback: Processing mock Google OAuth callback')
+        // Process real Google OAuth callback
+        console.log('🔐 GoogleCallback: Processing real Google OAuth callback')
         
-        // Simulate user data from Google
-        const mockUser = {
-          id: 'google_' + Date.now(),
-          email: 'user@gmail.com',
-          name: 'Google User',
-          avatar: null,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        }
-        
-        // Store user data temporarily in localStorage for auth store to pick up
-        localStorage.setItem('syncscript_user', JSON.stringify(mockUser))
-        localStorage.setItem('syncscript_token', 'google_token_' + Date.now())
-        
-        setStatus('success')
-        
-        // Check if we should auto-sync after authentication
-        let returnTo = '/dashboard'
-        
-        // Try to get returnTo from state parameter (Google OAuth)
-        const stateParam = searchParams.get('state')
-        if (stateParam) {
-          try {
-            const stateData = JSON.parse(decodeURIComponent(stateParam))
-            returnTo = stateData.returnTo || '/dashboard'
-          } catch (error) {
-            console.log('Could not parse state parameter:', error)
-          }
-        }
-        
-        // Fallback to returnTo parameter
-        if (!returnTo || returnTo === '/dashboard') {
-          returnTo = searchParams.get('returnTo') || '/dashboard'
-        }
-        
-        const shouldAutoSync = returnTo === '/google-calendar'
-        
-        console.log('🔐 GoogleCallback: Redirect logic', {
-          returnTo,
-          shouldAutoSync,
-          allParams: Object.fromEntries(searchParams.entries()),
-          url: window.location.href
-        })
-        
-        // Force redirect to google-calendar if returnTo is google-calendar
-        if (returnTo === '/google-calendar') {
-          console.log('🔐 GoogleCallback: Forcing redirect to google-calendar')
-          setMessage('Successfully signed in! Syncing your Google Calendar events...')
-          
-          // Show success toast with sync info
-          toast({
-            title: "Google Calendar Connected!",
-            description: "Syncing your events and holidays...",
-            variant: "default"
+        try {
+          // Send the authorization code to the backend using the Google Calendar login endpoint
+          const response = await api.post('/google-calendar/auth/login-callback', {
+            code: code
           })
           
-          // Redirect to calendar sync page after 2 seconds
-          setTimeout(() => {
-            console.log('🔐 GoogleCallback: Navigating to /google-calendar')
-            navigate('/google-calendar')
-          }, 2000)
+          if (response.data.success) {
+            const { user, token } = response.data.data
+            
+            // Store user data and token
+            localStorage.setItem('syncscript_user', JSON.stringify(user))
+            localStorage.setItem('syncscript_token', token)
+            
+            // Update auth store
+            authLogin({
+              user: user,
+              token: token
+            })
+            
+            setStatus('success')
+            
+            // Check if we should auto-sync after authentication
+            let returnTo = '/dashboard'
+            
+            // Try to get returnTo from state parameter (Google OAuth)
+            const stateParam = searchParams.get('state')
+            if (stateParam) {
+              try {
+                const stateData = JSON.parse(decodeURIComponent(stateParam))
+                returnTo = stateData.returnTo || '/dashboard'
+              } catch (error) {
+                console.log('Could not parse state parameter:', error)
+              }
+            }
+            
+            // Fallback to returnTo parameter
+            if (!returnTo || returnTo === '/dashboard') {
+              returnTo = searchParams.get('returnTo') || '/dashboard'
+            }
+            
+            const shouldAutoSync = returnTo === '/google-calendar'
+            
+            console.log('🔐 GoogleCallback: Redirect logic', {
+              returnTo,
+              shouldAutoSync,
+              allParams: Object.fromEntries(searchParams.entries()),
+              url: window.location.href
+            })
+            
+            // Force redirect to google-calendar if returnTo is google-calendar
+            if (returnTo === '/google-calendar') {
+              console.log('🔐 GoogleCallback: Forcing redirect to google-calendar')
+              setMessage('Successfully signed in! Syncing your Google Calendar events...')
+              
+              // Show success toast with sync info
+              toast({
+                title: "Google Calendar Connected!",
+                description: "Syncing your events and holidays...",
+                variant: "default"
+              })
+              
+              // Redirect to calendar sync page after 2 seconds
+              setTimeout(() => {
+                console.log('🔐 GoogleCallback: Navigating to /google-calendar')
+                navigate('/google-calendar')
+              }, 2000)
+              return
+            }
+            
+            // Default redirect to dashboard
+            setMessage('Successfully signed in with Google!')
+            
+            // Show success toast
+            toast({
+              title: "Welcome!",
+              description: `Welcome back, ${user.name}!`,
+              variant: "default"
+            })
+
+            // Redirect to dashboard after 2 seconds
+            setTimeout(() => {
+              console.log('🔐 GoogleCallback: Navigating to dashboard')
+              navigate('/dashboard')
+            }, 2000)
+          } else {
+            throw new Error(response.data.error || 'Authentication failed')
+          }
+        } catch (apiError: any) {
+          console.error('Google OAuth API error:', apiError)
+          setStatus('error')
+          setMessage(apiError.response?.data?.error || 'Failed to authenticate with Google')
           return
         }
-        
-        // Default redirect to dashboard
-        setMessage('Successfully signed in with Google!')
-        
-        // Show success toast
-        toast({
-          title: "Welcome!",
-          description: "You've successfully signed in with Google.",
-          variant: "default"
-        })
-
-        // Redirect to dashboard after 2 seconds
-        setTimeout(() => {
-          console.log('🔐 GoogleCallback: Navigating to dashboard')
-          navigate('/dashboard')
-        }, 2000)
       } catch (error: any) {
         console.error('Google callback error:', error)
         setStatus('error')

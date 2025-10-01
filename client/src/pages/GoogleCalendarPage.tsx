@@ -501,14 +501,20 @@ export function GoogleCalendarPage() {
                       }
 
                       if (provider.provider === 'google') {
-                        // Temporarily use mock OAuth flow while debugging real OAuth
-                        console.log('🔐 GoogleCalendarPage: Starting mock Google OAuth flow (temporary)')
-                        const mockCode = 'mock_google_code_' + Date.now()
-                        const mockState = 'mock_state_' + Date.now()
-                        // Add returnTo parameter to redirect back to calendar sync
-                        const redirectUrl = `/google-callback?code=${mockCode}&state=${mockState}&returnTo=/google-calendar`
-                        console.log('🔐 GoogleCalendarPage: Redirect URL', redirectUrl)
-                        window.location.href = redirectUrl
+                        // Use real Google OAuth flow
+                        if (isConfigured && targetUrl) {
+                          // Add returnTo parameter to redirect back to calendar sync
+                          const returnToParam = encodeURIComponent('/google-calendar')
+                          const authUrlWithReturn = `${targetUrl}&state=${encodeURIComponent(JSON.stringify({ returnTo: '/google-calendar' }))}`
+                          console.log('🔐 GoogleCalendarPage: Starting real Google OAuth flow', authUrlWithReturn)
+                          window.location.href = authUrlWithReturn
+                        } else {
+                          toast({
+                            title: "Setup Required",
+                            description: "Google OAuth credentials need to be configured",
+                            variant: "destructive"
+                          });
+                        }
                       } else if (isConfigured && targetUrl) {
                         window.location.href = targetUrl;
                       } else {
