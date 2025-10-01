@@ -64,6 +64,12 @@ api.interceptors.request.use(
         console.log('🔐 Invalid token format')
       }
     }
+    
+    // Also check for mock Google token
+    const mockToken = localStorage.getItem('syncscript_token')
+    if (mockToken && !config.headers.Authorization) {
+      config.headers.Authorization = `Bearer ${mockToken}`
+    }
     return config
   },
   (error) => {
