@@ -93,10 +93,15 @@ router.post('/google/callback', async (req, res) => {
     
     if (!tokenResponse.ok) {
       const errorData = await tokenResponse.text()
-      console.error('Google token exchange failed:', errorData)
+      console.error('Google token exchange failed:', {
+        status: tokenResponse.status,
+        statusText: tokenResponse.statusText,
+        error: errorData,
+        code: code.substring(0, 20) + '...' // Log first 20 chars of code for debugging
+      })
       return res.status(400).json({
         success: false,
-        error: 'Failed to exchange authorization code for tokens'
+        error: `Failed to exchange authorization code for tokens: ${tokenResponse.status} ${tokenResponse.statusText}`
       })
     }
     
