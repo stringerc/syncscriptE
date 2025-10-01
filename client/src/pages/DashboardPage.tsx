@@ -1360,18 +1360,24 @@ export function DashboardPage() {
 
   // Destructure dashboard data for use in the component
   const { user, upcomingEvents, recentAchievements, activeStreaks, unreadNotifications } = dashboardData || {}
+  
+  // Ensure all arrays are properly initialized to prevent undefined errors
+  const safeUpcomingEvents = upcomingEvents || []
+  const safeRecentAchievements = recentAchievements || []
+  const safeActiveStreaks = activeStreaks || []
+  const safeUnreadNotifications = unreadNotifications || []
 
   // Debug logging for dashboard events
   console.log('🎉 Dashboard Events Debug:', {
-    totalEvents: upcomingEvents?.length || 0,
-    events: upcomingEvents?.map(event => ({
+    totalEvents: safeUpcomingEvents.length,
+    events: safeUpcomingEvents.map(event => ({
       id: event.id,
       title: event.title,
       startTime: event.startTime,
       calendarProvider: event.calendarProvider,
       isGoogleEvent: event.calendarProvider === 'google'
-    })) || [],
-    googleEvents: upcomingEvents?.filter(e => e.calendarProvider === 'google') || []
+    })),
+    googleEvents: safeUpcomingEvents.filter(e => e.calendarProvider === 'google')
   })
 
   return (
