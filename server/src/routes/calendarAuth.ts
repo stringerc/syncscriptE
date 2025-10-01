@@ -19,13 +19,11 @@ router.get('/google/url', async (req, res) => {
       })
     }
     
-    // Google Calendar scopes - Updated for real OAuth
+    // Start with basic scopes to test OAuth flow
     const scopes = [
       'openid',
       'email', 
-      'profile',
-      'https://www.googleapis.com/auth/calendar.readonly',
-      'https://www.googleapis.com/auth/calendar.events'
+      'profile'
     ].join(' ')
     
     const authUrl = `https://accounts.google.com/oauth/authorize?` +
