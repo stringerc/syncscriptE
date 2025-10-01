@@ -275,11 +275,15 @@ export function AuthPage() {
                 onClick={async () => {
                   try {
                     console.log('🔐 AuthPage: Starting Google OAuth flow')
+                    console.log('🔐 AuthPage: Fetching from URL:', 'https://syncscripte.onrender.com/api/calendar-auth/google/url')
+                    
                     // Get Google auth URL from Render backend
                     const response = await fetch('https://syncscripte.onrender.com/api/calendar-auth/google/url')
                     const data = await response.json()
                     
                     console.log('🔐 AuthPage: Google auth response:', data)
+                    console.log('🔐 AuthPage: Response status:', response.status)
+                    console.log('🔐 AuthPage: Response headers:', Object.fromEntries(response.headers.entries()))
                     
                     if (data.success) {
                       console.log('🔐 AuthPage: Redirecting to Google OAuth:', data.data.authUrl)
