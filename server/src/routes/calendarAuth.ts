@@ -10,7 +10,7 @@ const router = express.Router()
 router.get('/google/url', async (req, res) => {
   try {
     const clientId = process.env.GOOGLE_CLIENT_ID
-    const redirectUri = 'https://syncscript-e-qlwn-gi.vercel.app/google-callback'
+    const redirectUri = 'https://syncscript-e-qlwn-git-main-christopher-stringers-projects.vercel.app/google-callback'
     
     if (!clientId || clientId === 'placeholder') {
       return res.json({
@@ -67,7 +67,7 @@ router.post('/google/callback', async (req, res) => {
     
     const clientId = process.env.GOOGLE_CLIENT_ID
     const clientSecret = process.env.GOOGLE_CLIENT_SECRET
-    const redirectUri = 'https://syncscript-e-qlwn-gi.vercel.app/google-callback'
+    const redirectUri = 'https://syncscript-e-qlwn-git-main-christopher-stringers-projects.vercel.app/google-callback'
     
     if (!clientId || !clientSecret || clientId === 'placeholder') {
       return res.status(500).json({
