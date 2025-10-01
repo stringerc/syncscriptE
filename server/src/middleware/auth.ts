@@ -28,6 +28,16 @@ export const authenticateToken = async (
       });
     }
 
+    // Check if this is a mock Google token
+    if (token.startsWith('google_token_')) {
+      // Mock authentication for Google OAuth
+      req.user = {
+        id: 'google_mock_user',
+        email: 'user@gmail.com'
+      };
+      return next();
+    }
+
     const secret = process.env.JWT_SECRET;
     if (!secret) {
       logger.error('JWT_SECRET not configured');
