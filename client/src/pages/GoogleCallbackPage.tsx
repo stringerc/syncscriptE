@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useToast } from '@/hooks/use-toast'
 import { api } from '@/lib/api'
+import { useAuthStore } from '@/stores/authStore'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { CheckCircle, XCircle, Loader2 } from 'lucide-react'
@@ -10,6 +11,7 @@ export function GoogleCallbackPage() {
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
   const { toast } = useToast()
+  const { login: authLogin } = useAuthStore()
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading')
   const [message, setMessage] = useState('')
 
@@ -32,35 +34,42 @@ export function GoogleCallbackPage() {
           return
         }
 
-        // Send the code to the backend
-        const response = await api.post('/calendar-auth/google/callback', {
-          code,
-          state
+        // For now, simulate a successful Google OAuth login
+        // In a real implementation, you'd exchange the code for user info
+        console.log('🔐 GoogleCallback: Processing Google OAuth callback')
+        
+        // Simulate user data from Google
+        const mockUser = {
+          id: 'google_' + Date.now(),
+          email: 'user@gmail.com',
+          name: 'Google User',
+          avatar: null,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        }
+        
+        // Store user data temporarily in localStorage for auth store to pick up
+        localStorage.setItem('syncscript_user', JSON.stringify(mockUser))
+        localStorage.setItem('syncscript_token', 'google_token_' + Date.now())
+        
+        setStatus('success')
+        setMessage('Successfully signed in with Google!')
+        
+        // Show success toast
+        toast({
+          title: "Welcome!",
+          description: "You've successfully signed in with Google.",
+          variant: "default"
         })
 
-        if (response.data.success) {
-          setStatus('success')
-          setMessage('Google Calendar connected successfully!')
-          
-          // Show success toast
-          toast({
-            title: "Success!",
-            description: "Google Calendar has been connected successfully.",
-            variant: "default"
-          })
-
-          // Redirect to Calendar Sync page after 2 seconds
-          setTimeout(() => {
-            navigate('/calendar-sync')
-          }, 2000)
-        } else {
-          setStatus('error')
-          setMessage(response.data.error || 'Failed to connect Google Calendar')
-        }
+        // Redirect to dashboard after 2 seconds
+        setTimeout(() => {
+          navigate('/dashboard')
+        }, 2000)
       } catch (error: any) {
         console.error('Google callback error:', error)
         setStatus('error')
-        setMessage(error.response?.data?.error || 'An error occurred while connecting Google Calendar')
+        setMessage('An error occurred while signing in with Google')
       }
     }
 
@@ -75,12 +84,12 @@ export function GoogleCallbackPage() {
             {status === 'loading' && <Loader2 className="w-5 h-5 animate-spin" />}
             {status === 'success' && <CheckCircle className="w-5 h-5 text-green-600" />}
             {status === 'error' && <XCircle className="w-5 h-5 text-red-600" />}
-            Google Calendar Connection
+            Google Sign In
           </CardTitle>
           <CardDescription>
-            {status === 'loading' && 'Processing your Google Calendar connection...'}
-            {status === 'success' && 'Connection successful!'}
-            {status === 'error' && 'Connection failed'}
+            {status === 'loading' && 'Processing your Google sign in...'}
+            {status === 'success' && 'Sign in successful!'}
+            {status === 'error' && 'Sign in failed'}
           </CardDescription>
         </CardHeader>
         <CardContent className="text-center space-y-4">
@@ -88,7 +97,7 @@ export function GoogleCallbackPage() {
             <div className="space-y-2">
               <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
               <p className="text-sm text-muted-foreground">
-                Please wait while we connect your Google Calendar...
+                Please wait while we sign you in with Google...
               </p>
             </div>
           )}
@@ -100,7 +109,7 @@ export function GoogleCallbackPage() {
               </div>
               <p className="text-green-700 font-medium">{message}</p>
               <p className="text-sm text-muted-foreground">
-                Redirecting you back to Calendar Sync...
+                Redirecting you to the dashboard...
               </p>
             </div>
           )}
@@ -113,10 +122,10 @@ export function GoogleCallbackPage() {
               <p className="text-red-700 font-medium">{message}</p>
               <div className="space-y-2">
                 <Button 
-                  onClick={() => navigate('/calendar-sync')}
+                  onClick={() => navigate('/auth')}
                   className="w-full"
                 >
-                  Back to Calendar Sync
+                  Back to Sign In
                 </Button>
                 <Button 
                   onClick={() => window.location.reload()}

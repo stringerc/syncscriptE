@@ -9,10 +9,14 @@ const router = express.Router()
  */
 router.get('/google/url', async (req, res) => {
   try {
+    // For now, return a placeholder URL that redirects to Google OAuth
+    const redirectUri = `${req.protocol}://${req.get('host')}/google-callback`
+    const authUrl = `https://accounts.google.com/oauth/authorize?client_id=${process.env.GOOGLE_CLIENT_ID || 'placeholder'}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=openid%20email%20profile&response_type=code&access_type=offline`
+    
     res.json({
       success: true,
       data: {
-        authUrl: 'https://accounts.google.com/oauth/authorize?client_id=placeholder&redirect_uri=placeholder&scope=placeholder&response_type=code'
+        authUrl
       }
     })
   } catch (error: any) {

@@ -276,7 +276,7 @@ export function AuthPage() {
                   try {
                     console.log('🔐 AuthPage: Starting Google OAuth flow')
                     // Get Google auth URL from Render backend
-                    const response = await fetch('https://syncscripte.onrender.com/api/google-calendar/auth-url')
+                    const response = await fetch('https://syncscripte.onrender.com/api/calendar-auth/google/url')
                     const data = await response.json()
                     
                     console.log('🔐 AuthPage: Google auth response:', data)
