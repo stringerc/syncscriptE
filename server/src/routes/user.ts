@@ -239,6 +239,43 @@ router.get('/energy-level', authenticateToken, asyncHandler(async (req: AuthRequ
 
 // Get user dashboard data
 router.get('/dashboard', authenticateToken, asyncHandler(async (req: AuthRequest, res) => {
+  // Handle mock Google users
+  if (req.user!.id === 'google_mock_user') {
+    return res.json({
+      success: true,
+      data: {
+        user: {
+          id: 'google_mock_user',
+          name: 'Google User',
+          email: 'user@gmail.com',
+          energyLevel: 5,
+          timezone: 'UTC',
+          showHolidays: true
+        },
+        todayTasks: [],
+        recentAchievements: [
+          {
+            id: 'welcome',
+            title: 'Welcome to SyncScript!',
+            description: 'You\'ve discovered the gamification system!',
+            points: 10,
+            icon: '🎉',
+            rarity: 'common',
+            unlockedAt: new Date().toISOString()
+          }
+        ],
+        activeStreaks: [],
+        unreadNotifications: [],
+        stats: {
+          totalTasks: 0,
+          completedTasks: 0,
+          totalPoints: 100,
+          level: 1
+        }
+      }
+    });
+  }
+
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const tomorrow = new Date(today);

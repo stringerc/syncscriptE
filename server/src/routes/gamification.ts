@@ -14,6 +14,32 @@ router.get('/', authenticateToken, asyncHandler(async (req: AuthRequest, res) =>
 
   logger.info('Getting gamification data', { userId });
 
+  // Handle mock Google users
+  if (userId === 'google_mock_user') {
+    return res.json({
+      success: true,
+      data: {
+        totalPoints: 100,
+        level: 1,
+        achievements: [
+          {
+            id: 'welcome',
+            title: 'Welcome to SyncScript!',
+            description: 'You\'ve discovered the gamification system!',
+            points: 10,
+            icon: '🎉',
+            rarity: 'common',
+            unlockedAt: new Date().toISOString(),
+            isUnlocked: true
+          }
+        ],
+        badges: [],
+        energyLevel: 50,
+        dailyChallenges: []
+      }
+    });
+  }
+
   try {
     const gamificationData = await GamificationService.getUserGamificationData(userId);
 
