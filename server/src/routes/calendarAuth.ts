@@ -7,7 +7,7 @@ const router = express.Router()
  * GET /api/calendar-auth/google/url
  * Get Google Calendar auth URL
  */
-router.get('/google/url', authenticateToken, async (req: AuthRequest, res) => {
+router.get('/google/url', async (req, res) => {
   try {
     res.json({
       success: true,
@@ -27,7 +27,7 @@ router.get('/google/url', authenticateToken, async (req: AuthRequest, res) => {
  * POST /api/calendar-auth/google/callback
  * Handle Google Calendar OAuth callback
  */
-router.post('/google/callback', authenticateToken, async (req: AuthRequest, res) => {
+router.post('/google/callback', async (req, res) => {
   try {
     res.json({
       success: true,

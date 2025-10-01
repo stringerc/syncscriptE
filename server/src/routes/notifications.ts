@@ -7,7 +7,7 @@ const router = express.Router()
  * GET /api/notifications
  * Get user's notifications
  */
-router.get('/', authenticateToken, async (req: AuthRequest, res) => {
+router.get('/', async (req, res) => {
   try {
     // Return empty notifications for now
     res.json({
