@@ -51,13 +51,13 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ classNam
       case 'unread':
         return unreadNotifications
       case 'high':
-        return notifications.filter(n => n.priority === 'high' || n.priority === 'urgent')
+        return notifications?.filter(n => n.priority === 'high' || n.priority === 'urgent') || []
       case 'tasks':
-        return notifications.filter(n => n.type === 'task_reminder' || n.type === 'deadline_warning')
+        return notifications?.filter(n => n.type === 'task_reminder' || n.type === 'deadline_warning') || []
       case 'events':
-        return notifications.filter(n => n.type === 'event_reminder' || n.type === 'event_ended')
+        return notifications?.filter(n => n.type === 'event_reminder' || n.type === 'event_ended') || []
       case 'energy':
-        return notifications.filter(n => n.type === 'energy_alert')
+        return notifications?.filter(n => n.type === 'energy_alert') || []
       default:
         return allNotifications
     }
@@ -223,7 +223,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ classNam
                     Settings
                   </Button>
                 </div>
-                {notifications.length > 0 && (
+                {notifications && notifications.length > 0 && (
                   <Button
                     variant="ghost"
                     size="sm"

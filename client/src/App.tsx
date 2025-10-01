@@ -112,6 +112,7 @@ function AppContent() {
             <Route path="/faq" element={<FAQPage />} />
             <Route path="/privacy" element={<PrivacyPage />} />
             <Route path="/verify-email" element={<VerifyEmailPage />} />
+            <Route path="/google-callback" element={<GoogleCallbackPage />} />
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Routes>
           <FeedbackButton />

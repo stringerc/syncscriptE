@@ -1,5 +1,6 @@
 import { PrismaClient } from '@prisma/client'
 import { logger } from '../utils/logger'
+import { projectResourceService } from './projectResourceService'
 
 const prisma = new PrismaClient()
 
@@ -72,6 +73,9 @@ export class ProjectsService {
           members: true
         }
       })
+
+      // Create default resource folder for the project
+      await projectResourceService.createDefaultFolder(project.id)
 
       logger.info('Project created', { projectId: project.id, ownerId: userId })
 

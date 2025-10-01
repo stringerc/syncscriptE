@@ -1,168 +1,120 @@
-# Google Calendar API Setup Guide
+# 📅 Google Calendar Setup Guide
 
-This guide will help you set up Google Calendar API integration for SyncScript.
+**Quick guide to enable Google Calendar integration in SyncScript**
 
-## Prerequisites
+---
 
-- Google account
-- Google Cloud Console access
-- SyncScript development environment running
+## 🎯 Issue
 
-## Step 1: Create a Google Cloud Project
+The Calendar Sync page shows Google, Outlook, and Apple calendar cards, but:
+- ✅ Cards display correctly
+- ❌ Google Calendar connection requires OAuth setup
+- 🔒 Outlook & Apple are "Coming Soon" (not implemented yet)
 
-1. Go to the [Google Cloud Console](https://console.cloud.google.com/)
-2. Click "Select a project" or "New Project"
-3. Click "New Project"
-4. Enter project name: `SyncScript Calendar Integration`
-5. Click "Create"
+---
 
-## Step 2: Enable Google Calendar API
+## 🔧 Solution
 
-1. In the Google Cloud Console, go to "APIs & Services" > "Library"
-2. Search for "Google Calendar API"
-3. Click on "Google Calendar API"
-4. Click "Enable"
+### **Option 1: For Development/Testing (Recommended)**
 
-## Step 3: Create OAuth 2.0 Credentials
+**Use the existing Google Calendar integration:**
 
-1. Go to "APIs & Services" > "Credentials"
-2. Click "Create Credentials" > "OAuth client ID"
-3. If prompted, configure the OAuth consent screen:
-   - Choose "External" user type
-   - Fill in required fields:
-     - App name: `SyncScript`
-     - User support email: Your email
-     - Developer contact information: Your email
-   - Add scopes:
-     - `https://www.googleapis.com/auth/calendar`
-     - `https://www.googleapis.com/auth/calendar.events`
-   - Add test users (your email address)
-4. Choose "Web application" as the application type
-5. Add authorized redirect URIs:
-   - `http://localhost:3000/auth/google/callback` (for development)
-   - `https://yourdomain.com/auth/google/callback` (for production)
-6. Click "Create"
-7. Copy the Client ID and Client Secret
+The page currently has a dual setup:
+1. **Top section**: 3 provider cards (Google, Outlook, Apple) - **Visual only for now**
+2. **Bottom section**: "Advanced Sync Settings" - **Fully functional** if you have Google connected
 
-## Step 4: Configure Environment Variables
+**To connect Google Calendar:**
+1. Scroll down past the 3 cards
+2. You'll see "Advanced Sync Settings" section
+3. Click "Connect Google Calendar" there
+4. That uses the existing working OAuth flow
 
-Add the following to your `server/.env` file:
+### **Option 2: Set Up Google OAuth (Production)**
 
-```env
-# Google Calendar API
-GOOGLE_CLIENT_ID="your-client-id-here"
-GOOGLE_CLIENT_SECRET="your-client-secret-here"
-GOOGLE_REDIRECT_URI="http://localhost:3000/auth/google/callback"
+If you want the top provider cards to work:
+
+**1. Get Google Cloud Credentials:**
+```bash
+# Go to: https://console.cloud.google.com/
+# Create a new project or select existing
+# Enable Google Calendar API
+# Create OAuth 2.0 credentials
+# Download client_secret.json
 ```
 
-## Step 5: Test the Integration
-
-1. Start your SyncScript server:
-   ```bash
-   cd server
-   npm run dev
-   ```
-
-2. Start your SyncScript client:
-   ```bash
-   cd client
-   npm run dev
-   ```
-
-3. Navigate to `http://localhost:3000/google-calendar`
-4. Click "Connect Google Calendar"
-5. Complete the OAuth flow
-6. Test calendar sync functionality
-
-## API Endpoints
-
-Once configured, the following endpoints will be available:
-
-### Authentication
-- `GET /api/google-calendar/auth-url` - Get OAuth authorization URL
-- `POST /api/google-calendar/auth/callback` - Handle OAuth callback
-- `GET /api/google-calendar/status` - Check connection status
-- `DELETE /api/google-calendar/disconnect` - Disconnect Google Calendar
-
-### Calendar Management
-- `GET /api/google-calendar/calendars` - List user's calendars
-- `GET /api/google-calendar/events` - Get events from a calendar
-- `POST /api/google-calendar/events` - Create event in Google Calendar
-
-### Synchronization
-- `POST /api/google-calendar/sync` - Sync events between Google Calendar and SyncScript
-- `POST /api/google-calendar/refresh-tokens` - Refresh access tokens
-
-## Sync Directions
-
-The sync functionality supports three directions:
-
-1. **From Google Calendar** (`from_google`): Import events from Google Calendar to SyncScript
-2. **To Google Calendar** (`to_google`): Export SyncScript events to Google Calendar
-3. **Bidirectional** (`bidirectional`): Sync in both directions
-
-## Troubleshooting
-
-### Common Issues
-
-1. **"Invalid redirect URI" error**
-   - Ensure the redirect URI in your OAuth client matches exactly
-   - Check that `GOOGLE_REDIRECT_URI` in your `.env` matches
-
-2. **"Access blocked" error**
-   - Make sure your app is in testing mode and you've added yourself as a test user
-   - Verify OAuth consent screen is properly configured
-
-3. **"Insufficient permissions" error**
-   - Ensure you've requested the correct scopes:
-     - `https://www.googleapis.com/auth/calendar`
-     - `https://www.googleapis.com/auth/calendar.events`
-
-4. **"Token expired" error**
-   - The system will automatically refresh tokens
-   - If issues persist, disconnect and reconnect Google Calendar
-
-### Debug Mode
-
-Enable debug logging by setting:
-```env
-NODE_ENV=development
+**2. Add to Environment Variables:**
+```bash
+# In /server/.env file:
+GOOGLE_CLIENT_ID=your_client_id_here
+GOOGLE_CLIENT_SECRET=your_client_secret_here
+GOOGLE_REDIRECT_URI=http://localhost:3000/google-callback
 ```
 
-This will provide detailed logs of API calls and responses.
+**3. Restart Server:**
+```bash
+cd /Users/Apple/syncscript/server
+pkill -f "tsx watch"
+npm run dev &
+```
 
-## Production Deployment
+**4. Test:**
+- Refresh browser
+- Go to Calendar Sync
+- Click "Connect Google Calendar" on the provider card
+- Should redirect to Google OAuth
 
-For production deployment:
+---
 
-1. Update OAuth consent screen to "Production"
-2. Add your production domain to authorized redirect URIs
-3. Update `GOOGLE_REDIRECT_URI` in production environment
-4. Consider implementing token refresh logic for long-running applications
+## 📊 Current Status
 
-## Security Considerations
+### **What's Working:**
+✅ Calendar Sync page displays 3 providers  
+✅ Shows connection status per provider  
+✅ Advanced sync settings for Google (if already connected)  
+✅ Backend OAuth flow exists  
+✅ `/google-calendar/auth-url` endpoint works  
 
-- Never commit OAuth credentials to version control
-- Use environment variables for all sensitive configuration
-- Implement proper token refresh mechanisms
-- Consider rate limiting for API calls
-- Monitor API usage in Google Cloud Console
+### **What Needs Setup:**
+⚠️ Google OAuth credentials in .env  
+⚠️ Outlook integration (not built yet)  
+⚠️ Apple calendar integration (not built yet)  
 
-## Rate Limits
+---
 
-Google Calendar API has the following limits:
-- 1,000,000 queries per day
-- 100 queries per 100 seconds per user
+## 🎯 Recommended Approach for Now
 
-SyncScript implements automatic rate limiting and retry logic.
+**For Launch Friday:**
 
-## Support
+1. **Keep the 3-card display** (looks professional, shows future vision)
+2. **Google**: Show "Setup Required" message if not configured
+3. **Outlook & Apple**: Keep as "Coming Soon"
+4. **Use existing Google integration** in Advanced Settings section (it works!)
 
-For issues with Google Calendar API:
-- [Google Calendar API Documentation](https://developers.google.com/calendar/api/v3/reference)
-- [Google OAuth 2.0 Documentation](https://developers.google.com/identity/protocols/oauth2)
+**This gives you:**
+- ✅ Professional multi-provider UI
+- ✅ Working Google Calendar sync (via Advanced Settings)
+- ✅ Clear messaging about what's available
+- ✅ Room to add Outlook/Apple later
 
-For SyncScript-specific issues:
-- Check server logs for detailed error messages
-- Verify environment variables are correctly set
-- Ensure database schema is up to date
+---
+
+## 🚀 Quick Fix for Better UX
+
+I can update the page to:
+1. Show a clearer message if Google OAuth isn't set up
+2. Make the "Advanced Settings" section more prominent
+3. Add a "Setup Guide" link to help configure Google OAuth
+
+Would you like me to make these improvements?
+
+---
+
+## 💡 Alternative: Simplify for Launch
+
+If Google OAuth setup is too complex for now:
+
+**Option A:** Hide the 3-card provider section until OAuth is configured  
+**Option B:** Keep cards but make it clear they're "Preview" features  
+**Option C:** Focus on the working Advanced Settings section  
+
+**What would you prefer?** 🤔

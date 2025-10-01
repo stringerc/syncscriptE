@@ -64,6 +64,57 @@ const NotificationsPage: React.FC = () => {
         </Card>
       </div>
 
+      {/* Notification List */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Recent Notifications</CardTitle>
+          <CardDescription>All your notifications in one place</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <div className="text-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto" />
+            </div>
+          ) : notifications && notifications.length > 0 ? (
+            <div className="space-y-3">
+              {notifications.map((notification: any) => (
+                <div
+                  key={notification.id}
+                  className={`p-4 rounded-lg border ${
+                    notification.isRead ? 'bg-muted/50' : 'bg-background'
+                  }`}
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <Bell className="w-4 h-4 text-muted-foreground" />
+                        <span className="font-medium">{notification.title}</span>
+                        {!notification.isRead && (
+                          <div className="w-2 h-2 bg-blue-500 rounded-full" />
+                        )}
+                      </div>
+                      <p className="text-sm text-muted-foreground">{notification.message}</p>
+                      <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
+                        <span>{new Date(notification.createdAt).toLocaleString()}</span>
+                        <span className="capitalize">{notification.type.replace('_', ' ')}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-12">
+              <Bell className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
+              <h3 className="text-lg font-semibold mb-2">No Notifications</h3>
+              <p className="text-muted-foreground">
+                You're all caught up! Notifications will appear here when you have updates.
+              </p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Notification Preferences */}
       <NotificationPreferences />
     </div>

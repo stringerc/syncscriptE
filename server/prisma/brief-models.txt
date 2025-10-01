@@ -1,0 +1,123 @@
+// Add these models to the END of schema.prisma
+
+// ============================================================
+// BRIEF SYSTEM MODELS
+// ============================================================
+
+model BriefPreferences {
+  id     String @id @default(cuid())
+  userId String @unique
+  
+  // Timing
+  morningBriefEnabled Boolean @default(true)
+  morningBriefTime    String  @default("07:30") // HH:MM format
+  eveningBriefEnabled Boolean @default(true)
+  eveningBriefTime    String  @default("20:30")
+  
+  // Auto-popup settings
+  autoPopMorning      Boolean @default(true)
+  autoPopEvening      Boolean @default(false) // User must click "End Day"
+  
+  // Card preferences (weights 0-10)
+  preferFirstBlock    Int @default(10)
+  preferCriticalPrep  Int @default(9)
+  preferConflicts     Int @default(10)
+  preferPinned        Int @default(8)
+  preferBudget        Int @default(7)
+  preferWeather       Int @default(6)
+  preferTemplates     Int @default(7)
+  preferApprovals     Int @default(8)
+  preferChallenges    Int @default(7)
+  preferJournal       Int @default(8)
+  
+  // Display settings
+  maxCards            Int @default(8)
+  showInHeader        Boolean @default(true)
+  emailDigest         Boolean @default(false)
+  pushNotifications   Boolean @default(true)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("brief_preferences")
+}
+
+model BriefCard {
+  id     String @id @default(cuid())
+  userId String
+  
+  // Card metadata
+  briefType    String   // "MORNING" | "EVENING"
+  cardType     String   // "FIRST_BLOCK" | "CRITICAL_PREP" | "CONFLICTS" | etc.
+  date         DateTime // Which day this brief is for
+  
+  // Scoring
+  score        Float    // 0-100, determines order
+  priority     Int      @default(5) // 1-10, tie-breaker
+  
+  // Display data
+  title        String
+  reason       String?  // One-line explanation
+  keyFacts     String?  // JSON array of bullet points
+  icon         String?  // Icon name
+  color        String?  // Color scheme
+  
+  // Actions
+  primaryAction   String   // JSON object { label, endpoint, method, payload }
+  secondaryActions String? // JSON array of action objects
+  deepLink        String?  // URL to relevant page
+  
+  // Lifecycle
+  ttl          DateTime? // Auto-dismiss after this time
+  dismissed    Boolean  @default(false)
+  dismissedAt  DateTime?
+  actionTaken  Boolean  @default(false)
+  actionTakenAt DateTime?
+  
+  // Context (JSON)
+  metadata     String?  // Any additional data for this card
+  
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId, briefType, date])
+  @@index([userId, dismissed, date])
+  @@map("brief_cards")
+}
+
+model JournalEntry {
+  id     String @id @default(cuid())
+  userId String
+  date   DateTime // Date this entry is for
+  
+  // Reflection data
+  highlights String? // JSON array of "went well" items
+  lowlights  String? // JSON array of "could improve" items
+  blockers   String? // JSON array of blockers
+  freeformNote String? // Optional free-text journal
+  
+  // Completion stats
+  tasksCompleted    Int? // Tasks done today
+  tasksPlanned      Int? // Tasks that were planned
+  eventsAttended    Int? // Events completed
+  focusMinutes      Int? // Time in Focus Lock
+  energyPointsEarned Int? // EP earned today
+  
+  // Next day planning
+  tomorrowPriorities String? // JSON array of priorities set for tomorrow
+  tomorrowFirstBlock String? // Suggested first block for tomorrow
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, date])
+  @@index([userId, date])
+  @@map("journal_entries")
+}
+

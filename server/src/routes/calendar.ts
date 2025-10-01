@@ -33,6 +33,58 @@ const querySchema = z.object({
   sortOrder: z.enum(['asc', 'desc']).default('asc')
 });
 
+// GET /providers - Get all connected calendar providers
+router.get('/providers', authenticateToken, asyncHandler(async (req: AuthRequest, res) => {
+  const userId = req.user!.id;
+
+  // Fetch all external calendar accounts for the user
+  const externalAccounts = await prisma.externalCalendarAccount.findMany({
+    where: { userId },
+    select: {
+      id: true,
+      provider: true,
+      email: true,
+      status: true,
+      lastSyncAt: true,
+      createdAt: true
+    }
+  });
+
+  // Group by provider
+  const providers = {
+    google: externalAccounts.find(acc => acc.provider === 'google') || null,
+    outlook: externalAccounts.find(acc => acc.provider === 'outlook') || null,
+    apple: externalAccounts.find(acc => acc.provider === 'apple') || null
+  };
+
+  // Format response
+  const formattedProviders = {
+    google: providers.google ? {
+      connected: providers.google.status === 'CONNECTED',
+      email: providers.google.email,
+      lastSyncAt: providers.google.lastSyncAt,
+      status: providers.google.status
+    } : { connected: false },
+    outlook: providers.outlook ? {
+      connected: providers.outlook.status === 'CONNECTED',
+      email: providers.outlook.email,
+      lastSyncAt: providers.outlook.lastSyncAt,
+      status: providers.outlook.status
+    } : { connected: false },
+    apple: providers.apple ? {
+      connected: providers.apple.status === 'CONNECTED',
+      email: providers.apple.email,
+      lastSyncAt: providers.apple.lastSyncAt,
+      status: providers.apple.status
+    } : { connected: false }
+  };
+
+  res.json({
+    success: true,
+    data: formattedProviders
+  });
+}));
+
 // Get all events with filtering and pagination
 router.get('/', authenticateToken, asyncHandler(async (req: AuthRequest, res) => {
   try {

@@ -1,237 +1,378 @@
-import { Router } from 'express'
-import { authenticateToken } from '../middleware/auth'
-import { asyncHandler, createError } from '../middleware/errorHandler'
-import { scriptsService } from '../services/scriptsService'
-import { logger } from '../utils/logger'
-import { PrismaClient } from '@prisma/client'
+import express, { Request, Response } from 'express';
+import { PrismaClient } from '@prisma/client';
+import { authenticateToken } from '../middleware/auth';
+import { logger } from '../utils/logger';
 
-const router = Router()
-const prisma = new PrismaClient()
+const router = express.Router();
+const prisma = new PrismaClient();
 
-// POST /from-event - Create script from event
-router.post('/from-event', authenticateToken, asyncHandler(async (req: any, res) => {
-  const userId = req.user.id
-  const { eventId, title, description } = req.body
+// Extend Express Request type
+interface AuthRequest extends Request {
+  user?: {
+    userId: string;
+  };
+}
 
-  if (!eventId || !title) {
-    throw createError(400, 'eventId and title are required')
-  }
+/**
+ * GET /scripts/my-scripts
+ * Get user's saved scripts with optional filtering
+ */
+router.get('/my-scripts', authenticateToken, async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user!.userId;
+    const { q, favorites } = req.query;
 
-  const script = await scriptsService.createFromEvent(userId, eventId, title, description)
+    let where: any = { userId };
 
-  // Log analytics
-  const { analyticsService } = await import('../services/analyticsService')
-  await analyticsService.logEvent(userId, 'template_save', { 
-    scriptId: script.id,
-    sourceEventId: eventId
-  })
-
-  res.json({
-    success: true,
-    data: script,
-    message: script.containsPII 
-      ? 'Script created with PII warning - review before publishing'
-      : 'Script created successfully'
-  })
-}))
-
-// GET / - Get user's scripts
-router.get('/', authenticateToken, asyncHandler(async (req: any, res) => {
-  const userId = req.user.id
-  const { status, category } = req.query
-
-  const where: any = {
-    OR: [
-      { userId },
-      { isPublic: true }
-    ]
-  }
-
-  if (status) where.status = status
-  if (category) where.category = category
-
-  const scripts = await prisma.script.findMany({
-    where,
-    orderBy: { updatedAt: 'desc' },
-    include: {
-      _count: {
-        select: { applications: true }
-      }
+    // Filter by favorites
+    if (favorites === 'true') {
+      where.isFavorite = true;
     }
-  })
 
-  res.json({
-    success: true,
-    data: scripts
-  })
-}))
+    // Search query
+    if (q && typeof q === 'string') {
+      where.OR = [
+        { title: { contains: q, mode: 'insensitive' } },
+        { description: { contains: q, mode: 'insensitive' } },
+        { category: { contains: q, mode: 'insensitive' } }
+      ];
+    }
 
-// GET /:scriptId - Get script details
-router.get('/:scriptId', authenticateToken, asyncHandler(async (req: any, res) => {
-  const userId = req.user.id
-  const { scriptId } = req.params
-
-  const script = await prisma.script.findFirst({
-    where: {
-      id: scriptId,
-      OR: [
-        { userId },
-        { isPublic: true }
+    const scripts = await prisma.userScript.findMany({
+      where,
+      orderBy: [
+        { isFavorite: 'desc' },
+        { lastUsedAt: 'desc' },
+        { createdAt: 'desc' }
       ]
-    },
-    include: {
-      applications: {
-        orderBy: { appliedAt: 'desc' },
-        take: 10
+    });
+
+    // Transform to match template format for frontend compatibility
+    const transformed = scripts.map(script => {
+      let manifest;
+      try {
+        manifest = JSON.parse(script.manifest);
+      } catch (e) {
+        manifest = { tasks: [], subEvents: [] };
       }
+
+      let tags;
+      try {
+        tags = JSON.parse(script.tags);
+      } catch (e) {
+        tags = [];
+      }
+
+      return {
+        id: script.id,
+        versionId: script.id, // For compatibility with template system
+        title: script.title,
+        description: script.description,
+        category: script.category || 'General',
+        tags,
+        manifest,
+        isFavorite: script.isFavorite,
+        applyCount: script.applyCount,
+        lastUsedAt: script.lastUsedAt,
+        createdAt: script.createdAt,
+        updatedAt: script.updatedAt
+      };
+    });
+
+    res.json({
+      success: true,
+      data: transformed
+    });
+  } catch (error: any) {
+    logger.error('Error fetching my scripts:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch scripts'
+    });
+  }
+});
+
+/**
+ * POST /scripts/create
+ * Create a new user script from an event
+ */
+router.post('/create', authenticateToken, async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user!.userId;
+    const { eventId, title, description, category, tags } = req.body;
+
+    if (!eventId || !title) {
+      return res.status(400).json({
+        success: false,
+        error: 'eventId and title are required'
+      });
     }
-  })
 
-  if (!script) {
-    throw createError(404, 'Script not found')
-  }
+    // Fetch the event and its preparation tasks
+    const event = await prisma.event.findUnique({
+      where: { id: eventId },
+      include: {
+        preparationTasks: {
+          orderBy: { createdAt: 'asc' }
+        }
+      }
+    });
 
-  res.json({
-    success: true,
-    data: script
-  })
-}))
-
-// PUT /:scriptId - Update script
-router.put('/:scriptId', authenticateToken, asyncHandler(async (req: any, res) => {
-  const userId = req.user.id
-  const { scriptId } = req.params
-  const { title, description, manifest, variables, category } = req.body
-
-  // Verify ownership
-  const script = await prisma.script.findFirst({
-    where: { id: scriptId, userId }
-  })
-
-  if (!script) {
-    throw createError(404, 'Script not found or access denied')
-  }
-
-  // Check for PII if manifest is being updated
-  let containsPII = script.containsPII
-  if (manifest) {
-    containsPII = scriptsService['checkForPII'](manifest)
-  }
-
-  // Update script
-  const updated = await prisma.script.update({
-    where: { id: scriptId },
-    data: {
-      title: title || script.title,
-      description: description !== undefined ? description : script.description,
-      manifest: manifest || script.manifest,
-      variables: variables !== undefined ? variables : script.variables,
-      category: category !== undefined ? category : script.category,
-      containsPII,
-      version: manifest ? script.version + 1 : script.version
+    if (!event) {
+      return res.status(404).json({
+        success: false,
+        error: 'Event not found'
+      });
     }
-  })
 
-  res.json({
-    success: true,
-    data: updated
-  })
-}))
+    if (event.userId !== userId) {
+      return res.status(403).json({
+        success: false,
+        error: 'Unauthorized'
+      });
+    }
 
-// POST /:scriptId/publish - Publish script
-router.post('/:scriptId/publish', authenticateToken, asyncHandler(async (req: any, res) => {
-  const userId = req.user.id
-  const { scriptId } = req.params
+    // Build manifest
+    const manifest = {
+      tasks: event.preparationTasks.map(task => ({
+        title: task.title,
+        description: task.description,
+        durationMin: task.durationMin || 30,
+        priority: task.priority
+      })),
+      subEvents: [] // TODO: If we support sub-events in the future
+    };
 
-  const script = await prisma.script.findFirst({
-    where: { id: scriptId, userId }
-  })
+    // Create the script
+    const script = await prisma.userScript.create({
+      data: {
+        userId,
+        sourceEventId: eventId,
+        title,
+        description: description || event.description || '',
+        category: category || 'General',
+        tags: JSON.stringify(tags || []),
+        manifest: JSON.stringify(manifest),
+        isFavorite: false,
+        applyCount: 0
+      }
+    });
 
-  if (!script) {
-    throw createError(404, 'Script not found')
+    logger.info(`User ${userId} created script ${script.id} from event ${eventId}`);
+
+    res.json({
+      success: true,
+      data: script
+    });
+  } catch (error: any) {
+    logger.error('Error creating script:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to create script'
+    });
   }
+});
 
-  if (script.containsPII) {
-    throw createError(400, 'Cannot publish script containing PII. Please review and remove sensitive data.')
+/**
+ * POST /scripts/:scriptId/favorite
+ * Toggle favorite status for a script
+ */
+router.post('/:scriptId/favorite', authenticateToken, async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user!.userId;
+    const { scriptId } = req.params;
+    const { isFavorite } = req.body;
+
+    if (typeof isFavorite !== 'boolean') {
+      return res.status(400).json({
+        success: false,
+        error: 'isFavorite must be a boolean'
+      });
+    }
+
+    // Verify ownership
+    const script = await prisma.userScript.findUnique({
+      where: { id: scriptId }
+    });
+
+    if (!script) {
+      return res.status(404).json({
+        success: false,
+        error: 'Script not found'
+      });
+    }
+
+    if (script.userId !== userId) {
+      return res.status(403).json({
+        success: false,
+        error: 'Unauthorized'
+      });
+    }
+
+    // Update favorite status
+    const updated = await prisma.userScript.update({
+      where: { id: scriptId },
+      data: { isFavorite }
+    });
+
+    res.json({
+      success: true,
+      data: updated
+    });
+  } catch (error: any) {
+    logger.error('Error updating favorite:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to update favorite'
+    });
   }
+});
 
-  await prisma.script.update({
-    where: { id: scriptId },
-    data: { status: 'PUBLISHED' }
-  })
+/**
+ * POST /scripts/:scriptId/apply
+ * Apply a user script to an event
+ */
+router.post('/:scriptId/apply/:eventId', authenticateToken, async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user!.userId;
+    const { scriptId, eventId } = req.params;
 
-  // Log analytics
-  const { analyticsService } = await import('../services/analyticsService')
-  await analyticsService.logEvent(userId, 'template_publish', { scriptId })
+    // Verify script ownership
+    const script = await prisma.userScript.findUnique({
+      where: { id: scriptId }
+    });
 
-  res.json({
-    success: true,
-    message: 'Script published successfully'
-  })
-}))
+    if (!script) {
+      return res.status(404).json({
+        success: false,
+        error: 'Script not found'
+      });
+    }
 
-// POST /:scriptId/apply - Apply script to event
-router.post('/:scriptId/apply', authenticateToken, asyncHandler(async (req: any, res) => {
-  const userId = req.user.id
-  const { scriptId } = req.params
-  const { eventId, variableValues } = req.body
+    if (script.userId !== userId) {
+      return res.status(403).json({
+        success: false,
+        error: 'Unauthorized'
+      });
+    }
 
-  if (!eventId) {
-    throw createError(400, 'eventId is required')
+    // Verify event ownership
+    const event = await prisma.event.findUnique({
+      where: { id: eventId }
+    });
+
+    if (!event) {
+      return res.status(404).json({
+        success: false,
+        error: 'Event not found'
+      });
+    }
+
+    if (event.userId !== userId) {
+      return res.status(403).json({
+        success: false,
+        error: 'Unauthorized'
+      });
+    }
+
+    // Parse manifest
+    let manifest;
+    try {
+      manifest = JSON.parse(script.manifest);
+    } catch (e) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid script manifest'
+      });
+    }
+
+    // Create tasks from manifest
+    const tasks = await Promise.all(
+      manifest.tasks.map((task: any) => {
+        return prisma.task.create({
+          data: {
+            userId,
+            eventId,
+            title: task.title,
+            description: task.description || '',
+            status: 'PENDING',
+            durationMin: task.durationMin || 30,
+            priority: task.priority || 'MEDIUM'
+          }
+        });
+      })
+    );
+
+    // Update script usage
+    await prisma.userScript.update({
+      where: { id: scriptId },
+      data: {
+        applyCount: { increment: 1 },
+        lastUsedAt: new Date()
+      }
+    });
+
+    logger.info(`User ${userId} applied script ${scriptId} to event ${eventId}`);
+
+    res.json({
+      success: true,
+      data: {
+        tasksCreated: tasks.length
+      }
+    });
+  } catch (error: any) {
+    logger.error('Error applying script:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to apply script'
+    });
   }
+});
 
-  const result = await scriptsService.applyScript(userId, scriptId, eventId, variableValues)
+/**
+ * DELETE /scripts/:scriptId
+ * Delete a user script
+ */
+router.delete('/:scriptId', authenticateToken, async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user!.userId;
+    const { scriptId } = req.params;
 
-  // Log analytics
-  const { analyticsService } = await import('../services/analyticsService')
-  await analyticsService.logEvent(userId, 'template_apply', { 
-    scriptId,
-    eventId,
-    isDuplicate: result.isDuplicate
-  })
+    // Verify ownership
+    const script = await prisma.userScript.findUnique({
+      where: { id: scriptId }
+    });
 
-  res.json({
-    success: true,
-    data: result,
-    message: result.isDuplicate 
-      ? 'Script already applied to this event'
-      : `Script applied! ${result.generatedTasks.length} tasks created.`
-  })
-}))
+    if (!script) {
+      return res.status(404).json({
+        success: false,
+        error: 'Script not found'
+      });
+    }
 
-// POST /applications/:applicationId/confirm - Confirm application
-router.post('/applications/:applicationId/confirm', authenticateToken, asyncHandler(async (req: any, res) => {
-  const { applicationId } = req.params
+    if (script.userId !== userId) {
+      return res.status(403).json({
+        success: false,
+        error: 'Unauthorized'
+      });
+    }
 
-  await scriptsService.confirmApplication(applicationId)
+    await prisma.userScript.delete({
+      where: { id: scriptId }
+    });
 
-  res.json({
-    success: true,
-    message: 'Application confirmed'
-  })
-}))
+    logger.info(`User ${userId} deleted script ${scriptId}`);
 
-// DELETE /:scriptId - Delete script
-router.delete('/:scriptId', authenticateToken, asyncHandler(async (req: any, res) => {
-  const userId = req.user.id
-  const { scriptId } = req.params
-
-  const script = await prisma.script.findFirst({
-    where: { id: scriptId, userId }
-  })
-
-  if (!script) {
-    throw createError(404, 'Script not found')
+    res.json({
+      success: true
+    });
+  } catch (error: any) {
+    logger.error('Error deleting script:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to delete script'
+    });
   }
+});
 
-  await prisma.script.delete({
-    where: { id: scriptId }
-  })
-
-  res.json({
-    success: true,
-    message: 'Script deleted'
-  })
-}))
-
-export default router
+export default router;

@@ -3,11 +3,15 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { DollarSign, Plus, RefreshCw, TrendingUp, TrendingDown, AlertTriangle, CheckCircle } from 'lucide-react'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { DollarSign, Plus, RefreshCw, TrendingUp, TrendingDown, AlertTriangle, CheckCircle, BarChart3, Target, List, Settings } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { api } from '@/lib/api'
 import { formatCurrency } from '@/lib/utils'
 import { usePlaidLink } from 'react-plaid-link'
+import { BudgetOverview } from '@/components/budgeting/BudgetOverview'
+import { TransactionList } from '@/components/budgeting/TransactionList'
+import { SavingsGoals } from '@/components/budgeting/SavingsGoals'
 
 interface FinancialAccount {
   id: string
@@ -36,6 +40,7 @@ export function FinancialPage() {
   const { toast } = useToast()
   const queryClient = useQueryClient()
   const [linkToken, setLinkToken] = useState<string | null>(null)
+  const [activeTab, setActiveTab] = useState('overview')
 
   // Fetch financial accounts
   const { data: accounts, isLoading: accountsLoading } = useQuery<FinancialAccount[]>({
@@ -291,50 +296,112 @@ export function FinancialPage() {
         </Card>
       )}
 
-      {/* Connected Accounts */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
-            <DollarSign className="w-5 h-5" />
-            <span>Connected Accounts</span>
-          </CardTitle>
-          <CardDescription>
-            Your connected bank accounts and their current balances
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {accountsLoading ? (
-            <div className="text-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-              <p className="text-muted-foreground mt-2">Loading accounts...</p>
-            </div>
-          ) : accounts && accounts.length > 0 ? (
-            <div className="space-y-4">
-              {accounts.map((account) => (
-                <div key={account.id} className="flex items-center justify-between p-4 rounded-lg border bg-card">
-                  <div className="flex-1">
-                    <h4 className="font-medium">{account.accountName}</h4>
-                    <p className="text-sm text-muted-foreground capitalize">
-                      {account.accountType} Account
+      {/* Enhanced Budgeting Tabs */}
+      {accounts && accounts.length > 0 ? (
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+          <TabsList className="grid w-full grid-cols-5">
+            <TabsTrigger value="overview">
+              <BarChart3 className="w-4 h-4 mr-2" />
+              Budget
+            </TabsTrigger>
+            <TabsTrigger value="transactions">
+              <List className="w-4 h-4 mr-2" />
+              Transactions
+            </TabsTrigger>
+            <TabsTrigger value="goals">
+              <Target className="w-4 h-4 mr-2" />
+              Goals
+            </TabsTrigger>
+            <TabsTrigger value="accounts">
+              <DollarSign className="w-4 h-4 mr-2" />
+              Accounts
+            </TabsTrigger>
+            <TabsTrigger value="settings">
+              <Settings className="w-4 h-4 mr-2" />
+              Settings
+            </TabsTrigger>
+          </TabsList>
+
+          {/* Budget Overview Tab */}
+          <TabsContent value="overview">
+            <BudgetOverview onCreateBudget={() => setActiveTab('settings')} />
+          </TabsContent>
+
+          {/* Transactions Tab */}
+          <TabsContent value="transactions">
+            <TransactionList />
+          </TabsContent>
+
+          {/* Savings Goals Tab */}
+          <TabsContent value="goals">
+            <SavingsGoals />
+          </TabsContent>
+
+          {/* Accounts Tab */}
+          <TabsContent value="accounts">
+            <Card>
+              <CardHeader>
+                <CardTitle>Connected Accounts</CardTitle>
+                <CardDescription>
+                  Manage your linked bank accounts
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {accounts.map((account) => (
+                    <div key={account.id} className="flex items-center justify-between p-4 rounded-lg border bg-card">
+                      <div className="flex-1">
+                        <h4 className="font-medium">{account.accountName}</h4>
+                        <p className="text-sm text-muted-foreground capitalize">
+                          {account.accountType} Account
+                        </p>
+                        <div className="flex items-center space-x-2 mt-1">
+                          <Badge variant={account.isActive ? 'default' : 'secondary'}>
+                            {account.isActive ? 'Active' : 'Inactive'}
+                          </Badge>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-lg font-semibold">
+                          {formatCurrency(account.balance)}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          Connected {new Date(account.createdAt).toLocaleDateString()}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Settings Tab */}
+          <TabsContent value="settings">
+            <Card>
+              <CardHeader>
+                <CardTitle>Budget Settings</CardTitle>
+                <CardDescription>
+                  Configure your budgets, categories, and alerts
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="text-center py-12 space-y-4">
+                  <Settings className="w-16 h-16 mx-auto text-muted-foreground" />
+                  <div>
+                    <h3 className="text-lg font-semibold">Budget Configuration</h3>
+                    <p className="text-muted-foreground mt-1">
+                      Advanced budget creation wizard coming soon
                     </p>
-                    <div className="flex items-center space-x-2 mt-1">
-                      <Badge variant={account.isActive ? 'default' : 'secondary'}>
-                        {account.isActive ? 'Active' : 'Inactive'}
-                      </Badge>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-lg font-semibold">
-                      {formatCurrency(account.balance)}
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      Connected {new Date(account.createdAt).toLocaleDateString()}
-                    </div>
                   </div>
                 </div>
-              ))}
-            </div>
-          ) : (
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
+      ) : (
+        <Card>
+          <CardContent className="pt-6">
             <div className="text-center py-12">
               <DollarSign className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
               <h3 className="text-lg font-semibold text-foreground mb-2">
@@ -352,9 +419,9 @@ export function FinancialPage() {
                 {createLinkTokenMutation.isPending ? 'Creating Link...' : 'Connect Bank Account'}
               </Button>
             </div>
-          )}
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Debug info */}
       {linkToken && (

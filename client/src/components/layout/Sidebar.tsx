@@ -26,15 +26,15 @@ const navigation = [
   { name: 'Tasks', href: '/tasks', icon: CheckSquare },
   { name: 'Calendar', href: '/calendar', icon: Calendar },
   { name: 'Calendar Sync', href: '/google-calendar', icon: ExternalLink },
-  { name: 'Financial', href: '/financial', icon: DollarSign },
+  { name: 'Financial', href: '/financial', icon: DollarSign, comingSoon: true },
   { name: 'AI Assistant', href: '/ai-assistant', icon: Brain },
-  { name: 'Energy Analysis', href: '/energy-analysis', icon: Zap },
+  { name: 'Energy Analysis', href: '/energy-analysis', icon: Zap, comingSoon: true },
   { name: 'Scripts', href: '/templates', icon: BookTemplate },
   { name: 'ShareSync', href: '/projects', icon: Folder },
   { name: 'Profile', href: '/profile', icon: User },
   { name: 'Friends', href: '/friends', icon: Users },
   { name: 'Achievements', href: '/gamification', icon: Trophy },
-  { name: 'Notifications', href: '/notifications', icon: Bell },
+  { name: 'Notifications', href: '/notifications', icon: Bell, comingSoon: true },
   { name: 'Settings', href: '/settings', icon: Settings },
 ]
 
@@ -154,26 +154,40 @@ export function Sidebar() {
       {/* Navigation - Scrollable */}
       <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
         {navigation.map((item) => (
-          <NavLink
-            key={item.name}
-            to={item.href}
-            onMouseEnter={() => prefetchData(item.href)}
-            onClick={() => {
-              // Close sidebar on mobile when navigation item is clicked
-              closeSidebar()
-            }}
-            className={({ isActive }) =>
-              cn(
-                'flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
-                isActive
-                  ? 'bg-primary text-primary-foreground'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-accent'
-              )
-            }
-          >
-            <item.icon className="w-5 h-5" />
-            <span>{item.name}</span>
-          </NavLink>
+          <div key={item.name} className="relative">
+            {item.comingSoon ? (
+              <div
+                className={cn(
+                  'flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors cursor-not-allowed opacity-60'
+                )}
+                title={`${item.name} - Coming Soon`}
+              >
+                <item.icon className="w-5 h-5" />
+                <span>{item.name}</span>
+                <span className="text-xs text-muted-foreground ml-auto">Soon</span>
+              </div>
+            ) : (
+              <NavLink
+                to={item.href}
+                onMouseEnter={() => prefetchData(item.href)}
+                onClick={() => {
+                  // Close sidebar on mobile when navigation item is clicked
+                  closeSidebar()
+                }}
+                className={({ isActive }) =>
+                  cn(
+                    'flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
+                    isActive
+                      ? 'bg-primary text-primary-foreground'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-accent'
+                  )
+                }
+              >
+                <item.icon className="w-5 h-5" />
+                <span>{item.name}</span>
+              </NavLink>
+            )}
+          </div>
         ))}
       </nav>
 

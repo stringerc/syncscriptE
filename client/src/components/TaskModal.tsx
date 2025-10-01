@@ -155,7 +155,9 @@ export function TaskModal({ task, isOpen, onClose, onTaskUpdated, onTaskDeleted 
     mutationFn: async () => {
       if (!task) throw new Error('No task to complete')
       console.log('🎯 TaskModal: Calling API to complete task:', task.id)
-      const response = await api.patch(`/tasks/${task.id}/status`, { status: 'COMPLETED' })
+      const response = await api.patch(`/tasks/${task.id}/complete`, { 
+        actualDuration: task.estimatedDuration 
+      })
       console.log('🎯 TaskModal: API response:', response.data)
       return response.data
     },
@@ -165,8 +167,14 @@ export function TaskModal({ task, isOpen, onClose, onTaskUpdated, onTaskDeleted 
         title: "Task Completed!",
         description: "Great job completing this task!"
       })
+      // Invalidate all task-related queries
       queryClient.invalidateQueries({ queryKey: ['tasks'] })
       queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+      queryClient.invalidateQueries({ queryKey: ['user/dashboard'] })
+      queryClient.invalidateQueries({ queryKey: ['gamification'] })
+      queryClient.invalidateQueries({ queryKey: ['notifications'] })
+      // Close modal after successful completion
+      onClose()
       onTaskUpdated?.(data.data)
     },
     onError: (error: any) => {

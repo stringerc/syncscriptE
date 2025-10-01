@@ -949,10 +949,13 @@ export function DashboardPage() {
   const handleCompleteTask = useCallback(async (taskId: string) => {
     try {
       console.log('🎯 DashboardPage: Completing task:', taskId)
-      console.log('🎯 DashboardPage: Making API call to:', `/tasks/${taskId}/status`)
-      console.log('🎯 DashboardPage: Request payload:', { status: 'COMPLETED' })
+      console.log('🎯 DashboardPage: Making API call to:', `/tasks/${taskId}/complete`)
       
-      const response = await api.patch(`/tasks/${taskId}/status`, { status: 'COMPLETED' })
+      // Find the task to get its estimated duration
+      const task = allTasks?.find(t => t.id === taskId)
+      const actualDuration = task?.estimatedDuration || 30
+      
+      const response = await api.patch(`/tasks/${taskId}/complete`, { actualDuration })
       console.log('🎯 DashboardPage: Task completion response:', response.data)
       
       toast({
@@ -964,9 +967,17 @@ export function DashboardPage() {
       const completedTask = allTasks?.find(t => t.id === taskId)
       const relatedEventId = completedTask?.eventId
       
-      // Invalidate and refetch dashboard data
-      queryClient.invalidateQueries({ queryKey: ['dashboard'] })
-      queryClient.refetchQueries({ queryKey: ['dashboard'] })
+      // Invalidate and refetch all relevant queries immediately
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['dashboard'] }),
+        queryClient.invalidateQueries({ queryKey: ['tasks'] }),
+        queryClient.invalidateQueries({ queryKey: ['user/dashboard'] }),
+        queryClient.invalidateQueries({ queryKey: ['gamification'] }),
+        queryClient.invalidateQueries({ queryKey: ['notifications'] })
+      ])
+      
+      // Force refetch dashboard data
+      await queryClient.refetchQueries({ queryKey: ['dashboard'] })
       
       // If this was a prep task, also refresh the preparation tasks for the related event
       if (relatedEventId) {

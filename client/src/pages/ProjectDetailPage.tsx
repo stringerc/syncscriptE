@@ -11,8 +11,9 @@ import { Label } from '@/components/ui/label'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { useToast } from '@/hooks/use-toast'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Users, UserPlus, Settings, Archive, Calendar, CheckSquare, Activity, Trash2 } from 'lucide-react'
+import { Users, UserPlus, Settings, Archive, Calendar, CheckSquare, Activity, Trash2, Folder } from 'lucide-react'
 import { useState } from 'react'
+import { ProjectResources } from '@/components/ProjectResources'
 
 export function ProjectDetailPage() {
   const { projectId } = useParams()
@@ -221,13 +222,17 @@ export function ProjectDetailPage() {
 
       {/* Tabs */}
       <Tabs defaultValue="overview" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="members">
             Members ({project.members?.length || 0})
           </TabsTrigger>
           <TabsTrigger value="items">
             Items ({project.items?.length || 0})
+          </TabsTrigger>
+          <TabsTrigger value="resources">
+            <Folder className="w-4 h-4 mr-1" />
+            Resources
           </TabsTrigger>
           <TabsTrigger value="activity">Activity</TabsTrigger>
         </TabsList>
@@ -394,6 +399,11 @@ export function ProjectDetailPage() {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* Resources Tab */}
+        <TabsContent value="resources">
+          <ProjectResources projectId={projectId!} />
         </TabsContent>
 
         {/* Activity Tab */}

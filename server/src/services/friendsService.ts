@@ -209,9 +209,10 @@ export class FriendsService {
         data: {
           userId,
           action: `FRIEND_REQUEST_${action.toUpperCase()}`,
-          resourceType: 'friendship',
-          resourceId: friendshipId,
-          details: JSON.stringify({ requesterId: friendship.requesterId, action })
+          targetType: 'friendship',
+          targetId: friendshipId,
+          beforeState: JSON.stringify({ status: friendship.status }),
+          afterState: JSON.stringify({ status: action === 'accept' ? 'accepted' : action === 'decline' ? 'declined' : 'blocked' })
         }
       })
 

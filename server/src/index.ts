@@ -36,13 +36,20 @@ import priorityRoutes from './routes/priority';
 import friendsRoutes from './routes/friends';
 import templateGalleryRoutes from './routes/templateGallery';
 import projectsRoutes from './routes/projects';
+import projectResourcesRoutes from './routes/projectResources';
 import aiSuggestionsRoutes from './routes/aiSuggestions';
+import budgetingRoutes from './routes/budgeting';
+import briefRoutes from './routes/brief';
+import calendarAuthRoutes from './routes/calendarAuth';
 
 // Import middleware
 import { errorHandler } from './middleware/errorHandler';
 import { idempotencyMiddleware } from './middleware/idempotency';
 import { generalAPIRateLimit } from './middleware/rateLimitMiddleware';
 import { logger } from './utils/logger';
+
+// Import jobs
+import { startBudgetMonitoring } from './jobs/budgetMonitoringJob';
 
 // Load environment variables
 dotenv.config();
@@ -231,7 +238,11 @@ app.use('/api/priority', priorityRoutes);
 app.use('/api/friends', friendsRoutes);
 app.use('/api/templates', templateGalleryRoutes);
 app.use('/api/projects', projectsRoutes);
+app.use('/api/projects', projectResourcesRoutes);
 app.use('/api/ai-suggestions', aiSuggestionsRoutes);
+app.use('/api/budgeting', budgetingRoutes);
+app.use('/api/brief', briefRoutes);
+app.use('/api/calendar-auth', calendarAuthRoutes);
 
 // Socket.IO for real-time updates
 io.on('connection', (socket) => {
@@ -290,6 +301,10 @@ server.listen(PORT, '0.0.0.0', () => {
   // Give the server a moment to fully initialize
   setTimeout(() => {
     logger.info(`🎯 Server fully initialized and ready to serve requests`);
+    
+    // Start background jobs
+    startBudgetMonitoring();
+    logger.info(`📊 Budget monitoring started`);
   }, 2000);
 });
 

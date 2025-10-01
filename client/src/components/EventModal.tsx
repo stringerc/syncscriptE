@@ -83,6 +83,31 @@ export function EventModal({ event, isOpen, onClose, onEventUpdated }: EventModa
 
   // Removed excessive logging for performance
 
+  const createEventMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const response = await api.post('/calendar', data)
+      return response.data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['events'] })
+      queryClient.invalidateQueries({ queryKey: ['calendar'] })
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+      toast({
+        title: "Event Created",
+        description: "Your event has been created successfully."
+      })
+      onClose()
+      onEventUpdated?.()
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Creation Failed",
+        description: error.response?.data?.error || "Failed to create event",
+        variant: "destructive"
+      })
+    }
+  })
+
   const updateEventMutation = useMutation({
     mutationFn: async (data: Partial<Event>) => {
       if (!event) throw new Error('No event to update')
@@ -445,16 +470,22 @@ export function EventModal({ event, isOpen, onClose, onEventUpdated }: EventModa
       return
     }
 
-    const updateData = {
+    const eventData = {
       title: formData.title,
       description: formData.description,
       startTime: new Date(formData.startTime).toISOString(),
       endTime: new Date(formData.endTime).toISOString(),
       location: formData.location,
-      budgetImpact: formData.budgetImpact
+      budgetImpact: formData.budgetImpact,
+      isAllDay: false
     }
 
-    updateEventMutation.mutate(updateData)
+    // Use create or update mutation based on whether event exists
+    if (!event) {
+      createEventMutation.mutate(eventData)
+    } else {
+      updateEventMutation.mutate(eventData)
+    }
   }
 
   const handleDelete = () => {
@@ -1128,7 +1159,19 @@ export function EventModal({ event, isOpen, onClose, onEventUpdated }: EventModa
                 </Button>
               </div>
             )}
-            {isEditing && (
+            {/* Create button for new events */}
+            {!event && (
+              <Button
+                onClick={handleSave}
+                disabled={createEventMutation.isPending}
+                className="w-full"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                {createEventMutation.isPending ? 'Creating...' : 'Create Event'}
+              </Button>
+            )}
+            {/* Save button for editing existing events */}
+            {isEditing && event && (
               <>
                 <Button
                   variant="outline"

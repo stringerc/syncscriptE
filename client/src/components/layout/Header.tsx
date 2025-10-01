@@ -1,10 +1,11 @@
-import { Search, User, LogOut, Settings, UserCircle, Zap, Clock, Calendar, CheckCircle, MessageSquare, Loader2, Trophy, Menu } from 'lucide-react'
+import { Search, User, LogOut, Settings, UserCircle, Zap, Clock, Calendar, CheckCircle, MessageSquare, Loader2, Trophy, Menu, Sun, Moon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useAuthStore } from '@/stores/authStore'
 import { useState, useCallback, useEffect, useMemo } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { NotificationCenter } from '@/components/notifications/NotificationCenter'
+import { BriefModal } from '@/components/brief/BriefModal'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { AnimatedCounter } from '@/components/AnimatedCounter'
@@ -29,6 +30,8 @@ export function Header() {
   const [debouncedQuery, setDebouncedQuery] = useState('')
   const [showDropdown, setShowDropdown] = useState(false)
   const [userLocation, setUserLocation] = useState<{lat: number, lon: number} | null>(null)
+  const [showMorningBrief, setShowMorningBrief] = useState(false)
+  const [showEveningBrief, setShowEveningBrief] = useState(false)
   // Removed animation functionality
   const navigate = useNavigate()
   const location = useLocation()
@@ -354,511 +357,190 @@ export function Header() {
 
         {/* Right side */}
         <div className="flex items-center space-x-4">
-          {/* Notifications */}
-          <NotificationCenter />
+          {/* Dashboard Layout: Brief → End Day → Notifications → Name/Energy → Profile → Logout */}
+          {isDashboard ? (
+            <>
+              {/* Brief Button - Coming Soon */}
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled
+                className="flex items-center gap-1 px-3 opacity-60"
+                title="Morning Brief - Coming Soon"
+              >
+                <Sun className="w-4 h-4" />
+                <span className="text-sm font-medium">Brief</span>
+                <span className="text-xs text-muted-foreground ml-1">(Soon)</span>
+              </Button>
 
-          {/* User Menu */}
-          <div className="flex items-center space-x-3">
-            <div className="text-right">
-              <p className="text-sm font-medium text-foreground">
-                {user?.name || 'User'}
-              </p>
-              <p className="text-xs text-muted-foreground">
-                Energy Level: {user?.energyLevel ?? 5}/10
-              </p>
-            </div>
+              {/* End Day Button - Coming Soon */}
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled
+                className="flex items-center gap-1 px-3 opacity-60"
+                title="Evening Reflection - Coming Soon"
+              >
+                <Moon className="w-4 h-4" />
+                <span className="text-sm font-medium">End Day</span>
+                <span className="text-xs text-muted-foreground ml-1">(Soon)</span>
+              </Button>
 
-            {/* Weather Display - only show if not on dashboard */}
-            {!isDashboard && currentWeatherData && (
-              <div className="flex items-center space-x-2 px-2 py-1 bg-slate-50 dark:bg-slate-800 rounded-lg">
-                <div className="relative w-5 h-5">
-                  {getWeatherIcon(
-                    currentWeatherData.weather?.condition || currentWeatherData.condition,
-                    currentWeatherData.weather?.emoji || currentWeatherData.emoji
-                  )}
-                </div>
-                <div className="text-xs">
-                  <div className="font-medium text-slate-700 dark:text-slate-300">
-                    {currentWeatherData.weather?.temperature || currentWeatherData.temperature}°
-                  </div>
-                         <div className="text-slate-500 dark:text-slate-400">
-                           {(currentWeatherData.weather?.location || currentWeatherData.location || 'Loading...')
-                             .split(',')[0]
-                             .trim()}
-                         </div>
-                </div>
+              {/* Notifications - Coming Soon */}
+              <Button
+                variant="ghost"
+                size="icon"
+                disabled
+                className="opacity-60"
+                title="Notifications - Coming Soon"
+              >
+                <MessageSquare className="w-5 h-5" />
+              </Button>
+              <div className="text-right">
+                <p className="text-sm font-medium text-foreground">
+                  {user?.name || 'User'}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Energy Level: {user?.energyLevel ?? 5}/10
+                </p>
               </div>
-            )}
 
-            {/* Energy Animation - Combined Super Saiyan + God Level - only show if not on dashboard */}
-            {!isDashboard && (
-              <div className="relative">
+              {/* Profile Button */}
+              <Button 
+                variant="ghost" 
+                size="icon"
+                className="hover:bg-accent hover:text-accent-foreground cursor-pointer"
+                onClick={() => navigate('/profile')}
+                title="Go to Profile"
+              >
+                <User className="w-5 h-5" />
+              </Button>
 
-                {/* Multi-layered Energy Aura - God Level progression */}
-                <div className="relative">
-                  {/* Base aura - Super Saiyan foundation */}
-                  <div 
-                    className={`absolute inset-0 rounded-full ${(user?.energyLevel ?? 5) >= 2 ? 'bg-gradient-to-r from-yellow-400/25 to-yellow-600/35 animate-pulse' : ''}`} 
-                    style={{ 
-                      width: `${100 + ((user?.energyLevel ?? 5) * 25)}%`,
-                      height: `${100 + ((user?.energyLevel ?? 5) * 25)}%`,
-                      left: `-${((user?.energyLevel ?? 5) * 12.5)}%`,
-                      top: `-${((user?.energyLevel ?? 5) * 12.5)}%`,
-                      animationDuration: `${2.2 - ((user?.energyLevel ?? 5) * 0.15)}s`
-                    }}
-                  >
+              {/* Logout Button */}
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={() => logout()}
+                title="Logout"
+              >
+                <LogOut className="w-5 h-5" />
+              </Button>
+            </>
+          ) : (
+            /* Non-Dashboard Layout: Notifications → Weather → Energy → Points → Profile → Logout */
+            <>
+              {/* Notifications */}
+              <NotificationCenter />
+
+              {/* Weather Display - only show if not on dashboard */}
+              {currentWeatherData && (
+                <div className="flex items-center space-x-2 px-2 py-1 bg-slate-50 dark:bg-slate-800 rounded-lg">
+                  <div className="relative w-5 h-5">
+                    {getWeatherIcon(
+                      currentWeatherData.weather?.condition || currentWeatherData.condition,
+                      currentWeatherData.weather?.emoji || currentWeatherData.emoji
+                    )}
                   </div>
-                  
-                  {/* Secondary aura - Super Saiyan power */}
-                  {(user?.energyLevel ?? 5) >= 4 && (
-                    <div 
-                      className="absolute inset-0 rounded-full bg-gradient-to-r from-yellow-300/20 to-yellow-500/30 animate-ping" 
-                      style={{ 
-                        width: `${130 + ((user?.energyLevel ?? 5) * 18)}%`, 
-                        height: `${130 + ((user?.energyLevel ?? 5) * 18)}%`,
-                        left: `-${15 + ((user?.energyLevel ?? 5) * 9)}%`,
-                        top: `-${15 + ((user?.energyLevel ?? 5) * 9)}%`,
-                        animationDuration: `${2.8 - ((user?.energyLevel ?? 5) * 0.18)}s`
-                      }}
-                    >
+                  <div className="text-xs">
+                    <div className="font-medium text-slate-700 dark:text-slate-300">
+                      {currentWeatherData.weather?.temperature || currentWeatherData.temperature}°
                     </div>
-                  )}
-                  
-                  {/* Tertiary aura - God Level transcendence */}
-                  {(user?.energyLevel ?? 5) >= 7 && (
-                    <div 
-                      className="absolute inset-0 rounded-full bg-gradient-to-r from-yellow-200/15 to-yellow-400/25 animate-pulse" 
-                      style={{ 
-                        width: `${160 + ((user?.energyLevel ?? 5) * 12)}%`, 
-                        height: `${160 + ((user?.energyLevel ?? 5) * 12)}%`,
-                        left: `-${30 + ((user?.energyLevel ?? 5) * 6)}%`,
-                        top: `-${30 + ((user?.energyLevel ?? 5) * 6)}%`,
-                        animationDuration: `${1.8 - ((user?.energyLevel ?? 5) * 0.12)}s`
-                      }}
-                    >
+                    <div className="text-slate-500 dark:text-slate-400">
+                      {(currentWeatherData.weather?.location || currentWeatherData.location || 'Loading...')
+                        .split(',')[0]
+                        .trim()}
                     </div>
-                  )}
-
-                  {/* God Level Divine Aura - Ultimate power */}
-                  {(user?.energyLevel ?? 5) >= 9 && (
-                    <div 
-                      className="absolute inset-0 rounded-full bg-gradient-to-r from-yellow-100/10 to-yellow-300/20 animate-ping" 
-                      style={{ 
-                        width: `${200 + ((user?.energyLevel ?? 5) * 8)}%`, 
-                        height: `${200 + ((user?.energyLevel ?? 5) * 8)}%`,
-                        left: `-${50 + ((user?.energyLevel ?? 5) * 4)}%`,
-                        top: `-${50 + ((user?.energyLevel ?? 5) * 4)}%`,
-                        animationDuration: `${1.5 - ((user?.energyLevel ?? 5) * 0.08)}s`
-                      }}
-                    >
-                    </div>
-                  )}
+                  </div>
                 </div>
+              )}
 
-                {/* Main lightning bolt - Fill effect based on energy level - CLICKABLE TOGGLE */}
-                <button 
-                  className="relative w-4 h-4 cursor-pointer hover:scale-110 transition-transform duration-200"
-                  onClick={() => {}}
-                  title="Energy Level Display"
-                >
-                  {/* Background lightning bolt (empty) */}
-                  <Zap 
-                    className="absolute inset-0 w-4 h-4 text-gray-300 dark:text-gray-600"
+              {/* Energy Display - Better integrated */}
+              <div className="flex items-center space-x-2 px-3 py-1 bg-gradient-to-r from-yellow-50 to-orange-50 dark:from-yellow-900/20 dark:to-orange-900/20 rounded-lg border border-yellow-200 dark:border-yellow-800">
+                <div className="relative">
+                  {/* Simplified energy aura */}
+                  <div 
+                    className={`absolute inset-0 rounded-full ${(user?.energyLevel ?? 5) >= 2 ? 'bg-gradient-to-r from-yellow-400/30 to-yellow-600/40 animate-pulse' : ''}`} 
+                    style={{ 
+                      width: '120%',
+                      height: '120%',
+                      left: '-10%',
+                      top: '-10%',
+                      animationDuration: '2s'
+                    }}
                   />
-                  {/* Filled lightning bolt based on energy level */}
+                  
+                  {/* Main lightning bolt - Larger and more visible */}
                   <Zap 
-                    className={`absolute inset-0 w-4 h-4 ${
+                    className={`w-5 h-5 ${
                       (user?.energyLevel ?? 5) >= 10 ? 'text-yellow-200' : 
                       (user?.energyLevel ?? 5) >= 9 ? 'text-yellow-300' : 
                       (user?.energyLevel ?? 5) >= 7 ? 'text-yellow-400' : 
                       (user?.energyLevel ?? 5) >= 5 ? 'text-yellow-500' : 
                       (user?.energyLevel ?? 5) >= 3 ? 'text-yellow-600' : 
-                      'text-primary'
-                    } opacity-70`} 
-                    style={{
-                      clipPath: `polygon(0% 0%, ${((user?.energyLevel ?? 5) / 10) * 100}% 0%, ${((user?.energyLevel ?? 5) / 10) * 100}% 100%, 0% 100%)`
-                    }}
+                      'text-yellow-700'
+                    }`}
+                    title={`Energy Level: ${user?.energyLevel ?? 5}/10`}
                   />
-                </button>
-
-
-                {/* Animation effects removed */}
-                {false && (
-                  <>
-                    {/* GROUND-BREAKING EFFECTS - Super Saiyan Style */}
-                    <div className="absolute -bottom-6 left-0 w-full h-6 overflow-hidden">
-                      {/* Ground pieces flying up - Super Saiyan style */}
-                      {Array.from({ length: Math.min(Math.floor(((user?.energyLevel ?? 5) - 2) * 2), 12) }, (_, i) => (
-                        <div 
-                          key={i}
-                          className={`absolute bottom-0 bg-gradient-to-t from-yellow-800 to-yellow-500 rounded-sm`}
-                          style={{
-                            left: `${3 + (i * 4)}px`,
-                            width: `${0.4 + (i % 3) * 0.2}rem`,
-                            height: `${0.4 + (i % 3) * 0.2}rem`,
-                            animation: `bounce ${1.2 - ((user?.energyLevel ?? 5) * 0.08)}s ease-in-out infinite ${i * 0.08}s`,
-                            zIndex: 1
-                          }}
-                        >
-                          {/* Inner glow effect */}
-                          <div className="w-full h-full bg-gradient-to-t from-yellow-600 to-yellow-300 rounded-sm opacity-80"></div>
-                        </div>
-                      ))}
-                    </div>
-
-                    {/* SUPER SAIYAN ENERGY SHOCKWAVES - Level 5+ */}
-                    {(user?.energyLevel ?? 5) >= 5 && (
-                      <>
-                        {/* Primary shockwave */}
-                        <div 
-                          className="absolute inset-0 rounded-full border-2 border-yellow-400/60 animate-ping"
-                          style={{
-                            width: `${60 + ((user?.energyLevel ?? 5) * 6)}px`,
-                            height: `${60 + ((user?.energyLevel ?? 5) * 6)}px`,
-                            left: `${-30 - ((user?.energyLevel ?? 5) * 3)}px`,
-                            top: `${-30 - ((user?.energyLevel ?? 5) * 3)}px`,
-                            animationDuration: `${2.5 - ((user?.energyLevel ?? 5) * 0.2)}s`,
-                            zIndex: 2
-                          }}
-                        />
-                        {/* Secondary shockwave */}
-                        <div 
-                          className="absolute inset-0 rounded-full border border-yellow-300/40 animate-ping"
-                          style={{
-                            width: `${90 + ((user?.energyLevel ?? 5) * 9)}px`,
-                            height: `${90 + ((user?.energyLevel ?? 5) * 9)}px`,
-                            left: `${-45 - ((user?.energyLevel ?? 5) * 4.5)}px`,
-                            top: `${-45 - ((user?.energyLevel ?? 5) * 4.5)}px`,
-                            animationDuration: `${3 - ((user?.energyLevel ?? 5) * 0.25)}s`,
-                            animationDelay: '0.5s',
-                            zIndex: 2
-                          }}
-                        />
-                      </>
-                    )}
-
-                    {/* SUPER SAIYAN HAIR-STANDING-UP EFFECT - Level 7+ */}
-                    {(user?.energyLevel ?? 5) >= 7 && (
-                      <>
-                        {/* Vertical energy streams shooting upward */}
-                        {Array.from({ length: 6 }, (_, i) => (
-                          <div
-                            key={`hair-${i}`}
-                            className="absolute bg-gradient-to-t from-yellow-400 to-yellow-200 rounded-full animate-pulse"
-                            style={{
-                              width: `${0.8 + ((user?.energyLevel ?? 5) * 0.15)}px`,
-                              height: `${12 + ((user?.energyLevel ?? 5) * 1.5)}px`,
-                              left: `${2 + (i * 2)}px`,
-                              top: `${-12 - ((user?.energyLevel ?? 5) * 1.5)}px`,
-                              animationDuration: `${1.2 - ((user?.energyLevel ?? 5) * 0.1)}s`,
-                              animationDelay: `${i * 0.1}s`,
-                              zIndex: 3,
-                              filter: 'drop-shadow(0 0 3px rgba(255, 255, 0, 0.8))'
-                            }}
-                          />
-                        ))}
-                      </>
-                    )}
-
-                    {/* SUPER SAIYAN POWER LEVEL INDICATORS - Level 8+ */}
-                    {(user?.energyLevel ?? 5) >= 8 && (
-                      <>
-                        {/* Power level text effect */}
-                        <div 
-                          className="absolute -top-6 left-1/2 transform -translate-x-1/2 text-xs font-bold text-yellow-300 animate-pulse"
-                          style={{
-                            animationDuration: `${0.8 - ((user?.energyLevel ?? 5) * 0.05)}s`,
-                            filter: 'drop-shadow(0 0 4px rgba(255, 255, 0, 0.9))',
-                            zIndex: 4
-                          }}
-                        >
-                          POWER: {((user?.energyLevel ?? 5) * 1000).toLocaleString()}
-                        </div>
-                      </>
-                    )}
-
-                    {/* SUPER SAIYAN TRANSFORMATION BURST - Level 9+ */}
-                    {(user?.energyLevel ?? 5) >= 9 && (
-                      <>
-                        {/* Explosive energy burst */}
-                        <div 
-                          className="absolute inset-0 rounded-full bg-gradient-radial from-yellow-200/80 via-yellow-400/40 to-transparent animate-ping"
-                          style={{
-                            width: `${150 + ((user?.energyLevel ?? 5) * 15)}px`,
-                            height: `${150 + ((user?.energyLevel ?? 5) * 15)}px`,
-                            left: `${-75 - ((user?.energyLevel ?? 5) * 7.5)}px`,
-                            top: `${-75 - ((user?.energyLevel ?? 5) * 7.5)}px`,
-                            animationDuration: `${1.5 - ((user?.energyLevel ?? 5) * 0.1)}s`,
-                            zIndex: 1
-                          }}
-                        />
-                        {/* Divine energy particles */}
-                        {Array.from({ length: 12 }, (_, i) => {
-                          const angle = (i * 30) % 360;
-                          const radius = 25 + ((user?.energyLevel ?? 5) * 2.5);
-                          const x = Math.cos(angle * Math.PI / 180) * radius;
-                          const y = Math.sin(angle * Math.PI / 180) * radius;
-                          
-                          return (
-                            <div
-                              key={`divine-${i}`}
-                              className="absolute w-0.5 h-0.5 bg-yellow-200 rounded-full animate-ping"
-                              style={{
-                                left: `${x}px`,
-                                top: `${y}px`,
-                                animationDuration: `${1 - ((user?.energyLevel ?? 5) * 0.05)}s`,
-                                animationDelay: `${i * 0.05}s`,
-                                zIndex: 3,
-                                filter: 'drop-shadow(0 0 2px rgba(255, 255, 0, 1))'
-                              }}
-                            />
-                          );
-                        })}
-                      </>
-                    )}
-
-                    {/* SUPER SAIYAN MAXIMUM POWER - Level 10 */}
-                    {(user?.energyLevel ?? 5) >= 10 && (
-                      <>
-                        {/* Ultimate transformation aura */}
-                        <div 
-                          className="absolute inset-0 rounded-full bg-gradient-conic from-yellow-200 via-yellow-400 to-yellow-200 animate-spin"
-                          style={{
-                            width: `${200}px`,
-                            height: `${200}px`,
-                            left: `${-100}px`,
-                            top: `${-100}px`,
-                            animationDuration: '2s',
-                            zIndex: 1,
-                            opacity: 0.3
-                          }}
-                        />
-                        {/* Energy storm effect */}
-                        <div 
-                          className="absolute inset-0 rounded-full border-3 border-yellow-300/80 animate-pulse"
-                          style={{
-                            width: `${180}px`,
-                            height: `${180}px`,
-                            left: `${-90}px`,
-                            top: `${-90}px`,
-                            animationDuration: '0.5s',
-                            zIndex: 2
-                          }}
-                        />
-                        {/* MAXIMUM POWER text */}
-                        <div 
-                          className="absolute -top-8 left-1/2 transform -translate-x-1/2 text-xs font-black text-yellow-200 animate-bounce"
-                          style={{
-                            animationDuration: '0.8s',
-                            filter: 'drop-shadow(0 0 6px rgba(255, 255, 0, 1))',
-                            zIndex: 5
-                          }}
-                        >
-                          MAX POWER!
-                        </div>
-                      </>
-                    )}
-
-                    {/* Multi-layered Energy Aura - Super Saiyan */}
-                    {/* Base aura - grows with energy level */}
-                    <div 
-                      className={`absolute inset-0 rounded-full ${(user?.energyLevel ?? 5) >= 2 ? 'bg-gradient-to-r from-yellow-400/20 to-yellow-600/30 animate-pulse' : ''}`} 
-                      style={{
-                        width: `${100 + ((user?.energyLevel ?? 5) * 20)}%`,
-                        height: `${100 + ((user?.energyLevel ?? 5) * 20)}%`,
-                        left: `${-((user?.energyLevel ?? 5) * 10)}%`,
-                        top: `${-((user?.energyLevel ?? 5) * 10)}%`,
-                        animationDuration: `${2 - ((user?.energyLevel ?? 5) * 0.15)}s`,
-                        zIndex: 1
-                      }}
-                    />
-
-                    {/* Secondary aura - level 4+ */}
-                    {(user?.energyLevel ?? 5) >= 4 && (
-                      <div 
-                        className="absolute inset-0 rounded-full bg-gradient-to-r from-yellow-300/15 to-yellow-500/25 animate-ping"
-                        style={{
-                          width: `${120 + ((user?.energyLevel ?? 5) * 15)}%`,
-                          height: `${120 + ((user?.energyLevel ?? 5) * 15)}%`,
-                          left: `${-((user?.energyLevel ?? 5) * 7.5)}%`,
-                          top: `${-((user?.energyLevel ?? 5) * 7.5)}%`,
-                          animationDuration: `${1.8 - ((user?.energyLevel ?? 5) * 0.12)}s`
-                        }}
-                      />
-                    )}
-
-                    {/* Tertiary aura - level 7+ */}
-                    {(user?.energyLevel ?? 5) >= 7 && (
-                      <div 
-                        className="absolute inset-0 rounded-full bg-gradient-to-r from-yellow-200/10 to-yellow-400/20 animate-pulse"
-                        style={{
-                          width: `${140 + ((user?.energyLevel ?? 5) * 10)}%`,
-                          height: `${140 + ((user?.energyLevel ?? 5) * 10)}%`,
-                          left: `${-((user?.energyLevel ?? 5) * 5)}%`,
-                          top: `${-((user?.energyLevel ?? 5) * 5)}%`,
-                          animationDuration: `${1.5 - ((user?.energyLevel ?? 5) * 0.1)}s`
-                        }}
-                      />
-                    )}
-
-                    {/* Divine aura - level 9+ */}
-                    {(user?.energyLevel ?? 5) >= 9 && (
-                      <div 
-                        className="absolute inset-0 rounded-full bg-gradient-to-r from-yellow-100/5 to-yellow-300/15 animate-ping"
-                        style={{
-                          width: `${160 + ((user?.energyLevel ?? 5) * 5)}%`,
-                          height: `${160 + ((user?.energyLevel ?? 5) * 5)}%`,
-                          left: `${-((user?.energyLevel ?? 5) * 2.5)}%`,
-                          top: `${-((user?.energyLevel ?? 5) * 2.5)}%`,
-                          animationDuration: `${1.2 - ((user?.energyLevel ?? 5) * 0.08)}s`,
-                          filter: 'drop-shadow(0 0 10px rgba(255, 255, 0, 0.6))'
-                        }}
-                      />
-                    )}
-                    {Array.from({ length: Math.min(Math.floor(((user?.energyLevel ?? 5) - 2) * 2.5), 16) }, (_, i) => {
-                      const angle = (i * 22.5) % 360; // More sparks, tighter distribution
-                      const radius = 12 + ((user?.energyLevel ?? 5) * 2.5);
-                      const x = Math.cos(angle * Math.PI / 180) * radius;
-                      const y = Math.sin(angle * Math.PI / 180) * radius;
-                      const size = 1.2 + ((user?.energyLevel ?? 5) * 0.15);
-                      const opacity = 0.4 + ((user?.energyLevel ?? 5) * 0.04);
-                      const animationSpeed = 1.8 - ((user?.energyLevel ?? 5) * 0.12);
-
-                      return (
-                        <svg 
-                          key={`inner-${i}`}
-                          className={`absolute text-yellow-400`}
-                          style={{
-                            left: `${x}px`,
-                            top: `${y}px`,
-                            width: `${size}rem`,
-                            height: `${size}rem`,
-                            animation: `ping ${animationSpeed}s cubic-bezier(0, 0, 0.2, 1) infinite ${i * 0.05}s`,
-                            opacity: opacity,
-                            zIndex: 1
-                          }}
-                          viewBox="0 0 24 24" 
-                          fill="none"
-                        >
-                          <path d="M8 2L5 8h3l-2 4 4-5h-2z" fill="currentColor" />
-                        </svg>
-                      );
-                    })}
-
-                    {/* Outer ring sparks - God Level */}
-                    {(user?.energyLevel ?? 5) >= 6 && (
-                      <>
-                        {Array.from({ length: Math.min(Math.floor(((user?.energyLevel ?? 5) - 5) * 3), 20) }, (_, i) => {
-                          const angle = (i * 18) % 360; // Even more sparks for God Level
-                          const radius = 20 + ((user?.energyLevel ?? 5) * 3);
-                          const x = Math.cos(angle * Math.PI / 180) * radius;
-                          const y = Math.sin(angle * Math.PI / 180) * radius;
-                          const size = 1.8 + ((user?.energyLevel ?? 5) * 0.2);
-                          const opacity = 0.3 + ((user?.energyLevel ?? 5) * 0.03);
-                          const animationSpeed = 1.5 - ((user?.energyLevel ?? 5) * 0.1);
-
-                          return (
-                            <svg 
-                              key={`outer-${i}`}
-                              className={`absolute text-yellow-300`}
-                              style={{
-                                left: `${x}px`,
-                                top: `${y}px`,
-                                width: `${size}rem`,
-                                height: `${size}rem`,
-                                animation: `ping ${animationSpeed}s cubic-bezier(0, 0, 0.2, 1) infinite ${i * 0.03}s`,
-                                opacity: opacity,
-                                filter: (user?.energyLevel ?? 5) >= 9 ? 'drop-shadow(0 0 4px rgba(255, 255, 0, 0.6))' : 'none',
-                                zIndex: -1
-                              }}
-                              viewBox="0 0 24 24" 
-                              fill="none"
-                            >
-                              <path d="M8 2L5 8h3l-2 4 4-5h-2z" fill="currentColor" />
-                            </svg>
-                          );
-                        })}
-                      </>
-                    )}
-
-                    {/* Divine sparks - Ultimate God Level */}
-                    {(user?.energyLevel ?? 5) >= 10 && (
-                      <>
-                        {Array.from({ length: 8 }, (_, i) => {
-                          const angle = (i * 45) % 360;
-                          const radius = 30;
-                          const x = Math.cos(angle * Math.PI / 180) * radius;
-                          const y = Math.sin(angle * Math.PI / 180) * radius;
-                          const size = 2.5;
-                          const opacity = 0.6;
-
-                          return (
-                            <svg 
-                              key={`divine-${i}`}
-                              className={`absolute text-yellow-200`}
-                              style={{
-                                left: `${x}px`,
-                                top: `${y}px`,
-                                width: `${size}rem`,
-                                height: `${size}rem`,
-                                animation: `ping 0.8s cubic-bezier(0, 0, 0.2, 1) infinite ${i * 0.05}s`,
-                                opacity: opacity,
-                                filter: 'drop-shadow(0 0 8px rgba(255, 255, 0, 0.8))',
-                                zIndex: -1
-                              }}
-                              viewBox="0 0 24 24" 
-                              fill="none"
-                            >
-                              <path d="M8 2L5 8h3l-2 4 4-5h-2z" fill="currentColor" />
-                            </svg>
-                          );
-                        })}
-                      </>
-                    )}
-                  </>
-                )}
+                </div>
+                
+                {/* Energy level number */}
+                <span className="text-sm font-semibold text-yellow-700 dark:text-yellow-300">
+                  {user?.energyLevel ?? 5}
+                </span>
               </div>
-            )}
-            
-            
-            {/* Test button - navigation */}
-            <Button 
-              variant="ghost" 
-              size="icon"
-              className="hover:bg-accent hover:text-accent-foreground cursor-pointer"
-              onClick={() => navigate('/profile')}
-              title="Go to Profile"
-            >
-              <User className="w-5 h-5" />
-            </Button>
 
-            {/* Points Display - only show if not on dashboard and achievements are enabled */}
-            {!isDashboard && gamificationData && showAchievements && (
-              <div 
-                onClick={() => navigate('/gamification')}
-                className="text-lg font-bold text-yellow-500 dark:text-yellow-400 cursor-pointer hover:text-yellow-600 dark:hover:text-yellow-300 transition-colors"
-                title="View Achievements"
+              {/* Points Display - Better integrated */}
+              {gamificationData && showAchievements && (
+                <div 
+                  onClick={() => navigate('/gamification')}
+                  className="flex items-center space-x-2 px-3 py-1 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-lg border border-blue-200 dark:border-blue-800 cursor-pointer hover:bg-gradient-to-r hover:from-blue-100 hover:to-purple-100 dark:hover:from-blue-800/30 dark:hover:to-purple-800/30 transition-colors"
+                  title="View Achievements"
+                >
+                  <Trophy className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                  <AnimatedCounter 
+                    value={gamificationData?.stats?.totalPoints || 0}
+                    duration={1000}
+                    className="text-sm font-semibold text-blue-700 dark:text-blue-300"
+                  />
+                </div>
+              )}
+
+              {/* Profile Button */}
+              <Button 
+                variant="ghost" 
+                size="icon"
+                className="hover:bg-accent hover:text-accent-foreground cursor-pointer"
+                onClick={() => navigate('/profile')}
+                title="Go to Profile"
               >
-                <AnimatedCounter 
-                  value={gamificationData?.stats?.totalPoints || 0}
-                  duration={1000}
-                  className="text-yellow-500 dark:text-yellow-400"
-                />
-              </div>
-            )}
-            
-            {/* Keep logout button separate for now */}
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              onClick={() => logout()}
-              title="Logout"
-            >
-              <LogOut className="w-5 h-5" />
-            </Button>
-          </div>
+                <User className="w-5 h-5" />
+              </Button>
+
+              {/* Logout Button */}
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={() => logout()}
+                title="Logout"
+              >
+                <LogOut className="w-5 h-5" />
+              </Button>
+            </>
+          )}
         </div>
       </div>
+
+      {/* Brief Modals */}
+      <BriefModal 
+        isOpen={showMorningBrief} 
+        onClose={() => setShowMorningBrief(false)} 
+        type="morning" 
+      />
+      <BriefModal 
+        isOpen={showEveningBrief} 
+        onClose={() => setShowEveningBrief(false)} 
+        type="evening" 
+      />
     </header>
   )
 }

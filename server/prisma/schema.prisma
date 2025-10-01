@@ -43,6 +43,16 @@ model User {
   calendarIntegrations CalendarIntegration[]
   financialAccounts    FinancialAccount[]
   
+  // Financial & Budgeting
+  transactions          Transaction[]
+  budgets               Budget[]
+  savingsGoals          SavingsGoal[]
+  budgetAlerts          BudgetAlert[]
+  categorizationRules   CategorizationRule[]
+  recurringTransactions RecurringTransaction[]
+  budgetSnapshots       BudgetSnapshot[]
+  spendingForecasts     SpendingForecast[]
+  
   // Data
   tasks        Task[]
   events       Event[]
@@ -91,6 +101,15 @@ model User {
   ownedProjects            Project[] @relation("ProjectOwner")
   projectMemberships       ProjectMember[] @relation("ProjectMemberships")
   assignments              Assignment[] @relation("Assignments")
+  projectResourcesAdded    ProjectResource[] @relation("ProjectResourcesAdded")
+  
+  // Phase 7 - Brief System
+  briefPreferences         BriefPreferences?
+  journalEntries           JournalEntry[]
+  briefCards               BriefCard[]
+  
+  // User Scripts (My Scripts Gallery)
+  userScripts              UserScript[]
 
   @@map("users")
 }
@@ -161,8 +180,308 @@ model FinancialAccount {
   createdAt   DateTime @default(now())
   
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions Transaction[]
 
   @@map("financial_accounts")
+}
+
+// ============================================================
+// ENHANCED BUDGETING MODELS
+// ============================================================
+
+model Transaction {
+  id                String   @id @default(cuid())
+  userId            String
+  financialAccountId String?
+  
+  // Transaction Details
+  amount            Float
+  description       String
+  date              DateTime
+  pending           Boolean  @default(false)
+  transactionId     String?  // Plaid transaction ID
+  
+  // Categorization
+  category          String?  // Main category
+  subcategory       String?  // Subcategory
+  merchantName      String?  // Enriched merchant name
+  confidence        Float?   // Categorization confidence 0-1
+  
+  // Custom Metadata
+  tags              String?  // JSON array
+  notes             String?
+  isRecurring       Boolean  @default(false)
+  recurrencePattern String?  // JSON object
+  
+  // Project/Event Linking
+  linkedEventId     String?
+  linkedProjectId   String?
+  budgetCategoryId  String?
+  
+  // User Overrides
+  userCategorized   Boolean  @default(false) // User manually set category
+  userRuleId        String?  // If categorized by custom rule
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  financialAccount  FinancialAccount? @relation(fields: [financialAccountId], references: [id], onDelete: SetNull)
+  budgetCategory    BudgetCategory? @relation(fields: [budgetCategoryId], references: [id], onDelete: SetNull)
+  
+  @@index([userId, date])
+  @@index([category])
+  @@index([merchantName])
+  @@map("transactions")
+}
+
+model Budget {
+  id              String   @id @default(cuid())
+  userId          String
+  name            String
+  description     String?
+  
+  // Time Period
+  period          String   @default("MONTHLY") // "WEEKLY", "MONTHLY", "ANNUAL"
+  startDate       DateTime
+  endDate         DateTime?
+  
+  // Budget Settings
+  totalIncome     Float?   // Expected income for period
+  totalBudget     Float    // Total budgeted amount
+  rolloverEnabled Boolean  @default(false) // Roll unused funds to next period
+  
+  // Sharing & Collaboration
+  isShared        Boolean  @default(false)
+  sharedWith      String?  // JSON array of user IDs
+  
+  // Metadata
+  isActive        Boolean  @default(true)
+  isTemplate      Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  categories      BudgetCategory[]
+  alerts          BudgetAlert[]
+  
+  @@map("budgets")
+}
+
+model BudgetCategory {
+  id              String   @id @default(cuid())
+  budgetId        String
+  name            String
+  description     String?
+  icon            String?  // Emoji or icon name
+  
+  // Budget Amounts
+  budgetedAmount  Float
+  spentAmount     Float    @default(0)
+  
+  // Category Details
+  parentCategory  String?  // For subcategories
+  categoryType    String   @default("EXPENSE") // "EXPENSE", "INCOME", "SAVINGS"
+  color           String?  // Hex color code
+  
+  // Tracking
+  order           Int      @default(0)
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  budget          Budget   @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+  transactions    Transaction[]
+  
+  @@index([budgetId])
+  @@map("budget_categories")
+}
+
+model SavingsGoal {
+  id              String   @id @default(cuid())
+  userId          String
+  name            String
+  description     String?
+  
+  // Goal Details
+  targetAmount    Float
+  currentAmount   Float    @default(0)
+  targetDate      DateTime?
+  priority        String   @default("MEDIUM") // "LOW", "MEDIUM", "HIGH"
+  
+  // Contribution Settings
+  monthlyContribution Float?
+  autoAllocate    Boolean  @default(false)
+  
+  // Linked Budget
+  linkedBudgetCategoryId String?
+  
+  // Progress Tracking
+  milestones      String?  // JSON array of milestone amounts
+  isCompleted     Boolean  @default(false)
+  completedAt     DateTime?
+  
+  // Metadata
+  icon            String?
+  color           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("savings_goals")
+}
+
+model BudgetAlert {
+  id              String   @id @default(cuid())
+  budgetId        String
+  userId          String
+  
+  // Alert Configuration
+  alertType       String   // "OVERSPEND", "APPROACHING_LIMIT", "LOW_BALANCE", "UNUSUAL_SPENDING", "BILL_DUE"
+  threshold       Float?   // Percentage or amount
+  categoryName    String?  // Specific category or null for overall
+  
+  // Alert Status
+  isActive        Boolean  @default(true)
+  lastTriggered   DateTime?
+  triggerCount    Int      @default(0)
+  
+  // Notification Channels
+  notifyEmail     Boolean  @default(true)
+  notifyPush      Boolean  @default(true)
+  notifyInApp     Boolean  @default(true)
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  budget          Budget   @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId, isActive])
+  @@map("budget_alerts")
+}
+
+model CategorizationRule {
+  id              String   @id @default(cuid())
+  userId          String
+  
+  // Rule Conditions
+  matchType       String   // "MERCHANT", "DESCRIPTION", "AMOUNT_RANGE", "KEYWORD"
+  matchValue      String   // What to match
+  matchOperator   String   @default("CONTAINS") // "CONTAINS", "EQUALS", "STARTS_WITH", "REGEX"
+  
+  // Action
+  assignCategory  String
+  assignSubcategory String?
+  priority        Int      @default(0) // Higher priority rules execute first
+  
+  // Metadata
+  isActive        Boolean  @default(true)
+  timesApplied    Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId, isActive])
+  @@map("categorization_rules")
+}
+
+model RecurringTransaction {
+  id              String   @id @default(cuid())
+  userId          String
+  
+  // Transaction Pattern
+  merchantName    String
+  category        String
+  averageAmount   Float
+  frequency       String   // "WEEKLY", "BIWEEKLY", "MONTHLY", "QUARTERLY", "ANNUAL"
+  
+  // Detection Metadata
+  firstSeen       DateTime
+  lastSeen        DateTime
+  occurrenceCount Int      @default(1)
+  confidence      Float    // 0-1, how confident this is recurring
+  
+  // Next Expected
+  nextExpectedDate DateTime?
+  nextExpectedAmount Float?
+  
+  // Reminder Settings
+  reminderEnabled Boolean  @default(false)
+  reminderDaysBefore Int   @default(3)
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+  @@map("recurring_transactions")
+}
+
+model BudgetSnapshot {
+  id              String   @id @default(cuid())
+  userId          String
+  budgetId        String
+  
+  // Snapshot Data
+  snapshotDate    DateTime
+  periodStart     DateTime
+  periodEnd       DateTime
+  
+  // Financial Summary
+  totalIncome     Float
+  totalExpenses   Float
+  totalSavings    Float
+  netCashflow     Float
+  
+  // Category Breakdown (JSON)
+  categoryData    String   // JSON object with category-wise spending
+  
+  // Comparison
+  vsLastPeriod    Float?   // Percentage change
+  vsBudget        Float?   // Percentage of budget used
+  
+  createdAt       DateTime @default(now())
+  
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId, snapshotDate])
+  @@map("budget_snapshots")
+}
+
+model SpendingForecast {
+  id              String   @id @default(cuid())
+  userId          String
+  budgetId        String
+  
+  // Forecast Details
+  forecastDate    DateTime // Date this forecast is for
+  generatedAt     DateTime @default(now())
+  
+  // Projected Amounts
+  projectedSpending Float
+  projectedIncome   Float
+  projectedSavings  Float
+  
+  // Category Projections (JSON)
+  categoryForecasts String // JSON object
+  
+  // Confidence & Alerts
+  confidence      Float    // 0-1
+  alerts          String?  // JSON array of alert messages
+  
+  // AI Insights
+  aiInsights      String?  // JSON object with recommendations
+  
+  createdAt       DateTime @default(now())
+  
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId, forecastDate])
+  @@map("spending_forecasts")
 }
 
 model Task {
@@ -908,6 +1227,8 @@ model Project {
   members ProjectMember[]
   items   ProjectItem[]
   audits  ProjectAuditLog[]
+  resourceFolders ProjectResourceFolder[]
+  resources ProjectResource[]
   
   @@index([ownerId])
   @@index([archivedAt])
@@ -998,4 +1319,217 @@ model Provenance {
   
   @@index([itemId])
   @@map("provenance")
+}
+
+// User's saved scripts (created from events)
+model UserScript {
+  id          String   @id @default(cuid())
+  userId      String
+  sourceEventId String? // Original event this was created from
+  
+  // Script content
+  title       String
+  description String?
+  category    String?  // 'Move', 'Wedding', 'Launch', etc.
+  tags        String   @default("[]") // JSON array
+  manifest    String   // JSON: { tasks: [...], subEvents: [...] }
+  
+  // Metadata
+  isFavorite  Boolean  @default(false)
+  applyCount  Int      @default(0) // How many times user has applied this
+  lastUsedAt  DateTime?
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+  @@index([isFavorite])
+  @@map("user_scripts")
+}
+
+model ProjectResourceFolder {
+  id        String   @id @default(cuid())
+  projectId String
+  name      String   @default("Project Resources")
+  description String?
+  
+  // Folder organization
+  parentFolderId String? // For nested folders
+  order          Int     @default(0)
+  
+  // Access control
+  visibility String @default("project") // 'project' | 'restricted'
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relations
+  project        Project             @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  parentFolder   ProjectResourceFolder? @relation("FolderHierarchy", fields: [parentFolderId], references: [id], onDelete: SetNull)
+  subfolders     ProjectResourceFolder[] @relation("FolderHierarchy")
+  resources      ProjectResource[]
+  
+  @@index([projectId])
+  @@index([parentFolderId])
+  @@map("project_resource_folders")
+}
+
+model ProjectResource {
+  id                String   @id @default(cuid())
+  projectId         String
+  folderId          String?  // Optional - can be in root or specific folder
+  originalResourceId String? // Link to original task/event resource
+  
+  // Resource details (copied from original resource)
+  kind          String   // 'url'|'image'|'file'|'note'
+  urlOrKey      String?  // URL or storage key
+  title         String?
+  previewImage  String?  // URL to thumbnail/preview
+  domain        String?  // normalized host for filter/search
+  merchant      String?  // merchant/store name
+  priceCents    Int?     // price in cents
+  note          String?  // user notes
+  tags          String   @default("[]") // JSON array of tags
+  
+  // Source tracking
+  sourceTaskId  String?  // Which task this resource came from
+  sourceEventId String?  // Which event this resource came from
+  addedBy       String   // User who added this to the project
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relations
+  project   Project             @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  folder    ProjectResourceFolder? @relation(fields: [folderId], references: [id], onDelete: SetNull)
+  addedByUser User              @relation("ProjectResourcesAdded", fields: [addedBy], references: [id])
+  
+  @@index([projectId])
+  @@index([folderId])
+  @@index([sourceTaskId])
+  @@index([sourceEventId])
+  @@map("project_resources")
+}
+
+// ============================================================
+// BRIEF SYSTEM MODELS
+// ============================================================
+
+model BriefPreferences {
+  id     String @id @default(cuid())
+  userId String @unique
+  
+  // Timing
+  morningBriefEnabled Boolean @default(true)
+  morningBriefTime    String  @default("07:30") // HH:MM format
+  eveningBriefEnabled Boolean @default(true)
+  eveningBriefTime    String  @default("20:30")
+  
+  // Auto-popup settings
+  autoPopMorning      Boolean @default(true)
+  autoPopEvening      Boolean @default(false) // User must click "End Day"
+  
+  // Card preferences (weights 0-10)
+  preferFirstBlock    Int @default(10)
+  preferCriticalPrep  Int @default(9)
+  preferConflicts     Int @default(10)
+  preferPinned        Int @default(8)
+  preferBudget        Int @default(7)
+  preferWeather       Int @default(6)
+  preferTemplates     Int @default(7)
+  preferApprovals     Int @default(8)
+  preferChallenges    Int @default(7)
+  preferJournal       Int @default(8)
+  
+  // Display settings
+  maxCards            Int @default(8)
+  showInHeader        Boolean @default(true)
+  emailDigest         Boolean @default(false)
+  pushNotifications   Boolean @default(true)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("brief_preferences")
+}
+
+model BriefCard {
+  id     String @id @default(cuid())
+  userId String
+  
+  // Card metadata
+  briefType    String   // "MORNING" | "EVENING"
+  cardType     String   // "FIRST_BLOCK" | "CRITICAL_PREP" | "CONFLICTS" | etc.
+  date         DateTime // Which day this brief is for
+  
+  // Scoring
+  score        Float    // 0-100, determines order
+  priority     Int      @default(5) // 1-10, tie-breaker
+  
+  // Display data
+  title        String
+  reason       String?  // One-line explanation
+  keyFacts     String?  // JSON array of bullet points
+  icon         String?  // Icon name
+  color        String?  // Color scheme
+  
+  // Actions
+  primaryAction   String   // JSON object { label, endpoint, method, payload }
+  secondaryActions String? // JSON array of action objects
+  deepLink        String?  // URL to relevant page
+  
+  // Lifecycle
+  ttl          DateTime? // Auto-dismiss after this time
+  dismissed    Boolean  @default(false)
+  dismissedAt  DateTime?
+  actionTaken  Boolean  @default(false)
+  actionTakenAt DateTime?
+  
+  // Context (JSON)
+  metadata     String?  // Any additional data for this card
+  
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId, briefType, date])
+  @@index([userId, dismissed, date])
+  @@map("brief_cards")
+}
+
+model JournalEntry {
+  id     String @id @default(cuid())
+  userId String
+  date   DateTime // Date this entry is for
+  
+  // Reflection data
+  highlights String? // JSON array of "went well" items
+  lowlights  String? // JSON array of "could improve" items
+  blockers   String? // JSON array of blockers
+  freeformNote String? // Optional free-text journal
+  
+  // Completion stats
+  tasksCompleted    Int? // Tasks done today
+  tasksPlanned      Int? // Tasks that were planned
+  eventsAttended    Int? // Events completed
+  focusMinutes      Int? // Time in Focus Lock
+  energyPointsEarned Int? // EP earned today
+  
+  // Next day planning
+  tomorrowPriorities String? // JSON array of priorities set for tomorrow
+  tomorrowFirstBlock String? // Suggested first block for tomorrow
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, date])
+  @@index([userId, date])
+  @@map("journal_entries")
 }

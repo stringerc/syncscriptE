@@ -3,6 +3,7 @@ import { PrismaClient } from '@prisma/client'
 import { authenticateToken } from '../middleware/auth'
 import { asyncHandler, createError } from '../middleware/errorHandler'
 import { logger } from '../utils/logger'
+import { projectResourceService } from '../services/projectResourceService'
 import multer from 'multer'
 
 const router = Router()
@@ -173,6 +174,35 @@ router.post('/tasks/:id/resources/url', authenticateToken, asyncHandler(async (r
     title: resource.title 
   })
 
+  // Auto-sync to project if task belongs to a project
+  try {
+    const projectItem = await prisma.projectItem.findFirst({
+      where: { itemId: id, itemType: 'task' },
+      include: { project: true }
+    })
+
+    if (projectItem) {
+      await projectResourceService.addResourceFromTask(
+        projectItem.projectId,
+        id,
+        resource.id,
+        userId
+      )
+      logger.info('Resource auto-synced to project', { 
+        projectId: projectItem.projectId, 
+        taskId: id, 
+        resourceId: resource.id 
+      })
+    }
+  } catch (error) {
+    // Don't fail the resource creation if project sync fails
+    logger.error('Failed to auto-sync resource to project', { 
+      taskId: id, 
+      resourceId: resource.id, 
+      error: error.message 
+    })
+  }
+
   res.json({
     success: true,
     data: {
@@ -231,6 +261,34 @@ router.post('/tasks/:id/resources/note', authenticateToken, asyncHandler(async (
       createdById: userId
     }
   })
+
+  // Auto-sync to project if task belongs to a project
+  try {
+    const projectItem = await prisma.projectItem.findFirst({
+      where: { itemId: id, itemType: 'task' },
+      include: { project: true }
+    })
+
+    if (projectItem) {
+      await projectResourceService.addResourceFromTask(
+        projectItem.projectId,
+        id,
+        resource.id,
+        userId
+      )
+      logger.info('Note resource auto-synced to project', { 
+        projectId: projectItem.projectId, 
+        taskId: id, 
+        resourceId: resource.id 
+      })
+    }
+  } catch (error) {
+    logger.error('Failed to auto-sync note resource to project', { 
+      taskId: id, 
+      resourceId: resource.id, 
+      error: error.message 
+    })
+  }
 
   res.json({
     success: true,
@@ -292,6 +350,34 @@ router.post('/tasks/:id/resources/upload', authenticateToken, upload.single('fil
         createdById: userId
       }
     })
+
+    // Auto-sync to project if task belongs to a project
+    try {
+      const projectItem = await prisma.projectItem.findFirst({
+        where: { itemId: id, itemType: 'task' },
+        include: { project: true }
+      })
+
+      if (projectItem) {
+        await projectResourceService.addResourceFromTask(
+          projectItem.projectId,
+          id,
+          resource.id,
+          userId
+        )
+        logger.info('File resource auto-synced to project', { 
+          projectId: projectItem.projectId, 
+          taskId: id, 
+          resourceId: resource.id 
+        })
+      }
+    } catch (error) {
+      logger.error('Failed to auto-sync file resource to project', { 
+        taskId: id, 
+        resourceId: resource.id, 
+        error: error.message 
+      })
+    }
 
     res.json({
       success: true,

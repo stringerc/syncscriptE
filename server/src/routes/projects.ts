@@ -10,7 +10,7 @@ const router = express.Router()
  */
 router.get('/', auth, async (req, res) => {
   try {
-    const userId = req.user!.userId
+    const userId = req.user!.id
     const projects = await projectsService.getUserProjects(userId)
     
     res.json({
@@ -31,7 +31,7 @@ router.get('/', auth, async (req, res) => {
  */
 router.post('/', auth, async (req, res) => {
   try {
-    const userId = req.user!.userId
+    const userId = req.user!.id
     const { name, description } = req.body
 
     if (!name) {
@@ -62,7 +62,7 @@ router.post('/', auth, async (req, res) => {
  */
 router.get('/:projectId', auth, async (req, res) => {
   try {
-    const userId = req.user!.userId
+    const userId = req.user!.id
     const { projectId } = req.params
 
     const project = await projectsService.getProject(projectId, userId)
@@ -85,7 +85,7 @@ router.get('/:projectId', auth, async (req, res) => {
  */
 router.post('/:projectId/invite', auth, async (req, res) => {
   try {
-    const userId = req.user!.userId
+    const userId = req.user!.id
     const { projectId } = req.params
     const { email, role } = req.body
 
@@ -122,7 +122,7 @@ router.post('/:projectId/invite', auth, async (req, res) => {
  */
 router.post('/:projectId/respond', auth, async (req, res) => {
   try {
-    const userId = req.user!.userId
+    const userId = req.user!.id
     const { projectId } = req.params
     const { accept } = req.body
 
@@ -147,7 +147,7 @@ router.post('/:projectId/respond', auth, async (req, res) => {
  */
 router.patch('/:projectId/members/:memberId', auth, async (req, res) => {
   try {
-    const userId = req.user!.userId
+    const userId = req.user!.id
     const { projectId, memberId } = req.params
     const { role } = req.body
 
@@ -179,7 +179,7 @@ router.patch('/:projectId/members/:memberId', auth, async (req, res) => {
  */
 router.delete('/:projectId/members/:memberId', auth, async (req, res) => {
   try {
-    const userId = req.user!.userId
+    const userId = req.user!.id
     const { projectId, memberId } = req.params
 
     await projectsService.removeMember(projectId, userId, memberId)
@@ -202,7 +202,7 @@ router.delete('/:projectId/members/:memberId', auth, async (req, res) => {
  */
 router.post('/:projectId/items', auth, async (req, res) => {
   try {
-    const userId = req.user!.userId
+    const userId = req.user!.id
     const { projectId } = req.params
     const { itemId, itemType, privacy } = req.body
 
@@ -240,7 +240,7 @@ router.post('/:projectId/items', auth, async (req, res) => {
  */
 router.post('/:projectId/archive', auth, async (req, res) => {
   try {
-    const userId = req.user!.userId
+    const userId = req.user!.id
     const { projectId } = req.params
 
     await projectsService.archiveProject(projectId, userId)
@@ -263,7 +263,7 @@ router.post('/:projectId/archive', auth, async (req, res) => {
  */
 router.get('/:projectId/audit', auth, async (req, res) => {
   try {
-    const userId = req.user!.userId
+    const userId = req.user!.id
     const { projectId } = req.params
     const { itemId, actorId, limit } = req.query
 
@@ -291,7 +291,7 @@ router.get('/:projectId/audit', auth, async (req, res) => {
  */
 router.post('/assign/:itemId', auth, async (req, res) => {
   try {
-    const userId = req.user!.userId
+    const userId = req.user!.id
     const { itemId } = req.params
     const { assigneeId, itemType, role } = req.body
 

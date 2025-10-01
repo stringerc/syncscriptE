@@ -16,14 +16,16 @@ export function TemplateGalleryPage() {
   const { toast } = useToast()
   const queryClient = useQueryClient()
 
+  const [viewMode, setViewMode] = useState<'gallery' | 'my-scripts'>('gallery')
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedCategory, setSelectedCategory] = useState<string>('')
   const [selectedTags, setSelectedTags] = useState<string[]>([])
   const [previewTemplate, setPreviewTemplate] = useState<any>(null)
   const [selectedEventId, setSelectedEventId] = useState<string>('')
+  const [showFavoritesOnly, setShowFavoritesOnly] = useState(false)
 
-  // Fetch catalog
-  const { data: catalogData, isLoading } = useQuery({
+  // Fetch public catalog (Gallery)
+  const { data: catalogData, isLoading: catalogLoading } = useQuery({
     queryKey: ['template-catalog', searchQuery, selectedCategory, selectedTags],
     queryFn: async () => {
       const params = new URLSearchParams()
@@ -34,8 +36,24 @@ export function TemplateGalleryPage() {
       const response = await api.get(`/templates/catalog?${params}`)
       return response.data
     },
-    enabled: true // Always enabled for launch
+    enabled: viewMode === 'gallery'
   })
+
+  // Fetch user's scripts (My Scripts)
+  const { data: myScriptsData, isLoading: myScriptsLoading } = useQuery({
+    queryKey: ['my-scripts', searchQuery, showFavoritesOnly],
+    queryFn: async () => {
+      const params = new URLSearchParams()
+      if (searchQuery) params.append('q', searchQuery)
+      if (showFavoritesOnly) params.append('favorites', 'true')
+      
+      const response = await api.get(`/scripts/my-scripts?${params}`)
+      return response.data
+    },
+    enabled: viewMode === 'my-scripts'
+  })
+
+  const isLoading = viewMode === 'gallery' ? catalogLoading : myScriptsLoading
 
   // Fetch user's events for apply
   const { data: eventsData } = useQuery({
@@ -47,7 +65,9 @@ export function TemplateGalleryPage() {
     enabled: true
   })
 
-  const templates = catalogData?.data?.templates || []
+  const templates = viewMode === 'gallery' 
+    ? (catalogData?.data?.templates || [])
+    : (myScriptsData?.data || [])
   const events = eventsData?.data || []
 
   // Preview mutation
@@ -98,59 +118,134 @@ export function TemplateGalleryPage() {
     }
   })
 
+  // Toggle favorite mutation
+  const toggleFavoriteMutation = useMutation({
+    mutationFn: async ({ scriptId, isFavorite }: { scriptId: string; isFavorite: boolean }) => {
+      const response = await api.post(`/scripts/${scriptId}/favorite`, { isFavorite })
+      return response.data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['my-scripts'] })
+      toast({
+        title: 'Updated!',
+        description: 'Script favorites updated'
+      })
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Error',
+        description: error.response?.data?.error || 'Failed to update favorite',
+        variant: 'destructive'
+      })
+    }
+  })
+
   // Gallery is always enabled for launch
   // Feature flag check removed
 
   return (
     <div className="container max-w-7xl mx-auto p-6 space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold flex items-center gap-2">
-          <BookTemplate className="w-8 h-8" />
-          Script Gallery
-        </h1>
-        <p className="text-muted-foreground mt-1">
-          Browse curated scripts to plan faster
-        </p>
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-3xl font-bold flex items-center gap-2">
+            <BookTemplate className="w-8 h-8" />
+            {viewMode === 'gallery' ? 'Script Gallery' : 'My Scripts'}
+          </h1>
+          <p className="text-muted-foreground mt-1">
+            {viewMode === 'gallery' 
+              ? 'Browse curated scripts to plan faster'
+              : 'Your saved scripts and templates'
+            }
+          </p>
+        </div>
+
+        {/* View Mode Toggle */}
+        <div className="flex gap-2">
+          <Button
+            variant={viewMode === 'gallery' ? 'default' : 'outline'}
+            onClick={() => {
+              setViewMode('gallery')
+              setShowFavoritesOnly(false)
+            }}
+            className="gap-2"
+          >
+            <BookTemplate className="w-4 h-4" />
+            Gallery
+          </Button>
+          <Button
+            variant={viewMode === 'my-scripts' ? 'default' : 'outline'}
+            onClick={() => setViewMode('my-scripts')}
+            className="gap-2"
+          >
+            <Star className="w-4 h-4" />
+            My Scripts
+          </Button>
+        </div>
       </div>
 
       {/* Filters */}
       <Card>
         <CardContent className="pt-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {/* Search */}
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input
-                placeholder="Search templates..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10"
-              />
-            </div>
+          {viewMode === 'gallery' ? (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* Search */}
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search templates..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
 
-            {/* Category Filter */}
-            <select
-              value={selectedCategory}
-              onChange={(e) => setSelectedCategory(e.target.value)}
-              className="px-3 py-2 border rounded-md bg-background text-black"
-            >
-              <option value="">All Categories</option>
-              <option value="Move">Move</option>
-              <option value="Wedding">Wedding</option>
-              <option value="Launch">Product Launch</option>
-              <option value="Event">General Event</option>
-              <option value="Hosting">Hosting</option>
-              <option value="Travel">Travel</option>
-            </select>
+              {/* Category Filter */}
+              <select
+                value={selectedCategory}
+                onChange={(e) => setSelectedCategory(e.target.value)}
+                className="px-3 py-2 border rounded-md bg-background text-black"
+              >
+                <option value="">All Categories</option>
+                <option value="Move">Move</option>
+                <option value="Wedding">Wedding</option>
+                <option value="Launch">Product Launch</option>
+                <option value="Event">General Event</option>
+                <option value="Hosting">Hosting</option>
+                <option value="Travel">Travel</option>
+              </select>
 
-            {/* Tags */}
-            <div className="flex items-center gap-2">
-              <Badge variant="outline" className="cursor-pointer">venue</Badge>
-              <Badge variant="outline" className="cursor-pointer">logistics</Badge>
-              <Badge variant="outline" className="cursor-pointer">guests</Badge>
+              {/* Tags */}
+              <div className="flex items-center gap-2">
+                <Badge variant="outline" className="cursor-pointer">venue</Badge>
+                <Badge variant="outline" className="cursor-pointer">logistics</Badge>
+                <Badge variant="outline" className="cursor-pointer">guests</Badge>
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="flex items-center justify-between">
+              {/* Search */}
+              <div className="relative flex-1 max-w-md">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search your scripts..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+
+              {/* Favorites Filter */}
+              <Button
+                variant={showFavoritesOnly ? 'default' : 'outline'}
+                onClick={() => setShowFavoritesOnly(!showFavoritesOnly)}
+                className="gap-2"
+              >
+                <Star className={`w-4 h-4 ${showFavoritesOnly ? 'fill-yellow-400 text-yellow-400' : ''}`} />
+                {showFavoritesOnly ? 'Showing Favorites' : 'Show Favorites'}
+              </Button>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -182,9 +277,29 @@ export function TemplateGalleryPage() {
                       {template.description || 'No description'}
                     </CardDescription>
                   </div>
-                  <div className="flex items-center gap-1">
-                    <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
-                    <span className="text-sm font-medium">{template.quality}</span>
+                  <div className="flex items-center gap-2">
+                    {viewMode === 'my-scripts' && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          toggleFavoriteMutation.mutate({
+                            scriptId: template.id || template.versionId,
+                            isFavorite: !template.isFavorite
+                          })
+                        }}
+                        className="p-1 hover:bg-gray-100 rounded transition-colors"
+                      >
+                        <Star 
+                          className={`w-5 h-5 ${template.isFavorite ? 'fill-yellow-400 text-yellow-400' : 'text-gray-400'}`} 
+                        />
+                      </button>
+                    )}
+                    {viewMode === 'gallery' && (
+                      <div className="flex items-center gap-1">
+                        <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
+                        <span className="text-sm font-medium">{template.quality}</span>
+                      </div>
+                    )}
                   </div>
                 </div>
               </CardHeader>
