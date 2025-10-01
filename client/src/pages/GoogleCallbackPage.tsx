@@ -65,9 +65,9 @@ export function GoogleCallbackPage() {
           url: window.location.href
         })
         
-        // Force redirect to calendar-sync if returnTo is calendar-sync
-        if (returnTo === '/calendar-sync') {
-          console.log('🔐 GoogleCallback: Forcing redirect to calendar-sync')
+        // Force redirect to google-calendar if returnTo is google-calendar
+        if (returnTo === '/google-calendar') {
+          console.log('🔐 GoogleCallback: Forcing redirect to google-calendar')
           setMessage('Successfully signed in! Syncing your Google Calendar events...')
           
           // Show success toast with sync info
@@ -79,8 +79,8 @@ export function GoogleCallbackPage() {
           
           // Redirect to calendar sync page after 2 seconds
           setTimeout(() => {
-            console.log('🔐 GoogleCallback: Navigating to /calendar-sync')
-            navigate('/calendar-sync')
+            console.log('🔐 GoogleCallback: Navigating to /google-calendar')
+            navigate('/google-calendar')
           }, 2000)
           return
         }
