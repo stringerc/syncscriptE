@@ -2,11 +2,8 @@
   "version": 2,
   "builds": [
     {
-      "src": "server/package.json",
-      "use": "@vercel/node",
-      "config": {
-        "buildCommand": "cd server && npm run build"
-      }
+      "src": "server/dist/index.js",
+      "use": "@vercel/node"
     }
   ],
   "routes": [
