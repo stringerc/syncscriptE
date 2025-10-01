@@ -202,7 +202,6 @@ export const useAuthStore = create<AuthStore>()(
         // If we already have a user and token, don't refetch
         if (user && token) {
           console.log('🔐 AuthStore: Already have user and token, skipping checkAuth')
-          set({ isLoading: false })
           return
         }
         

@@ -55,7 +55,7 @@ function AppContent() {
     } else {
       console.log('🔐 App: Demo mode, skipping checkAuth')
     }
-  }, [isDemoMode, checkAuth])
+  }, [isDemoMode]) // Remove checkAuth from dependencies to prevent infinite loop
 
   // Show demo mode for GitHub Pages
   if (isDemoMode) {
