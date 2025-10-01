@@ -2,8 +2,11 @@ import axios from 'axios'
 
 // Dynamic API URL detection for different environments
 const getApiBaseUrl = () => {
+  console.log('🌐 Current hostname:', window.location.hostname)
+  
   // If environment variable is set, use it
   if ((import.meta as any).env?.VITE_API_URL) {
+    console.log('🌐 Using VITE_API_URL environment variable')
     return (import.meta as any).env.VITE_API_URL
   }
   
@@ -21,10 +24,12 @@ const getApiBaseUrl = () => {
   
   // If running on local network IP, use the same IP for API calls
   if (window.location.hostname === '192.168.1.246') {
+    console.log('🌐 Running on local network - using local IP')
     return 'http://192.168.1.246:3001/api'
   }
   
   // Default to localhost for development
+  console.log('🌐 Running locally - using localhost')
   return 'http://localhost:3001/api'
 }
 

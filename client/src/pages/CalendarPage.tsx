@@ -668,7 +668,7 @@ export function CalendarPage() {
                           event.title.toLowerCase().includes(keyword)
                         );
                         
-                        if (isLikelyPrepEvent && events && events.length > 1) {
+                        if (isLikelyPrepEvent && events && Array.isArray(events) && events.length > 1) {
                           // Find the main event (usually the one without prep keywords and earliest time)
                           const mainEvents = events.filter((e: any) => 
                             !prepKeywords.some(keyword => e.title.toLowerCase().includes(keyword)) &&
