@@ -34,29 +34,55 @@ export function GoogleCallbackPage() {
           return
         }
 
-        // For now, simulate a successful Google OAuth login
-        // In a real implementation, you'd exchange the code for user info
+        // Process real Google OAuth callback
         console.log('🔐 GoogleCallback: Processing Google OAuth callback')
         
-        // Simulate user data from Google
-        const mockUser = {
-          id: 'google_' + Date.now(),
-          email: 'user@gmail.com',
-          name: 'Google User',
-          avatar: null,
+        // Exchange code for tokens via backend
+        const response = await api.post('/calendar-auth/google/callback', { code })
+        
+        if (!response.data.success) {
+          throw new Error(response.data.error || 'Failed to authenticate with Google')
+        }
+        
+        const { user: googleUser, tokens } = response.data.data
+        
+        // Create SyncScript user from Google user data
+        const syncscriptUser = {
+          id: 'google_' + googleUser.id,
+          email: googleUser.email,
+          name: googleUser.name,
+          avatar: googleUser.picture,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString()
         }
         
-        // Store user data temporarily in localStorage for auth store to pick up
-        localStorage.setItem('syncscript_user', JSON.stringify(mockUser))
+        // Store user data and tokens
+        localStorage.setItem('syncscript_user', JSON.stringify(syncscriptUser))
         localStorage.setItem('syncscript_token', 'google_token_' + Date.now())
+        localStorage.setItem('google_calendar_tokens', JSON.stringify(tokens))
         
         setStatus('success')
         
         // Check if we should auto-sync after authentication
-        const returnTo = searchParams.get('returnTo') || '/dashboard'
-        const shouldAutoSync = returnTo === '/calendar-sync'
+        let returnTo = '/dashboard'
+        
+        // Try to get returnTo from state parameter (Google OAuth)
+        const stateParam = searchParams.get('state')
+        if (stateParam) {
+          try {
+            const stateData = JSON.parse(decodeURIComponent(stateParam))
+            returnTo = stateData.returnTo || '/dashboard'
+          } catch (error) {
+            console.log('Could not parse state parameter:', error)
+          }
+        }
+        
+        // Fallback to returnTo parameter
+        if (!returnTo || returnTo === '/dashboard') {
+          returnTo = searchParams.get('returnTo') || '/dashboard'
+        }
+        
+        const shouldAutoSync = returnTo === '/google-calendar'
         
         console.log('🔐 GoogleCallback: Redirect logic', {
           returnTo,
