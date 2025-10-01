@@ -69,6 +69,13 @@ router.post('/google/callback', async (req, res) => {
     const clientSecret = process.env.GOOGLE_CLIENT_SECRET
     const redirectUri = 'https://syncscript-e-qlwn-git-main-christopher-stringers-projects.vercel.app/google-callback'
     
+    console.log('Google OAuth credentials check:', {
+      hasClientId: !!clientId,
+      hasClientSecret: !!clientSecret,
+      clientIdPrefix: clientId ? clientId.substring(0, 10) + '...' : 'none',
+      redirectUri
+    })
+    
     if (!clientId || !clientSecret || clientId === 'placeholder') {
       return res.status(500).json({
         success: false,
