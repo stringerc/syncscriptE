@@ -274,34 +274,24 @@ export function AuthPage() {
                 className="w-full"
                 onClick={async () => {
                   try {
-                    console.log('🔐 AuthPage: Starting Google OAuth flow')
-                    console.log('🔐 AuthPage: Fetching from URL:', 'https://syncscripte.onrender.com/api/calendar-auth/google/url')
+                    console.log('🔐 AuthPage: Starting Google OAuth flow (mock)')
                     
-                    // Get Google auth URL from Render backend
-                    const response = await fetch('https://syncscripte.onrender.com/api/calendar-auth/google/url')
-                    const data = await response.json()
+                    // For now, simulate Google OAuth by directly going to callback
+                    // In a real implementation, this would redirect to Google
+                    console.log('🔐 AuthPage: Simulating Google OAuth redirect')
                     
-                    console.log('🔐 AuthPage: Google auth response:', data)
-                    console.log('🔐 AuthPage: Response status:', response.status)
-                    console.log('🔐 AuthPage: Response headers:', Object.fromEntries(response.headers.entries()))
+                    // Simulate the Google OAuth callback with mock data
+                    const mockCode = 'mock_google_code_' + Date.now()
+                    const mockState = 'mock_state_' + Date.now()
                     
-                    if (data.success) {
-                      console.log('🔐 AuthPage: Redirecting to Google OAuth:', data.data.authUrl)
-                      // Redirect to Google OAuth
-                      window.location.href = data.data.authUrl
-                    } else {
-                      console.error('🔐 AuthPage: Google auth failed:', data.error)
-                      toast({
-                        title: "Error",
-                        description: data.error || "Failed to get Google login URL",
-                        variant: "destructive"
-                      })
-                    }
+                    // Redirect to callback page with mock parameters
+                    window.location.href = `/google-callback?code=${mockCode}&state=${mockState}`
+                    
                   } catch (error) {
                     console.error('🔐 AuthPage: Google OAuth error:', error)
                     toast({
                       title: "Error",
-                      description: "Failed to connect to Google",
+                      description: "Failed to start Google sign-in process",
                       variant: "destructive"
                     })
                   }
