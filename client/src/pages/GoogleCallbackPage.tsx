@@ -58,6 +58,12 @@ export function GoogleCallbackPage() {
         const returnTo = searchParams.get('returnTo') || '/dashboard'
         const shouldAutoSync = returnTo === '/calendar-sync'
         
+        console.log('🔐 GoogleCallback: Redirect logic', {
+          returnTo,
+          shouldAutoSync,
+          allParams: Object.fromEntries(searchParams.entries())
+        })
+        
         if (shouldAutoSync) {
           setMessage('Successfully signed in! Syncing your Google Calendar events...')
           

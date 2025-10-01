@@ -506,7 +506,9 @@ export function GoogleCalendarPage() {
                         const mockCode = 'mock_google_code_' + Date.now()
                         const mockState = 'mock_state_' + Date.now()
                         // Add returnTo parameter to redirect back to calendar sync
-                        window.location.href = `/google-callback?code=${mockCode}&state=${mockState}&returnTo=/calendar-sync`
+                        const redirectUrl = `/google-callback?code=${mockCode}&state=${mockState}&returnTo=/calendar-sync`
+                        console.log('🔐 GoogleCalendarPage: Redirect URL', redirectUrl)
+                        window.location.href = redirectUrl
                       } else if (isConfigured && targetUrl) {
                         window.location.href = targetUrl;
                       } else {
