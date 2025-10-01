@@ -456,7 +456,13 @@ export function GoogleCalendarPage() {
                           break;
                       }
 
-                      if (isConfigured && targetUrl) {
+                      if (provider.provider === 'google') {
+                        // Use mock OAuth flow for Google
+                        console.log('🔐 GoogleCalendarPage: Starting mock Google OAuth flow')
+                        const mockCode = 'mock_google_code_' + Date.now()
+                        const mockState = 'mock_state_' + Date.now()
+                        window.location.href = `/google-callback?code=${mockCode}&state=${mockState}`
+                      } else if (isConfigured && targetUrl) {
                         window.location.href = targetUrl;
                       } else {
                         toast({
