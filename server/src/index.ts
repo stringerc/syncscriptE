@@ -16,7 +16,7 @@ import calendarRoutes from './routes/calendar';
 import googleCalendarRoutes from './routes/googleCalendar';
 // import financialRoutes from './routes/financial';
 import aiRoutes from './routes/ai';
-// import notificationRoutes from './routes/notifications';
+import notificationRoutes from './routes/notifications';
 import locationRoutes from './routes/location';
 // import searchRoutes from './routes/search';
 import gamificationRoutes from './routes/gamification';
@@ -40,7 +40,7 @@ import projectResourcesRoutes from './routes/projectResources';
 // import aiSuggestionsRoutes from './routes/aiSuggestions';
 // import budgetingRoutes from './routes/budgeting';
 // import briefRoutes from './routes/brief';
-// import calendarAuthRoutes from './routes/calendarAuth';
+import calendarAuthRoutes from './routes/calendarAuth';
 
 // Import middleware
 import { errorHandler } from './middleware/errorHandler';
@@ -218,7 +218,7 @@ app.use('/api/calendar', calendarRoutes);
 app.use('/api/google-calendar', googleCalendarRoutes);
 // app.use('/api/financial', financialRoutes);
 app.use('/api/ai', aiRoutes);
-// app.use('/api/notifications', notificationRoutes);
+app.use('/api/notifications', notificationRoutes);
 app.use('/api/location', locationRoutes);
 // app.use('/api/search', searchRoutes);
 app.use('/api/gamification', gamificationRoutes);
@@ -242,7 +242,7 @@ app.use('/api/projects', projectResourcesRoutes);
 // app.use('/api/ai-suggestions', aiSuggestionsRoutes);
 // app.use('/api/budgeting', budgetingRoutes);
 // app.use('/api/brief', briefRoutes);
-// app.use('/api/calendar-auth', calendarAuthRoutes);
+app.use('/api/calendar-auth', calendarAuthRoutes);
 
 // Socket.IO for real-time updates
 io.on('connection', (socket) => {
