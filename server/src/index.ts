@@ -210,9 +210,6 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// Serve static files from client build
-app.use(express.static('client/dist'));
-
 // API routes
 app.use('/api/auth', authRoutes);
 app.use('/api/user', userRoutes);
@@ -246,11 +243,6 @@ app.use('/api/projects', projectResourcesRoutes);
 // app.use('/api/budgeting', budgetingRoutes);
 // app.use('/api/brief', briefRoutes);
 app.use('/api/calendar-auth', calendarAuthRoutes);
-
-// Catch-all handler: send back React's index.html file for any non-API routes
-app.get('*', (req, res) => {
-  res.sendFile('index.html', { root: 'client/dist' });
-});
 
 // Socket.IO for real-time updates
 io.on('connection', (socket) => {
