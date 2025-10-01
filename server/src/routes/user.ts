@@ -253,6 +253,7 @@ router.get('/dashboard', authenticateToken, asyncHandler(async (req: AuthRequest
           showHolidays: true
         },
         todayTasks: [],
+        upcomingEvents: [],
         recentAchievements: [
           {
             id: 'welcome',
