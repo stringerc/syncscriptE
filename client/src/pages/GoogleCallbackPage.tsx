@@ -53,20 +53,40 @@ export function GoogleCallbackPage() {
         localStorage.setItem('syncscript_token', 'google_token_' + Date.now())
         
         setStatus('success')
-        setMessage('Successfully signed in with Google!')
         
-        // Show success toast
-        toast({
-          title: "Welcome!",
-          description: "You've successfully signed in with Google.",
-          variant: "default"
-        })
-
-        // Redirect based on returnTo parameter or default to dashboard
+        // Check if we should auto-sync after authentication
         const returnTo = searchParams.get('returnTo') || '/dashboard'
-        setTimeout(() => {
-          navigate(returnTo)
-        }, 2000)
+        const shouldAutoSync = returnTo === '/calendar-sync'
+        
+        if (shouldAutoSync) {
+          setMessage('Successfully signed in! Syncing your Google Calendar events...')
+          
+          // Show success toast with sync info
+          toast({
+            title: "Google Calendar Connected!",
+            description: "Syncing your events and holidays...",
+            variant: "default"
+          })
+          
+          // Redirect to calendar sync page after 3 seconds to allow sync message to show
+          setTimeout(() => {
+            navigate(returnTo)
+          }, 3000)
+        } else {
+          setMessage('Successfully signed in with Google!')
+          
+          // Show success toast
+          toast({
+            title: "Welcome!",
+            description: "You've successfully signed in with Google.",
+            variant: "default"
+          })
+
+          // Redirect to dashboard after 2 seconds
+          setTimeout(() => {
+            navigate(returnTo)
+          }, 2000)
+        }
       } catch (error: any) {
         console.error('Google callback error:', error)
         setStatus('error')

@@ -126,6 +126,50 @@ export function GoogleCalendarPage() {
     }
   }, [user, token])
 
+  // Auto-sync when user returns from Google OAuth authentication
+  useEffect(() => {
+    const checkForAutoSync = async () => {
+      // Check if we just returned from Google OAuth (URL contains google-callback)
+      const urlParams = new URLSearchParams(window.location.search)
+      const fromGoogleAuth = urlParams.get('code') && urlParams.get('state')
+      
+      if (fromGoogleAuth && user && token && statusData?.data?.connected) {
+        console.log('🔄 Auto-syncing Google Calendar events after authentication')
+        
+        try {
+          const response = await api.post('/google-calendar/sync', {
+            direction: 'from_google',
+            calendarId: 'primary'
+          })
+          
+          const syncData = response.data.data
+          setLastUpdated(new Date())
+          setRecentlySyncedEvents(syncData.createdEvents || [])
+          
+          toast({
+            title: "Auto-Sync Complete!",
+            description: `Synced ${syncData.stats.created} events from your Google Calendar`,
+            variant: "default"
+          })
+          
+          // Clean up URL parameters
+          window.history.replaceState({}, document.title, window.location.pathname)
+        } catch (error) {
+          console.error('Auto-sync failed:', error)
+          toast({
+            title: "Auto-Sync Failed",
+            description: "Could not automatically sync your Google Calendar events",
+            variant: "destructive"
+          })
+        }
+      }
+    }
+    
+    if (user && token && statusData) {
+      checkForAutoSync()
+    }
+  }, [user, token, statusData, toast])
+
   // Sync mutation
   const syncMutation = useMutation({
     mutationFn: async () => {

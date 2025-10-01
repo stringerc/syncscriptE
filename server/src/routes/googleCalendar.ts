@@ -670,6 +670,58 @@ router.post('/events', authenticateToken, asyncHandler(async (req: AuthRequest, 
 router.post('/sync', authenticateToken, asyncHandler(async (req: AuthRequest, res) => {
   const { calendarId = 'primary', direction = 'from_google' } = syncEventsSchema.parse(req.body);
 
+  // Handle mock Google users
+  if (req.user!.id === 'google_mock_user') {
+    // Create mock synced events
+    const mockEvents = [
+      {
+        id: 'mock_event_1',
+        title: 'Team Meeting',
+        description: 'Weekly team standup',
+        startTime: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // Tomorrow
+        endTime: new Date(Date.now() + 24 * 60 * 60 * 1000 + 60 * 60 * 1000).toISOString(), // Tomorrow + 1 hour
+        location: 'Conference Room A',
+        calendarProvider: 'google',
+        calendarEventId: 'google_event_1'
+      },
+      {
+        id: 'mock_event_2',
+        title: 'Project Deadline',
+        description: 'Final project submission',
+        startTime: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(), // 3 days from now
+        endTime: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000 + 2 * 60 * 60 * 1000).toISOString(), // 3 days + 2 hours
+        location: null,
+        calendarProvider: 'google',
+        calendarEventId: 'google_event_2'
+      },
+      {
+        id: 'mock_event_3',
+        title: 'New Year\'s Day',
+        description: 'Holiday - Office Closed',
+        startTime: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 days from now
+        endTime: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000 + 24 * 60 * 60 * 1000).toISOString(), // 7 days + 1 day
+        location: null,
+        calendarProvider: 'google',
+        calendarEventId: 'google_event_3'
+      }
+    ];
+
+    return res.json({
+      success: true,
+      data: {
+        stats: {
+          created: mockEvents.length,
+          updated: 0,
+          deleted: 0,
+          total: mockEvents.length
+        },
+        createdEvents: mockEvents,
+        updatedEvents: [],
+        message: `Successfully synced ${mockEvents.length} events from Google Calendar`
+      }
+    });
+  }
+
   const integration = await prisma.calendarIntegration.findFirst({
     where: {
       userId: req.user!.id,
