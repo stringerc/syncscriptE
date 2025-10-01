@@ -461,7 +461,8 @@ export function GoogleCalendarPage() {
                         console.log('🔐 GoogleCalendarPage: Starting mock Google OAuth flow')
                         const mockCode = 'mock_google_code_' + Date.now()
                         const mockState = 'mock_state_' + Date.now()
-                        window.location.href = `/google-callback?code=${mockCode}&state=${mockState}`
+                        // Add returnTo parameter to redirect back to calendar sync
+                        window.location.href = `/google-callback?code=${mockCode}&state=${mockState}&returnTo=/calendar-sync`
                       } else if (isConfigured && targetUrl) {
                         window.location.href = targetUrl;
                       } else {

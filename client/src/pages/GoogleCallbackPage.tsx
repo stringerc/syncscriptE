@@ -62,9 +62,10 @@ export function GoogleCallbackPage() {
           variant: "default"
         })
 
-        // Redirect to dashboard after 2 seconds
+        // Redirect based on returnTo parameter or default to dashboard
+        const returnTo = searchParams.get('returnTo') || '/dashboard'
         setTimeout(() => {
-          navigate('/dashboard')
+          navigate(returnTo)
         }, 2000)
       } catch (error: any) {
         console.error('Google callback error:', error)
@@ -109,7 +110,7 @@ export function GoogleCallbackPage() {
               </div>
               <p className="text-green-700 font-medium">{message}</p>
               <p className="text-sm text-muted-foreground">
-                Redirecting you to the dashboard...
+                Redirecting you to {searchParams.get('returnTo') === '/calendar-sync' ? 'Calendar Sync' : 'Dashboard'}...
               </p>
             </div>
           )}
