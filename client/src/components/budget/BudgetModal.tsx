@@ -333,20 +333,21 @@ export function BudgetModal({ taskId, isOpen, onClose }: BudgetModalProps) {
     
     console.log('🔍 Final hasChanges:', hasChanges);
     
+    // Always invalidate queries and show success message when user clicks "Save All Changes"
+    // This ensures the main task page gets updated even if no changes were detected
+    queryClient.invalidateQueries({ queryKey: ['task-budget', taskId] });
+    queryClient.invalidateQueries({ queryKey: ['tasks'] });
+    
     if (hasChanges) {
-      // Invalidate queries to refresh data
-      queryClient.invalidateQueries({ queryKey: ['task-budget', taskId] });
-      queryClient.invalidateQueries({ queryKey: ['tasks'] });
-      
       toast({
         title: "Budget Saved",
         description: "All budget changes have been saved successfully",
       });
     } else {
-      console.log('❌ No changes detected - showing no changes toast');
+      console.log('✅ No changes detected but refreshing data anyway');
       toast({
-        title: "No Changes",
-        description: "No budget changes to save",
+        title: "Budget Refreshed",
+        description: "Budget data has been refreshed",
         variant: "default"
       });
     }
