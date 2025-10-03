@@ -1016,6 +1016,7 @@ export function TaskModal({ task, isOpen, onClose, onTaskUpdated, onTaskDeleted 
                     hasEventId: !!task.eventId,
                     shouldShowButton: !task.eventId
                   });
+                  console.log('🔍 TaskModal: Full task object:', task);
                   return !task.eventId;
                 })() && (
                   <Button
