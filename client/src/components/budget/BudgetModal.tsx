@@ -326,9 +326,13 @@ export function BudgetModal({ taskId, isOpen, onClose }: BudgetModalProps) {
   };
 
   const handleSaveEstimatedTotal = () => {
-    if (quickTotalValue > 0) {
+    if (quickTotalValue > 0 && taskBudget) {
       updateBudgetMutation.mutate({
-        estimatedCents: Math.round(quickTotalValue * 100)
+        mode: taskBudget.mode,
+        estimatedCents: Math.round(quickTotalValue * 100),
+        taxCents: taskBudget.taxCents || 0,
+        shippingCents: taskBudget.shippingCents || 0,
+        lineItems: taskBudget.lineItems || []
       });
     }
   };
