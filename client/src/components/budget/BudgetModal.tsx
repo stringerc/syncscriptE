@@ -398,6 +398,13 @@ export function BudgetModal({ taskId, isOpen, onClose }: BudgetModalProps) {
   };
 
   const handleSaveEstimatedTotal = () => {
+    console.log('🔍 Save Estimated Debug - Before check:', {
+      quickTotalValue,
+      quickTotalValueType: typeof quickTotalValue,
+      quickTotalValueIsZero: quickTotalValue === 0,
+      taskBudget: !!taskBudget
+    });
+    
     if (quickTotalValue >= 0 && taskBudget) {
       const estimatedCents = Math.round(quickTotalValue * 100);
       console.log('🔍 Save Estimated Debug:', {
@@ -412,6 +419,13 @@ export function BudgetModal({ taskId, isOpen, onClose }: BudgetModalProps) {
         taxCents: taskBudget.taxCents || 0,
         shippingCents: taskBudget.shippingCents || 0,
         lineItems: taskBudget.lineItems || []
+      });
+    } else {
+      console.log('🔍 Save Estimated Debug - Condition failed:', {
+        quickTotalValue,
+        quickTotalValueType: typeof quickTotalValue,
+        quickTotalValueIsZero: quickTotalValue === 0,
+        taskBudget: !!taskBudget
       });
     }
   };
