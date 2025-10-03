@@ -1253,4 +1253,173 @@ router.post('/tasks/:taskId/suggest-notes', authenticateToken, asyncHandler(asyn
   }
 }));
 
+// Suggest budget estimate for a task
+router.post('/tasks/:taskId/suggest-budget', authenticateToken, asyncHandler(async (req: AuthRequest, res) => {
+  const { taskId } = req.params;
+  const userId = req.user!.id;
+
+  if (!openai) {
+    throw createError('AI service not available', 500);
+  }
+
+  try {
+    // Get the task details
+    const task = await prisma.task.findUnique({
+      where: { id: taskId, userId: userId },
+      include: {
+        event: true,
+        budget: {
+          include: {
+            lineItems: {
+              include: {
+                category: true
+              }
+            }
+          }
+        }
+      }
+    });
+
+    if (!task) {
+      throw createError('Task not found', 404);
+    }
+
+    // Get user's budget history for similar tasks
+    const similarTasks = await prisma.task.findMany({
+      where: {
+        userId: userId,
+        title: {
+          contains: task.title.split(' ')[0], // Find tasks with similar first word
+          mode: 'insensitive'
+        },
+        budget: {
+          isNot: null
+        }
+      },
+      include: {
+        budget: true
+      },
+      take: 5
+    });
+
+    // Create AI prompt for budget suggestion
+    const systemPrompt = `You are an AI assistant that helps users estimate realistic budgets for their tasks.
+
+    Based on the task details, suggest a reasonable budget estimate in USD.
+    
+    Consider these factors:
+    - Task type and nature (work, personal, errands, events, etc.)
+    - Complexity and scope
+    - Location and travel requirements
+    - Materials or services likely needed
+    - Time investment required
+    - Industry standards for similar tasks
+    - User's historical spending patterns (if available)
+    
+    Return your response as JSON with this exact format:
+    {
+      "suggestedAmount": 150.00,
+      "reasoning": "Detailed explanation of why this amount was suggested",
+      "breakdown": {
+        "materials": 50.00,
+        "services": 75.00,
+        "travel": 25.00,
+        "other": 0.00
+      },
+      "confidence": "high|medium|low",
+      "considerations": [
+        "Important factor 1",
+        "Important factor 2",
+        "Important factor 3"
+      ]
+    }
+    
+    IMPORTANT: 
+    - Provide realistic estimates based on current market rates
+    - Consider the user's location and typical costs
+    - Be conservative but not overly restrictive
+    - Include reasoning for transparency
+    - Confidence should reflect how certain you are about the estimate`;
+
+    const userPrompt = `Suggest a budget estimate for this task:
+    
+    Task Title: ${task.title}
+    Description: ${task.description || 'No description provided'}
+    Task Type: ${task.type || 'Standard'}
+    Priority: ${task.priority}
+    Location: ${task.location || 'No location specified'}
+    Estimated Duration: ${task.estimatedDuration || 'Unknown'} minutes
+    Energy Required: ${task.energyRequired || 'Unknown'}/10
+    
+    Event Context: ${task.event ? `Part of event: ${task.event.title} (${task.event.startTime} to ${task.event.endTime})` : 'Standalone task'}
+    
+    Current Budget: ${task.budget ? `$${(task.budget.estimatedCents / 100).toFixed(2)}` : 'No budget set'}
+    Existing Line Items: ${task.budget?.lineItems?.length || 0} items
+    
+    Similar Tasks History:
+    ${similarTasks.map(t => 
+      `- ${t.title}: $${t.budget ? (t.budget.estimatedCents / 100).toFixed(2) : 'No budget'}`
+    ).join('\n') || 'No similar tasks found'}`;
+
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt }
+      ],
+      temperature: 0.7,
+      max_tokens: 800
+    });
+
+    const response = completion.choices[0]?.message?.content;
+    if (!response) {
+      throw createError('No response from AI', 500);
+    }
+
+    let suggestion;
+    try {
+      // Extract JSON from markdown code blocks if present
+      let jsonString = response.trim();
+      if (jsonString.startsWith('```json')) {
+        jsonString = jsonString.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+      } else if (jsonString.startsWith('```')) {
+        jsonString = jsonString.replace(/^```\s*/, '').replace(/\s*```$/, '');
+      }
+      
+      suggestion = JSON.parse(jsonString);
+    } catch (parseError) {
+      logger.error('Failed to parse AI response', { response, error: parseError });
+      throw createError('Invalid AI response format', 500);
+    }
+
+    // Validate the response format
+    if (!suggestion.suggestedAmount || typeof suggestion.suggestedAmount !== 'number') {
+      throw createError('AI response missing valid suggestedAmount', 500);
+    }
+
+    logger.info('Budget suggestion generated', { 
+      userId, 
+      taskId, 
+      suggestedAmount: suggestion.suggestedAmount,
+      confidence: suggestion.confidence
+    });
+
+    res.json({
+      success: true,
+      data: {
+        suggestedAmount: suggestion.suggestedAmount,
+        reasoning: suggestion.reasoning,
+        breakdown: suggestion.breakdown,
+        confidence: suggestion.confidence,
+        considerations: suggestion.considerations
+      },
+      message: `Generated budget estimate of $${suggestion.suggestedAmount.toFixed(2)} for "${task.title}"`
+    });
+
+  } catch (error) {
+    logger.error('AI budget suggestion error', { error: error instanceof Error ? error.message : 'Unknown error' });
+    throw createError('Failed to generate budget estimate', 500);
+  }
+}));
+
 export default router;

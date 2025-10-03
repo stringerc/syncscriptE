@@ -20,7 +20,8 @@ import {
   Calculator,
   List,
   History,
-  ExternalLink
+  ExternalLink,
+  Sparkles
 } from 'lucide-react';
 
 interface BudgetModalProps {
@@ -71,6 +72,7 @@ export function BudgetModal({ taskId, isOpen, onClose }: BudgetModalProps) {
   const [quickTotalValue, setQuickTotalValue] = useState<number>(0);
   const [isQuickTotalFocused, setIsQuickTotalFocused] = useState<boolean>(false);
   const [focusedPriceInputId, setFocusedPriceInputId] = useState<string | null>(null);
+  const [isSuggestingEstimate, setIsSuggestingEstimate] = useState<boolean>(false);
 
   // Fetch task budget
   const { data: budgetData, isLoading, refetch } = useQuery({
@@ -198,6 +200,32 @@ export function BudgetModal({ taskId, isOpen, onClose }: BudgetModalProps) {
       toast({
         title: "Delete Failed",
         description: error.response?.data?.error || "Failed to delete line item",
+        variant: "destructive"
+      });
+    }
+  });
+
+  // AI suggestion mutation
+  const suggestEstimateMutation = useMutation({
+    mutationFn: async () => {
+      const response = await api.post(`/ai/tasks/${taskId}/suggest-budget`);
+      return response.data;
+    },
+    onSuccess: (data) => {
+      const suggestedAmount = data.data?.suggestedAmount || 0;
+      setQuickTotalValue(suggestedAmount);
+      setIsSuggestingEstimate(false);
+      toast({
+        title: "Estimate Suggested",
+        description: `AI suggested an estimated cost of $${suggestedAmount.toFixed(2)}`,
+        variant: "default"
+      });
+    },
+    onError: (error: any) => {
+      setIsSuggestingEstimate(false);
+      toast({
+        title: "Suggestion Failed",
+        description: error.response?.data?.error || "Failed to generate budget estimate",
         variant: "destructive"
       });
     }
@@ -337,6 +365,11 @@ export function BudgetModal({ taskId, isOpen, onClose }: BudgetModalProps) {
     }
   };
 
+  const handleSuggestEstimate = () => {
+    setIsSuggestingEstimate(true);
+    suggestEstimateMutation.mutate();
+  };
+
 
   if (!isOpen) return null;
 
@@ -380,13 +413,13 @@ export function BudgetModal({ taskId, isOpen, onClose }: BudgetModalProps) {
                 <Card>
                   <CardHeader>
                     <CardTitle className="flex items-center justify-between">
-                      <span>Quick Total</span>
+                      <span>AI Budget Estimate</span>
                       <Badge variant={taskBudget?.mode === 'total' ? 'default' : 'secondary'}>
                         {taskBudget?.mode === 'total' ? 'Active' : 'Inactive'}
                       </Badge>
                     </CardTitle>
                     <CardDescription>
-                      Set a quick total budget for this task
+                      Get an AI-suggested budget estimate based on your task details
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-6">
@@ -433,20 +466,29 @@ export function BudgetModal({ taskId, isOpen, onClose }: BudgetModalProps) {
                       </div>
                       <div className="flex gap-2">
                         <Button
-                          variant={taskBudget?.mode === 'total' ? 'default' : 'outline'}
-                          onClick={() => handleModeChange('total')}
+                          variant="outline"
+                          onClick={handleSuggestEstimate}
+                          disabled={isSuggestingEstimate}
                         >
-                          <Save className="h-4 w-4 mr-2" />
-                          Use Quick Total
+                          <Sparkles className="h-4 w-4 mr-2" />
+                          {isSuggestingEstimate ? 'Suggesting...' : 'Suggest Estimate'}
                         </Button>
-                        {taskBudget?.mode === 'lines' && (
+                        {taskBudget?.mode === 'lines' && quickTotalValue > 0 && (
                           <Button
                             variant="outline"
                             onClick={() => handleSaveEstimatedTotal()}
-                            disabled={quickTotalValue === 0}
                           >
                             <Save className="h-4 w-4 mr-2" />
                             Save Estimated
+                          </Button>
+                        )}
+                        {taskBudget?.mode === 'total' && quickTotalValue > 0 && (
+                          <Button
+                            variant="default"
+                            onClick={() => handleModeChange('total')}
+                          >
+                            <Save className="h-4 w-4 mr-2" />
+                            Use Quick Total
                           </Button>
                         )}
                       </div>
