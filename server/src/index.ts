@@ -80,7 +80,7 @@ const io = new Server(server, {
 });
 
 const prisma = new PrismaClient();
-const PORT = parseInt(process.env.PORT || '3001', 10);
+const PORT = parseInt(process.env.PORT || '3002', 10);
 
 // Log the port being used
 logger.info(`🔧 Using port: ${PORT}`);
