@@ -313,7 +313,7 @@ export function BudgetModal({ taskId, isOpen, onClose }: BudgetModalProps) {
     }
     
     // Save estimated total in lines mode if it's different from the current value
-    if (taskBudget?.mode === 'lines' && quickTotalValue > 0 && quickTotalValue !== (taskBudget.estimatedCents || 0) / 100) {
+    if (taskBudget?.mode === 'lines' && quickTotalValue >= 0 && quickTotalValue !== (taskBudget.estimatedCents || 0) / 100) {
       console.log('💾 Saving lines mode budget with estimated total');
       updateBudgetMutation.mutate({
         mode: taskBudget.mode,
@@ -886,7 +886,7 @@ export function BudgetModal({ taskId, isOpen, onClose }: BudgetModalProps) {
                           <Input
                             id="quick-total"
                             type="text"
-                            value={isQuickTotalFocused ? (quickTotalValue === 0 ? '' : quickTotalValue.toString()) : quickTotalValue.toFixed(2)}
+                            value={isQuickTotalFocused ? quickTotalValue.toString() : quickTotalValue.toFixed(2)}
                             onChange={(e) => {
                               let value = e.target.value;
                               
@@ -932,7 +932,7 @@ export function BudgetModal({ taskId, isOpen, onClose }: BudgetModalProps) {
                           <Button
                             variant="outline"
                             onClick={() => handleSaveEstimatedTotal()}
-                            disabled={quickTotalValue <= 0}
+                            disabled={quickTotalValue < 0}
                           >
                             <Save className="h-4 w-4 mr-2" />
                             Save Estimated
