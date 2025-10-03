@@ -25,7 +25,7 @@ export interface TaskBudgetInput {
 }
 
 export interface EventBudgetItemInput {
-  name: string;
+    name: string;
   url?: string;
   estimatedCents: number;
   actualCents?: number;
@@ -180,8 +180,15 @@ export class BudgetService {
         { estimated: 0, actual: 0 }
       );
 
-      estimatedCents = lineItemTotals.estimated + taskBudget.taxCents + taskBudget.shippingCents;
-      actualCents = lineItemTotals.actual + taskBudget.taxCents + taskBudget.shippingCents;
+      // If there are line items, use their totals; otherwise use the saved estimatedCents
+      if (taskBudget.lineItems.length > 0) {
+        estimatedCents = lineItemTotals.estimated + taskBudget.taxCents + taskBudget.shippingCents;
+        actualCents = lineItemTotals.actual + taskBudget.taxCents + taskBudget.shippingCents;
+      } else {
+        // No line items, use the saved estimatedCents from the database
+        estimatedCents = taskBudget.estimatedCents + taskBudget.taxCents + taskBudget.shippingCents;
+        actualCents = taskBudget.actualCents || estimatedCents;
+      }
     }
 
     const varianceCents = actualCents - estimatedCents;
@@ -347,7 +354,7 @@ export class BudgetService {
     const isOverCap = capCents ? actualCents > capCents : false;
     const overCapAmount = capCents ? Math.max(0, actualCents - capCents) : 0;
 
-    return {
+            return {
       eventId,
       capCents,
       isOverCap,
