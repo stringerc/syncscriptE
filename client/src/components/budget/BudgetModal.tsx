@@ -404,31 +404,152 @@ export function BudgetModal({ taskId, isOpen, onClose }: BudgetModalProps) {
   };
 
   // Receipt scanning functions
-  const handleTakePhoto = () => {
+  const handleTakePhoto = async () => {
     setIsScanningReceipt(true);
-    // Create a file input for camera access
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'image/*';
-    input.capture = 'environment'; // Use back camera on mobile
-    input.onchange = (e) => {
-      const file = (e.target as HTMLInputElement).files?.[0];
-      if (file) {
-        handleReceiptImage(file);
-      }
-      setIsScanningReceipt(false);
-    };
-    input.click();
+    
+    try {
+      // Try to access the camera directly
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        video: { 
+          facingMode: 'environment', // Use back camera on mobile
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
+        } 
+      });
+      
+      // Create a video element to show camera feed
+      const video = document.createElement('video');
+      video.srcObject = stream;
+      video.play();
+      
+      // Create a modal for camera interface
+      const modal = document.createElement('div');
+      modal.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.9);
+        z-index: 9999;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+      `;
+      
+      const videoContainer = document.createElement('div');
+      videoContainer.style.cssText = `
+        position: relative;
+        max-width: 90%;
+        max-height: 70%;
+        border-radius: 8px;
+        overflow: hidden;
+      `;
+      
+      video.style.cssText = `
+        width: 100%;
+        height: auto;
+        display: block;
+      `;
+      
+      const controls = document.createElement('div');
+      controls.style.cssText = `
+        display: flex;
+        gap: 16px;
+        margin-top: 20px;
+      `;
+      
+      const captureBtn = document.createElement('button');
+      captureBtn.textContent = '📷 Capture Receipt';
+      captureBtn.style.cssText = `
+        background: #3b82f6;
+        color: white;
+        border: none;
+        padding: 12px 24px;
+        border-radius: 8px;
+        font-size: 16px;
+        cursor: pointer;
+      `;
+      
+      const cancelBtn = document.createElement('button');
+      cancelBtn.textContent = '❌ Cancel';
+      cancelBtn.style.cssText = `
+        background: #6b7280;
+        color: white;
+        border: none;
+        padding: 12px 24px;
+        border-radius: 8px;
+        font-size: 16px;
+        cursor: pointer;
+      `;
+      
+      const capturePhoto = () => {
+        const canvas = document.createElement('canvas');
+        const context = canvas.getContext('2d');
+        
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        
+        context?.drawImage(video, 0, 0);
+        
+        canvas.toBlob((blob) => {
+          if (blob) {
+            const file = new File([blob], 'receipt.jpg', { type: 'image/jpeg' });
+            handleReceiptImage(file);
+          }
+        }, 'image/jpeg', 0.8);
+        
+        // Clean up
+        stream.getTracks().forEach(track => track.stop());
+        document.body.removeChild(modal);
+        setIsScanningReceipt(false);
+      };
+      
+      const cancelCapture = () => {
+        stream.getTracks().forEach(track => track.stop());
+        document.body.removeChild(modal);
+        setIsScanningReceipt(false);
+      };
+      
+      captureBtn.onclick = capturePhoto;
+      cancelBtn.onclick = cancelCapture;
+      
+      controls.appendChild(captureBtn);
+      controls.appendChild(cancelBtn);
+      
+      videoContainer.appendChild(video);
+      modal.appendChild(videoContainer);
+      modal.appendChild(controls);
+      document.body.appendChild(modal);
+      
+    } catch (error) {
+      console.error('Camera access failed:', error);
+      // Fallback to file input with camera capture
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'image/*';
+      input.capture = 'environment';
+      input.onchange = (e) => {
+        const file = (e.target as HTMLInputElement).files?.[0];
+        if (file) {
+          handleReceiptImage(file);
+        }
+        setIsScanningReceipt(false);
+      };
+      input.click();
+    }
   };
 
   const handleUploadReceipt = () => {
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = 'image/*';
+    input.multiple = true; // Allow multiple file selection
     input.onchange = (e) => {
-      const file = (e.target as HTMLInputElement).files?.[0];
-      if (file) {
-        handleReceiptImage(file);
+      const files = (e.target as HTMLInputElement).files;
+      if (files && files.length > 0) {
+        handleMultipleReceiptImages(Array.from(files));
       }
     };
     input.click();
@@ -483,6 +604,78 @@ export function BudgetModal({ taskId, isOpen, onClose }: BudgetModalProps) {
       toast({
         title: "Processing Failed",
         description: error.response?.data?.error || "Failed to process receipt",
+        variant: "destructive"
+      });
+    } finally {
+      setIsProcessingReceipt(false);
+    }
+  };
+
+  const handleMultipleReceiptImages = async (files: File[]) => {
+    setIsProcessingReceipt(true);
+    
+    try {
+      let allLineItems: any[] = [];
+      let processedCount = 0;
+      let failedCount = 0;
+      
+      // Process each receipt sequentially to avoid overwhelming the API
+      for (const file of files) {
+        try {
+          const base64 = await fileToBase64(file);
+          
+          const response = await api.post('/ai/receipt/parse', {
+            image: base64,
+            taskId: taskId
+          });
+          
+          const { lineItems } = response.data.data;
+          
+          if (lineItems && lineItems.length > 0) {
+            allLineItems = [...allLineItems, ...lineItems];
+            processedCount++;
+          } else {
+            failedCount++;
+          }
+        } catch (error) {
+          console.error(`Failed to process ${file.name}:`, error);
+          failedCount++;
+        }
+      }
+      
+      if (allLineItems.length > 0) {
+        // Auto-populate all line items
+        const newLineItems = allLineItems.map((item: any) => ({
+          name: item.name,
+          qty: item.qty || 1,
+          unitPriceCents: Math.round((item.price || 0) * 100),
+          categoryId: item.categoryId,
+          notes: item.notes || ''
+        }));
+        
+        // Update the budget with all new line items
+        updateBudgetMutation.mutate({
+          mode: 'lines',
+          lineItems: [...(taskBudget?.lineItems || []), ...newLineItems]
+        });
+        
+        toast({
+          title: "Receipts Processed",
+          description: `Processed ${processedCount} receipts, found ${allLineItems.length} items${failedCount > 0 ? ` (${failedCount} failed)` : ''}`,
+          variant: "default"
+        });
+      } else {
+        toast({
+          title: "No Items Found",
+          description: `Could not extract items from any of the ${files.length} receipts`,
+          variant: "destructive"
+        });
+      }
+    } catch (error: any) {
+      console.error('Multiple receipt processing error:', error);
+      toast({
+        title: "Processing Failed",
+        description: error.response?.data?.error || "Failed to process receipts",
         variant: "destructive"
       });
     } finally {
@@ -701,7 +894,7 @@ export function BudgetModal({ taskId, isOpen, onClose }: BudgetModalProps) {
                           disabled={isProcessingReceipt}
                         >
                           <Upload className="h-4 w-4 mr-2" />
-                          Upload Receipt
+                          Upload Receipt(s)
                         </Button>
                       </div>
                     </div>
@@ -711,7 +904,9 @@ export function BudgetModal({ taskId, isOpen, onClose }: BudgetModalProps) {
                       <div className="flex items-center justify-center p-4 bg-blue-50 border border-blue-200 rounded-lg">
                         <div className="flex items-center space-x-2">
                           <Receipt className="h-5 w-5 text-blue-600 animate-pulse" />
-                          <span className="text-blue-800 font-medium">Processing receipt...</span>
+                          <span className="text-blue-800 font-medium">
+                            {isScanningReceipt ? 'Taking photo...' : 'Processing receipt(s)...'}
+                          </span>
                         </div>
                       </div>
                     )}
