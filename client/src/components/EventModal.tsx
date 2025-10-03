@@ -9,7 +9,8 @@ import { useToast } from '@/hooks/use-toast'
 import { ConfirmationModal } from '@/components/ConfirmationModal'
 import { EventBudgetTab } from '@/components/budget/EventBudgetTab'
 import { TemplateRecommendations } from '@/components/TemplateRecommendations'
-import { X, Save, Trash2, Calendar, Clock, MapPin, DollarSign, Sparkles, Plus, CheckCircle, Circle, Edit3, Eye, Pin, PinOff, Mic } from 'lucide-react'
+import { ExportModal } from '@/components/export/ExportModal'
+import { X, Save, Trash2, Calendar, Clock, MapPin, DollarSign, Sparkles, Plus, CheckCircle, Circle, Edit3, Eye, Pin, PinOff, Mic, Download } from 'lucide-react'
 
 interface Event {
   id: string
@@ -229,6 +230,7 @@ export function EventModal({ event, isOpen, onClose, onEventUpdated, onEventCrea
   const [newTaskPriority, setNewTaskPriority] = useState<'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT'>('MEDIUM')
   const [showAddTaskForm, setShowAddTaskForm] = useState(false)
   const [pendingPrepTasks, setPendingPrepTasks] = useState<Array<{title: string, description: string, priority: string}>>([])
+  const [showExportModal, setShowExportModal] = useState(false)
 
   const generatePreparationTasksMutation = useMutation({
     mutationFn: async () => {
@@ -900,6 +902,18 @@ export function EventModal({ event, isOpen, onClose, onEventUpdated, onEventCrea
                 )}
               </div>
 
+              {/* Export Button */}
+              <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowExportModal(true)}
+                  className="w-full"
+                >
+                  <Download className="w-4 h-4 mr-2" />
+                  Export Event
+                </Button>
+              </div>
+
               <div className="space-y-3">
                 <div className="flex items-center space-x-2">
                   <Clock className="w-4 h-4 text-muted-foreground" />
@@ -1369,6 +1383,19 @@ export function EventModal({ event, isOpen, onClose, onEventUpdated, onEventCrea
         isLoading={deleteEventMutation.isPending}
         eventTitle={event?.title}
       />
+
+      {/* Export Modal */}
+      {event && (
+        <ExportModal
+          isOpen={showExportModal}
+          onClose={() => setShowExportModal(false)}
+          scope={{
+            type: 'event',
+            id: event.id
+          }}
+          title={`Export "${event.title}"`}
+        />
+      )}
     </div>
   )
 }

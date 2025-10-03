@@ -15,6 +15,7 @@ import { BudgetSummary } from '@/components/budget/BudgetSummary'
 import { LineItemsViewer } from '@/components/budget/LineItemsViewer'
 import { InlineSuggestions } from '@/components/InlineSuggestions'
 import { SpeechToTextInput } from '@/components/SpeechToTextInput'
+import { ExportModal } from '@/components/export/ExportModal'
 import { buildPrepChainTitle, isPrepTask } from '@/lib/prepChain'
 import { formatDateTime } from '@/lib/utils'
 import { 
@@ -74,6 +75,7 @@ export function TaskModal({ task, isOpen, onClose, onTaskUpdated, onTaskDeleted 
   const [showConvertToPrep, setShowConvertToPrep] = useState(false)
   const [selectedEventId, setSelectedEventId] = useState('')
   const [showRemoveFromEvent, setShowRemoveFromEvent] = useState(false)
+  const [showExportModal, setShowExportModal] = useState(false)
 
   // Initialize form data when task changes
   useEffect(() => {
@@ -842,6 +844,18 @@ export function TaskModal({ task, isOpen, onClose, onTaskUpdated, onTaskDeleted 
                 )}
               </div>
 
+              {/* Export Button */}
+              <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowExportModal(true)}
+                  className="w-full"
+                >
+                  <Download className="w-4 h-4 mr-2" />
+                  Export Task
+                </Button>
+              </div>
+
               <div className="space-y-3">
                 <div className="flex items-center space-x-2">
                   <span className={`px-2 py-1 text-xs rounded-full ${
@@ -1252,6 +1266,19 @@ export function TaskModal({ task, isOpen, onClose, onTaskUpdated, onTaskDeleted 
               </div>
             </div>
           </div>
+        )}
+
+        {/* Export Modal */}
+        {task && (
+          <ExportModal
+            isOpen={showExportModal}
+            onClose={() => setShowExportModal(false)}
+            scope={{
+              type: 'task',
+              id: task.id
+            }}
+            title={`Export "${task.title}"`}
+          />
         )}
     </div>
   )
