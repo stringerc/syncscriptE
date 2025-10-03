@@ -789,9 +789,9 @@ export function TaskModal({ task, isOpen, onClose, onTaskUpdated, onTaskDeleted 
                 </div>
               </div>
 
-              {/* Remove from Event Button - only show in edit mode if task is a prep task */}
-              {task?.eventId && (
-                <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
+              {/* Event Management Button - show in edit mode for all tasks */}
+              <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
+                {task?.eventId ? (
                   <Button
                     type="button"
                     variant="outline"
@@ -801,8 +801,18 @@ export function TaskModal({ task, isOpen, onClose, onTaskUpdated, onTaskDeleted 
                     <X className="w-4 h-4 mr-2" />
                     Remove from Event
                   </Button>
-                </div>
-              )}
+                ) : (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setShowConvertToPrep(!showConvertToPrep)}
+                    className="w-full border-blue-200 text-blue-700 hover:bg-blue-50 hover:border-blue-300"
+                  >
+                    <Calendar className="w-4 h-4 mr-2" />
+                    Add to Event
+                  </Button>
+                )}
+              </div>
             </div>
           ) : (
             <div>
@@ -1053,18 +1063,6 @@ export function TaskModal({ task, isOpen, onClose, onTaskUpdated, onTaskDeleted 
                   >
                     <CheckSquare className="w-4 h-4 mr-2" />
                     {uncompleteTaskMutation.isPending ? 'Uncompleting...' : 'Uncomplete Task'}
-                  </Button>
-                )}
-                {/* Convert to Prep Task Button - only show if task is not already a prep task */}
-                {!task.eventId && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowConvertToPrep(!showConvertToPrep)}
-                    className="border-blue-200 text-blue-700 hover:bg-blue-50 hover:border-blue-300"
-                  >
-                    <Calendar className="w-4 h-4 mr-2" />
-                    Convert to Prep Task
                   </Button>
                 )}
                 
