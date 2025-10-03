@@ -119,6 +119,15 @@ router.post('/register', asyncHandler(async (req, res) => {
 
 // Login user
 router.post('/login', asyncHandler(async (req, res) => {
+  console.log('🔐 Server: Login request received')
+  console.log('🔐 Server: Request body:', req.body)
+  console.log('🔐 Server: Request body types:', {
+    emailType: typeof req.body?.email,
+    passwordType: typeof req.body?.password,
+    emailValue: req.body?.email,
+    passwordValue: req.body?.password
+  })
+  
   const { email, password } = loginSchema.parse(req.body);
 
   // Find user

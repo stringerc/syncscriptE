@@ -104,12 +104,14 @@ const createTaskSchema = z.object({
   description: z.string().optional(),
   priority: z.nativeEnum(Priority).default(Priority.MEDIUM),
   dueDate: z.string().datetime().optional(),
-  estimatedDuration: z.number().min(0).optional(),
+  estimatedDuration: z.number().min(0).nullish(),
   energyRequired: z.number().min(1).max(10).nullish(),
-  budgetImpact: z.number().optional(),
+  budgetImpact: z.number().nullish(),
   notes: z.string().nullish(),
   location: z.string().nullish(),
   tags: z.string().optional(),
+  eventId: z.string().optional(), // Add eventId for preparation tasks
+  type: z.string().optional(), // Add type field for task categorization
   subtasks: z.array(z.object({
     title: z.string().min(1, 'Subtask title is required'),
     order: z.number().default(0)
@@ -243,6 +245,22 @@ router.get('/:id', authenticateToken, asyncHandler(async (req: AuthRequest, res)
 router.post('/', authenticateToken, asyncHandler(async (req: AuthRequest, res) => {
   const taskData = createTaskSchema.parse(req.body);
 
+  // Validate prep task timing constraint
+  if (taskData.eventId && taskData.type === 'PREPARATION' && taskData.dueDate) {
+    const event = await prisma.event.findUnique({
+      where: { id: taskData.eventId }
+    });
+    
+    if (event) {
+      const taskDueDate = new Date(taskData.dueDate);
+      const eventStartTime = new Date(event.startTime);
+      
+      if (taskDueDate > eventStartTime) {
+        throw createError('Preparation tasks must be completed before the event starts', 400);
+      }
+    }
+  }
+
   const task = await prisma.task.create({
     data: {
       title: taskData.title,
@@ -254,6 +272,8 @@ router.post('/', authenticateToken, asyncHandler(async (req: AuthRequest, res) =
       userId: req.user!.id,
       dueDate: taskData.dueDate ? new Date(taskData.dueDate) : null,
       tags: taskData.tags || null,
+      eventId: taskData.eventId || null, // Add eventId to link task to event
+      type: taskData.type || null, // Add type field
       subtasks: {
         create: taskData.subtasks.map((subtask, index) => ({
           title: subtask.title,
@@ -306,6 +326,22 @@ router.put('/:id', authenticateToken, asyncHandler(async (req: AuthRequest, res)
 
   if (!existingTask) {
     throw createError('Task not found', 404);
+  }
+
+  // Validate prep task timing constraint if due date is being updated
+  if (existingTask.eventId && existingTask.type === 'PREPARATION' && updateData.dueDate) {
+    const event = await prisma.event.findUnique({
+      where: { id: existingTask.eventId }
+    });
+    
+    if (event) {
+      const taskDueDate = new Date(updateData.dueDate);
+      const eventStartTime = new Date(event.startTime);
+      
+      if (taskDueDate > eventStartTime) {
+        throw createError('Preparation tasks must be completed before the event starts', 400);
+      }
+    }
   }
 
   // Prepare update data
@@ -428,6 +464,48 @@ router.patch('/:id/complete', authenticateToken, asyncHandler(async (req: AuthRe
     success: true,
     data: updatedTask,
     message: 'Task completed successfully'
+  });
+}));
+
+// Uncomplete task
+router.patch('/:id/uncomplete', authenticateToken, asyncHandler(async (req: AuthRequest, res) => {
+  const { id } = req.params;
+
+  const task = await prisma.task.findFirst({
+    where: {
+      id,
+      userId: req.user!.id
+    }
+  });
+
+  if (!task) {
+    throw createError('Task not found', 404);
+  }
+
+  const updatedTask = await prisma.task.update({
+    where: { id },
+    data: {
+      status: TaskStatus.PENDING,
+      completedAt: null,
+      actualDuration: null
+    },
+    include: {
+      subtasks: { orderBy: { order: 'asc' } }
+    }
+  });
+
+  // Update all subtasks to not completed
+  await prisma.subtask.updateMany({
+    where: { taskId: id },
+    data: { completed: false }
+  });
+
+  logger.info('Task uncompleted', { userId: req.user!.id, taskId: id });
+
+  res.json({
+    success: true,
+    data: updatedTask,
+    message: 'Task uncompleted successfully'
   });
 }));
 

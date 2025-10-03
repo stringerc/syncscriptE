@@ -14,7 +14,7 @@ services:
       - key: JWT_SECRET
         generateValue: true
       - key: FRONTEND_URL
-        value: https://stringerc.github.io/syncscriptE
+        value: https://syncscript-ai.vercel.app
       - key: OPENAI_API_KEY
         sync: false
       - key: EMAIL_USER
@@ -26,7 +26,7 @@ services:
       - key: GOOGLE_CLIENT_SECRET
         sync: false
       - key: GOOGLE_REDIRECT_URI
-        value: https://stringerc.github.io/syncscriptE/google-calendar
+        value: https://syncscript-ai.vercel.app/google-calendar
       - key: PLAID_CLIENT_ID
         sync: false
       - key: PLAID_SECRET

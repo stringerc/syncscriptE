@@ -48,6 +48,13 @@ router.post('/auth/login-callback', asyncHandler(async (req, res) => {
     throw createError('Authorization code is required', 400);
   }
 
+  // Debug logging
+  logger.info('Google OAuth callback received', { 
+    codeLength: code.length,
+    codePrefix: code.substring(0, 10) + '...',
+    timestamp: new Date().toISOString()
+  });
+
   try {
     // Exchange code for tokens
     const credentials = await GoogleCalendarService.getTokensFromCode(code);

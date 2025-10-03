@@ -9,7 +9,8 @@ const prisma = new PrismaClient();
 // Extend Express Request type
 interface AuthRequest extends Request {
   user?: {
-    userId: string;
+    id: string;
+    email: string;
   };
 }
 
@@ -19,7 +20,7 @@ interface AuthRequest extends Request {
  */
 router.get('/my-scripts', authenticateToken, async (req: AuthRequest, res: Response) => {
   try {
-    const userId = req.user!.userId;
+    const userId = req.user!.id;
     const { q, favorites } = req.query;
 
     let where: any = { userId };
@@ -93,12 +94,97 @@ router.get('/my-scripts', authenticateToken, async (req: AuthRequest, res: Respo
 });
 
 /**
+ * POST /scripts/events/:eventId/save-as-script
+ * Save an event as a reusable script
+ */
+router.post('/events/:eventId/save-as-script', authenticateToken, async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user!.id;
+    const { eventId } = req.params;
+    const { title, description, category, tags } = req.body;
+
+    if (!title) {
+      return res.status(400).json({
+        success: false,
+        error: 'Title is required'
+      });
+    }
+
+    // Fetch the event and its preparation tasks
+    const event = await prisma.event.findUnique({
+      where: { id: eventId },
+      include: {
+        preparationTasks: {
+          orderBy: { createdAt: 'asc' }
+        }
+      }
+    });
+
+    if (!event) {
+      return res.status(404).json({
+        success: false,
+        error: 'Event not found'
+      });
+    }
+
+    if (event.userId !== userId) {
+      return res.status(403).json({
+        success: false,
+        error: 'Unauthorized'
+      });
+    }
+
+    // Build manifest
+    const manifest = {
+      tasks: event.preparationTasks.map(task => ({
+        title: task.title,
+        description: task.description,
+        durationMin: task.durationMin || 30,
+        priority: task.priority
+      })),
+      subEvents: [] // TODO: If we support sub-events in the future
+    };
+
+    // Create the script
+    const script = await prisma.userScript.create({
+      data: {
+        userId,
+        sourceEventId: eventId,
+        title,
+        description: description || event.description || '',
+        category: category || 'General',
+        tags: JSON.stringify(tags || []),
+        manifest: JSON.stringify(manifest),
+        isFavorite: false,
+        applyCount: 0
+      }
+    });
+
+    logger.info(`User ${userId} created script ${script.id} from event ${eventId}`);
+
+    res.json({
+      success: true,
+      data: {
+        script,
+        message: 'Event saved as script successfully'
+      }
+    });
+  } catch (error: any) {
+    logger.error('Error saving event as script:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to save event as script'
+    });
+  }
+});
+
+/**
  * POST /scripts/create
  * Create a new user script from an event
  */
 router.post('/create', authenticateToken, async (req: AuthRequest, res: Response) => {
   try {
-    const userId = req.user!.userId;
+    const userId = req.user!.id;
     const { eventId, title, description, category, tags } = req.body;
 
     if (!eventId || !title) {
@@ -179,7 +265,7 @@ router.post('/create', authenticateToken, async (req: AuthRequest, res: Response
  */
 router.post('/:scriptId/favorite', authenticateToken, async (req: AuthRequest, res: Response) => {
   try {
-    const userId = req.user!.userId;
+    const userId = req.user!.id;
     const { scriptId } = req.params;
     const { isFavorite } = req.body;
 
@@ -234,7 +320,7 @@ router.post('/:scriptId/favorite', authenticateToken, async (req: AuthRequest, r
  */
 router.post('/:scriptId/apply/:eventId', authenticateToken, async (req: AuthRequest, res: Response) => {
   try {
-    const userId = req.user!.userId;
+    const userId = req.user!.id;
     const { scriptId, eventId } = req.params;
 
     // Verify script ownership
@@ -335,7 +421,7 @@ router.post('/:scriptId/apply/:eventId', authenticateToken, async (req: AuthRequ
  */
 router.delete('/:scriptId', authenticateToken, async (req: AuthRequest, res: Response) => {
   try {
-    const userId = req.user!.userId;
+    const userId = req.user!.id;
     const { scriptId } = req.params;
 
     // Verify ownership

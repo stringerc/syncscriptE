@@ -957,6 +957,22 @@ router.post('/tasks/:taskId/suggest-calendar', authenticateToken, asyncHandler(a
   }
 
   try {
+    // Get the task to check for due date
+    const task = await prisma.task.findUnique({
+      where: { id: taskId, userId: userId }
+    });
+
+    if (!task) {
+      throw createError('Task not found', 404);
+    }
+
+    logger.info('Task found for calendar suggestion', { 
+      taskId, 
+      taskTitle: task.title,
+      dueDate: task.dueDate,
+      dueDateType: typeof task.dueDate
+    });
+
     // Get user's existing events for the next 7 days
     const now = new Date();
     const nextWeek = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
@@ -1002,6 +1018,7 @@ router.post('/tasks/:taskId/suggest-calendar', authenticateToken, asyncHandler(a
     - Existing calendar events and travel time between locations
     - Time of day preferences for different task types
     - Buffer time between events (minimum 15-30 minutes)
+    - Task due date (CRITICAL: if task has a due date, the suggested event MUST end before the due date)
     
     Return your response as JSON with this exact format:
     {
@@ -1010,6 +1027,12 @@ router.post('/tasks/:taskId/suggest-calendar', authenticateToken, asyncHandler(a
       "reasoning": "Detailed explanation of why this time was chosen",
       "conflicts": ["List any potential conflicts or considerations"]
     }
+    
+    CRITICAL DUE DATE RULES:
+    - If the task has a due date, the suggested event MUST end BEFORE the due date
+    - For preparation tasks, the event should end at least 1-2 hours before the due date to allow for completion
+    - If due date is today, suggest a time that allows completion before the due time
+    - If due date is tomorrow, suggest a time today or early tomorrow morning
     
     CRITICAL BUFFER TIME RULES:
     - If there are existing events, ALWAYS add buffer time after the end of the last conflicting event
@@ -1024,7 +1047,8 @@ router.post('/tasks/:taskId/suggest-calendar', authenticateToken, asyncHandler(a
     - Consider travel time if location differs from existing events
     - Suggest realistic times (avoid late night for work tasks, early morning for social events)
     - Account for weekends vs weekdays
-    - ALWAYS include proper buffer time between events - this is mandatory`;
+    - ALWAYS include proper buffer time between events - this is mandatory
+    - ALWAYS respect due dates - this is mandatory`;
 
     const userPrompt = `Suggest optimal calendar timing for this task:
     
@@ -1033,6 +1057,8 @@ router.post('/tasks/:taskId/suggest-calendar', authenticateToken, asyncHandler(a
     Estimated Duration: ${estimatedDuration} minutes
     Location: ${location || 'No location specified'}
     Notes: ${notes || 'No additional notes'}
+    Task Type: ${task.type || 'Standard'}
+    Due Date: ${task.dueDate ? new Date(task.dueDate).toISOString() : 'No due date'}
     
     Current time: ${now.toISOString()}
     User timezone: ${user?.timezone || 'UTC'}
@@ -1081,6 +1107,36 @@ router.post('/tasks/:taskId/suggest-calendar', authenticateToken, asyncHandler(a
     // Validate the response format
     if (!suggestion.suggestedTime || !suggestion.suggestedEndTime || !suggestion.reasoning) {
       throw createError('AI response missing required fields', 500);
+    }
+
+    // Validate that suggested event ends before due date (if task has a due date)
+    if (task.dueDate) {
+      try {
+        const suggestedEndTime = new Date(suggestion.suggestedEndTime);
+        const dueDate = new Date(task.dueDate);
+        
+        logger.info('Due date validation', { 
+          taskId, 
+          dueDate: task.dueDate,
+          suggestedEndTime: suggestion.suggestedEndTime,
+          suggestedEndTimeObj: suggestedEndTime.toISOString(),
+          dueDateObj: dueDate.toISOString()
+        });
+        
+        if (suggestedEndTime >= dueDate) {
+          // Adjust the suggestion to end before the due date
+          const bufferMinutes = 60; // 1 hour buffer for preparation tasks
+          const adjustedEndTime = new Date(dueDate.getTime() - bufferMinutes * 60 * 1000);
+          const adjustedStartTime = new Date(adjustedEndTime.getTime() - (estimatedDuration || 60) * 60 * 1000);
+          
+          suggestion.suggestedTime = adjustedStartTime.toISOString();
+          suggestion.suggestedEndTime = adjustedEndTime.toISOString();
+          suggestion.reasoning += ` (Adjusted to end before due date: ${dueDate.toISOString()})`;
+        }
+      } catch (error) {
+        logger.error('Error in due date validation', { error, taskId, dueDate: task.dueDate });
+        // Continue without due date validation if there's an error
+      }
     }
 
     logger.info('Calendar suggestion generated', { 

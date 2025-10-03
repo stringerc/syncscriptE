@@ -25,6 +25,7 @@
     "@types/multer": "^2.0.0",
     "@types/node": "^20.10.5",
     "@types/nodemailer": "^7.0.1",
+    "@types/puppeteer": "^5.4.7",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
@@ -38,6 +39,7 @@
     "openai": "^4.20.1",
     "plaid": "^12.5.0",
     "prisma": "^5.7.1",
+    "puppeteer": "^24.23.0",
     "socket.io": "^4.7.4",
     "winston": "^3.11.0",
     "zod": "^3.22.4"

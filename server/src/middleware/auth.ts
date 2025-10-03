@@ -21,6 +21,12 @@ export const authenticateToken = async (
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
 
+    logger.info('Auth middleware', { 
+      url: req.url, 
+      hasAuthHeader: !!authHeader,
+      tokenPrefix: token ? token.substring(0, 20) + '...' : 'none'
+    });
+
     if (!token) {
       return res.status(401).json({ 
         success: false, 
@@ -49,6 +55,11 @@ export const authenticateToken = async (
 
     const decoded = jwt.verify(token, secret) as any;
     
+    logger.info('JWT decoded', { 
+      userId: decoded.userId,
+      hasUserId: !!decoded.userId
+    });
+    
     // Verify user still exists
     const user = await prisma.user.findUnique({
       where: { id: decoded.userId },
@@ -56,6 +67,7 @@ export const authenticateToken = async (
     });
 
     if (!user) {
+      logger.error('User not found for token', { userId: decoded.userId });
       return res.status(401).json({ 
         success: false, 
         error: 'User not found' 

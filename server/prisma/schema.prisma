@@ -110,6 +110,11 @@ model User {
   
   // User Scripts (My Scripts Gallery)
   userScripts              UserScript[]
+  
+  // Export System
+  exportJobs               ExportJob[]
+  exportTemplates          ExportTemplate[]
+  exportAnalytics          ExportAnalytics[]
 
   @@map("users")
 }
@@ -270,7 +275,7 @@ model Budget {
 
 model BudgetCategory {
   id              String   @id @default(cuid())
-  budgetId        String
+  budgetId        String?
   name            String
   description     String?
   icon            String?  // Emoji or icon name
@@ -284,16 +289,22 @@ model BudgetCategory {
   categoryType    String   @default("EXPENSE") // "EXPENSE", "INCOME", "SAVINGS"
   color           String?  // Hex color code
   
+  // Project scoping for manual budgeting
+  projectId       String? // optional scoping
+  
   // Tracking
   order           Int      @default(0)
   isActive        Boolean  @default(true)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
   
-  budget          Budget   @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+  budget          Budget?  @relation(fields: [budgetId], references: [id], onDelete: Cascade)
   transactions    Transaction[]
+  lineItems       BudgetLineItem[]
+  eventItems      EventBudgetItem[]
   
   @@index([budgetId])
+  @@index([projectId])
   @@map("budget_categories")
 }
 
@@ -484,6 +495,82 @@ model SpendingForecast {
   @@map("spending_forecasts")
 }
 
+// ============================================================
+// MANUAL BUDGETING SYSTEM MODELS
+// ============================================================
+
+model BudgetEnvelope {
+  id            String   @id @default(cuid())
+  eventId       String   @unique
+  currency      String   @default("USD")
+  capCents      Int?     // optional event budget cap
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  event         Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  eventItems    EventBudgetItem[]
+  
+  @@map("budget_envelopes")
+}
+
+model TaskBudget {
+  id              String   @id @default(cuid())
+  taskId          String   @unique
+  mode            String   // 'total' | 'lines'
+  taxCents        Int      @default(0)
+  shippingCents   Int      @default(0)
+  estimatedCents  Int      @default(0) // Quick Total only
+  actualCents     Int?     // set when user records actual
+  includeInEvent  Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  task            Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  lineItems       BudgetLineItem[]
+  
+  @@map("task_budgets")
+}
+
+model BudgetLineItem {
+  id              String   @id @default(cuid())
+  taskBudgetId    String
+  name            String
+  url             String?
+  qty             Int      @default(1)
+  unitPriceCents  Int      @default(0)
+  categoryId      String?
+  notes           String?
+  isActual        Boolean  @default(false) // when marking actual at row-level (optional)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  taskBudget      TaskBudget @relation(fields: [taskBudgetId], references: [id], onDelete: Cascade)
+  category        BudgetCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  
+  @@index([taskBudgetId])
+  @@map("budget_line_items")
+}
+
+model EventBudgetItem {
+  id              String   @id @default(cuid())
+  eventId         String
+  name            String
+  url             String?
+  estimatedCents  Int      @default(0)
+  actualCents     Int?
+  categoryId      String?
+  notes           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  event           Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  envelope        BudgetEnvelope @relation(fields: [eventId], references: [eventId], onDelete: Cascade)
+  category        BudgetCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  
+  @@index([eventId])
+  @@map("event_budget_items")
+}
+
 model Task {
   id          String   @id @default(cuid())
   userId      String
@@ -519,6 +606,7 @@ model Task {
   // Additional fields
   notes             String?  // User notes for the task
   location          String?  // Location where task should be performed
+  type              String?  // Task type: "PREPARATION", "FOLLOW_UP", etc.
   
   // Relationships
   tags              String?  // Store as comma-separated string
@@ -526,6 +614,7 @@ model Task {
   eventId           String?  // Link to event for preparation tasks
   event             Event?   @relation(fields: [eventId], references: [id], onDelete: SetNull)
   resourceSet       ResourceSet? // Optional resource set for this task
+  taskBudget        TaskBudget? // Manual budgeting for this task
   
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -580,6 +669,8 @@ model Event {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   preparationTasks Task[] // Tasks generated for this event
   resourceSet ResourceSet? // Optional resource set for this event
+  budgetEnvelope BudgetEnvelope? // Manual budgeting envelope for this event
+  budgetItems EventBudgetItem[] // Event-level budget items
 
   @@map("events")
 }
@@ -1532,4 +1623,107 @@ model JournalEntry {
   @@unique([userId, date])
   @@index([userId, date])
   @@map("journal_entries")
+}
+
+// ============================================================
+// EXPORT SYSTEM MODELS
+// ============================================================
+
+model ExportJob {
+  id              String   @id @default(cuid())
+  userId          String
+  exportType      String   // 'pdf', 'docx', 'pptx', 'csv', 'xlsx', 'ics', 'html', 'json'
+  scope           String   // JSON: { type: 'project'|'event'|'script', id: string, range?: string }
+  audiencePreset  String   // 'owner', 'team', 'vendor', 'attendee', 'personal'
+  options         String   // JSON: redaction settings, privacy options, etc.
+  
+  // Status tracking
+  status          String   @default("queued") // 'queued', 'processing', 'completed', 'failed'
+  progress        Int      @default(0) // 0-100
+  errorMessage    String?
+  
+  // Output
+  downloadUrl     String?
+  shareUrl        String?
+  sharePasscode   String?
+  expiresAt       DateTime?
+  
+  // Metadata
+  estimatedSize   Int?     // bytes
+  actualSize      Int?     // bytes
+  sections        String?  // JSON array of included sections
+  redactions       String?  // JSON array of applied redactions
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  completedAt     DateTime?
+  
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId, status])
+  @@index([status, createdAt])
+  @@map("export_jobs")
+}
+
+model ExportTemplate {
+  id              String   @id @default(cuid())
+  userId          String?
+  name            String
+  description     String?
+  
+  // Template configuration
+  exportType      String   // 'pdf', 'docx', 'pptx', etc.
+  scope           String   // JSON: default scope settings
+  audiencePreset  String   // default audience preset
+  options         String   // JSON: default options
+  
+  // Template content
+  templateData    String   // JSON: template-specific data (headers, footers, styles, etc.)
+  
+  // Sharing
+  isPublic        Boolean  @default(false)
+  isSystem        Boolean  @default(false) // System templates
+  
+  // Usage tracking
+  usageCount       Int      @default(0)
+  lastUsedAt       DateTime?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  user            User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+  @@index([isPublic])
+  @@index([isSystem])
+  @@map("export_templates")
+}
+
+model ExportAnalytics {
+  id              String   @id @default(cuid())
+  userId          String?
+  exportJobId     String?
+  
+  // Event tracking
+  eventType       String   // 'export_started', 'export_completed', 'export_downloaded', 'share_viewed', etc.
+  eventData       String   // JSON: event-specific data
+  
+  // Context
+  exportType      String?
+  scope           String?  // JSON
+  audiencePreset  String?
+  
+  // Metadata
+  userAgent       String?
+  ipAddress       String?
+  referrer        String?
+  
+  createdAt       DateTime @default(now())
+  
+  user            User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId, eventType])
+  @@index([exportJobId])
+  @@index([createdAt])
+  @@map("export_analytics")
 }
