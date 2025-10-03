@@ -398,7 +398,7 @@ export function BudgetModal({ taskId, isOpen, onClose }: BudgetModalProps) {
   };
 
   const handleSaveEstimatedTotal = () => {
-    if (quickTotalValue > 0 && taskBudget) {
+    if (quickTotalValue >= 0 && taskBudget) {
       const estimatedCents = Math.round(quickTotalValue * 100);
       console.log('🔍 Save Estimated Debug:', {
         quickTotalValue,
