@@ -92,13 +92,11 @@ function BudgetChip({
 
 
 
-  // Don't render if budget is 0 or undefined, unless in edit mode or budget exists
-  // Show the chip if we have budget data (even if it's 0) or if we're in edit mode
-  // Also show if we have line items with a total > 0
-  const hasBudgetData = budgetData !== null && budgetData !== undefined;
-  const hasLineItemsWithTotal = finalMode === 'lines' && budgetDetails?.lineItems && budgetDetails.lineItems.length > 0 && displayEstimatedCents > 0;
+  // Only show budget chip if there's actual budget data (estimated > 0 or actual > 0)
+  // Always show in edit mode regardless of budget amount
+  const hasActualBudget = displayEstimatedCents > 0 || (displayActualCents !== undefined && displayActualCents > 0);
   
-  if (!editMode && !hasBudgetData && displayEstimatedCents === 0 && (displayActualCents === undefined || displayActualCents === 0) && !hasLineItemsWithTotal) {
+  if (!editMode && !hasActualBudget) {
     return null;
   }
   const formatCurrency = (cents: number) => {

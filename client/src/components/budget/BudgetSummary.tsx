@@ -41,7 +41,6 @@ export function BudgetSummary({ taskId }: BudgetSummaryProps) {
   const budgetDetails = budgetData?.budget;
 
   // Don't show if no budget data exists at all
-  // Show the summary if we have budget data, even if it's 0
   if (!budgetData || !budgetTotals) {
     return null;
   }
@@ -63,6 +62,12 @@ export function BudgetSummary({ taskId }: BudgetSummaryProps) {
     } else {
       displayEstimatedCents = lineItemsTotal;
     }
+  }
+
+  // Only show budget summary if there's actual budget data (estimated > 0 or actual > 0)
+  const hasActualBudget = displayEstimatedCents > 0 || (displayActualCents !== undefined && displayActualCents > 0);
+  if (!hasActualBudget) {
+    return null;
   }
 
   const formatCurrency = (cents: number) => {
