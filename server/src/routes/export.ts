@@ -4,8 +4,300 @@ import { authenticateToken } from '../middleware/auth';
 import { exportService } from '../services/exportService';
 import { logger } from '../utils/logger';
 import { createError } from '../middleware/errorHandler';
+import { prisma } from '../utils/prisma';
 
 const router = Router();
+
+/**
+ * Generate preview content for export
+ */
+async function generatePreviewContent(userId: string, exportType: string, scope: any, audiencePreset: string, sections: string[]) {
+  const { PrismaClient } = await import('@prisma/client');
+  const prisma = new PrismaClient();
+
+  try {
+    let content = '';
+    let title = '';
+    let estimatedSize = 1000;
+    let estimatedTime = '1-2 minutes';
+
+    // Get data based on scope
+    if (scope.type === 'task' && scope.id) {
+      const task = await prisma.task.findFirst({
+        where: { id: scope.id, userId },
+        include: {
+          subtasks: { orderBy: { order: 'asc' } },
+          event: { select: { id: true, title: true } }
+        }
+      });
+
+      if (!task) {
+        throw createError('Task not found', 404);
+      }
+
+      title = `Task: ${task.title}`;
+      
+      // Generate content based on export type
+      switch (exportType.toLowerCase()) {
+        case 'pdf':
+          content = generatePDFPreview(task, audiencePreset);
+          estimatedSize = 5000;
+          estimatedTime = '2-3 minutes';
+          break;
+        case 'csv':
+          content = generateCSVPreview(task, audiencePreset);
+          estimatedSize = 2000;
+          estimatedTime = '1 minute';
+          break;
+        case 'markdown':
+          content = generateMarkdownPreview(task, audiencePreset);
+          estimatedSize = 3000;
+          estimatedTime = '1-2 minutes';
+          break;
+        case 'json':
+          content = generateJSONPreview(task, audiencePreset);
+          estimatedSize = 4000;
+          estimatedTime = '1 minute';
+          break;
+        default:
+          content = generateGenericPreview(task, audiencePreset);
+      }
+    } else if (scope.type === 'tasks' && scope.ids) {
+      const tasks = await prisma.task.findMany({
+        where: { 
+          id: { in: scope.ids },
+          userId 
+        },
+        include: {
+          subtasks: { orderBy: { order: 'asc' } },
+          event: { select: { id: true, title: true } }
+        },
+        orderBy: { createdAt: 'desc' }
+      });
+
+      title = `Multiple Tasks (${tasks.length} items)`;
+      
+      switch (exportType.toLowerCase()) {
+        case 'pdf':
+          content = generateMultipleTasksPDFPreview(tasks, audiencePreset);
+          estimatedSize = tasks.length * 2000;
+          estimatedTime = '3-5 minutes';
+          break;
+        case 'csv':
+          content = generateMultipleTasksCSVPreview(tasks, audiencePreset);
+          estimatedSize = tasks.length * 500;
+          estimatedTime = '1-2 minutes';
+          break;
+        default:
+          content = generateMultipleTasksGenericPreview(tasks, audiencePreset);
+      }
+    }
+
+    return {
+      title,
+      description: `Preview of ${exportType.toUpperCase()} export for ${audiencePreset} audience`,
+      content,
+      format: exportType.toUpperCase(),
+      sections: sections || ['Overview', 'Tasks', 'Budget'],
+      redactions: getRedactionsForAudience(audiencePreset),
+      estimatedSize,
+      estimatedTime
+    };
+  } finally {
+    await prisma.$disconnect();
+  }
+}
+
+/**
+ * Generate PDF preview content
+ */
+function generatePDFPreview(task: any, audiencePreset: string): string {
+  const redactions = getRedactionsForAudience(audiencePreset);
+  
+  return `
+# TASK BRIEF
+
+## ${task.title}
+
+**Status:** ${task.status}
+**Priority:** ${task.priority}
+**Due Date:** ${task.dueDate ? new Date(task.dueDate).toLocaleDateString() : 'Not set'}
+**Estimated Duration:** ${task.estimatedDuration || task.durationMin || 0} minutes
+
+## Description
+${task.description || 'No description provided'}
+
+## Subtasks
+${task.subtasks.length > 0 ? task.subtasks.map((subtask: any, index: number) => 
+  `${index + 1}. ${subtask.title} (${subtask.status})`
+).join('\n') : 'No subtasks'}
+
+## Event Information
+${task.event ? `**Prep for:** ${task.event.title}` : 'Standalone task'}
+
+## Notes
+${task.notes || 'No additional notes'}
+
+---
+*Generated for ${audiencePreset} audience*
+${redactions.length > 0 ? `\n*Redacted: ${redactions.join(', ')}*` : ''}
+  `.trim();
+}
+
+/**
+ * Generate CSV preview content
+ */
+function generateCSVPreview(task: any, audiencePreset: string): string {
+  const redactions = getRedactionsForAudience(audiencePreset);
+  
+  return `Title,Status,Priority,Due Date,Duration,Description,Event
+"${task.title}","${task.status}","${task.priority}","${task.dueDate ? new Date(task.dueDate).toLocaleDateString() : ''}","${task.estimatedDuration || task.durationMin || 0}","${(task.description || '').replace(/"/g, '""')}","${task.event?.title || ''}"`;
+}
+
+/**
+ * Generate Markdown preview content
+ */
+function generateMarkdownPreview(task: any, audiencePreset: string): string {
+  const redactions = getRedactionsForAudience(audiencePreset);
+  
+  return `# ${task.title}
+
+- **Status:** ${task.status}
+- **Priority:** ${task.priority}
+- **Due Date:** ${task.dueDate ? new Date(task.dueDate).toLocaleDateString() : 'Not set'}
+- **Duration:** ${task.estimatedDuration || task.durationMin || 0} minutes
+
+## Description
+${task.description || 'No description provided'}
+
+## Checklist
+${task.subtasks.length > 0 ? task.subtasks.map((subtask: any) => 
+  `- [${subtask.status === 'COMPLETED' ? 'x' : ' '}] ${subtask.title}`
+).join('\n') : '- No subtasks'}
+
+${task.event ? `## Related Event
+**Prep for:** ${task.event.title}` : ''}
+
+---
+*Export for ${audiencePreset} audience*
+  `.trim();
+}
+
+/**
+ * Generate JSON preview content
+ */
+function generateJSONPreview(task: any, audiencePreset: string): string {
+  const redactions = getRedactionsForAudience(audiencePreset);
+  
+  const taskData = {
+    id: task.id,
+    title: task.title,
+    status: task.status,
+    priority: task.priority,
+    dueDate: task.dueDate,
+    estimatedDuration: task.estimatedDuration || task.durationMin,
+    description: task.description,
+    subtasks: task.subtasks.map((subtask: any) => ({
+      id: subtask.id,
+      title: subtask.title,
+      status: subtask.status
+    })),
+    event: task.event ? {
+      id: task.event.id,
+      title: task.event.title
+    } : null,
+    notes: task.notes,
+    exportMetadata: {
+      audience: audiencePreset,
+      redactions: redactions,
+      generatedAt: new Date().toISOString()
+    }
+  };
+
+  return JSON.stringify(taskData, null, 2);
+}
+
+/**
+ * Generate generic preview content
+ */
+function generateGenericPreview(task: any, audiencePreset: string): string {
+  return `Task: ${task.title}
+Status: ${task.status}
+Priority: ${task.priority}
+Description: ${task.description || 'No description'}
+Subtasks: ${task.subtasks.length}
+Event: ${task.event?.title || 'None'}
+
+Export for: ${audiencePreset} audience`;
+}
+
+/**
+ * Generate multiple tasks PDF preview
+ */
+function generateMultipleTasksPDFPreview(tasks: any[], audiencePreset: string): string {
+  const redactions = getRedactionsForAudience(audiencePreset);
+  
+  return `# TASK SUMMARY REPORT
+
+**Total Tasks:** ${tasks.length}
+**Export Date:** ${new Date().toLocaleDateString()}
+
+## Task Overview
+
+${tasks.map((task, index) => `
+### ${index + 1}. ${task.title}
+- **Status:** ${task.status}
+- **Priority:** ${task.priority}
+- **Due Date:** ${task.dueDate ? new Date(task.dueDate).toLocaleDateString() : 'Not set'}
+- **Subtasks:** ${task.subtasks.length}
+- **Event:** ${task.event?.title || 'Standalone'}
+`).join('\n')}
+
+---
+*Generated for ${audiencePreset} audience*
+${redactions.length > 0 ? `\n*Redacted: ${redactions.join(', ')}*` : ''}
+  `.trim();
+}
+
+/**
+ * Generate multiple tasks CSV preview
+ */
+function generateMultipleTasksCSVPreview(tasks: any[], audiencePreset: string): string {
+  return `Title,Status,Priority,Due Date,Duration,Subtasks,Event
+${tasks.map(task => 
+  `"${task.title}","${task.status}","${task.priority}","${task.dueDate ? new Date(task.dueDate).toLocaleDateString() : ''}","${task.estimatedDuration || task.durationMin || 0}","${task.subtasks.length}","${task.event?.title || ''}"`
+).join('\n')}`;
+}
+
+/**
+ * Generate multiple tasks generic preview
+ */
+function generateMultipleTasksGenericPreview(tasks: any[], audiencePreset: string): string {
+  return `Multiple Tasks Export (${tasks.length} items)
+Generated: ${new Date().toLocaleDateString()}
+Audience: ${audiencePreset}
+
+Tasks:
+${tasks.map((task, index) => `${index + 1}. ${task.title} (${task.status})`).join('\n')}`;
+}
+
+/**
+ * Get redactions for audience preset
+ */
+function getRedactionsForAudience(audiencePreset: string): string[] {
+  switch (audiencePreset) {
+    case 'vendor':
+      return ['PII', 'Internal Notes', 'Budget Details'];
+    case 'attendee':
+      return ['PII', 'Internal Notes', 'Budget Details', 'Contact Information'];
+    case 'team':
+      return ['PII'];
+    case 'owner':
+    case 'personal':
+    default:
+      return [];
+  }
+}
 
 /**
  * Create a new export job
@@ -126,28 +418,28 @@ router.post('/preview', authenticateToken, asyncHandler(async (req, res) => {
   const userId = req.user!.id;
   const { exportType, scope, audiencePreset, sections } = req.body;
 
-  // This would generate a preview of the export without creating the actual file
-  // For now, we'll return mock preview data
-  const previewData = {
-    exportType,
-    scope,
-    audiencePreset,
-    sections,
-    estimatedSize: 50000,
-    estimatedTime: '2-3 minutes',
-    preview: {
-      title: 'Export Preview',
-      description: 'This is a preview of your export',
-      sections: sections || ['Overview', 'Tasks', 'Events', 'Budget'],
-      redactions: ['PII', 'Internal Notes'],
-      format: exportType.toUpperCase()
-    }
-  };
+  try {
+    // Generate actual preview content based on scope and export type
+    const previewContent = await generatePreviewContent(userId, exportType, scope, audiencePreset, sections);
+    
+    const previewData = {
+      exportType,
+      scope,
+      audiencePreset,
+      sections,
+      estimatedSize: previewContent.estimatedSize,
+      estimatedTime: previewContent.estimatedTime,
+      preview: previewContent
+    };
 
-  res.json({
-    success: true,
-    data: { preview: previewData }
-  });
+    res.json({
+      success: true,
+      data: { preview: previewData }
+    });
+  } catch (error) {
+    logger.error('Preview generation failed', { error, userId, exportType, scope });
+    throw createError('Failed to generate preview', 500);
+  }
 }));
 
 /**

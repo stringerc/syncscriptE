@@ -507,15 +507,16 @@ export const ExportModal: React.FC<ExportModalProps> = ({
               </div>
             </div>
 
-            <div className="p-4 bg-blue-50 rounded-lg">
-              <h3 className="font-semibold mb-2">Preview Content</h3>
-              <div className="text-sm space-y-2">
-                <div><strong>Title:</strong> {previewData.preview?.title}</div>
-                <div><strong>Description:</strong> {previewData.preview?.description}</div>
-                <div><strong>Sections:</strong> {previewData.preview?.sections?.join(', ')}</div>
-                {previewData.preview?.redactions && previewData.preview.redactions.length > 0 && (
-                  <div><strong>Redactions:</strong> {previewData.preview.redactions.join(', ')}</div>
-                )}
+            {/* Document Preview */}
+            <div className="p-4 bg-white border rounded-lg">
+              <h3 className="font-semibold mb-3 flex items-center gap-2">
+                <FileText className="h-4 w-4" />
+                Document Preview
+              </h3>
+              <div className="bg-gray-50 p-4 rounded border max-h-96 overflow-y-auto">
+                <pre className="whitespace-pre-wrap text-sm font-mono leading-relaxed">
+                  {previewData.preview?.content || 'No content available'}
+                </pre>
               </div>
             </div>
 
