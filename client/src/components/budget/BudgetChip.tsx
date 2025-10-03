@@ -38,6 +38,8 @@ function BudgetChip({
       console.log('🔍 BudgetChip: Fetching budget data for task:', taskId);
       const response = await api.get(`/budget/tasks/${taskId}`);
       console.log('🔍 BudgetChip: Budget data received:', response.data.data);
+      console.log('🔍 BudgetChip: Budget totals:', response.data.data?.totals);
+      console.log('🔍 BudgetChip: Budget details:', response.data.data?.budget);
       return response.data.data;
     },
     enabled: !!taskId,
@@ -54,6 +56,14 @@ function BudgetChip({
   const finalActualCents = budgetTotals?.actualCents ?? budgetDetails?.actualCents ?? actualCents;
   const finalMode = budgetDetails?.mode ?? mode;
   const finalIsOverBudget = budgetTotals?.isOverBudget ?? isOverBudget;
+  
+  console.log('🔍 BudgetChip: Final values:', {
+    finalEstimatedCents,
+    finalActualCents,
+    finalMode,
+    budgetTotals,
+    budgetDetails
+  });
   
   // For line items mode, calculate the line items total (excluding tax/shipping)
   // For quick total mode, use the estimatedCents directly
