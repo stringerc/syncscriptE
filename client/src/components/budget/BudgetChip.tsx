@@ -54,6 +54,7 @@ function BudgetChip({
   // For line items mode, calculate the line items total (excluding tax/shipping)
   // For quick total mode, use the estimatedCents directly
   let displayEstimatedCents = finalEstimatedCents;
+  let displayActualCents = finalActualCents;
   
   if (finalMode === 'lines' && budgetDetails?.lineItems && budgetDetails.lineItems.length > 0) {
     // Calculate line items total only (without tax/shipping for display)
@@ -61,6 +62,8 @@ function BudgetChip({
       return sum + (item.qty * item.unitPriceCents);
     }, 0);
     displayEstimatedCents = lineItemsTotal;
+    // Auto-calculate actual cost from line items
+    displayActualCents = lineItemsTotal;
   }
 
 
@@ -71,7 +74,7 @@ function BudgetChip({
   const hasBudgetData = budgetData !== null && budgetData !== undefined;
   const hasLineItemsWithTotal = finalMode === 'lines' && budgetDetails?.lineItems && budgetDetails.lineItems.length > 0 && displayEstimatedCents > 0;
   
-  if (!editMode && !hasBudgetData && displayEstimatedCents === 0 && (finalActualCents === undefined || finalActualCents === 0) && !hasLineItemsWithTotal) {
+  if (!editMode && !hasBudgetData && displayEstimatedCents === 0 && (displayActualCents === undefined || displayActualCents === 0) && !hasLineItemsWithTotal) {
     return null;
   }
   const formatCurrency = (cents: number) => {
@@ -84,14 +87,14 @@ function BudgetChip({
     }
     
     // Don't show DollarSign icon for $0 budget - the text already has a $
-    if (displayEstimatedCents === 0 && (finalActualCents === undefined || finalActualCents === 0)) {
+    if (displayEstimatedCents === 0 && (displayActualCents === undefined || displayActualCents === 0)) {
       return null;
     }
     
-    if (finalActualCents !== undefined) {
-      if (finalActualCents > displayEstimatedCents) {
+    if (displayActualCents !== undefined) {
+      if (displayActualCents > displayEstimatedCents) {
         return <TrendingUp className="h-3 w-3" />;
-      } else if (finalActualCents < displayEstimatedCents) {
+      } else if (displayActualCents < displayEstimatedCents) {
         return <TrendingDown className="h-3 w-3" />;
       } else {
         return <CheckCircle className="h-3 w-3" />;
@@ -107,10 +110,10 @@ function BudgetChip({
       return 'bg-red-100 text-red-800 hover:bg-red-200';
     }
     
-    if (finalActualCents !== undefined) {
-      if (finalActualCents > finalEstimatedCents) {
+    if (displayActualCents !== undefined) {
+      if (displayActualCents > displayEstimatedCents) {
         return 'bg-orange-100 text-orange-800 hover:bg-orange-200';
-      } else if (finalActualCents < finalEstimatedCents) {
+      } else if (displayActualCents < displayEstimatedCents) {
         return 'bg-green-100 text-green-800 hover:bg-green-200';
       } else {
         return 'bg-blue-100 text-blue-800 hover:bg-blue-200';
@@ -121,18 +124,18 @@ function BudgetChip({
   };
 
   const getDisplayText = () => {
-    if (finalActualCents !== undefined) {
-      return formatCurrency(finalActualCents);
+    if (displayActualCents !== undefined) {
+      return formatCurrency(displayActualCents);
     }
     return formatCurrency(displayEstimatedCents);
   };
 
   const getTooltipText = () => {
-    if (finalActualCents !== undefined) {
-      const variance = finalActualCents - displayEstimatedCents;
+    if (displayActualCents !== undefined) {
+      const variance = displayActualCents - displayEstimatedCents;
       const varianceText = variance > 0 ? `+${formatCurrency(variance)}` : formatCurrency(variance);
       const budgetType = finalMode === 'lines' ? 'Line Items Total' : 'Quick Total';
-      return `${budgetType}: ${formatCurrency(displayEstimatedCents)} | Actual: ${formatCurrency(finalActualCents)} | Variance: ${varianceText}`;
+      return `${budgetType}: ${formatCurrency(displayEstimatedCents)} | Actual: ${formatCurrency(displayActualCents)} | Variance: ${varianceText}`;
     }
     const budgetType = finalMode === 'lines' ? 'Line Items Total' : 'Quick Total';
     return `${budgetType}: ${formatCurrency(displayEstimatedCents)}`;

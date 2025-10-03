@@ -66,7 +66,7 @@ interface DashboardData {
 
 
 // Memoized task item component for performance
-const TaskItem = memo(({ task, onComplete, onDelete, onView, onResourcesClick, order, showOrder, events, onViewLineItems }: { 
+const TaskItem = memo(({ task, onComplete, onDelete, onView, onResourcesClick, order, showOrder, events }: { 
   task: Task, 
   onComplete: (id: string) => void,
   onDelete: (id: string) => void,
@@ -74,8 +74,7 @@ const TaskItem = memo(({ task, onComplete, onDelete, onView, onResourcesClick, o
   onResourcesClick?: (taskId: string) => void,
   order?: number,
   showOrder?: boolean,
-  events?: Event[],
-  onViewLineItems?: (task: Task) => void
+  events?: Event[]
 }) => {
   const relatedEvent = events?.find(event => event.id === task.eventId)
   
@@ -156,11 +155,7 @@ const TaskItem = memo(({ task, onComplete, onDelete, onView, onResourcesClick, o
             taskId={task.id}
             className="ml-2"
             editMode={false}
-            showLineItemsButton={true}
-            onViewLineItems={() => {
-              // Open task modal to view/edit budget
-              onViewLineItems?.(task);
-            }}
+            showLineItemsButton={false}
           />
           {task.dueDate && (
             <div className="flex items-center space-x-1">
@@ -1608,10 +1603,6 @@ export function DashboardPage() {
                       order={index + 1}
                       showOrder={true}
                       events={dashboardData?.upcomingEvents}
-                      onViewLineItems={(task) => {
-                        setSelectedTask(task);
-                        setIsTaskModalOpen(true);
-                      }}
                     />
                   ))}
                 {standardizedTasks.length > 5 && (

@@ -27,7 +27,9 @@ import {
   Calendar,
   Sparkles,
   AlertCircle,
-  Mic
+  Mic,
+  Download,
+  MoreHorizontal
 } from 'lucide-react'
 import { Task, Priority, TaskStatus } from '@/shared/types'
 

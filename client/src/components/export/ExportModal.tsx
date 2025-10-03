@@ -1,708 +1,424 @@
-import React, { useState, useEffect } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { api } from '@/lib/api';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import React, { useState } from 'react';
+import { useMutation } from '@tanstack/react-query';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogOverlay } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
-import { 
-  Download, 
-  Share2, 
-  FileText, 
-  FileSpreadsheet, 
-  Calendar, 
-  Eye, 
-  Settings,
-  Clock,
-  CheckCircle,
-  AlertCircle,
-  X
-} from 'lucide-react';
+import { api } from '@/lib/api';
+import { Download, FileText, Calendar, Table, Code, Share2 } from 'lucide-react';
 
 interface ExportModalProps {
   isOpen: boolean;
   onClose: () => void;
-  defaultScope?: {
-    type: 'project' | 'event' | 'script' | 'timeframe';
-    id?: string;
-    range?: string;
-  };
-}
-
-interface ExportOptions {
-  exportType: 'pdf' | 'docx' | 'pptx' | 'csv' | 'xlsx' | 'ics' | 'html' | 'json';
   scope: {
-    type: 'project' | 'event' | 'script' | 'timeframe';
+    type: 'task' | 'tasks' | 'event' | 'project' | 'script';
     id?: string;
-    range?: string;
+    ids?: string[];
+    groupBy?: string;
   };
-  audiencePreset: 'owner' | 'team' | 'vendor' | 'attendee' | 'personal';
-  redactionSettings: {
-    hidePII: boolean;
-    hideBudgetNumbers: boolean;
-    hideInternalNotes: boolean;
-    hideRestrictedItems: boolean;
-    watermark: boolean;
-    passcodeProtect: boolean;
-    expireShareLink: boolean;
-    removeAvatars: boolean;
-  };
-  sections: string[];
-  deliveryOptions: {
-    download: boolean;
-    email: boolean;
-    shareLink: boolean;
-    pushToCloud: boolean;
-    calendarSubscribe: boolean;
-  };
+  title?: string;
 }
 
-const exportTypes = [
-  { value: 'pdf', label: 'PDF Document', icon: FileText, description: 'Run-of-Show, Briefing Pack' },
-  { value: 'docx', label: 'Word Document', icon: FileText, description: 'Playbook, Narrative Brief' },
-  { value: 'pptx', label: 'PowerPoint', icon: FileText, description: 'Stakeholder Deck' },
-  { value: 'csv', label: 'CSV Data', icon: FileSpreadsheet, description: 'Raw data export' },
-  { value: 'xlsx', label: 'Excel Spreadsheet', icon: FileSpreadsheet, description: 'Formatted data export' },
-  { value: 'ics', label: 'Calendar Feed', icon: Calendar, description: 'iCal calendar file' },
-  { value: 'html', label: 'Web Page', icon: Eye, description: 'Shareable HTML page' },
-  { value: 'json', label: 'JSON Data', icon: FileText, description: 'Raw data dump' }
-];
+interface ExportFormat {
+  id: string;
+  name: string;
+  description: string;
+  icon: React.ReactNode;
+  availableFor: string[];
+}
 
-const audiencePresets = [
-  { 
-    value: 'owner', 
-    label: 'Owner/Admin', 
-    description: 'Full access, no redactions',
-    redactions: []
+interface AudiencePreset {
+  id: string;
+  name: string;
+  description: string;
+  redactionLevel: 'none' | 'partial' | 'full';
+}
+
+const exportFormats: ExportFormat[] = [
+  {
+    id: 'pdf',
+    name: 'PDF',
+    description: 'Professional documents for printing and sharing',
+    icon: <FileText className="h-4 w-4" />,
+    availableFor: ['task', 'tasks', 'event', 'project', 'script']
   },
-  { 
-    value: 'team', 
-    label: 'Team Members', 
-    description: 'Hide sensitive budget info',
-    redactions: ['hideBudgetNumbers']
+  {
+    id: 'csv',
+    name: 'CSV',
+    description: 'Spreadsheet data for analysis',
+    icon: <Table className="h-4 w-4" />,
+    availableFor: ['task', 'tasks', 'event', 'project']
   },
-  { 
-    value: 'vendor', 
-    label: 'Vendors', 
-    description: 'Hide internal notes and PII',
-    redactions: ['hideInternalNotes', 'hidePII']
+  {
+    id: 'xlsx',
+    name: 'Excel',
+    description: 'Advanced spreadsheet with formatting',
+    icon: <Table className="h-4 w-4" />,
+    availableFor: ['task', 'tasks', 'event', 'project']
   },
-  { 
-    value: 'attendee', 
-    label: 'Attendees', 
-    description: 'Public information only',
-    redactions: ['hideBudgetNumbers', 'hideInternalNotes', 'hidePII']
+  {
+    id: 'ics',
+    name: 'Calendar',
+    description: 'Import into calendar apps',
+    icon: <Calendar className="h-4 w-4" />,
+    availableFor: ['task', 'tasks', 'event', 'project']
   },
-  { 
-    value: 'personal', 
-    label: 'Personal Checklist', 
-    description: 'Your personal copy',
-    redactions: []
+  {
+    id: 'markdown',
+    name: 'Markdown',
+    description: 'Lightweight text format',
+    icon: <Code className="h-4 w-4" />,
+    availableFor: ['task', 'tasks', 'script']
+  },
+  {
+    id: 'json',
+    name: 'JSON',
+    description: 'Raw data for integrations',
+    icon: <Code className="h-4 w-4" />,
+    availableFor: ['task', 'tasks', 'event', 'project', 'script']
   }
 ];
 
-const availableSections = [
-  'Overview',
-  'Tasks',
-  'Events',
-  'Budget',
-  'Timeline',
-  'Resources',
-  'Notes',
-  'Attendees',
-  'Vendors',
-  'Checklist'
+const audiencePresets: AudiencePreset[] = [
+  {
+    id: 'owner',
+    name: 'Owner/Admin',
+    description: 'Full detail with all information',
+    redactionLevel: 'none'
+  },
+  {
+    id: 'team',
+    name: 'Team Member',
+    description: 'Full access, PII masked',
+    redactionLevel: 'partial'
+  },
+  {
+    id: 'vendor',
+    name: 'Vendor',
+    description: 'Only assigned tasks, no costs',
+    redactionLevel: 'full'
+  },
+  {
+    id: 'attendee',
+    name: 'Attendee',
+    description: 'Schedule and location only',
+    redactionLevel: 'full'
+  },
+  {
+    id: 'personal',
+    name: 'Personal Checklist',
+    description: 'Only your assigned tasks',
+    redactionLevel: 'none'
+  }
 ];
 
-export function ExportModal({ isOpen, onClose, defaultScope }: ExportModalProps) {
+export const ExportModal: React.FC<ExportModalProps> = ({
+  isOpen,
+  onClose,
+  scope,
+  title
+}) => {
+  const [selectedFormat, setSelectedFormat] = useState<string>('pdf');
+  const [selectedPreset, setSelectedPreset] = useState<string>('owner');
+  const [options, setOptions] = useState({
+    includeBudgets: true,
+    includeAcceptanceCriteria: true,
+    includeQRCodes: true,
+    compactMode: false,
+    passcodeProtect: false,
+    expireInDays: 7
+  });
+
   const { toast } = useToast();
-  const queryClient = useQueryClient();
-  const [currentStep, setCurrentStep] = useState(1);
-  const [exportOptions, setExportOptions] = useState<ExportOptions>({
-    exportType: 'pdf',
-    scope: defaultScope || { type: 'project' },
-    audiencePreset: 'owner',
-    redactionSettings: {
-      hidePII: false,
-      hideBudgetNumbers: false,
-      hideInternalNotes: false,
-      hideRestrictedItems: false,
-      watermark: false,
-      passcodeProtect: false,
-      expireShareLink: false,
-      removeAvatars: false
-    },
-    sections: ['Overview', 'Tasks', 'Events'],
-    deliveryOptions: {
-      download: true,
-      email: false,
-      shareLink: false,
-      pushToCloud: false,
-      calendarSubscribe: false
-    }
-  });
 
-  // Fetch user's projects, events, and scripts for scope selection
-  const { data: projects } = useQuery({
-    queryKey: ['projects'],
-    queryFn: async () => {
-      const response = await api.get('/projects');
-      return response.data.data || [];
-    },
-    enabled: isOpen
-  });
+  // Filter available formats based on scope
+  const availableFormats = exportFormats.filter(format => 
+    format.availableFor.includes(scope.type)
+  );
 
-  const { data: events } = useQuery({
-    queryKey: ['events'],
-    queryFn: async () => {
-      const response = await api.get('/events');
-      return response.data.data || [];
+  const exportMutation = useMutation({
+    mutationFn: async (exportData: any) => {
+      if (scope.type === 'task') {
+        return api.post(`/export/task/${scope.id}`, exportData);
+      } else if (scope.type === 'tasks') {
+        return api.post('/export/tasks', {
+          ...exportData,
+          taskIds: scope.ids
+        });
+      } else {
+        // Use existing export endpoint for other scopes
+        return api.post('/export/create', {
+          exportType: exportData.format,
+          scope: {
+            type: scope.type,
+            id: scope.id
+          },
+          audiencePreset: exportData.preset,
+          redactionSettings: {
+            hidePII: exportData.preset === 'vendor' || exportData.preset === 'attendee',
+            hideBudgetNumbers: exportData.preset === 'attendee',
+            hideInternalNotes: exportData.preset === 'vendor' || exportData.preset === 'attendee',
+            hideRestrictedItems: true,
+            watermark: exportData.preset !== 'owner',
+            passcodeProtect: exportData.passcodeProtect,
+            expireShareLink: exportData.passcodeProtect
+          },
+          deliveryOptions: {
+            download: true,
+            email: false,
+            shareLink: exportData.preset === 'vendor',
+            pushToCloud: false,
+            calendarSubscribe: false
+          },
+          ...exportData.options
+        });
+      }
     },
-    enabled: isOpen
-  });
-
-  const { data: scripts } = useQuery({
-    queryKey: ['scripts'],
-    queryFn: async () => {
-      const response = await api.get('/scripts/my-scripts');
-      return response.data.data || [];
-    },
-    enabled: isOpen
-  });
-
-  // Create export job mutation
-  const createExportMutation = useMutation({
-    mutationFn: async (options: ExportOptions) => {
-      const response = await api.post('/export/create', options);
-      return response.data;
-    },
-    onSuccess: (data) => {
+    onSuccess: (response) => {
+      const exportJob = response.data.data.exportJob;
+      
       toast({
         title: "Export Started",
-        description: "Your export is being generated. You'll be notified when it's ready.",
+        description: `Your ${selectedFormat.toUpperCase()} export is being generated. You'll be notified when it's ready.`,
         variant: "default"
       });
-      queryClient.invalidateQueries({ queryKey: ['export-jobs'] });
+
+      // Close modal
       onClose();
+
+      // TODO: Handle download or share link based on export job
+      if (exportJob.deliveryOptions?.download) {
+        // Trigger download when ready
+        console.log('Export job created:', exportJob.id);
+      }
     },
     onError: (error: any) => {
       toast({
         title: "Export Failed",
-        description: error.response?.data?.error || "Failed to start export",
+        description: error.response?.data?.error || "Failed to create export",
         variant: "destructive"
       });
     }
   });
 
-  // Preview export mutation
-  const previewMutation = useMutation({
-    mutationFn: async (options: ExportOptions) => {
-      const response = await api.post('/export/preview', options);
-      return response.data;
-    },
-    onSuccess: (data) => {
-      setPreviewData(data.data.preview);
-    }
-  });
+  const handleExport = () => {
+    const exportData = {
+      format: selectedFormat,
+      preset: selectedPreset,
+      options: {
+        ...options,
+        groupBy: scope.groupBy
+      },
+      passcodeProtect: options.passcodeProtect
+    };
 
-  const [previewData, setPreviewData] = useState<any>(null);
-
-  const handleExportTypeChange = (exportType: string) => {
-    setExportOptions(prev => ({ ...prev, exportType: exportType as any }));
+    exportMutation.mutate(exportData);
   };
 
-  const handleAudiencePresetChange = (audiencePreset: string) => {
-    const preset = audiencePresets.find(p => p.value === audiencePreset);
-    if (preset) {
-      setExportOptions(prev => ({
-        ...prev,
-        audiencePreset: audiencePreset as any,
-        redactionSettings: {
-          ...prev.redactionSettings,
-          hidePII: preset.redactions.includes('hidePII'),
-          hideBudgetNumbers: preset.redactions.includes('hideBudgetNumbers'),
-          hideInternalNotes: preset.redactions.includes('hideInternalNotes')
-        }
-      }));
-    }
-  };
-
-  const handleSectionToggle = (section: string) => {
-    setExportOptions(prev => ({
-      ...prev,
-      sections: prev.sections.includes(section)
-        ? prev.sections.filter(s => s !== section)
-        : [...prev.sections, section]
-    }));
-  };
-
-  const handleRedactionToggle = (setting: keyof ExportOptions['redactionSettings']) => {
-    setExportOptions(prev => ({
-      ...prev,
-      redactionSettings: {
-        ...prev.redactionSettings,
-        [setting]: !prev.redactionSettings[setting]
-      }
-    }));
-  };
-
-  const handleDeliveryToggle = (option: keyof ExportOptions['deliveryOptions']) => {
-    setExportOptions(prev => ({
-      ...prev,
-      deliveryOptions: {
-        ...prev.deliveryOptions,
-        [option]: !prev.deliveryOptions[option]
-      }
-    }));
-  };
-
-  const handleCreateExport = () => {
-    createExportMutation.mutate(exportOptions);
-  };
-
-  const handlePreview = () => {
-    previewMutation.mutate(exportOptions);
-  };
-
-  const getScopeOptions = () => {
-    switch (exportOptions.scope.type) {
-      case 'project':
-        return projects?.map((project: any) => ({
-          value: project.id,
-          label: project.title
-        })) || [];
+  const getScopeDescription = () => {
+    switch (scope.type) {
+      case 'task':
+        return 'Single Task';
+      case 'tasks':
+        return `${scope.ids?.length || 0} Selected Tasks`;
       case 'event':
-        return events?.map((event: any) => ({
-          value: event.id,
-          label: event.title
-        })) || [];
+        return 'Event';
+      case 'project':
+        return 'Project';
       case 'script':
-        return scripts?.map((script: any) => ({
-          value: script.id,
-          label: script.title
-        })) || [];
+        return 'Script';
       default:
-        return [];
+        return 'Export';
     }
   };
 
-  const getSelectedExportType = () => {
-    return exportTypes.find(t => t.value === exportOptions.exportType);
-  };
-
-  const getSelectedAudiencePreset = () => {
-    return audiencePresets.find(p => p.value === exportOptions.audiencePreset);
-  };
+  const selectedFormatInfo = exportFormats.find(f => f.id === selectedFormat);
+  const selectedPresetInfo = audiencePresets.find(p => p.id === selectedPreset);
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] p-0">
-        <DialogHeader className="p-6 pb-0">
+      <DialogOverlay className="z-[60]" />
+      <DialogContent className="sm:max-w-[600px] z-[60]">
+        <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Download className="h-5 w-5" />
-            Export Data
+            Export {getScopeDescription()}
           </DialogTitle>
           <DialogDescription>
-            Choose what to export and how to format it for your audience
+            {title || `Export ${getScopeDescription().toLowerCase()} in your preferred format`}
           </DialogDescription>
         </DialogHeader>
 
-        <div className="p-6">
-          <Tabs value={currentStep.toString()} className="w-full">
-            <TabsList className="grid w-full grid-cols-4">
-              <TabsTrigger value="1" onClick={() => setCurrentStep(1)}>
-                Format
-              </TabsTrigger>
-              <TabsTrigger value="2" onClick={() => setCurrentStep(2)}>
-                Scope
-              </TabsTrigger>
-              <TabsTrigger value="3" onClick={() => setCurrentStep(3)}>
-                Options
-              </TabsTrigger>
-              <TabsTrigger value="4" onClick={() => setCurrentStep(4)}>
-                Review
-              </TabsTrigger>
-            </TabsList>
+        <div className="space-y-6">
+          {/* Format Selection */}
+          <div className="space-y-3">
+            <Label>Export Format</Label>
+            <div className="grid grid-cols-2 gap-3">
+              {availableFormats.map((format) => (
+                <div
+                  key={format.id}
+                  className={`p-3 border rounded-lg cursor-pointer transition-colors ${
+                    selectedFormat === format.id
+                      ? 'border-blue-500 bg-blue-50'
+                      : 'border-gray-200 hover:border-gray-300'
+                  }`}
+                  onClick={() => setSelectedFormat(format.id)}
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    {format.icon}
+                    <span className="font-medium">{format.name}</span>
+                  </div>
+                  <p className="text-sm text-gray-600">{format.description}</p>
+                </div>
+              ))}
+            </div>
+          </div>
 
-            <TabsContent value="1" className="space-y-4">
-              <div>
-                <Label className="text-base font-medium">Export Format</Label>
-                <p className="text-sm text-muted-foreground mb-4">
-                  Choose the format that best suits your needs
-                </p>
-                <div className="grid grid-cols-2 gap-4">
-                  {exportTypes.map((type) => {
-                    const Icon = type.icon;
-                    return (
-                      <Card 
-                        key={type.value}
-                        className={`cursor-pointer transition-all ${
-                          exportOptions.exportType === type.value 
-                            ? 'ring-2 ring-blue-500 bg-blue-50' 
-                            : 'hover:shadow-md'
-                        }`}
-                        onClick={() => handleExportTypeChange(type.value)}
+          {/* Audience Preset */}
+          <div className="space-y-3">
+            <Label>Audience</Label>
+            <Select value={selectedPreset} onValueChange={setSelectedPreset}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {audiencePresets.map((preset) => (
+                  <SelectItem key={preset.id} value={preset.id}>
+                    <div className="flex items-center justify-between w-full">
+                      <div>
+                        <div className="font-medium">{preset.name}</div>
+                        <div className="text-sm text-gray-500">{preset.description}</div>
+                      </div>
+                      <Badge 
+                        variant={
+                          preset.redactionLevel === 'none' ? 'default' :
+                          preset.redactionLevel === 'partial' ? 'secondary' : 'destructive'
+                        }
+                        className="ml-2"
                       >
-                        <CardContent className="p-4">
-                          <div className="flex items-center gap-3">
-                            <Icon className="h-6 w-6 text-blue-600" />
-                            <div>
-                              <h3 className="font-medium">{type.label}</h3>
-                              <p className="text-sm text-muted-foreground">{type.description}</p>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    );
-                  })}
-                </div>
+                        {preset.redactionLevel}
+                      </Badge>
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Export Options */}
+          <div className="space-y-4">
+            <Label>Options</Label>
+            <div className="space-y-3">
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="includeBudgets"
+                  checked={options.includeBudgets}
+                  onCheckedChange={(checked) => 
+                    setOptions(prev => ({ ...prev, includeBudgets: !!checked }))
+                  }
+                />
+                <Label htmlFor="includeBudgets" className="text-sm">
+                  Include budget information
+                </Label>
               </div>
-            </TabsContent>
 
-            <TabsContent value="2" className="space-y-4">
-              <div>
-                <Label className="text-base font-medium">Export Scope</Label>
-                <p className="text-sm text-muted-foreground mb-4">
-                  What data would you like to export?
-                </p>
-                
-                <div className="space-y-4">
-                  <div>
-                    <Label htmlFor="scope-type">Scope Type</Label>
-                    <Select 
-                      value={exportOptions.scope.type} 
-                      onValueChange={(value) => setExportOptions(prev => ({ 
-                        ...prev, 
-                        scope: { ...prev.scope, type: value as any, id: undefined, range: undefined }
-                      }))}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="project">Project</SelectItem>
-                        <SelectItem value="event">Event</SelectItem>
-                        <SelectItem value="script">Script</SelectItem>
-                        <SelectItem value="timeframe">Time Range</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  {exportOptions.scope.type === 'timeframe' ? (
-                    <div>
-                      <Label htmlFor="timeframe">Date Range</Label>
-                      <Input
-                        id="timeframe"
-                        type="text"
-                        placeholder="e.g., 2024-01-01 to 2024-12-31"
-                        value={exportOptions.scope.range || ''}
-                        onChange={(e) => setExportOptions(prev => ({
-                          ...prev,
-                          scope: { ...prev.scope, range: e.target.value }
-                        }))}
-                      />
-                    </div>
-                  ) : (
-                    <div>
-                      <Label htmlFor="scope-item">Select {exportOptions.scope.type}</Label>
-                      <Select 
-                        value={exportOptions.scope.id || ''} 
-                        onValueChange={(value) => setExportOptions(prev => ({ 
-                          ...prev, 
-                          scope: { ...prev.scope, id: value }
-                        }))}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder={`Select ${exportOptions.scope.type}`} />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {getScopeOptions().map((option) => (
-                            <SelectItem key={option.value} value={option.value}>
-                              {option.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  )}
-                </div>
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="includeAcceptanceCriteria"
+                  checked={options.includeAcceptanceCriteria}
+                  onCheckedChange={(checked) => 
+                    setOptions(prev => ({ ...prev, includeAcceptanceCriteria: !!checked }))
+                  }
+                />
+                <Label htmlFor="includeAcceptanceCriteria" className="text-sm">
+                  Include acceptance criteria
+                </Label>
               </div>
-            </TabsContent>
 
-            <TabsContent value="3" className="space-y-4">
-              <div className="space-y-6">
-                <div>
-                  <Label className="text-base font-medium">Audience Preset</Label>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    Choose who will see this export
-                  </p>
-                  <div className="space-y-2">
-                    {audiencePresets.map((preset) => (
-                      <Card 
-                        key={preset.value}
-                        className={`cursor-pointer transition-all ${
-                          exportOptions.audiencePreset === preset.value 
-                            ? 'ring-2 ring-blue-500 bg-blue-50' 
-                            : 'hover:shadow-md'
-                        }`}
-                        onClick={() => handleAudiencePresetChange(preset.value)}
-                      >
-                        <CardContent className="p-3">
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <h3 className="font-medium">{preset.label}</h3>
-                              <p className="text-sm text-muted-foreground">{preset.description}</p>
-                            </div>
-                            <div className="flex gap-1">
-                              {preset.redactions.map((redaction) => (
-                                <Badge key={redaction} variant="secondary" className="text-xs">
-                                  {redaction}
-                                </Badge>
-                              ))}
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <Label className="text-base font-medium">Sections to Include</Label>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    Choose which sections to include in your export
-                  </p>
-                  <div className="grid grid-cols-2 gap-2">
-                    {availableSections.map((section) => (
-                      <div key={section} className="flex items-center space-x-2">
-                        <Checkbox
-                          id={section}
-                          checked={exportOptions.sections.includes(section)}
-                          onCheckedChange={() => handleSectionToggle(section)}
-                        />
-                        <Label htmlFor={section} className="text-sm">
-                          {section}
-                        </Label>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <Label className="text-base font-medium">Privacy & Security</Label>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    Additional privacy and security options
-                  </p>
-                  <div className="space-y-3">
-                    <div className="flex items-center space-x-2">
-                      <Checkbox
-                        id="hidePII"
-                        checked={exportOptions.redactionSettings.hidePII}
-                        onCheckedChange={() => handleRedactionToggle('hidePII')}
-                      />
-                      <Label htmlFor="hidePII" className="text-sm">
-                        Hide personal information
-                      </Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Checkbox
-                        id="hideBudgetNumbers"
-                        checked={exportOptions.redactionSettings.hideBudgetNumbers}
-                        onCheckedChange={() => handleRedactionToggle('hideBudgetNumbers')}
-                      />
-                      <Label htmlFor="hideBudgetNumbers" className="text-sm">
-                        Hide budget numbers
-                      </Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Checkbox
-                        id="hideInternalNotes"
-                        checked={exportOptions.redactionSettings.hideInternalNotes}
-                        onCheckedChange={() => handleRedactionToggle('hideInternalNotes')}
-                      />
-                      <Label htmlFor="hideInternalNotes" className="text-sm">
-                        Hide internal notes
-                      </Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Checkbox
-                        id="watermark"
-                        checked={exportOptions.redactionSettings.watermark}
-                        onCheckedChange={() => handleRedactionToggle('watermark')}
-                      />
-                      <Label htmlFor="watermark" className="text-sm">
-                        Add watermark
-                      </Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Checkbox
-                        id="passcodeProtect"
-                        checked={exportOptions.redactionSettings.passcodeProtect}
-                        onCheckedChange={() => handleRedactionToggle('passcodeProtect')}
-                      />
-                      <Label htmlFor="passcodeProtect" className="text-sm">
-                        Passcode protect
-                      </Label>
-                    </div>
-                  </div>
-                </div>
-
-                <div>
-                  <Label className="text-base font-medium">Delivery Options</Label>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    How would you like to receive your export?
-                  </p>
-                  <div className="space-y-3">
-                    <div className="flex items-center space-x-2">
-                      <Checkbox
-                        id="download"
-                        checked={exportOptions.deliveryOptions.download}
-                        onCheckedChange={() => handleDeliveryToggle('download')}
-                      />
-                      <Label htmlFor="download" className="text-sm">
-                        Download file
-                      </Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Checkbox
-                        id="shareLink"
-                        checked={exportOptions.deliveryOptions.shareLink}
-                        onCheckedChange={() => handleDeliveryToggle('shareLink')}
-                      />
-                      <Label htmlFor="shareLink" className="text-sm">
-                        Generate share link
-                      </Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Checkbox
-                        id="email"
-                        checked={exportOptions.deliveryOptions.email}
-                        onCheckedChange={() => handleDeliveryToggle('email')}
-                      />
-                      <Label htmlFor="email" className="text-sm">
-                        Email to me
-                      </Label>
-                    </div>
-                  </div>
-                </div>
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="includeQRCodes"
+                  checked={options.includeQRCodes}
+                  onCheckedChange={(checked) => 
+                    setOptions(prev => ({ ...prev, includeQRCodes: !!checked }))
+                  }
+                />
+                <Label htmlFor="includeQRCodes" className="text-sm">
+                  Include QR codes for quick access
+                </Label>
               </div>
-            </TabsContent>
 
-            <TabsContent value="4" className="space-y-4">
-              <div className="space-y-4">
-                <div>
-                  <Label className="text-base font-medium">Export Summary</Label>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    Review your export settings before generating
-                  </p>
-                </div>
-
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-lg">Export Details</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <Label className="text-sm font-medium text-muted-foreground">Format</Label>
-                        <p className="text-sm">{getSelectedExportType()?.label}</p>
-                      </div>
-                      <div>
-                        <Label className="text-sm font-medium text-muted-foreground">Audience</Label>
-                        <p className="text-sm">{getSelectedAudiencePreset()?.label}</p>
-                      </div>
-                      <div>
-                        <Label className="text-sm font-medium text-muted-foreground">Scope</Label>
-                        <p className="text-sm capitalize">{exportOptions.scope.type}</p>
-                      </div>
-                      <div>
-                        <Label className="text-sm font-medium text-muted-foreground">Sections</Label>
-                        <p className="text-sm">{exportOptions.sections.length} sections</p>
-                      </div>
-                    </div>
-
-                    <div>
-                      <Label className="text-sm font-medium text-muted-foreground">Sections Included</Label>
-                      <div className="flex flex-wrap gap-1 mt-1">
-                        {exportOptions.sections.map((section) => (
-                          <Badge key={section} variant="secondary" className="text-xs">
-                            {section}
-                          </Badge>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div>
-                      <Label className="text-sm font-medium text-muted-foreground">Privacy Settings</Label>
-                      <div className="flex flex-wrap gap-1 mt-1">
-                        {Object.entries(exportOptions.redactionSettings)
-                          .filter(([_, enabled]) => enabled)
-                          .map(([setting, _]) => (
-                            <Badge key={setting} variant="outline" className="text-xs">
-                              {setting}
-                            </Badge>
-                          ))}
-                      </div>
-                    </div>
-
-                    <div>
-                      <Label className="text-sm font-medium text-muted-foreground">Delivery</Label>
-                      <div className="flex flex-wrap gap-1 mt-1">
-                        {Object.entries(exportOptions.deliveryOptions)
-                          .filter(([_, enabled]) => enabled)
-                          .map(([option, _]) => (
-                            <Badge key={option} variant="outline" className="text-xs">
-                              {option}
-                            </Badge>
-                          ))}
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {previewData && (
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="text-lg">Preview</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-2">
-                        <p className="text-sm"><strong>Title:</strong> {previewData.title}</p>
-                        <p className="text-sm"><strong>Description:</strong> {previewData.description}</p>
-                        <p className="text-sm"><strong>Format:</strong> {previewData.format}</p>
-                        <p className="text-sm"><strong>Estimated Size:</strong> {previewData.estimatedSize} bytes</p>
-                        <p className="text-sm"><strong>Estimated Time:</strong> {previewData.estimatedTime}</p>
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
-
-                <div className="flex justify-between">
-                  <Button variant="outline" onClick={handlePreview} disabled={previewMutation.isPending}>
-                    <Eye className="h-4 w-4 mr-2" />
-                    Preview
-                  </Button>
-                  <div className="flex gap-2">
-                    <Button variant="outline" onClick={onClose}>
-                      Cancel
-                    </Button>
-                    <Button onClick={handleCreateExport} disabled={createExportMutation.isPending}>
-                      <Download className="h-4 w-4 mr-2" />
-                      {createExportMutation.isPending ? 'Creating...' : 'Create Export'}
-                    </Button>
-                  </div>
-                </div>
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="compactMode"
+                  checked={options.compactMode}
+                  onCheckedChange={(checked) => 
+                    setOptions(prev => ({ ...prev, compactMode: !!checked }))
+                  }
+                />
+                <Label htmlFor="compactMode" className="text-sm">
+                  Compact mode (smaller files)
+                </Label>
               </div>
-            </TabsContent>
-          </Tabs>
+
+              {selectedPreset === 'vendor' && (
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="passcodeProtect"
+                    checked={options.passcodeProtect}
+                    onCheckedChange={(checked) => 
+                      setOptions(prev => ({ ...prev, passcodeProtect: !!checked }))
+                    }
+                  />
+                  <Label htmlFor="passcodeProtect" className="text-sm">
+                    Passcode protect share link
+                  </Label>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Preview */}
+          <div className="p-4 bg-gray-50 rounded-lg">
+            <div className="text-sm text-gray-600">
+              <strong>Preview:</strong> {selectedFormatInfo?.name} export for {selectedPresetInfo?.name} audience
+              {selectedPresetInfo?.redactionLevel !== 'none' && (
+                <span className="text-orange-600 ml-1">
+                  (with {selectedPresetInfo.redactionLevel} redaction)
+                </span>
+              )}
+            </div>
+          </div>
         </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button 
+            onClick={handleExport}
+            disabled={exportMutation.isPending}
+            className="flex items-center gap-2"
+          >
+            {exportMutation.isPending ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                Generating...
+              </>
+            ) : (
+              <>
+                <Download className="h-4 w-4" />
+                Export {selectedFormatInfo?.name}
+              </>
+            )}
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
-}
+};
+
+export default ExportModal;

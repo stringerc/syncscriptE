@@ -98,6 +98,7 @@ export function BudgetModal({ taskId, isOpen, onClose }: BudgetModalProps) {
     }
   }, [taskBudget?.estimatedCents]);
 
+
   // Fetch budget categories
   const { data: categories } = useQuery({
     queryKey: ['budget-categories'],
@@ -202,6 +203,7 @@ export function BudgetModal({ taskId, isOpen, onClose }: BudgetModalProps) {
     }
   });
 
+
   const formatCurrency = (cents: number) => {
     return `$${(cents / 100).toFixed(2)}`;
   };
@@ -210,16 +212,21 @@ export function BudgetModal({ taskId, isOpen, onClose }: BudgetModalProps) {
     return item.qty * item.unitPriceCents;
   };
 
+  const calculateLineItemsTotal = () => {
+    if (!taskBudget || !taskBudget.lineItems) return 0;
+    
+    return taskBudget.lineItems.reduce((sum, item) => {
+      return sum + calculateLineItemTotal(item);
+    }, 0);
+  };
+
   const calculateTotal = () => {
     if (!taskBudget) return 0;
     
     if (taskBudget.mode === 'total') {
       return taskBudget.estimatedCents || 0;
     } else {
-      const lineItems = taskBudget.lineItems || [];
-      const lineItemsTotal = lineItems.reduce((sum, item) => {
-        return sum + calculateLineItemTotal(item);
-      }, 0);
+      const lineItemsTotal = calculateLineItemsTotal();
       return lineItemsTotal + (taskBudget.taxCents || 0) + (taskBudget.shippingCents || 0);
     }
   };
@@ -317,6 +324,7 @@ export function BudgetModal({ taskId, isOpen, onClose }: BudgetModalProps) {
       deleteLineItemMutation.mutate(itemId);
     }
   };
+
 
   if (!isOpen) return null;
 
@@ -420,14 +428,19 @@ export function BudgetModal({ taskId, isOpen, onClose }: BudgetModalProps) {
                       </Button>
                     </div>
 
-                    {taskBudget?.actualCents && (
+
+                    {/* Auto-calculated actual cost from line items */}
+                    {taskBudget?.mode === 'lines' && taskBudget?.lineItems && taskBudget.lineItems.length > 0 && (
                       <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
                         <div className="flex items-center justify-between">
-                          <span className="font-medium text-green-800">Actual Cost:</span>
+                          <span className="font-medium text-green-800">Actual Cost (from line items):</span>
                           <span className="font-bold text-green-900">
-                            {formatCurrency(taskBudget.actualCents)}
+                            {formatCurrency(calculateLineItemsTotal())}
                           </span>
                         </div>
+                        <p className="text-sm text-green-700 mt-1">
+                          Automatically calculated from your line items
+                        </p>
                       </div>
                     )}
 

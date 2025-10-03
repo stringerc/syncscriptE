@@ -77,7 +77,7 @@ export class ExportService {
           sections: JSON.stringify(options.sections),
           redactions: JSON.stringify(options.redactionSettings),
           estimatedSize: await this.estimateExportSize(options),
-          expiresAt: options.deliveryOptions.expireShareLink 
+          expiresAt: options.deliveryOptions?.shareLink 
             ? new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days
             : undefined
         }
