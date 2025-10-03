@@ -148,7 +148,8 @@ function BudgetChip({
     if (displayActualCents !== undefined) {
       return formatCurrency(displayActualCents);
     }
-    return formatCurrency(displayEstimatedCents);
+    // Show estimated amount with "est." indicator
+    return `${formatCurrency(displayEstimatedCents)} est.`;
   };
 
   const getTooltipText = () => {
@@ -159,7 +160,7 @@ function BudgetChip({
       return `${budgetType}: ${formatCurrency(displayEstimatedCents)} | Actual: ${formatCurrency(displayActualCents)} | Variance: ${varianceText}`;
     }
     const budgetType = finalMode === 'lines' ? 'Line Items Total' : 'Quick Total';
-    return `${budgetType}: ${formatCurrency(displayEstimatedCents)}`;
+    return `${budgetType} (Estimated): ${formatCurrency(displayEstimatedCents)}`;
   };
 
   // If showLineItemsButton is true and we have line items, show both badge and button
