@@ -276,8 +276,17 @@ export function BudgetModal({ taskId, isOpen, onClose }: BudgetModalProps) {
   const handleSaveAll = () => {
     let hasChanges = false;
     
+    console.log('🔍 Save All Changes Debug:', {
+      mode: taskBudget?.mode,
+      quickTotalValue,
+      currentEstimatedCents: taskBudget?.estimatedCents,
+      currentEstimatedDollars: (taskBudget?.estimatedCents || 0) / 100,
+      isDifferent: quickTotalValue !== (taskBudget?.estimatedCents || 0) / 100
+    });
+    
     // Save quick total if it's different from the current value
     if (taskBudget?.mode === 'total' && quickTotalValue !== (taskBudget.estimatedCents || 0) / 100) {
+      console.log('💾 Saving total mode budget');
       updateBudgetMutation.mutate({
         mode: 'total',
         estimatedCents: Math.round(quickTotalValue * 100)
@@ -287,6 +296,7 @@ export function BudgetModal({ taskId, isOpen, onClose }: BudgetModalProps) {
     
     // Save estimated total in lines mode if it's different from the current value
     if (taskBudget?.mode === 'lines' && quickTotalValue > 0 && quickTotalValue !== (taskBudget.estimatedCents || 0) / 100) {
+      console.log('💾 Saving lines mode budget with estimated total');
       updateBudgetMutation.mutate({
         mode: taskBudget.mode,
         estimatedCents: Math.round(quickTotalValue * 100),
@@ -303,6 +313,8 @@ export function BudgetModal({ taskId, isOpen, onClose }: BudgetModalProps) {
       hasChanges = true;
     }
     
+    console.log('🔍 Final hasChanges:', hasChanges);
+    
     if (hasChanges) {
       // Invalidate queries to refresh data
       queryClient.invalidateQueries({ queryKey: ['task-budget', taskId] });
@@ -313,6 +325,7 @@ export function BudgetModal({ taskId, isOpen, onClose }: BudgetModalProps) {
         description: "All budget changes have been saved successfully",
       });
     } else {
+      console.log('❌ No changes detected - showing no changes toast');
       toast({
         title: "No Changes",
         description: "No budget changes to save",
