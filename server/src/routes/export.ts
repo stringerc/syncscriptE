@@ -336,4 +336,103 @@ router.get('/analytics', authenticateToken, asyncHandler(async (req, res) => {
   });
 }));
 
+/**
+ * Export single task
+ */
+router.post('/task/:taskId', authenticateToken, asyncHandler(async (req, res) => {
+  const userId = req.user!.id;
+  const { taskId } = req.params;
+  const { preset, format, options = {} } = req.body;
+
+  // Validate required fields
+  if (!preset || !format) {
+    throw createError('Missing required fields: preset, format', 400);
+  }
+
+  // Create export options for single task
+  const exportOptions = {
+    exportType: format,
+    scope: {
+      type: 'task',
+      id: taskId
+    },
+    audiencePreset: preset,
+    redactionSettings: {
+      hidePII: preset === 'vendor' || preset === 'attendee',
+      hideBudgetNumbers: preset === 'attendee',
+      hideInternalNotes: preset === 'vendor' || preset === 'attendee',
+      hideRestrictedItems: true,
+      watermark: preset !== 'owner',
+      passcodeProtect: preset === 'vendor',
+      expireShareLink: preset === 'vendor'
+    },
+    deliveryOptions: {
+      download: true,
+      email: false,
+      shareLink: preset === 'vendor',
+      pushToCloud: false,
+      calendarSubscribe: false
+    },
+    ...options
+  };
+
+  const exportJob = await exportService.createExportJob(userId, exportOptions);
+
+  res.json({
+    success: true,
+    data: { exportJob }
+  });
+}));
+
+/**
+ * Export selected tasks
+ */
+router.post('/tasks', authenticateToken, asyncHandler(async (req, res) => {
+  const userId = req.user!.id;
+  const { taskIds, preset, format, options = {}, groupBy } = req.body;
+
+  // Validate required fields
+  if (!taskIds || !Array.isArray(taskIds) || taskIds.length === 0) {
+    throw createError('Missing or invalid taskIds array', 400);
+  }
+  if (!preset || !format) {
+    throw createError('Missing required fields: preset, format', 400);
+  }
+
+  // Create export options for selected tasks
+  const exportOptions = {
+    exportType: format,
+    scope: {
+      type: 'tasks',
+      ids: taskIds,
+      groupBy: groupBy || 'event'
+    },
+    audiencePreset: preset,
+    redactionSettings: {
+      hidePII: preset === 'vendor' || preset === 'attendee',
+      hideBudgetNumbers: preset === 'attendee',
+      hideInternalNotes: preset === 'vendor' || preset === 'attendee',
+      hideRestrictedItems: true,
+      watermark: preset !== 'owner',
+      passcodeProtect: preset === 'vendor',
+      expireShareLink: preset === 'vendor'
+    },
+    deliveryOptions: {
+      download: true,
+      email: false,
+      shareLink: preset === 'vendor',
+      pushToCloud: false,
+      calendarSubscribe: false
+    },
+    ...options
+  };
+
+  const exportJob = await exportService.createExportJob(userId, exportOptions);
+
+  res.json({
+    success: true,
+    data: { exportJob }
+  });
+}));
+
 export default router;
