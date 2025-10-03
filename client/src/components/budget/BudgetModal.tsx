@@ -325,6 +325,14 @@ export function BudgetModal({ taskId, isOpen, onClose }: BudgetModalProps) {
     }
   };
 
+  const handleSaveEstimatedTotal = () => {
+    if (quickTotalValue > 0) {
+      updateBudgetMutation.mutate({
+        estimatedCents: Math.round(quickTotalValue * 100)
+      });
+    }
+  };
+
 
   if (!isOpen) return null;
 
@@ -419,13 +427,25 @@ export function BudgetModal({ taskId, isOpen, onClose }: BudgetModalProps) {
                           />
                         </div>
                       </div>
-                      <Button
-                        variant={taskBudget?.mode === 'total' ? 'default' : 'outline'}
-                        onClick={() => handleModeChange('total')}
-                      >
-                        <Save className="h-4 w-4 mr-2" />
-                        Use Quick Total
-                      </Button>
+                      <div className="flex gap-2">
+                        <Button
+                          variant={taskBudget?.mode === 'total' ? 'default' : 'outline'}
+                          onClick={() => handleModeChange('total')}
+                        >
+                          <Save className="h-4 w-4 mr-2" />
+                          Use Quick Total
+                        </Button>
+                        {taskBudget?.mode === 'lines' && (
+                          <Button
+                            variant="outline"
+                            onClick={() => handleSaveEstimatedTotal()}
+                            disabled={quickTotalValue === 0}
+                          >
+                            <Save className="h-4 w-4 mr-2" />
+                            Save Estimated
+                          </Button>
+                        )}
+                      </div>
                     </div>
 
 
