@@ -47,7 +47,6 @@ import { formatDate, formatTime, formatDateTime, formatCurrency, getPriorityColo
 import { EventModal } from '@/components/EventModal'
 import { TaskModal } from '@/components/TaskModal'
 import { ResourcesDrawer } from '@/components/ResourcesDrawer'
-import BudgetChip from '@/components/budget/BudgetChip'
 import { Task, Event, Achievement, Streak, Notification } from '@/shared/types'
 
 interface DashboardData {
