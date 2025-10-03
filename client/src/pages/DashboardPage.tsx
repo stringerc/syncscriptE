@@ -16,7 +16,7 @@ import { AnimatedCounter } from '@/components/AnimatedCounter'
 import { getWeatherIcon } from '@/utils/weatherIcons'
 import { useAchievements } from '@/contexts/AchievementsContext'
 import { PinnedEventsRail } from '@/components/PinnedEventsRail'
-import { BudgetChip } from '@/components/budget/BudgetChip'
+import BudgetChip from '@/components/budget/BudgetChip'
 import { 
   CheckSquare, 
   Calendar, 

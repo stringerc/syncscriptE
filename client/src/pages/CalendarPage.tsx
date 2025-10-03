@@ -13,7 +13,7 @@ import { EventModal } from '@/components/EventModal'
 import { TaskModal } from '@/components/TaskModal'
 import { ConfirmationModal } from '@/components/ConfirmationModal'
 import { ResourcesDrawer } from '@/components/ResourcesDrawer'
-import { BudgetChip } from '@/components/budget/BudgetChip'
+import BudgetChip from '@/components/budget/BudgetChip'
 
 // Calendar Task Item Component (for bullet list in event cards)
 const CalendarTaskItem = memo(({ task, onResourcesClick, onClick }: {
