@@ -722,6 +722,17 @@ export function TaskModal({ task, isOpen, onClose, onTaskUpdated, onTaskDeleted 
         <div className="p-6 flex-1 overflow-y-auto">
           {!task || isEditing ? (
             <div className="space-y-4">
+              {task?.eventId && (
+                <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  <div className="flex items-center space-x-2">
+                    <Calendar className="w-4 h-4 text-blue-600" />
+                    <span className="text-sm text-blue-600 font-medium">
+                      Prep for: {task.event?.title || 'Event'}
+                    </span>
+                  </div>
+                </div>
+              )}
+              
               <div>
                 <Label htmlFor="title">Title</Label>
                 <Input
@@ -820,6 +831,14 @@ export function TaskModal({ task, isOpen, onClose, onTaskUpdated, onTaskDeleted 
                 <h3 className="text-lg font-semibold">{task?.title}</h3>
                 {task?.description && (
                   <p className="text-muted-foreground mt-2">{task.description}</p>
+                )}
+                {task?.eventId && (
+                  <div className="mt-2 flex items-center space-x-2">
+                    <Calendar className="w-4 h-4 text-blue-600" />
+                    <span className="text-sm text-blue-600 font-medium">
+                      Prep for: {task.event?.title || 'Event'}
+                    </span>
+                  </div>
                 )}
               </div>
 
