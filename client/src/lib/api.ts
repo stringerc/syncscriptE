@@ -10,10 +10,10 @@ const getApiBaseUrl = () => {
     return (import.meta as any).env.VITE_API_URL
   }
   
-  // If running on Vercel, use Render backend
+  // If running on Vercel, use Vercel backend
   if (window.location.hostname.includes('vercel.app')) {
-    console.log('🌐 Running on Vercel - using Render backend')
-    return 'https://syncscripte.onrender.com/api'
+    console.log('🌐 Running on Vercel - using Vercel backend')
+    return 'https://syncscript-cul9oe3eq-christopher-stringers-projects.vercel.app/api'
   }
   
   // If running on GitHub Pages, use Render backend

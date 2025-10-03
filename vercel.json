@@ -1,5 +1,6 @@
 {
   "version": 2,
+  "buildCommand": "npm run build",
   "builds": [
     {
       "src": "client/package.json",
@@ -7,9 +8,20 @@
       "config": {
         "distDir": "dist"
       }
+    },
+    {
+      "src": "server/package.json",
+      "use": "@vercel/node",
+      "config": {
+        "includeFiles": ["server/dist/**"]
+      }
     }
   ],
   "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "/server/dist/index.js"
+    },
     {
       "src": "/(.*)",
       "dest": "/client/dist/$1"
