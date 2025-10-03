@@ -73,6 +73,7 @@ export function TaskModal({ task, isOpen, onClose, onTaskUpdated, onTaskDeleted 
   const [isListening, setIsListening] = useState(false)
   const [showConvertToPrep, setShowConvertToPrep] = useState(false)
   const [selectedEventId, setSelectedEventId] = useState('')
+  const [showRemoveFromEvent, setShowRemoveFromEvent] = useState(false)
 
   // Initialize form data when task changes
   useEffect(() => {
@@ -509,6 +510,10 @@ export function TaskModal({ task, isOpen, onClose, onTaskUpdated, onTaskDeleted 
     convertToPrepMutation.mutate(selectedEventId)
   }
 
+  const handleRemoveFromEvent = () => {
+    removeFromEventMutation.mutate()
+  }
+
   // Fetch resources for the task
   const { data: resourceData } = useQuery({
     queryKey: ['task-resources', task?.id],
@@ -566,6 +571,34 @@ export function TaskModal({ task, isOpen, onClose, onTaskUpdated, onTaskDeleted 
       toast({
         title: "Conversion Failed",
         description: error.response?.data?.error || "Failed to convert task to prep task",
+        variant: "destructive"
+      })
+    }
+  })
+
+  // Remove task from event mutation
+  const removeFromEventMutation = useMutation({
+    mutationFn: async () => {
+      if (!task) throw new Error('No task to remove from event')
+      const response = await api.post(`/tasks/${task.id}/remove-from-event`)
+      return response.data
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "Task Removed!",
+        description: data.message || "Task has been removed from the event"
+      })
+      queryClient.invalidateQueries({ queryKey: ['tasks'] })
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+      queryClient.invalidateQueries({ queryKey: ['events'] })
+      queryClient.invalidateQueries({ queryKey: ['calendar'] })
+      setShowRemoveFromEvent(false)
+      onTaskUpdated?.(data.data)
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Removal Failed",
+        description: error.response?.data?.error || "Failed to remove task from event",
         variant: "destructive"
       })
     }
@@ -1008,17 +1041,7 @@ export function TaskModal({ task, isOpen, onClose, onTaskUpdated, onTaskDeleted 
                   </Button>
                 )}
                 {/* Convert to Prep Task Button - only show if task is not already a prep task */}
-                {(() => {
-                  console.log('🔍 TaskModal: Checking task for Convert to Prep Task button:', JSON.stringify({
-                    taskId: task.id,
-                    taskTitle: task.title,
-                    eventId: task.eventId,
-                    hasEventId: !!task.eventId,
-                    shouldShowButton: !task.eventId
-                  }, null, 2));
-                  console.log('🔍 TaskModal: Full task object:', JSON.stringify(task, null, 2));
-                  return !task.eventId;
-                })() && (
+                {!task.eventId && (
                   <Button
                     variant="outline"
                     size="sm"
@@ -1027,6 +1050,19 @@ export function TaskModal({ task, isOpen, onClose, onTaskUpdated, onTaskDeleted 
                   >
                     <Calendar className="w-4 h-4 mr-2" />
                     Convert to Prep Task
+                  </Button>
+                )}
+                
+                {/* Remove from Event Button - only show if task is already a prep task */}
+                {task.eventId && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowRemoveFromEvent(!showRemoveFromEvent)}
+                    className="border-orange-200 text-orange-700 hover:bg-orange-50 hover:border-orange-300"
+                  >
+                    <X className="w-4 h-4 mr-2" />
+                    Remove from Event
                   </Button>
                 )}
               </>
@@ -1119,55 +1155,84 @@ export function TaskModal({ task, isOpen, onClose, onTaskUpdated, onTaskDeleted 
         />
       )}
 
-      {/* Convert to Prep Task Modal */}
-      {showConvertToPrep && task && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md mx-4">
-            <h3 className="text-lg font-semibold mb-4">Convert to Prep Task</h3>
-            <p className="text-sm text-muted-foreground mb-4">
-              Select an event to convert "{task.title}" into a preparation task.
-            </p>
-            
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium mb-2">Select Event:</label>
-                <select
-                  value={selectedEventId}
-                  onChange={(e) => setSelectedEventId(e.target.value)}
-                  className="w-full p-2 border rounded-md bg-white dark:bg-gray-700 text-black dark:text-white"
-                >
-                  <option value="">Choose an event...</option>
-                  {events?.map((event: any) => (
-                    <option key={event.id} value={event.id}>
-                      {event.title} - {new Date(event.startTime).toLocaleDateString()}
-                    </option>
-                  ))}
-                </select>
+        {/* Convert to Prep Task Modal */}
+        {showConvertToPrep && task && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md mx-4">
+              <h3 className="text-lg font-semibold mb-4">Convert to Prep Task</h3>
+              <p className="text-sm text-muted-foreground mb-4">
+                Select an event to convert "{task.title}" into a preparation task.
+              </p>
+              
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium mb-2">Select Event:</label>
+                  <select
+                    value={selectedEventId}
+                    onChange={(e) => setSelectedEventId(e.target.value)}
+                    className="w-full p-2 border rounded-md bg-white dark:bg-gray-700 text-black dark:text-white"
+                  >
+                    <option value="">Choose an event...</option>
+                    {events?.map((event: any) => (
+                      <option key={event.id} value={event.id}>
+                        {event.title} - {new Date(event.startTime).toLocaleDateString()}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                
+                <div className="flex space-x-2 pt-4">
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setShowConvertToPrep(false)
+                      setSelectedEventId('')
+                    }}
+                    className="flex-1"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={handleConvertToPrep}
+                    disabled={convertToPrepMutation.isPending || !selectedEventId}
+                    className="flex-1 bg-blue-600 hover:bg-blue-700"
+                  >
+                    {convertToPrepMutation.isPending ? 'Converting...' : 'Convert Task'}
+                  </Button>
+                </div>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Remove from Event Modal */}
+        {showRemoveFromEvent && task && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md mx-4">
+              <h3 className="text-lg font-semibold mb-4">Remove from Event</h3>
+              <p className="text-sm text-muted-foreground mb-4">
+                Are you sure you want to remove "{task.title}" from its event? This will make it a standalone task.
+              </p>
               
               <div className="flex space-x-2 pt-4">
                 <Button
                   variant="outline"
-                  onClick={() => {
-                    setShowConvertToPrep(false)
-                    setSelectedEventId('')
-                  }}
+                  onClick={() => setShowRemoveFromEvent(false)}
                   className="flex-1"
                 >
                   Cancel
                 </Button>
                 <Button
-                  onClick={handleConvertToPrep}
-                  disabled={convertToPrepMutation.isPending || !selectedEventId}
-                  className="flex-1 bg-blue-600 hover:bg-blue-700"
+                  onClick={handleRemoveFromEvent}
+                  disabled={removeFromEventMutation.isPending}
+                  className="flex-1 bg-orange-600 hover:bg-orange-700"
                 >
-                  {convertToPrepMutation.isPending ? 'Converting...' : 'Convert Task'}
+                  {removeFromEventMutation.isPending ? 'Removing...' : 'Remove from Event'}
                 </Button>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
     </div>
   )
 }

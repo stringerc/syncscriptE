@@ -807,11 +807,58 @@ router.post('/:id/convert-to-prep', authenticateToken, asyncHandler(async (req: 
     eventTitle: event.title 
   });
 
-  res.json({
-    success: true,
-    data: updatedTask,
-    message: `Task "${task.title}" is now a prep task for "${event.title}"`
-  });
-}));
+        res.json({
+          success: true,
+          data: updatedTask,
+          message: `Task "${task.title}" is now a prep task for "${event.title}"`
+        });
+      }));
+
+      // Remove task from event (make it standalone)
+      router.post('/:id/remove-from-event', authenticateToken, asyncHandler(async (req: AuthRequest, res) => {
+        const { id } = req.params;
+        const userId = req.user!.id;
+
+        // Check if task exists and belongs to user
+        const task = await prisma.task.findFirst({
+          where: { id, userId }
+        });
+
+        if (!task) {
+          return res.status(404).json({
+            success: false,
+            error: 'Task not found'
+          });
+        }
+
+        // Check if task is already standalone
+        if (!task.eventId) {
+          return res.status(400).json({
+            success: false,
+            error: 'Task is already standalone'
+          });
+        }
+
+        // Update task to remove eventId and preparation tag
+        const updatedTask = await prisma.task.update({
+          where: { id },
+          data: {
+            eventId: null,
+            tags: task.tags ? task.tags.replace(/,?preparation/g, '').replace(/^,|,$/g, '') : null
+          }
+        });
+
+        logger.info('Task removed from event', { 
+          userId, 
+          taskId: id, 
+          previousEventId: task.eventId
+        });
+
+        res.json({
+          success: true,
+          data: updatedTask,
+          message: `Task "${task.title}" has been removed from its event and is now standalone`
+        });
+      }));
 
 export default router;
