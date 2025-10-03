@@ -791,27 +791,37 @@ export function TaskModal({ task, isOpen, onClose, onTaskUpdated, onTaskDeleted 
 
               {/* Event Management Button - show in edit mode for all tasks */}
               <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
-                {task?.eventId ? (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setShowRemoveFromEvent(!showRemoveFromEvent)}
-                    className="w-full border-orange-200 text-orange-700 hover:bg-orange-50 hover:border-orange-300"
-                  >
-                    <X className="w-4 h-4 mr-2" />
-                    Remove from Event
-                  </Button>
-                ) : (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setShowConvertToPrep(!showConvertToPrep)}
-                    className="w-full border-blue-200 text-blue-700 hover:bg-blue-50 hover:border-blue-300"
-                  >
-                    <Calendar className="w-4 h-4 mr-2" />
-                    Add to Event
-                  </Button>
-                )}
+                {(() => {
+                  console.log('🔍 TaskModal Edit Mode - Task Event Check:', {
+                    taskId: task?.id,
+                    taskTitle: task?.title,
+                    eventId: task?.eventId,
+                    hasEventId: !!task?.eventId,
+                    shouldShowRemove: !!task?.eventId,
+                    shouldShowAdd: !task?.eventId
+                  })
+                  return task?.eventId ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setShowRemoveFromEvent(!showRemoveFromEvent)}
+                      className="w-full border-orange-200 text-orange-700 hover:bg-orange-50 hover:border-orange-300"
+                    >
+                      <X className="w-4 h-4 mr-2" />
+                      Remove from Event
+                    </Button>
+                  ) : (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setShowConvertToPrep(!showConvertToPrep)}
+                      className="w-full border-blue-200 text-blue-700 hover:bg-blue-50 hover:border-blue-300"
+                    >
+                      <Calendar className="w-4 h-4 mr-2" />
+                      Add to Event
+                    </Button>
+                  )
+                })()}
               </div>
             </div>
           ) : (
