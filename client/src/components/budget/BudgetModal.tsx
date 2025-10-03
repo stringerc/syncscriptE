@@ -439,8 +439,16 @@ export function BudgetModal({ taskId, isOpen, onClose }: BudgetModalProps) {
                   <CardHeader>
                     <CardTitle className="flex items-center justify-between">
                       <span>AI Budget Estimate</span>
-                      <Badge variant={taskBudget?.mode === 'total' ? 'default' : 'secondary'}>
-                        {taskBudget?.mode === 'total' ? 'Active' : 'Inactive'}
+                      <Badge variant={
+                        (taskBudget?.mode === 'total') || 
+                        (taskBudget?.estimatedCents && taskBudget.estimatedCents > 0) || 
+                        (quickTotalValue > 0) 
+                        ? 'default' : 'secondary'
+                      }>
+                        {(taskBudget?.mode === 'total') || 
+                         (taskBudget?.estimatedCents && taskBudget.estimatedCents > 0) || 
+                         (quickTotalValue > 0) 
+                         ? 'Active' : 'Inactive'}
                       </Badge>
                     </CardTitle>
                     <CardDescription>
