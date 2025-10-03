@@ -498,10 +498,11 @@ export function BudgetModal({ taskId, isOpen, onClose }: BudgetModalProps) {
                           <Sparkles className="h-4 w-4 mr-2" />
                           {isSuggestingEstimate ? 'Suggesting...' : 'Suggest Estimate'}
                         </Button>
-                        {taskBudget?.mode === 'lines' && quickTotalValue > 0 && (
+                        {taskBudget?.mode === 'lines' && (
                           <Button
                             variant="outline"
                             onClick={() => handleSaveEstimatedTotal()}
+                            disabled={quickTotalValue <= 0}
                           >
                             <Save className="h-4 w-4 mr-2" />
                             Save Estimated
