@@ -120,12 +120,7 @@ export function BudgetSummary({ taskId }: BudgetSummaryProps) {
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium">Estimated:</span>
-              <div className="flex items-center gap-1">
-                <span className="font-semibold">{formatCurrency(displayEstimatedCents)}</span>
-                <Badge variant="outline" className="text-xs px-1 py-0 h-4">
-                  est.
-                </Badge>
-              </div>
+              <span className="font-semibold">≈{formatCurrency(displayEstimatedCents)}</span>
             </div>
             
             {displayActualCents !== undefined && (
@@ -134,9 +129,6 @@ export function BudgetSummary({ taskId }: BudgetSummaryProps) {
                 <div className="flex items-center gap-2">
                   {getStatusIcon()}
                   <span className="font-semibold">{formatCurrency(displayActualCents)}</span>
-                  <Badge variant="outline" className="text-xs px-1 py-0 h-4 bg-green-50 text-green-700 border-green-200">
-                    actual
-                  </Badge>
                 </div>
               </div>
             )}

@@ -148,8 +148,8 @@ function BudgetChip({
     if (displayActualCents !== undefined) {
       return formatCurrency(displayActualCents);
     }
-    // Show estimated amount with "est." indicator
-    return `${formatCurrency(displayEstimatedCents)} est.`;
+    // Show estimated amount with ≈ symbol
+    return `≈${formatCurrency(displayEstimatedCents)}`;
   };
 
   const getTooltipText = () => {
