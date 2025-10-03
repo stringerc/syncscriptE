@@ -41,10 +41,12 @@ import {
   Plus,
   Paperclip
 } from 'lucide-react'
-import { formatDate, formatTime, formatCurrency, getPriorityColor } from '@/lib/utils'
+import { getTimezoneFromCoordinates } from '@/utils/timezone'
+import { formatDate, formatTime, formatDateTime, formatCurrency, getPriorityColor } from '@/lib/utils'
 import { EventModal } from '@/components/EventModal'
 import { TaskModal } from '@/components/TaskModal'
 import { ResourcesDrawer } from '@/components/ResourcesDrawer'
+import BudgetChip from '@/components/budget/BudgetChip'
 import { Task, Event, Achievement, Streak, Notification } from '@/shared/types'
 
 interface DashboardData {
@@ -64,7 +66,7 @@ interface DashboardData {
 
 
 // Memoized task item component for performance
-const TaskItem = memo(({ task, onComplete, onDelete, onView, onResourcesClick, order, showOrder, events }: { 
+const TaskItem = memo(({ task, onComplete, onDelete, onView, onResourcesClick, order, showOrder, events, onViewLineItems }: { 
   task: Task, 
   onComplete: (id: string) => void,
   onDelete: (id: string) => void,
@@ -72,7 +74,8 @@ const TaskItem = memo(({ task, onComplete, onDelete, onView, onResourcesClick, o
   onResourcesClick?: (taskId: string) => void,
   order?: number,
   showOrder?: boolean,
-  events?: Event[]
+  events?: Event[],
+  onViewLineItems?: (task: Task) => void
 }) => {
   const relatedEvent = events?.find(event => event.id === task.eventId)
   
@@ -80,17 +83,12 @@ const TaskItem = memo(({ task, onComplete, onDelete, onView, onResourcesClick, o
   const { data: resourceData } = useQuery({
     queryKey: ['task-resources', task.id],
     queryFn: async () => {
-      try {
-        const response = await api.get(`/resources/tasks/${task.id}/resources`)
-        return response.data.data.resources || []
-      } catch (error) {
-        return []
-      }
+      // Disabled to prevent 404 errors and improve performance
+      return []
     },
-    enabled: !!task.id,
-    staleTime: 30 * 1000, // 30 seconds cache to prevent flickering
-    gcTime: 5 * 60 * 1000, // 5 minutes
-    refetchOnWindowFocus: false, // Don't refetch on focus
+    enabled: false, // Disabled to prevent 404 errors
+    staleTime: Infinity, // Never refetch
+    gcTime: Infinity
   })
   
   const resourceCount = Array.isArray(resourceData) ? resourceData.length : 0
@@ -154,10 +152,20 @@ const TaskItem = memo(({ task, onComplete, onDelete, onView, onResourcesClick, o
               <span>{task.estimatedDuration}m</span>
             </div>
           )}
-          {task.budgetImpact && (
+          <BudgetChip
+            taskId={task.id}
+            className="ml-2"
+            editMode={false}
+            showLineItemsButton={true}
+            onViewLineItems={() => {
+              // Open task modal to view/edit budget
+              onViewLineItems?.(task);
+            }}
+          />
+          {task.dueDate && (
             <div className="flex items-center space-x-1">
-              <DollarSign className="w-3 h-3" />
-              <span>{formatCurrency(task.budgetImpact)}</span>
+              <Clock className="w-3 h-3" />
+              <span>Due: {task.type === 'PREPARATION' ? formatDateTime(task.dueDate) : formatDate(task.dueDate)}</span>
             </div>
           )}
         </div>
@@ -217,17 +225,12 @@ const NestedTaskItem = memo(({ task, onResourcesClick, onClick }: {
   const { data: taskResourceData } = useQuery({
     queryKey: ['task-resources', task.id],
     queryFn: async () => {
-      try {
-        const response = await api.get(`/resources/tasks/${task.id}/resources`)
-        return response.data.data.resources || []
-      } catch (error) {
-        return []
-      }
+      // Disabled to prevent 404 errors and improve performance
+      return []
     },
-    enabled: !!task.id,
-    staleTime: 30 * 1000,
-    gcTime: 5 * 60 * 1000,
-    refetchOnWindowFocus: false,
+    enabled: false, // Disabled to prevent 404 errors
+    staleTime: Infinity, // Never refetch
+    gcTime: Infinity
   })
   
   const taskResourceCount = Array.isArray(taskResourceData) ? taskResourceData.length : 0
@@ -482,11 +485,12 @@ const EventItem = memo(({ event, onView, onDelete, weatherData, preparationTasks
         // We'll look for tasks that are linked to this event and also have their own eventId
         // (meaning they're prep tasks for other events)
         const linkedTasks = preparationTasks || [];
-        console.log(`🔍 Dashboard EventItem: Checking event ${event.id} (${event.title}):`, {
-          linkedTasks,
-          linkedTasksLength: linkedTasks.length,
-          eventsLength: events?.length
-        });
+        // Disabled verbose logging for performance
+        // console.log(`🔍 Dashboard EventItem: Checking event ${event.id} (${event.title}):`, {
+        //   linkedTasks,
+        //   linkedTasksLength: linkedTasks.length,
+        //   eventsLength: events?.length
+        // });
         
         const prepTask = linkedTasks.find((task: any) => 
           task.eventId && task.eventId !== event.id
@@ -675,11 +679,11 @@ export function DashboardPage() {
       const response = await api.get('/user/dashboard')
       return response.data.data
     },
-    staleTime: 2 * 60 * 1000, // Consider data fresh for 2 minutes
-    gcTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: 5 * 60 * 1000, // Consider data fresh for 5 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes
     refetchOnWindowFocus: false, // Don't refetch on window focus
-    refetchOnMount: true, // Always refetch when component mounts
-    refetchInterval: 10 * 60 * 1000, // Refetch every 10 minutes
+    refetchOnMount: false, // Don't refetch on every mount
+    refetchInterval: 15 * 60 * 1000, // Refetch every 15 minutes
     retry: 1, // Only retry once for faster error handling
     retryDelay: 500, // Faster retry
     enabled: !!token && isHydrated // Only run if user is authenticated and store is hydrated
@@ -719,8 +723,10 @@ export function DashboardPage() {
       const response = await api.get('/gamification')
       return response.data.data
     },
-    staleTime: 30 * 1000, // 30 seconds - shorter for more frequent updates
-    enabled: !!token && isHydrated
+    staleTime: 5 * 60 * 1000, // 5 minutes - longer cache
+    gcTime: 10 * 60 * 1000, // 10 minutes
+    refetchOnWindowFocus: false,
+    enabled: !!token && isHydrated // Re-enabled for functionality
   })
 
 
@@ -1023,16 +1029,17 @@ export function DashboardPage() {
     }
   }, [queryClient, toast, allTasks])
 
-  // Fetch weather data for events
+  // Fetch weather data for events - DISABLED for performance
   const fetchEventWeather = useCallback(async (events: Event[], forceRefresh = false) => {
-    if (events.length === 0) return
+    // Disabled for performance - weather not critical for initial load
+    return
 
-    // Check if we already have recent weather data (within last 15 minutes) - unless force refresh
+    // Check if we already have recent weather data (within last hour) - unless force refresh
     const lastFetch = localStorage.getItem('event-weather-last-fetch')
     const cachedWeatherData = localStorage.getItem('event-weather-data')
     const now = Date.now()
     
-    if (!forceRefresh && lastFetch && cachedWeatherData && (now - parseInt(lastFetch)) < 15 * 60 * 1000) {
+    if (!forceRefresh && lastFetch && cachedWeatherData && (now - parseInt(lastFetch)) < 60 * 60 * 1000) { // 1 hour cache
       console.log('🌤️ Using cached event weather data')
       try {
         const parsedWeatherData = JSON.parse(cachedWeatherData)
@@ -1137,15 +1144,28 @@ export function DashboardPage() {
   // Get user location for weather
   const [userLocation, setUserLocation] = useState<{ lat: number; lon: number } | null>(null)
 
-  // Get user's location
+  // Get user's location and timezone
   useEffect(() => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
-        (position) => {
-          setUserLocation({
+        async (position) => {
+          const location = {
             lat: position.coords.latitude,
             lon: position.coords.longitude
-          })
+          }
+          setUserLocation(location)
+          
+          // Detect timezone from coordinates
+          try {
+            const timezoneInfo = await getTimezoneFromCoordinates(location.lat, location.lon)
+            if (timezoneInfo) {
+              console.log('🌍 Detected timezone:', timezoneInfo.timezone)
+              // Update user profile with detected timezone
+              // This could be sent to the backend to update the user's timezone preference
+            }
+          } catch (error) {
+            console.error('Error detecting timezone:', error)
+          }
         },
         (error) => {
           console.log('Location access denied or failed:', error)
@@ -1184,12 +1204,12 @@ export function DashboardPage() {
         }
       }
     },
-    enabled: !!userLocation, // Only fetch when we have location
-    staleTime: 15 * 60 * 1000, // 15 minutes - increased to reduce API calls
-    cacheTime: 30 * 60 * 1000, // Keep in cache for 30 minutes
+    enabled: false, // Disabled for performance - weather not critical for initial load
+    staleTime: 30 * 60 * 1000, // 30 minutes - much longer cache
+    cacheTime: 60 * 60 * 1000, // Keep in cache for 1 hour
     refetchOnWindowFocus: false,
-    retry: 2, // Retry failed requests twice
-    retryDelay: 2000, // Wait 2 seconds between retries
+    retry: 1, // Only retry once
+    retryDelay: 1000, // Faster retry
     onError: (error) => {
       console.error('Failed to fetch current weather:', error)
     }
@@ -1221,7 +1241,7 @@ export function DashboardPage() {
       console.log('🌤️ No forecast data available')
       return []
     },
-    enabled: !!userLocation, // Only fetch when we have location
+    enabled: false, // Disabled for performance - forecast not critical for initial load
     staleTime: 30 * 60 * 1000, // 30 minutes
     cacheTime: 60 * 60 * 1000, // Keep in cache for 1 hour
     refetchOnWindowFocus: false,
@@ -1302,10 +1322,12 @@ export function DashboardPage() {
     )
   }
 
-  if (isLoading) {
+  // Show loading state only for critical data
+  if (isLoading && !dashboardData) {
     return (
-      <div className="flex items-center justify-center h-64">
+      <div className="flex flex-col items-center justify-center h-64 space-y-4">
         <LoadingSpinner size="lg" />
+        <p className="text-gray-500 text-sm">Loading your dashboard...</p>
       </div>
     )
   }
@@ -1367,18 +1389,18 @@ export function DashboardPage() {
   const safeActiveStreaks = activeStreaks || []
   const safeUnreadNotifications = unreadNotifications || []
 
-  // Debug logging for dashboard events
-  console.log('🎉 Dashboard Events Debug:', {
-    totalEvents: safeUpcomingEvents.length,
-    events: safeUpcomingEvents.map(event => ({
-      id: event.id,
-      title: event.title,
-      startTime: event.startTime,
-      calendarProvider: event.calendarProvider,
-      isGoogleEvent: event.calendarProvider === 'google'
-    })),
-    googleEvents: safeUpcomingEvents.filter(e => e.calendarProvider === 'google')
-  })
+  // Debug logging for dashboard events - disabled for performance
+  // console.log('🎉 Dashboard Events Debug:', {
+  //   totalEvents: safeUpcomingEvents.length,
+  //   events: safeUpcomingEvents.map(event => ({
+  //     id: event.id,
+  //     title: event.title,
+  //     startTime: event.startTime,
+  //     calendarProvider: event.calendarProvider,
+  //     isGoogleEvent: event.calendarProvider === 'google'
+  //   })),
+  //   googleEvents: safeUpcomingEvents.filter(e => e.calendarProvider === 'google')
+  // })
 
   return (
     <div className="space-y-6">
@@ -1586,6 +1608,10 @@ export function DashboardPage() {
                       order={index + 1}
                       showOrder={true}
                       events={dashboardData?.upcomingEvents}
+                      onViewLineItems={(task) => {
+                        setSelectedTask(task);
+                        setIsTaskModalOpen(true);
+                      }}
                     />
                   ))}
                 {standardizedTasks.length > 5 && (
@@ -1715,6 +1741,9 @@ export function DashboardPage() {
         onEventUpdated={() => {
           queryClient.invalidateQueries({ queryKey: ['dashboard'] })
           queryClient.invalidateQueries({ queryKey: ['events'] })
+        }}
+        onEventCreated={(createdEvent) => {
+          setSelectedEvent(createdEvent)
         }}
       />
       

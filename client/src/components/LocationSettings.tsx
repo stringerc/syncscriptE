@@ -47,7 +47,7 @@ export function LocationSettings() {
       })
       return response.data.data
     },
-    enabled: !!locations.currentLocation
+    enabled: false // Disabled for performance
   })
 
   // Update locations mutation

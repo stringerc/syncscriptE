@@ -65,7 +65,7 @@ export function GoogleCalendarPage() {
       const response = await api.get('/calendar/providers')
       return response.data
     },
-    enabled: !!user && !!token,
+    enabled: false, // Disabled for performance
     retry: 1
   })
 
@@ -87,7 +87,7 @@ export function GoogleCalendarPage() {
       const response = await api.get('/user/profile')
       return response.data
     },
-    enabled: !!user && !!token
+    enabled: false // Disabled for performance - profile already loaded elsewhere
   })
 
   // Fetch auth URLs for all providers
@@ -98,7 +98,7 @@ export function GoogleCalendarPage() {
     const fetchAuthUrls = async () => {
       try {
         // Fetch Google auth URL
-        const googleResp = await api.get('/calendar-auth/google/url')
+        const googleResp = await api.get('/google-calendar/auth-url')
         setAuthUrl(googleResp.data.data.authUrl)
       } catch (error) {
         console.error('Failed to fetch Google auth URL:', error)
@@ -375,7 +375,7 @@ export function GoogleCalendarPage() {
               <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded">
                 <p className="text-sm text-yellow-800">
                   <strong>⚠️ Google OAuth Issue:</strong> redirect_uri_mismatch error. 
-                  Add <code className="bg-yellow-100 px-1 rounded">http://localhost:3000/google-callback</code> to Google Cloud Console authorized redirect URIs.
+                  Add <code className="bg-yellow-100 px-1 rounded">http://localhost:3000/callback</code> to Google Cloud Console authorized redirect URIs.
                 </p>
               </div>
             )}

@@ -14,9 +14,26 @@ export function GoogleCallbackPage() {
   const { login: authLogin } = useAuthStore()
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading')
   const [message, setMessage] = useState('')
+  const [isProcessing, setIsProcessing] = useState(false)
 
   useEffect(() => {
     const handleCallback = async () => {
+      // Check if user is already authenticated
+      const { user, token } = useAuthStore.getState()
+      if (user && token) {
+        console.log('🔐 GoogleCallback: User already authenticated, redirecting to dashboard')
+        navigate('/dashboard')
+        return
+      }
+      
+      // Prevent multiple simultaneous calls
+      if (isProcessing) {
+        console.log('🔐 GoogleCallback: Already processing, skipping duplicate call')
+        return
+      }
+      
+      setIsProcessing(true)
+      
       try {
         const code = searchParams.get('code')
         const error = searchParams.get('error')
@@ -29,8 +46,10 @@ export function GoogleCallbackPage() {
         }
 
         if (!code) {
-          setStatus('error')
-          setMessage('No authorization code received')
+          console.log('🔐 GoogleCallback: No authorization code, user may already be authenticated')
+          setStatus('success')
+          setMessage('Already authenticated')
+          setTimeout(() => navigate('/dashboard'), 1000)
           return
         }
 
@@ -50,11 +69,13 @@ export function GoogleCallbackPage() {
             localStorage.setItem('syncscript_user', JSON.stringify(user))
             localStorage.setItem('syncscript_token', token)
             
-            // Update auth store
-            authLogin({
-              user: user,
-              token: token
-            })
+              // Update auth store directly (don't call login function)
+              // The authLogin function expects email/password, but we have user/token from Google OAuth
+              // Use the store's setState method to update the state
+              useAuthStore.setState({ user, token, isLoading: false })
+              
+              // Set token in API client
+              api.defaults.headers.common['Authorization'] = `Bearer ${token}`
             
             setStatus('success')
             
@@ -134,11 +155,13 @@ export function GoogleCallbackPage() {
         console.error('Google callback error:', error)
         setStatus('error')
         setMessage('An error occurred while signing in with Google')
+      } finally {
+        setIsProcessing(false)
       }
     }
 
     handleCallback()
-  }, [searchParams, navigate, toast])
+  }, [searchParams, navigate, toast, authLogin]) // Removed isProcessing from dependencies
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">

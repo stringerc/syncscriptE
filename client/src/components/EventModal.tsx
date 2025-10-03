@@ -7,8 +7,8 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { useToast } from '@/hooks/use-toast'
 import { ConfirmationModal } from '@/components/ConfirmationModal'
+import { EventBudgetTab } from '@/components/budget/EventBudgetTab'
 import { TemplateRecommendations } from '@/components/TemplateRecommendations'
-import { SpeechToTextInput } from '@/components/SpeechToTextInput'
 import { X, Save, Trash2, Calendar, Clock, MapPin, DollarSign, Sparkles, Plus, CheckCircle, Circle, Edit3, Eye, Pin, PinOff, Mic } from 'lucide-react'
 
 interface Event {
@@ -27,9 +27,10 @@ interface EventModalProps {
   isOpen: boolean
   onClose: () => void
   onEventUpdated?: () => void
+  onEventCreated?: (createdEvent: Event) => void
 }
 
-export function EventModal({ event, isOpen, onClose, onEventUpdated }: EventModalProps) {
+export function EventModal({ event, isOpen, onClose, onEventUpdated, onEventCreated }: EventModalProps) {
   const { toast } = useToast()
   const queryClient = useQueryClient()
   const [isEditing, setIsEditing] = useState(false)
@@ -88,15 +89,44 @@ export function EventModal({ event, isOpen, onClose, onEventUpdated }: EventModa
       const response = await api.post('/calendar', data)
       return response.data
     },
-    onSuccess: () => {
+    onSuccess: async (data) => {
       queryClient.invalidateQueries({ queryKey: ['events'] })
       queryClient.invalidateQueries({ queryKey: ['calendar'] })
       queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+      
+      // Create pending prep tasks if any
+      if (pendingPrepTasks.length > 0) {
+        console.log('🎯 EventModal: Creating pending prep tasks:', pendingPrepTasks)
+        try {
+          for (const task of pendingPrepTasks) {
+            await api.post(`/tasks`, {
+              title: task.title,
+              description: task.description,
+              priority: task.priority,
+              eventId: data.data.id,
+              type: 'PREPARATION',
+              dueDate: data.data.startTime // Prep tasks must finish before event starts
+            })
+          }
+          console.log('🎯 EventModal: All pending prep tasks created successfully')
+        } catch (error) {
+          console.error('🎯 EventModal: Error creating pending prep tasks:', error)
+          toast({
+            title: "Warning",
+            description: "Event created but some preparation tasks failed to create",
+            variant: "destructive"
+          })
+        }
+      }
+      
       toast({
         title: "Event Created",
-        description: "Your event has been created successfully."
+        description: pendingPrepTasks.length > 0 
+          ? "Your event and preparation tasks have been created successfully."
+          : "Your event has been created successfully."
       })
-      onClose()
+      // Pass the created event back to the parent so it can update selectedEvent
+      onEventCreated?.(data.data)
       onEventUpdated?.()
     },
     onError: (error: any) => {
@@ -198,6 +228,7 @@ export function EventModal({ event, isOpen, onClose, onEventUpdated }: EventModa
   const [newTaskDescription, setNewTaskDescription] = useState('')
   const [newTaskPriority, setNewTaskPriority] = useState<'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT'>('MEDIUM')
   const [showAddTaskForm, setShowAddTaskForm] = useState(false)
+  const [pendingPrepTasks, setPendingPrepTasks] = useState<Array<{title: string, description: string, priority: string}>>([])
 
   const generatePreparationTasksMutation = useMutation({
     mutationFn: async () => {
@@ -251,14 +282,26 @@ export function EventModal({ event, isOpen, onClose, onEventUpdated }: EventModa
   // Create new preparation task
   const createPrepTaskMutation = useMutation({
     mutationFn: async (taskData: { title: string; description: string; priority: string }) => {
-      if (!event) throw new Error('No event to add task to')
+      console.log('🎯 EventModal: createPrepTaskMutation.mutationFn called')
+      console.log('🎯 EventModal: taskData:', taskData)
+      console.log('🎯 EventModal: event:', event)
+      
+      if (!event) {
+        console.log('🎯 EventModal: No event available in mutation')
+        throw new Error('No event to add task to')
+      }
+      
+      console.log('🎯 EventModal: Making API call to /tasks with eventId:', event.id)
       const response = await api.post('/tasks', {
         title: taskData.title,
         description: taskData.description,
         priority: taskData.priority,
         eventId: event.id,
-        status: 'PENDING'
+        type: 'PREPARATION',
+        status: 'PENDING',
+        dueDate: event.startTime // Prep tasks must finish before event starts
       })
+      console.log('🎯 EventModal: API response:', response.data)
       return response.data
     },
     onSuccess: () => {
@@ -276,9 +319,12 @@ export function EventModal({ event, isOpen, onClose, onEventUpdated }: EventModa
       setShowAddTaskForm(false)
     },
     onError: (error: any) => {
+      console.log('🎯 EventModal: createPrepTaskMutation error:', error)
+      console.log('🎯 EventModal: error.response:', error.response)
+      console.log('🎯 EventModal: error.message:', error.message)
       toast({
         title: "Failed to Add Task",
-        description: error.response?.data?.error || "Failed to add preparation task",
+        description: error.response?.data?.error || error.message || "Failed to add preparation task",
         variant: "destructive"
       })
     }
@@ -423,9 +469,21 @@ export function EventModal({ event, isOpen, onClose, onEventUpdated }: EventModa
       setIsListening(true)
       toast({
         title: "🎤 Listening...",
-        description: "Speak naturally about the event you want to create",
-        duration: 10000
+        description: "Speak naturally about the event you want to create. You have 10 seconds.",
+        duration: 3000
       })
+      
+      // Set a timeout to stop listening after 10 seconds
+      setTimeout(() => {
+        if (isListening) {
+          recognition.stop()
+          toast({
+            title: "⏰ Timeout",
+            description: "Voice input timed out. Please try again.",
+            variant: "destructive"
+          })
+        }
+      }, 10000)
     }
 
     recognition.onresult = (event: any) => {
@@ -437,14 +495,51 @@ export function EventModal({ event, isOpen, onClose, onEventUpdated }: EventModa
     recognition.onerror = (event: any) => {
       console.error('Speech recognition error:', event.error)
       setIsListening(false)
+      
+      // Handle different error types with user-friendly messages
+      let errorMessage = ''
+      switch (event.error) {
+        case 'no-speech':
+          errorMessage = 'No speech detected. Please try speaking louder or check your microphone.'
+          break
+        case 'audio-capture':
+          errorMessage = 'Microphone not accessible. Please check your microphone permissions.'
+          break
+        case 'not-allowed':
+          errorMessage = 'Microphone permission denied. Please allow microphone access and try again.'
+          break
+        case 'network':
+          errorMessage = 'Network error. Please check your internet connection.'
+          break
+        case 'aborted':
+          errorMessage = 'Voice input was cancelled.'
+          break
+        default:
+          errorMessage = `Speech recognition error: ${event.error}`
+      }
+      
       toast({
-        title: "Voice Error",
-        description: `Speech recognition error: ${event.error}`,
+        title: "Voice Input Issue",
+        description: errorMessage,
         variant: "destructive"
       })
     }
 
+    // Add a timeout to prevent indefinite listening
+    const timeoutId = setTimeout(() => {
+      if (isListening) {
+        recognition.stop()
+        toast({
+          title: "⏰ Timeout",
+          description: "Voice input timed out. Please try again.",
+          variant: "destructive"
+        })
+      }
+    }, 10000)
+    
+    // Clear timeout when recognition ends
     recognition.onend = () => {
+      clearTimeout(timeoutId)
       setIsListening(false)
     }
 
@@ -499,7 +594,14 @@ export function EventModal({ event, isOpen, onClose, onEventUpdated }: EventModa
 
   // Preparation task handlers
   const handleAddPrepTask = () => {
+    console.log('🎯 EventModal: handleAddPrepTask called')
+    console.log('🎯 EventModal: event:', event)
+    console.log('🎯 EventModal: newTaskTitle:', newTaskTitle)
+    console.log('🎯 EventModal: newTaskDescription:', newTaskDescription)
+    console.log('🎯 EventModal: newTaskPriority:', newTaskPriority)
+    
     if (!newTaskTitle.trim()) {
+      console.log('🎯 EventModal: Task title is empty, showing error')
       toast({
         title: "Error",
         description: "Task title is required",
@@ -507,11 +609,35 @@ export function EventModal({ event, isOpen, onClose, onEventUpdated }: EventModa
       })
       return
     }
-    createPrepTaskMutation.mutate({
-      title: newTaskTitle,
-      description: newTaskDescription,
-      priority: newTaskPriority
-    })
+    
+    if (event) {
+      // Event exists, create task immediately
+      console.log('🎯 EventModal: Event exists, calling createPrepTaskMutation.mutate')
+      createPrepTaskMutation.mutate({
+        title: newTaskTitle,
+        description: newTaskDescription,
+        priority: newTaskPriority
+      })
+    } else {
+      // No event yet, add to pending tasks
+      console.log('🎯 EventModal: No event yet, adding to pending tasks')
+      setPendingPrepTasks(prev => [...prev, {
+        title: newTaskTitle,
+        description: newTaskDescription,
+        priority: newTaskPriority
+      }])
+      
+      // Clear the form
+      setNewTaskTitle('')
+      setNewTaskDescription('')
+      setNewTaskPriority('MEDIUM')
+      setShowAddTaskForm(false)
+      
+      toast({
+        title: "Task Added",
+        description: "Task will be created when you save the event"
+      })
+    }
   }
 
   const handleEditPrepTask = (task: any) => {
@@ -555,7 +681,7 @@ export function EventModal({ event, isOpen, onClose, onEventUpdated }: EventModa
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-background rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+      <div className="bg-background rounded-lg shadow-xl max-w-4xl w-full max-h-[95vh] overflow-y-auto">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b">
           <div className="flex items-center space-x-2">
@@ -799,12 +925,26 @@ export function EventModal({ event, isOpen, onClose, onEventUpdated }: EventModa
             </div>
           )}
 
+          {/* Budget Tab - Only show for existing events */}
+          {event && !isEditing && (
+            <div className="mt-6">
+              <EventBudgetTab eventId={event.id} />
+            </div>
+          )}
+
           {/* Preparation Tasks - Always visible */}
           <div className="mt-4">
             <div className="flex items-center justify-between mb-2">
-              <h4 className="text-sm font-medium text-muted-foreground">Preparation Tasks:</h4>
+              <div>
+                <h4 className="text-sm font-medium text-muted-foreground">Preparation Tasks:</h4>
+                {event && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Must be completed before {new Date(event.startTime).toLocaleDateString()} at {new Date(event.startTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                  </p>
+                )}
+              </div>
               {console.log('🎯 EventModal: Rendering preparation tasks section, isEditing:', isEditing, 'showAddTaskForm:', showAddTaskForm, 'editingTaskId:', editingTaskId)}
-              {(isEditing || !event) && !showAddTaskForm && !editingTaskId && (
+              {(!event || isEditing) && !showAddTaskForm && !editingTaskId && (
                 <Button
                   size="sm"
                   variant="outline"
@@ -821,7 +961,7 @@ export function EventModal({ event, isOpen, onClose, onEventUpdated }: EventModa
             </div>
             
             {/* Add New Task Form */}
-            {(isEditing || !event) && showAddTaskForm && !editingTaskId && (
+            {(!event || isEditing) && showAddTaskForm && !editingTaskId && (
               <div className="border rounded-lg p-3 mb-3 bg-muted/50">
                 <div className="space-y-2">
                   <Input
@@ -931,9 +1071,10 @@ export function EventModal({ event, isOpen, onClose, onEventUpdated }: EventModa
 
             {/* Tasks List */}
             {console.log('🎯 EventModal: Rendering tasks list, preparationTasks:', preparationTasks, 'length:', preparationTasks?.length, 'isEditing:', isEditing)}
-            {preparationTasks && preparationTasks.length > 0 ? (
+            {(preparationTasks && preparationTasks.length > 0) || pendingPrepTasks.length > 0 ? (
               <ul className="space-y-1">
-                {preparationTasks
+                {/* Show existing preparation tasks */}
+                {preparationTasks && preparationTasks
                   .sort((a: any, b: any) => {
                     const priorityOrder = { URGENT: 4, HIGH: 3, MEDIUM: 2, LOW: 1 }
                     return priorityOrder[b.priority] - priorityOrder[a.priority]
@@ -980,6 +1121,29 @@ export function EventModal({ event, isOpen, onClose, onEventUpdated }: EventModa
                         </Button>
                       </div>
                     )}
+                  </li>
+                ))}
+                
+                {/* Show pending prep tasks */}
+                {pendingPrepTasks.map((task, index) => (
+                  <li key={`pending-${index}`} className="flex items-center space-x-2 text-sm">
+                    <Circle className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                    <span className="flex-1 text-muted-foreground italic">
+                      {task.title} (pending)
+                    </span>
+                    <div className="flex space-x-1">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => {
+                          setPendingPrepTasks(prev => prev.filter((_, i) => i !== index))
+                        }}
+                        className="h-6 w-6 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                        title="Remove pending task"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
                   </li>
                 ))}
               </ul>

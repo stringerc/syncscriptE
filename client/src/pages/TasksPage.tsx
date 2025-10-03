@@ -7,10 +7,13 @@ import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { CheckSquare, Plus, Clock, DollarSign, Zap, Trash2, Eye, EyeOff, CheckCircle, RotateCcw, Paperclip } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
-import { formatDate, formatDuration, formatCurrency, getPriorityColor } from '@/lib/utils'
+import { formatDate, formatDateTime, formatDuration, formatCurrency, getPriorityColor } from '@/lib/utils'
 import { buildHierarchicalPrepChain, isPrepTask, getEventTitleFromPrepTask } from '@/lib/prepChain'
 import { TaskModal } from '@/components/TaskModal'
 import { ResourcesDrawer } from '@/components/ResourcesDrawer'
+import BudgetChip from '@/components/budget/BudgetChip'
+import TaskBudgetDrawer from '@/components/budget/TaskBudgetDrawer'
+import { BudgetModal } from '@/components/budget/BudgetModal'
 import { Task, Priority } from '@/shared/types'
 
 export function TasksPage() {
@@ -27,6 +30,7 @@ export function TasksPage() {
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false)
   const [showCompletedTasks, setShowCompletedTasks] = useState(false)
   const [showDeletedTasks, setShowDeletedTasks] = useState(false)
+  const [budgetModalTaskId, setBudgetModalTaskId] = useState<string | null>(null)
   const [resourcesDrawerTaskId, setResourcesDrawerTaskId] = useState<string | null>(null)
 
   const { toast } = useToast()
@@ -224,9 +228,10 @@ export function TasksPage() {
       queryClient.invalidateQueries({ queryKey: ['tasks'] })
       queryClient.invalidateQueries({ queryKey: ['deleted-tasks'] })
       queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+      queryClient.invalidateQueries({ queryKey: ['user/dashboard'] })
       toast({
         title: "Task Restored!",
-        description: "Task has been restored successfully"
+        description: "The task has been restored successfully."
       })
     },
     onError: (error: any) => {
@@ -271,6 +276,35 @@ export function TasksPage() {
     }
   }
 
+  const uncompleteTaskMutation = useMutation({
+    mutationFn: async (taskId: string) => {
+      const response = await api.patch(`/tasks/${taskId}/uncomplete`)
+      return response.data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tasks'] })
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+      queryClient.invalidateQueries({ queryKey: ['user/dashboard'] })
+      toast({
+        title: "Task Uncompleted!",
+        description: "The task has been moved back to pending status."
+      })
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.response?.data?.error || "Failed to uncomplete task",
+        variant: "destructive"
+      })
+    }
+  })
+
+  const handleUncompleteTask = (taskId: string) => {
+    if (confirm('Are you sure you want to uncomplete this task?')) {
+      uncompleteTaskMutation.mutate(taskId)
+    }
+  }
+
   const handleViewTask = (taskId: string) => {
     const task = tasks?.find(t => t.id === taskId)
     if (task) {
@@ -292,6 +326,7 @@ export function TasksPage() {
   const handleTaskDeleted = (taskId: string) => {
     queryClient.invalidateQueries({ queryKey: ['tasks'] })
   }
+
 
   if (isLoading) {
     return (
@@ -469,14 +504,18 @@ export function TasksPage() {
                               <span>{task.energyRequired}/10</span>
                             </div>
                           )}
-                          {task.budgetImpact && (
+                          {task.budgetImpact && task.budgetImpact > 0 && (
                             <div className="flex items-center space-x-1">
                               <DollarSign className="w-3 h-3" />
-                              <span>{formatCurrency(task.budgetImpact)}</span>
+                              <span>${task.budgetImpact.toFixed(0)}</span>
                             </div>
                           )}
+                          <BudgetChip
+                            taskId={task.id}
+                            onClick={() => setBudgetModalTaskId(task.id)}
+                          />
                           {task.dueDate && (
-                            <span>Due: {formatDate(task.dueDate)}</span>
+                            <span>Due: {task.type === 'PREPARATION' ? formatDateTime(task.dueDate) : formatDate(task.dueDate)}</span>
                           )}
                         </div>
                       </div>
@@ -491,6 +530,16 @@ export function TasksPage() {
                             title="View task details"
                           >
                             <Eye className="w-4 h-4" />
+                          </Button>
+                          
+                          {/* Resources Button */}
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            onClick={() => setResourcesDrawerTaskId(task.id)}
+                            title="View task resources"
+                          >
+                            <Paperclip className="w-4 h-4" />
                           </Button>
                           
                           {/* Complete Button */}
@@ -643,6 +692,32 @@ export function TasksPage() {
                                     <Eye className="w-4 h-4" />
                                   </Button>
                                   
+                                  {/* Resources Button */}
+                                  <Button 
+                                    size="sm" 
+                                    variant="outline"
+                                    onClick={() => setResourcesDrawerTaskId(task.id)}
+                                    title="View task resources"
+                                  >
+                                    <Paperclip className="w-4 h-4" />
+                                  </Button>
+                                  
+                                  {/* Uncomplete Button */}
+                                  <Button 
+                                    size="sm" 
+                                    variant="default"
+                                    onClick={() => handleUncompleteTask(task.id)}
+                                    disabled={uncompleteTaskMutation.isPending}
+                                    className="bg-green-600 hover:bg-green-700"
+                                    title="Uncomplete task"
+                                  >
+                                    {uncompleteTaskMutation.isPending ? (
+                                      <div className="w-4 h-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                                    ) : (
+                                      <RotateCcw className="w-4 h-4" />
+                                    )}
+                                  </Button>
+                                  
                                   {/* Delete Button */}
                                   <Button 
                                     size="sm" 
@@ -782,15 +857,30 @@ export function TasksPage() {
                                     <Eye className="w-4 h-4" />
                                   </Button>
                                   
+                                  {/* Resources Button */}
+                                  <Button 
+                                    size="sm" 
+                                    variant="outline"
+                                    onClick={() => setResourcesDrawerTaskId(task.id)}
+                                    title="View task resources"
+                                  >
+                                    <Paperclip className="w-4 h-4" />
+                                  </Button>
+                                  
                                   {/* Restore Button */}
                                   <Button 
                                     size="sm" 
                                     variant="default"
                                     onClick={() => handleRestoreTask(task.id)}
-                                    className="bg-green-600 hover:bg-green-700"
+                                    disabled={restoreTaskMutation.isPending}
+                                    className="bg-red-600 hover:bg-red-700"
                                     title="Restore task"
                                   >
-                                    <RotateCcw className="w-4 h-4" />
+                                    {restoreTaskMutation.isPending ? (
+                                      <div className="w-4 h-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                                    ) : (
+                                      <RotateCcw className="w-4 h-4" />
+                                    )}
                                   </Button>
                                 </div>
                                 
@@ -825,6 +915,12 @@ export function TasksPage() {
         taskId={resourcesDrawerTaskId || ''}
         isOpen={!!resourcesDrawerTaskId}
         onClose={() => setResourcesDrawerTaskId(null)}
+      />
+      
+      <BudgetModal
+        taskId={budgetModalTaskId || ''}
+        isOpen={!!budgetModalTaskId}
+        onClose={() => setBudgetModalTaskId(null)}
       />
     </div>
   )

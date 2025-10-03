@@ -100,7 +100,7 @@ export function Header() {
       const response = await api.get(`/location/weather/current${locationParam}`)
       return response.data.data || response.data
     },
-    enabled: !isDashboard, // Only fetch weather if not on dashboard
+    enabled: false, // Disabled for performance
     staleTime: 10 * 60 * 1000, // 10 minutes
     refetchOnWindowFocus: false,
   })
@@ -112,7 +112,7 @@ export function Header() {
       const response = await api.get('/gamification')
       return response.data.data
     },
-    enabled: !isDashboard, // Only fetch if not on dashboard
+    enabled: false, // Disabled for performance
     staleTime: 30 * 1000, // 30 seconds
   })
 

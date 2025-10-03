@@ -62,6 +62,7 @@ export const useAuthStore = create<AuthStore>()(
             })
           }
           
+          console.log('🔐 AuthStore: Sending login request with:', { email, password, emailType: typeof email, passwordType: typeof password })
           const response = await api.post('/auth/login', { email, password })
           const { user, token } = response.data.data
           

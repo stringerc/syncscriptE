@@ -55,7 +55,15 @@ export function AuthPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    console.log('🔐 AuthPage: handleSubmit called', { isLogin, hasEmail: !!formData.email, hasPassword: !!formData.password })
+    console.log('🔐 AuthPage: handleSubmit called', { 
+      isLogin, 
+      hasEmail: !!formData.email, 
+      hasPassword: !!formData.password,
+      emailType: typeof formData.email,
+      passwordType: typeof formData.password,
+      emailValue: formData.email,
+      passwordValue: formData.password
+    })
     clearError()
     
     // Clear any previous debug error
@@ -65,7 +73,23 @@ export function AuthPage() {
     try {
       if (isLogin) {
         console.log('🔐 AuthPage: Calling login function')
-        const result = await login(formData.email, formData.password)
+        
+        // Ensure email and password are strings
+        const email = String(formData.email || '')
+        const password = String(formData.password || '')
+        
+        console.log('🔐 AuthPage: Sanitized data:', {
+          email: email,
+          password: password,
+          emailType: typeof email,
+          passwordType: typeof password
+        })
+        
+        if (!email || !password) {
+          throw new Error('Email and password are required')
+        }
+        
+        const result = await login(email, password)
         if (result && !result.success) {
           // Login failed, error is already set in store
           console.log('🔐 AuthPage: Login failed, error:', result.error)
@@ -84,7 +108,26 @@ export function AuthPage() {
         })
       } else {
         console.log('🔐 AuthPage: Calling register function')
-        await register(formData.email, formData.password, formData.name)
+        
+        // Ensure email, password, and name are strings
+        const email = String(formData.email || '')
+        const password = String(formData.password || '')
+        const name = String(formData.name || '')
+        
+        console.log('🔐 AuthPage: Sanitized register data:', {
+          email: email,
+          password: password,
+          name: name,
+          emailType: typeof email,
+          passwordType: typeof password,
+          nameType: typeof name
+        })
+        
+        if (!email || !password || !name) {
+          throw new Error('Email, password, and name are required')
+        }
+        
+        await register(email, password, name)
         console.log('🔐 AuthPage: Registration successful')
         toast({
           title: "Welcome to SyncScript!",
@@ -112,10 +155,19 @@ export function AuthPage() {
   }
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData(prev => ({
-      ...prev,
-      [e.target.name]: e.target.value
-    }))
+    console.log('🔐 Input change:', {
+      name: e.target.name,
+      value: e.target.value,
+      valueType: typeof e.target.value
+    })
+    setFormData(prev => {
+      const newData = {
+        ...prev,
+        [e.target.name]: e.target.value
+      }
+      console.log('🔐 Updated form data:', newData)
+      return newData
+    })
   }
 
   return (
@@ -242,6 +294,31 @@ export function AuthPage() {
                  </div>
                )}
 
+              <Button
+                type="button"
+                className="w-full mb-2"
+                variant="outline"
+                onClick={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  try {
+                    console.log('🔐 Test form data:', {
+                      email: formData.email,
+                      password: formData.password,
+                      emailType: typeof formData.email,
+                      passwordType: typeof formData.password,
+                      formDataObject: formData
+                    })
+                    alert(`Email: ${formData.email} (${typeof formData.email})\nPassword: ${formData.password} (${typeof formData.password})`)
+                  } catch (error) {
+                    console.error('🔐 Test button error:', error)
+                    alert('Error testing form data: ' + error.message)
+                  }
+                }}
+              >
+                Test Form Data
+              </Button>
+              
               <Button 
                 type="submit" 
                 className="w-full" 
@@ -274,18 +351,18 @@ export function AuthPage() {
                 className="w-full"
                 onClick={async () => {
                   try {
-                    console.log('🔐 AuthPage: Starting Google OAuth flow (mock)')
+                    console.log('🔐 AuthPage: Starting real Google OAuth flow')
                     
-                    // For now, simulate Google OAuth by directly going to callback
-                    // In a real implementation, this would redirect to Google
-                    console.log('🔐 AuthPage: Simulating Google OAuth redirect')
+                    // Get the real Google OAuth URL from the backend
+                    const response = await fetch('/api/google-calendar/auth-url')
+                    const data = await response.json()
                     
-                    // Simulate the Google OAuth callback with mock data
-                    const mockCode = 'mock_google_code_' + Date.now()
-                    const mockState = 'mock_state_' + Date.now()
-                    
-                    // Redirect to callback page with mock parameters
-                    window.location.href = `/google-callback?code=${mockCode}&state=${mockState}`
+                    if (data.success && data.data.authUrl) {
+                      console.log('🔐 AuthPage: Redirecting to Google OAuth URL')
+                      window.location.href = data.data.authUrl
+                    } else {
+                      throw new Error(data.error || 'Failed to get Google OAuth URL')
+                    }
                     
                   } catch (error) {
                     console.error('🔐 AuthPage: Google OAuth error:', error)

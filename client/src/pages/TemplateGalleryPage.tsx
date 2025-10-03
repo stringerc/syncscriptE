@@ -8,7 +8,7 @@ import { Select } from '@/components/ui/select'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { useToast } from '@/hooks/use-toast'
-import { Search, BookTemplate, Play, Eye, TrendingUp, Star } from 'lucide-react'
+import { DollarSign, BookTemplate, Star, Search, TrendingUp, Eye, Play } from 'lucide-react'
 import { useState } from 'react'
 import { useFeatureFlags } from '@/contexts/FeatureFlagsContext'
 
@@ -276,6 +276,14 @@ export function TemplateGalleryPage() {
                     <CardDescription className="mt-1">
                       {template.description || 'No description'}
                     </CardDescription>
+                    {template.estimatedBudget && (
+                      <div className="flex items-center gap-1 mt-2">
+                        <DollarSign className="w-4 h-4 text-green-600" />
+                        <span className="text-sm text-green-600 font-medium">
+                          Est. Budget: ${template.estimatedBudget}
+                        </span>
+                      </div>
+                    )}
                   </div>
                   <div className="flex items-center gap-2">
                     {viewMode === 'my-scripts' && (

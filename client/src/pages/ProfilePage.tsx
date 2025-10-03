@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -11,6 +11,7 @@ import { Separator } from '@/components/ui/separator'
 import { useToast } from '@/hooks/use-toast'
 import { useTheme } from '@/contexts/ThemeContext'
 import { LocationSettings } from '@/components/LocationSettings'
+import { getCurrentTimezone } from '@/utils/timezone'
 import { 
   User, 
   Mail, 
@@ -172,6 +173,30 @@ export function ProfilePage() {
       })
     }
   })
+
+  // Auto-detect timezone from user's location
+  useEffect(() => {
+    const detectTimezone = async () => {
+      try {
+        const timezoneInfo = await getCurrentTimezone()
+        if (timezoneInfo && timezoneInfo.timezone !== 'UTC') {
+          console.log('🌍 Auto-detected timezone:', timezoneInfo.timezone)
+          // Update form data with detected timezone
+          setFormData(prev => ({
+            ...prev,
+            timezone: timezoneInfo.timezone
+          }))
+          
+          // Optionally auto-save the timezone
+          // updateProfileMutation.mutate({ timezone: timezoneInfo.timezone })
+        }
+      } catch (error) {
+        console.error('Error detecting timezone:', error)
+      }
+    }
+
+    detectTimezone()
+  }, [])
 
   // Initialize form data when profile loads
   if (profile && !formData.name) {

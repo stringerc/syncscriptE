@@ -9,6 +9,8 @@ import { DashboardPage } from '@/pages/DashboardPage'
 import { TasksPage } from '@/pages/TasksPage'
 import { CalendarPage } from '@/pages/CalendarPage'
 import { GoogleCalendarPage } from '@/pages/GoogleCalendarPage'
+import MultiCalendarPage from '@/pages/MultiCalendarPage'
+import { ExportPage } from '@/pages/ExportPage'
 import { FinancialPage } from '@/pages/FinancialPage'
 import { SettingsPage } from '@/pages/SettingsPage'
 import { ProfilePage } from '@/pages/ProfilePage'
@@ -77,7 +79,7 @@ function AppContent() {
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/reset-password" element={<PasswordResetPage />} />
         <Route path="/verify-email" element={<VerifyEmailPage />} />
-        <Route path="/google-callback" element={<GoogleCallbackPage />} />
+        <Route path="/callback" element={<GoogleCallbackPage />} />
         <Route path="*" element={<Navigate to="/auth" replace />} />
       </Routes>
     )
@@ -95,6 +97,8 @@ function AppContent() {
             <Route path="/tasks" element={<TasksPage />} />
             <Route path="/calendar" element={<CalendarPage />} />
             <Route path="/google-calendar" element={<GoogleCalendarPage />} />
+            <Route path="/multi-calendar" element={<MultiCalendarPage />} />
+        <Route path="/export" element={<ExportPage />} />
             <Route path="/financial" element={<FinancialPage />} />
             <Route path="/ai-assistant" element={<AIAssistantPage />} />
             <Route path="/energy-analysis" element={<EnergyAnalysisPage />} />
@@ -112,7 +116,7 @@ function AppContent() {
             <Route path="/faq" element={<FAQPage />} />
             <Route path="/privacy" element={<PrivacyPage />} />
             <Route path="/verify-email" element={<VerifyEmailPage />} />
-            <Route path="/google-callback" element={<GoogleCallbackPage />} />
+            <Route path="/callback" element={<GoogleCallbackPage />} />
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Routes>
           <FeedbackButton />

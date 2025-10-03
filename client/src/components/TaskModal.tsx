@@ -7,11 +7,16 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { useToast } from '@/hooks/use-toast'
 import { ConfirmationModal } from '@/components/ConfirmationModal'
-import { ResourcesBadge } from '@/components/ResourcesBadge'
 import { ResourcesDrawer } from '@/components/ResourcesDrawer'
+import { ResourcesBadge } from '@/components/ResourcesBadge'
+import BudgetChip from '@/components/budget/BudgetChip'
+import { BudgetModal } from '@/components/budget/BudgetModal'
+import { BudgetSummary } from '@/components/budget/BudgetSummary'
+import { LineItemsViewer } from '@/components/budget/LineItemsViewer'
 import { InlineSuggestions } from '@/components/InlineSuggestions'
 import { SpeechToTextInput } from '@/components/SpeechToTextInput'
 import { buildPrepChainTitle, isPrepTask } from '@/lib/prepChain'
+import { formatDateTime } from '@/lib/utils'
 import { 
   X, 
   Save, 
@@ -46,6 +51,8 @@ export function TaskModal({ task, isOpen, onClose, onTaskUpdated, onTaskDeleted 
   const queryClient = useQueryClient()
   const [isEditing, setIsEditing] = useState(false)
   const [resourcesDrawerOpen, setResourcesDrawerOpen] = useState(false)
+  const [budgetModalOpen, setBudgetModalOpen] = useState(false)
+  const [lineItemsViewerOpen, setLineItemsViewerOpen] = useState(false)
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -187,6 +194,40 @@ export function TaskModal({ task, isOpen, onClose, onTaskUpdated, onTaskDeleted 
     }
   })
 
+  const uncompleteTaskMutation = useMutation({
+    mutationFn: async () => {
+      if (!task) throw new Error('No task to uncomplete')
+      console.log('🎯 TaskModal: Calling API to uncomplete task:', task.id)
+      const response = await api.patch(`/tasks/${task.id}/uncomplete`)
+      console.log('🎯 TaskModal: API response:', response.data)
+      return response.data
+    },
+    onSuccess: (data) => {
+      console.log('🎯 TaskModal: Task uncompletion successful:', data)
+      toast({
+        title: "Task Uncompleted",
+        description: "Task has been reverted to pending status"
+      })
+      // Invalidate all task-related queries
+      queryClient.invalidateQueries({ queryKey: ['tasks'] })
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+      queryClient.invalidateQueries({ queryKey: ['user/dashboard'] })
+      queryClient.invalidateQueries({ queryKey: ['gamification'] })
+      queryClient.invalidateQueries({ queryKey: ['notifications'] })
+      // Close modal after successful uncompletion
+      onClose()
+      onTaskUpdated?.(data.data)
+    },
+    onError: (error: any) => {
+      console.error('🎯 TaskModal: Task uncompletion failed:', error)
+      toast({
+        title: "Failed to Uncomplete Task",
+        description: error.response?.data?.error || "Failed to uncomplete task",
+        variant: "destructive"
+      })
+    }
+  })
+
   const suggestCalendarEventMutation = useMutation({
     mutationFn: async () => {
       if (!task) throw new Error('No task to suggest calendar event for')
@@ -248,13 +289,18 @@ export function TaskModal({ task, isOpen, onClose, onTaskUpdated, onTaskDeleted 
         title: task.title.replace(/^Prep for:\s*/i, ''), // Keep clean title, event relationship shown separately
         // Keep all other task properties unchanged
         description: task.description,
-        priority: task.priority,
-        estimatedDuration: task.estimatedDuration
+        priority: task.priority
       }
       
       // Only include optional fields if they have values (not null/undefined)
       if (task.energyRequired !== null && task.energyRequired !== undefined) {
         updateData.energyRequired = task.energyRequired
+      }
+      if (task.budgetImpact !== null && task.budgetImpact !== undefined) {
+        updateData.budgetImpact = task.budgetImpact
+      }
+      if (task.estimatedDuration !== null && task.estimatedDuration !== undefined) {
+        updateData.estimatedDuration = task.estimatedDuration
       }
       if (task.location !== null && task.location !== undefined && task.location !== '') {
         updateData.location = task.location
@@ -427,6 +473,11 @@ export function TaskModal({ task, isOpen, onClose, onTaskUpdated, onTaskDeleted 
     completeTaskMutation.mutate()
   }
 
+  const handleUncomplete = () => {
+    console.log('🎯 TaskModal: Uncomplete button clicked for task:', task?.id, task?.title)
+    uncompleteTaskMutation.mutate()
+  }
+
   const handleEdit = () => {
     setIsEditing(true)
   }
@@ -503,8 +554,8 @@ export function TaskModal({ task, isOpen, onClose, onTaskUpdated, onTaskDeleted 
             )}
           </div>
           <div className="flex items-center space-x-2">
-            {/* Voice Input Button - Show when creating new task */}
-            {!task && (
+            {/* Voice Input Button - Show when creating new task or editing existing task */}
+            {(!task || isEditing) && (
               <Button
                 variant="outline"
                 size="sm"
@@ -520,7 +571,7 @@ export function TaskModal({ task, isOpen, onClose, onTaskUpdated, onTaskDeleted 
                 ) : (
                   <>
                     <Mic className="w-4 h-4" />
-                    Voice Create
+                    {!task ? 'Voice Create' : 'Voice Edit'}
                   </>
                 )}
               </Button>
@@ -561,6 +612,14 @@ export function TaskModal({ task, isOpen, onClose, onTaskUpdated, onTaskDeleted 
                 onClick={handleOpenResources}
                 alwaysShow={true}
                 resourceNames={resourceNames}
+              />
+            )}
+            {task && (
+              <BudgetChip
+                taskId={task.id}
+                onClick={() => setBudgetModalOpen(true)}
+                className="ml-2"
+                editMode={isEditing}
               />
             )}
             <Button variant="ghost" size="icon" onClick={handleClose}>
@@ -682,6 +741,10 @@ export function TaskModal({ task, isOpen, onClose, onTaskUpdated, onTaskDeleted 
                   </div>
                 )}
 
+                {task && (
+                  <BudgetSummary taskId={task.id} />
+                )}
+
                 {task?.notes && (
                   <div className="mt-4">
                     <h4 className="font-medium mb-2">Notes</h4>
@@ -694,7 +757,7 @@ export function TaskModal({ task, isOpen, onClose, onTaskUpdated, onTaskDeleted 
                 {task?.dueDate && (
                   <div className="flex items-center space-x-2">
                     <Calendar className="w-4 h-4 text-muted-foreground" />
-                    <span className="text-sm">Due: {new Date(task.dueDate).toLocaleDateString()}</span>
+                    <span className="text-sm">Due: {task.type === 'PREPARATION' ? formatDateTime(task.dueDate) : new Date(task.dueDate).toLocaleDateString()}</span>
                   </div>
                 )}
               </div>
@@ -860,7 +923,7 @@ export function TaskModal({ task, isOpen, onClose, onTaskUpdated, onTaskDeleted 
                   <Sparkles className="w-4 h-4 mr-2" />
                   {suggestCalendarEventMutation.isPending ? 'Analyzing...' : 'Suggest Calendar Event'}
                 </Button>
-                {task.status !== 'COMPLETED' && (
+                {task.status !== 'COMPLETED' ? (
                   <Button
                     onClick={() => {
                       console.log('🎯 BUTTON CLICKED: Complete Task button clicked!')
@@ -872,6 +935,19 @@ export function TaskModal({ task, isOpen, onClose, onTaskUpdated, onTaskDeleted 
                   >
                     <CheckSquare className="w-4 h-4 mr-2" />
                     {completeTaskMutation.isPending ? 'Completing...' : 'Complete Task'}
+                  </Button>
+                ) : (
+                  <Button
+                    onClick={() => {
+                      console.log('🎯 BUTTON CLICKED: Uncomplete Task button clicked!')
+                      handleUncomplete()
+                    }}
+                    disabled={uncompleteTaskMutation.isPending}
+                    className="bg-orange-600 hover:bg-orange-700"
+                    size="sm"
+                  >
+                    <CheckSquare className="w-4 h-4 mr-2" />
+                    {uncompleteTaskMutation.isPending ? 'Uncompleting...' : 'Uncomplete Task'}
                   </Button>
                 )}
               </>
@@ -943,6 +1019,24 @@ export function TaskModal({ task, isOpen, onClose, onTaskUpdated, onTaskDeleted 
           taskId={task.id}
           isOpen={resourcesDrawerOpen}
           onClose={handleCloseResources}
+        />
+      )}
+      
+      {/* Budget Modal */}
+      {task && (
+        <BudgetModal
+          taskId={task.id}
+          isOpen={budgetModalOpen}
+          onClose={() => setBudgetModalOpen(false)}
+        />
+      )}
+      
+      {/* Line Items Viewer */}
+      {task && (
+        <LineItemsViewer
+          taskId={task.id}
+          isOpen={lineItemsViewerOpen}
+          onClose={() => setLineItemsViewerOpen(false)}
         />
       )}
     </div>

@@ -73,6 +73,16 @@ export function BriefModal({ isOpen, onClose, type }: BriefModalProps) {
     retry: false
   });
 
+  // Fetch budget insights
+  const { data: budgetInsights } = useQuery({
+    queryKey: ['budget-insights'],
+    queryFn: async () => {
+      const response = await api.get('/budget/insights');
+      return response.data;
+    },
+    enabled: isOpen
+  });
+
   // Take action mutation
   const actionMutation = useMutation({
     mutationFn: async ({ cardId, action }: any) => {
@@ -178,6 +188,48 @@ export function BriefModal({ isOpen, onClose, type }: BriefModalProps) {
             </div>
           ) : (
             <div className="p-6 space-y-4">
+              {/* Budget Insights Card */}
+              {budgetInsights && (
+                <Card className="bg-green-50 border-green-200 border-2">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-start gap-3">
+                      <div className="p-2 rounded-lg bg-green-500">
+                        <DollarSign className="w-5 h-5 text-white" />
+                      </div>
+                      <div className="flex-1">
+                        <CardTitle className="text-lg">Budget Insights</CardTitle>
+                        <CardDescription className="mt-1">
+                          Your budget status and recommendations
+                        </CardDescription>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2">
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm text-green-700">Total Budget Used:</span>
+                        <span className="font-medium text-green-800">
+                          ${budgetInsights.totalUsed || 0} / ${budgetInsights.totalBudget || 0}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm text-green-700">Remaining Budget:</span>
+                        <span className="font-medium text-green-800">
+                          ${budgetInsights.remaining || 0}
+                        </span>
+                      </div>
+                      {budgetInsights.alerts && budgetInsights.alerts.length > 0 && (
+                        <div className="mt-3 p-2 bg-yellow-100 border border-yellow-300 rounded">
+                          <p className="text-sm text-yellow-800">
+                            ⚠️ {budgetInsights.alerts[0]}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
               {cards.map((card: any, index: number) => {
                 const Icon = getIcon(card.icon);
                 const isExpanded = expandedCard === card.id;

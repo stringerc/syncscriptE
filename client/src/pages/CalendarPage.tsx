@@ -624,7 +624,7 @@ export function CalendarPage() {
                         {event.budgetImpact !== null && event.budgetImpact !== undefined && event.budgetImpact > 0 && (
                           <div className="flex items-center space-x-1">
                             <DollarSign className="w-3 h-3" />
-                            <span>{formatCurrency(event.budgetImpact)}</span>
+                            <span>${event.budgetImpact.toFixed(0)}</span>
                           </div>
                         )}
                       </div>
@@ -726,6 +726,9 @@ export function CalendarPage() {
           onClose={handleCloseModal}
           onEventUpdated={() => {
             queryClient.invalidateQueries({ queryKey: ['events'] })
+          }}
+          onEventCreated={(createdEvent) => {
+            setSelectedEvent(createdEvent)
           }}
         />
 

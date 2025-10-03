@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Separator } from '@/components/ui/separator'
 import { useToast } from '@/hooks/use-toast'
+import { getCurrentTimezone } from '@/utils/timezone'
 import { User, Bell, Shield, Palette, Save, Loader2 } from 'lucide-react'
 import { useAuthStore } from '@/stores/authStore'
 
@@ -89,6 +90,26 @@ export function SettingsPage() {
       })
     }
   }, [profile])
+
+  // Auto-detect timezone from user's location
+  useEffect(() => {
+    const detectTimezone = async () => {
+      try {
+        const timezoneInfo = await getCurrentTimezone()
+        if (timezoneInfo && timezoneInfo.timezone !== 'UTC') {
+          console.log('🌍 Auto-detected timezone:', timezoneInfo.timezone)
+          setProfileData(prev => ({
+            ...prev,
+            timezone: timezoneInfo.timezone
+          }))
+        }
+      } catch (error) {
+        console.error('Error detecting timezone:', error)
+      }
+    }
+
+    detectTimezone()
+  }, [])
 
   useEffect(() => {
     if (settings) {

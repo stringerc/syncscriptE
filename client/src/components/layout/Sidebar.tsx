@@ -13,19 +13,22 @@ import {
   BookTemplate,
   Folder,
   ExternalLink,
-  Zap
+  Zap,
+  Download
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/stores/authStore'
 import { useQueryClient } from '@tanstack/react-query'
 import api from '@/lib/api'
 import { useSidebar } from '@/contexts/SidebarContext'
+import { SyncScriptLogo } from '@/components/SyncScriptLogo'
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Tasks', href: '/tasks', icon: CheckSquare },
   { name: 'Calendar', href: '/calendar', icon: Calendar },
-  { name: 'Calendar Sync', href: '/google-calendar', icon: ExternalLink },
+    { name: 'Multi-Calendar', href: '/multi-calendar', icon: ExternalLink },
+    { name: 'Export', href: '/export', icon: Download },
   { name: 'Financial', href: '/financial', icon: DollarSign, comingSoon: true },
   { name: 'AI Assistant', href: '/ai-assistant', icon: Brain },
   { name: 'Energy Analysis', href: '/energy-analysis', icon: Zap, comingSoon: true },
@@ -122,9 +125,7 @@ export function Sidebar() {
       {/* Logo */}
       <div className="p-6 border-b border-border flex-shrink-0">
         <div className="flex items-center space-x-2">
-          <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-            <Brain className="w-5 h-5 text-primary-foreground" />
-          </div>
+          <SyncScriptLogo size="md" />
           <div>
             <h1 className="text-xl font-bold text-foreground">SyncScript</h1>
             <p className="text-xs text-muted-foreground">AI Life Manager</p>

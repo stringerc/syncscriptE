@@ -1,7 +1,7 @@
 import React from 'react'
 import { NotificationPreferences } from '@/components/notifications/NotificationPreferences'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Bell, Settings, Activity } from 'lucide-react'
+import { DollarSign, AlertTriangle, Bell, Activity, Settings } from 'lucide-react'
 import { useNotifications } from '@/contexts/NotificationContext'
 
 const NotificationsPage: React.FC = () => {
@@ -19,7 +19,7 @@ const NotificationsPage: React.FC = () => {
       </div>
 
       {/* Quick Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Notifications</CardTitle>
@@ -62,7 +62,57 @@ const NotificationsPage: React.FC = () => {
             </p>
           </CardContent>
         </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Budget Alerts</CardTitle>
+            <DollarSign className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {isLoading ? '...' : (stats?.budgetAlerts || 0)}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Over budget warnings
+            </p>
+          </CardContent>
+        </Card>
       </div>
+
+      {/* Budget Notifications Section */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <DollarSign className="h-5 w-5 text-green-600" />
+            Budget Notifications
+          </CardTitle>
+          <CardDescription>
+            Stay informed about budget-related alerts and updates
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <div className="flex items-center gap-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <AlertTriangle className="h-5 w-5 text-yellow-600" />
+              <div>
+                <p className="font-medium text-yellow-800">Budget Overrun Alert</p>
+                <p className="text-sm text-yellow-700">
+                  Event "Conference 2024" has exceeded its budget by $500
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3 p-3 bg-green-50 border border-green-200 rounded-lg">
+              <DollarSign className="h-5 w-5 text-green-600" />
+              <div>
+                <p className="font-medium text-green-800">Budget Update</p>
+                <p className="text-sm text-green-700">
+                  Task "Catering" budget updated to $1,200
+                </p>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Notification List */}
       <Card>
