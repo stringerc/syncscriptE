@@ -9,9 +9,40 @@ import { prisma } from '../utils/prisma';
 const router = Router();
 
 /**
+ * Document templates for professional exports
+ */
+const DOCUMENT_TEMPLATES = {
+  'executive-summary': {
+    name: 'Executive Summary',
+    description: 'Clean, professional format for leadership and stakeholders',
+    icon: '📊'
+  },
+  'detailed-report': {
+    name: 'Detailed Report',
+    description: 'Comprehensive format with all task details and analysis',
+    icon: '📋'
+  },
+  'vendor-packet': {
+    name: 'Vendor Packet',
+    description: 'Professional format for external vendors and contractors',
+    icon: '🤝'
+  },
+  'team-checklist': {
+    name: 'Team Checklist',
+    description: 'Action-oriented format for team members and execution',
+    icon: '✅'
+  },
+  'client-presentation': {
+    name: 'Client Presentation',
+    description: 'Polished format for client meetings and presentations',
+    icon: '🎯'
+  }
+};
+
+/**
  * Generate preview content for export
  */
-async function generatePreviewContent(userId: string, exportType: string, scope: any, audiencePreset: string, sections: string[]) {
+async function generatePreviewContent(userId: string, exportType: string, scope: any, audiencePreset: string, sections: string[], template?: string) {
   const { PrismaClient } = await import('@prisma/client');
   const prisma = new PrismaClient();
 
@@ -37,30 +68,30 @@ async function generatePreviewContent(userId: string, exportType: string, scope:
 
       title = `Task: ${task.title}`;
       
-      // Generate content based on export type
+      // Generate content based on export type and template
       switch (exportType.toLowerCase()) {
         case 'pdf':
-          content = generatePDFPreview(task, audiencePreset);
+          content = generatePDFPreview(task, audiencePreset, template);
           estimatedSize = 5000;
           estimatedTime = '2-3 minutes';
           break;
         case 'csv':
-          content = generateCSVPreview(task, audiencePreset);
+          content = generateCSVPreview(task, audiencePreset, template);
           estimatedSize = 2000;
           estimatedTime = '1 minute';
           break;
         case 'markdown':
-          content = generateMarkdownPreview(task, audiencePreset);
+          content = generateMarkdownPreview(task, audiencePreset, template);
           estimatedSize = 3000;
           estimatedTime = '1-2 minutes';
           break;
         case 'json':
-          content = generateJSONPreview(task, audiencePreset);
+          content = generateJSONPreview(task, audiencePreset, template);
           estimatedSize = 4000;
           estimatedTime = '1 minute';
           break;
         default:
-          content = generateGenericPreview(task, audiencePreset);
+          content = generateGenericPreview(task, audiencePreset, template);
       }
     } else if (scope.type === 'tasks' && scope.ids) {
       const tasks = await prisma.task.findMany({
@@ -109,45 +140,289 @@ async function generatePreviewContent(userId: string, exportType: string, scope:
 }
 
 /**
- * Generate PDF preview content
+ * Generate PDF preview content with professional templates
  */
-function generatePDFPreview(task: any, audiencePreset: string): string {
+function generatePDFPreview(task: any, audiencePreset: string, template: string = 'executive-summary'): string {
   const redactions = getRedactionsForAudience(audiencePreset);
+  const templateConfig = DOCUMENT_TEMPLATES[template as keyof typeof DOCUMENT_TEMPLATES] || DOCUMENT_TEMPLATES['executive-summary'];
   
+  switch (template) {
+    case 'executive-summary':
+      return generateExecutiveSummaryPDF(task, audiencePreset, redactions);
+    case 'detailed-report':
+      return generateDetailedReportPDF(task, audiencePreset, redactions);
+    case 'vendor-packet':
+      return generateVendorPacketPDF(task, audiencePreset, redactions);
+    case 'team-checklist':
+      return generateTeamChecklistPDF(task, audiencePreset, redactions);
+    case 'client-presentation':
+      return generateClientPresentationPDF(task, audiencePreset, redactions);
+    default:
+      return generateExecutiveSummaryPDF(task, audiencePreset, redactions);
+  }
+}
+
+/**
+ * Executive Summary Template
+ */
+function generateExecutiveSummaryPDF(task: any, audiencePreset: string, redactions: string[]): string {
   return `
-# TASK BRIEF
+═══════════════════════════════════════════════════════════════════════════════
+                                EXECUTIVE SUMMARY
+═══════════════════════════════════════════════════════════════════════════════
 
-## ${task.title}
+PROJECT: ${task.title}
+STATUS: ${task.status}
+PRIORITY: ${task.priority}
+DUE DATE: ${task.dueDate ? new Date(task.dueDate).toLocaleDateString() : 'Not specified'}
 
-**Status:** ${task.status}
-**Priority:** ${task.priority}
-**Due Date:** ${task.dueDate ? new Date(task.dueDate).toLocaleDateString() : 'Not set'}
-**Estimated Duration:** ${task.estimatedDuration || task.durationMin || 0} minutes
-
-## Description
+OVERVIEW
+───────────────────────────────────────────────────────────────────────────────
 ${task.description || 'No description provided'}
 
-## Subtasks
-${task.subtasks.length > 0 ? task.subtasks.map((subtask: any, index: number) => 
-  `${index + 1}. ${subtask.title} (${subtask.status})`
-).join('\n') : 'No subtasks'}
+KEY METRICS
+───────────────────────────────────────────────────────────────────────────────
+• Estimated Duration: ${task.estimatedDuration || task.durationMin || 0} minutes
+• Subtasks: ${task.subtasks.length} items
+• Event Association: ${task.event ? task.event.title : 'Standalone task'}
 
-## Event Information
-${task.event ? `**Prep for:** ${task.event.title}` : 'Standalone task'}
+CURRENT STATUS
+───────────────────────────────────────────────────────────────────────────────
+${task.subtasks.length > 0 ? 
+  task.subtasks.map((subtask: any, index: number) => 
+    `• ${subtask.title} - ${subtask.status}`
+  ).join('\n') : 
+  'No subtasks defined'}
 
-## Notes
+${task.event ? `
+RELATED EVENT
+───────────────────────────────────────────────────────────────────────────────
+Preparation task for: ${task.event.title}
+` : ''}
+
+${task.notes ? `
+ADDITIONAL NOTES
+───────────────────────────────────────────────────────────────────────────────
+${task.notes}
+` : ''}
+
+═══════════════════════════════════════════════════════════════════════════════
+Generated: ${new Date().toLocaleDateString()} | Audience: ${audiencePreset.toUpperCase()}
+${redactions.length > 0 ? `Redacted: ${redactions.join(', ')}` : 'Full Access'}
+═══════════════════════════════════════════════════════════════════════════════
+  `.trim();
+}
+
+/**
+ * Detailed Report Template
+ */
+function generateDetailedReportPDF(task: any, audiencePreset: string, redactions: string[]): string {
+  return `
+═══════════════════════════════════════════════════════════════════════════════
+                              DETAILED TASK REPORT
+═══════════════════════════════════════════════════════════════════════════════
+
+TASK INFORMATION
+───────────────────────────────────────────────────────────────────────────────
+Title:           ${task.title}
+Status:          ${task.status}
+Priority:        ${task.priority}
+Created:         ${new Date(task.createdAt).toLocaleDateString()}
+Last Updated:    ${new Date(task.updatedAt).toLocaleDateString()}
+Due Date:        ${task.dueDate ? new Date(task.dueDate).toLocaleDateString() : 'Not specified'}
+
+TIMING & DURATION
+───────────────────────────────────────────────────────────────────────────────
+Estimated Duration: ${task.estimatedDuration || task.durationMin || 0} minutes
+Actual Duration:    ${task.actualDuration || 'Not recorded'}
+Scheduled At:       ${task.scheduledAt ? new Date(task.scheduledAt).toLocaleString() : 'Not scheduled'}
+
+DESCRIPTION
+───────────────────────────────────────────────────────────────────────────────
+${task.description || 'No description provided'}
+
+SUBTASKS BREAKDOWN
+───────────────────────────────────────────────────────────────────────────────
+${task.subtasks.length > 0 ? 
+  task.subtasks.map((subtask: any, index: number) => 
+    `${index + 1}. ${subtask.title}
+   Status: ${subtask.status}
+   Order: ${subtask.order || 'Not specified'}`
+  ).join('\n\n') : 
+  'No subtasks defined'}
+
+${task.event ? `
+EVENT ASSOCIATION
+───────────────────────────────────────────────────────────────────────────────
+Event: ${task.event.title}
+Type: Preparation Task
+` : ''}
+
+${task.notes ? `
+NOTES & COMMENTS
+───────────────────────────────────────────────────────────────────────────────
+${task.notes}
+` : ''}
+
+TECHNICAL DETAILS
+───────────────────────────────────────────────────────────────────────────────
+Task ID: ${task.id}
+Energy Required: ${task.energyRequired || 'Not specified'}
+Budget Impact: ${task.budgetImpact || 'Not specified'}
+AI Generated: ${task.aiGenerated ? 'Yes' : 'No'}
+Critical Path: ${task.isCritical ? 'Yes' : 'No'}
+
+═══════════════════════════════════════════════════════════════════════════════
+Report Generated: ${new Date().toLocaleString()} | Audience: ${audiencePreset.toUpperCase()}
+${redactions.length > 0 ? `Redacted: ${redactions.join(', ')}` : 'Full Access'}
+═══════════════════════════════════════════════════════════════════════════════
+  `.trim();
+}
+
+/**
+ * Vendor Packet Template
+ */
+function generateVendorPacketPDF(task: any, audiencePreset: string, redactions: string[]): string {
+  return `
+═══════════════════════════════════════════════════════════════════════════════
+                              VENDOR INFORMATION PACKET
+═══════════════════════════════════════════════════════════════════════════════
+
+PROJECT SCOPE
+───────────────────────────────────────────────────────────────────────────────
+Task: ${task.title}
+Priority: ${task.priority}
+Target Completion: ${task.dueDate ? new Date(task.dueDate).toLocaleDateString() : 'To be determined'}
+
+REQUIREMENTS
+───────────────────────────────────────────────────────────────────────────────
+${task.description || 'Detailed requirements to be provided'}
+
+DELIVERABLES
+───────────────────────────────────────────────────────────────────────────────
+${task.subtasks.length > 0 ? 
+  task.subtasks.map((subtask: any, index: number) => 
+    `${index + 1}. ${subtask.title}`
+  ).join('\n') : 
+  'Primary deliverable: Task completion as specified'}
+
+${task.event ? `
+EVENT CONTEXT
+───────────────────────────────────────────────────────────────────────────────
+This task is part of the preparation for: ${task.event.title}
+` : ''}
+
+TIMELINE
+───────────────────────────────────────────────────────────────────────────────
+Estimated Duration: ${task.estimatedDuration || task.durationMin || 0} minutes
+${task.scheduledAt ? `Scheduled Start: ${new Date(task.scheduledAt).toLocaleString()}` : 'Start date to be coordinated'}
+
+CONTACT & COORDINATION
+───────────────────────────────────────────────────────────────────────────────
+For questions or clarifications regarding this task, please contact the project coordinator.
+
+═══════════════════════════════════════════════════════════════════════════════
+Document prepared: ${new Date().toLocaleDateString()} | Confidential
+${redactions.length > 0 ? `Redacted: ${redactions.join(', ')}` : 'Full Access'}
+═══════════════════════════════════════════════════════════════════════════════
+  `.trim();
+}
+
+/**
+ * Team Checklist Template
+ */
+function generateTeamChecklistPDF(task: any, audiencePreset: string, redactions: string[]): string {
+  return `
+═══════════════════════════════════════════════════════════════════════════════
+                                TEAM CHECKLIST
+═══════════════════════════════════════════════════════════════════════════════
+
+TASK: ${task.title}
+STATUS: ${task.status} | PRIORITY: ${task.priority}
+
+ACTION ITEMS
+───────────────────────────────────────────────────────────────────────────────
+${task.subtasks.length > 0 ? 
+  task.subtasks.map((subtask: any, index: number) => 
+    `☐ ${subtask.title} [${subtask.status}]`
+  ).join('\n') : 
+  '☐ Complete main task objectives'}
+
+QUICK REFERENCE
+───────────────────────────────────────────────────────────────────────────────
+• Due Date: ${task.dueDate ? new Date(task.dueDate).toLocaleDateString() : 'TBD'}
+• Duration: ${task.estimatedDuration || task.durationMin || 0} minutes
+• Event: ${task.event ? task.event.title : 'Standalone'}
+
+NOTES
+───────────────────────────────────────────────────────────────────────────────
 ${task.notes || 'No additional notes'}
 
----
-*Generated for ${audiencePreset} audience*
-${redactions.length > 0 ? `\n*Redacted: ${redactions.join(', ')}*` : ''}
+${task.description ? `
+DETAILS
+───────────────────────────────────────────────────────────────────────────────
+${task.description}
+` : ''}
+
+═══════════════════════════════════════════════════════════════════════════════
+Checklist created: ${new Date().toLocaleDateString()} | Team Access
+${redactions.length > 0 ? `Redacted: ${redactions.join(', ')}` : 'Full Access'}
+═══════════════════════════════════════════════════════════════════════════════
+  `.trim();
+}
+
+/**
+ * Client Presentation Template
+ */
+function generateClientPresentationPDF(task: any, audiencePreset: string, redactions: string[]): string {
+  return `
+═══════════════════════════════════════════════════════════════════════════════
+                              PROJECT UPDATE
+═══════════════════════════════════════════════════════════════════════════════
+
+PROJECT OVERVIEW
+───────────────────────────────────────────────────────────────────────────────
+${task.title}
+
+Current Status: ${task.status}
+Priority Level: ${task.priority}
+Target Date: ${task.dueDate ? new Date(task.dueDate).toLocaleDateString() : 'To be confirmed'}
+
+PROGRESS SUMMARY
+───────────────────────────────────────────────────────────────────────────────
+${task.description || 'Project details and progress information'}
+
+MILESTONES & DELIVERABLES
+───────────────────────────────────────────────────────────────────────────────
+${task.subtasks.length > 0 ? 
+  task.subtasks.map((subtask: any, index: number) => 
+    `• ${subtask.title} - ${subtask.status}`
+  ).join('\n') : 
+  '• Primary project deliverables'}
+
+${task.event ? `
+RELATED INITIATIVES
+───────────────────────────────────────────────────────────────────────────────
+This project supports: ${task.event.title}
+` : ''}
+
+NEXT STEPS
+───────────────────────────────────────────────────────────────────────────────
+• Continue with current task execution
+• Monitor progress against timeline
+• Coordinate with stakeholders as needed
+
+═══════════════════════════════════════════════════════════════════════════════
+Presentation Date: ${new Date().toLocaleDateString()} | Client Access
+${redactions.length > 0 ? `Redacted: ${redactions.join(', ')}` : 'Full Access'}
+═══════════════════════════════════════════════════════════════════════════════
   `.trim();
 }
 
 /**
  * Generate CSV preview content
  */
-function generateCSVPreview(task: any, audiencePreset: string): string {
+function generateCSVPreview(task: any, audiencePreset: string, template?: string): string {
   const redactions = getRedactionsForAudience(audiencePreset);
   
   return `Title,Status,Priority,Due Date,Duration,Description,Event
@@ -157,7 +432,7 @@ function generateCSVPreview(task: any, audiencePreset: string): string {
 /**
  * Generate Markdown preview content
  */
-function generateMarkdownPreview(task: any, audiencePreset: string): string {
+function generateMarkdownPreview(task: any, audiencePreset: string, template?: string): string {
   const redactions = getRedactionsForAudience(audiencePreset);
   
   return `# ${task.title}
@@ -186,7 +461,7 @@ ${task.event ? `## Related Event
 /**
  * Generate JSON preview content
  */
-function generateJSONPreview(task: any, audiencePreset: string): string {
+function generateJSONPreview(task: any, audiencePreset: string, template?: string): string {
   const redactions = getRedactionsForAudience(audiencePreset);
   
   const taskData = {
@@ -220,7 +495,7 @@ function generateJSONPreview(task: any, audiencePreset: string): string {
 /**
  * Generate generic preview content
  */
-function generateGenericPreview(task: any, audiencePreset: string): string {
+function generateGenericPreview(task: any, audiencePreset: string, template?: string): string {
   return `Task: ${task.title}
 Status: ${task.status}
 Priority: ${task.priority}
@@ -416,17 +691,34 @@ router.post('/templates', authenticateToken, asyncHandler(async (req, res) => {
  */
 router.post('/preview', authenticateToken, asyncHandler(async (req, res) => {
   const userId = req.user!.id;
-  const { exportType, scope, audiencePreset, sections } = req.body;
+  const { exportType, scope, audiencePreset, sections, template } = req.body;
 
   try {
-    // Generate actual preview content based on scope and export type
-    const previewContent = await generatePreviewContent(userId, exportType, scope, audiencePreset, sections);
+    // If no template specified, return available templates
+    if (!template) {
+      const availableTemplates = Object.entries(DOCUMENT_TEMPLATES).map(([key, template]) => ({
+        id: key,
+        ...template
+      }));
+
+      return res.json({
+        success: true,
+        data: { 
+          templates: availableTemplates,
+          message: 'Please select a document template to preview'
+        }
+      });
+    }
+
+    // Generate actual preview content based on scope, export type, and template
+    const previewContent = await generatePreviewContent(userId, exportType, scope, audiencePreset, sections, template);
     
     const previewData = {
       exportType,
       scope,
       audiencePreset,
       sections,
+      template,
       estimatedSize: previewContent.estimatedSize,
       estimatedTime: previewContent.estimatedTime,
       preview: previewContent

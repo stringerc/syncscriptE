@@ -125,6 +125,9 @@ export const ExportModal: React.FC<ExportModalProps> = ({
   const [selectedPreset, setSelectedPreset] = useState<string>('owner');
   const [showPreview, setShowPreview] = useState<boolean>(false);
   const [previewData, setPreviewData] = useState<any>(null);
+  const [showTemplates, setShowTemplates] = useState<boolean>(false);
+  const [availableTemplates, setAvailableTemplates] = useState<any[]>([]);
+  const [selectedTemplate, setSelectedTemplate] = useState<string>('');
   const [options, setOptions] = useState({
     includeBudgets: true,
     includeAcceptanceCriteria: true,
@@ -146,8 +149,15 @@ export const ExportModal: React.FC<ExportModalProps> = ({
       return api.post('/export/preview', previewData);
     },
     onSuccess: (response) => {
-      setPreviewData(response.data.data.preview);
-      setShowPreview(true);
+      if (response.data.data.templates) {
+        // Show template selection
+        setAvailableTemplates(response.data.data.templates);
+        setShowTemplates(true);
+      } else {
+        // Show preview
+        setPreviewData(response.data.data.preview);
+        setShowPreview(true);
+      }
     },
     onError: (error: any) => {
       toast({
@@ -233,7 +243,29 @@ export const ExportModal: React.FC<ExportModalProps> = ({
         groupBy: scope.groupBy
       },
       audiencePreset: selectedPreset,
-      sections: ['Overview', 'Tasks', 'Events', 'Budget']
+      sections: ['Overview', 'Tasks', 'Events', 'Budget'],
+      template: selectedTemplate
+    };
+
+    previewMutation.mutate(previewData);
+  };
+
+  const handleTemplateSelect = (templateId: string) => {
+    setSelectedTemplate(templateId);
+    setShowTemplates(false);
+    
+    // Generate preview with selected template
+    const previewData = {
+      exportType: selectedFormat,
+      scope: {
+        type: scope.type,
+        id: scope.id,
+        ids: scope.ids,
+        groupBy: scope.groupBy
+      },
+      audiencePreset: selectedPreset,
+      sections: ['Overview', 'Tasks', 'Events', 'Budget'],
+      template: templateId
     };
 
     previewMutation.mutate(previewData);
@@ -275,6 +307,48 @@ export const ExportModal: React.FC<ExportModalProps> = ({
 
   return (
     <>
+    {/* Template Selection Modal */}
+    <Dialog open={showTemplates} onOpenChange={setShowTemplates}>
+      <DialogOverlay className="z-[80]" />
+      <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto z-[80]">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <FileText className="h-5 w-5" />
+            Choose Document Template
+          </DialogTitle>
+          <DialogDescription>
+            Select a professional template for your {selectedFormatInfo?.name} export
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          <div className="grid gap-3">
+            {availableTemplates.map((template) => (
+              <div
+                key={template.id}
+                className="p-4 border rounded-lg cursor-pointer transition-colors hover:border-blue-500 hover:bg-blue-50"
+                onClick={() => handleTemplateSelect(template.id)}
+              >
+                <div className="flex items-start gap-3">
+                  <div className="text-2xl">{template.icon}</div>
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-lg">{template.name}</h3>
+                    <p className="text-sm text-gray-600 mt-1">{template.description}</p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setShowTemplates(false)}>
+            Cancel
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogOverlay className="z-[60]" />
       <DialogContent className="sm:max-w-[500px] max-h-[80vh] overflow-y-auto z-[60]">
