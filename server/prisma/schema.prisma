@@ -111,6 +111,9 @@ model User {
   // User Scripts (My Scripts Gallery)
   userScripts              UserScript[]
   
+  // Budget History
+  budgetHistory            BudgetHistory[]
+  
   // Export System
   exportJobs               ExportJob[]
   exportTemplates          ExportTemplate[]
@@ -527,8 +530,26 @@ model TaskBudget {
   
   task            Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
   lineItems       BudgetLineItem[]
+  history         BudgetHistory[]
   
   @@map("task_budgets")
+}
+
+model BudgetHistory {
+  id              String   @id @default(cuid())
+  taskBudgetId    String
+  changeType      String   // 'created', 'updated', 'line_item_added', 'line_item_updated', 'line_item_deleted', 'estimated_changed', 'actual_changed'
+  oldValue        String?  // Previous state (for updates) - JSON string
+  newValue        String?  // New state - JSON string
+  changeReason    String?  // Optional reason for the change
+  userId          String   // Who made the change
+  createdAt       DateTime @default(now())
+  
+  taskBudget      TaskBudget @relation(fields: [taskBudgetId], references: [id], onDelete: Cascade)
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([taskBudgetId, createdAt])
+  @@map("budget_history")
 }
 
 model BudgetLineItem {

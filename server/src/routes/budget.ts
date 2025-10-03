@@ -10,6 +10,34 @@ const router = Router();
 const prisma = new PrismaClient();
 
 /**
+ * Helper function to track budget changes
+ */
+async function trackBudgetChange(
+  taskBudgetId: string,
+  changeType: string,
+  userId: string,
+  oldValue?: any,
+  newValue?: any,
+  changeReason?: string
+) {
+  try {
+    await prisma.budgetHistory.create({
+      data: {
+        taskBudgetId,
+        changeType,
+        userId,
+        oldValue: oldValue ? JSON.stringify(oldValue) : null,
+        newValue: newValue ? JSON.stringify(newValue) : null,
+        changeReason
+      }
+    });
+  } catch (error) {
+    logger.error('Error tracking budget change', { error: error instanceof Error ? error.message : 'Unknown error' });
+    // Don't throw - history tracking shouldn't break the main operation
+  }
+}
+
+/**
  * Get task budget
  */
 router.get('/tasks/:taskId', authenticateToken, asyncHandler(async (req, res) => {
@@ -72,6 +100,16 @@ router.put('/tasks/:taskId', authenticateToken, asyncHandler(async (req, res) =>
   const budgetData = req.body;
 
   try {
+    // Get the current budget state before updating
+    const currentBudget = await prisma.taskBudget.findUnique({
+      where: { taskId },
+      include: {
+        lineItems: {
+          include: { category: true }
+        }
+      }
+    });
+
     const totals = await BudgetService.upsertTaskBudget(taskId, userId, budgetData);
     
     // Get the updated budget details to return complete structure
@@ -83,6 +121,19 @@ router.put('/tasks/:taskId', authenticateToken, asyncHandler(async (req, res) =>
         }
       }
     });
+
+    // Track budget change if budget exists
+    if (taskBudget) {
+      const changeType = currentBudget ? 'updated' : 'created';
+      await trackBudgetChange(
+        taskBudget.id,
+        changeType,
+        userId,
+        currentBudget,
+        taskBudget,
+        'Budget updated via API'
+      );
+    }
     
     res.json({
       success: true,
@@ -513,6 +564,16 @@ router.post('/tasks/:taskId/line-items', authenticateToken, asyncHandler(async (
       }
     });
 
+    // Track line item addition
+    await trackBudgetChange(
+      taskBudget.id,
+      'line_item_added',
+      userId,
+      null,
+      lineItem,
+      'Line item added'
+    );
+
     res.status(201).json({
       success: true,
       data: { lineItem }
@@ -532,6 +593,16 @@ router.put('/line-items/:itemId', authenticateToken, asyncHandler(async (req, re
   const updateData = req.body;
 
   try {
+    // Get the current line item state before updating
+    const currentLineItem = await prisma.budgetLineItem.findUnique({
+      where: { id: itemId },
+      include: { category: true }
+    });
+
+    if (!currentLineItem) {
+      throw createError('Line item not found', 404);
+    }
+
     const lineItem = await prisma.budgetLineItem.update({
       where: { id: itemId },
       data: {
@@ -547,6 +618,16 @@ router.put('/line-items/:itemId', authenticateToken, asyncHandler(async (req, re
         category: true
       }
     });
+
+    // Track line item update
+    await trackBudgetChange(
+      currentLineItem.taskBudgetId,
+      'line_item_updated',
+      userId,
+      currentLineItem,
+      lineItem,
+      'Line item updated'
+    );
 
     res.json({
       success: true,
@@ -566,9 +647,29 @@ router.delete('/line-items/:itemId', authenticateToken, asyncHandler(async (req,
   const userId = req.user!.id;
 
   try {
+    // Get the current line item state before deleting
+    const currentLineItem = await prisma.budgetLineItem.findUnique({
+      where: { id: itemId },
+      include: { category: true }
+    });
+
+    if (!currentLineItem) {
+      throw createError('Line item not found', 404);
+    }
+
     await prisma.budgetLineItem.delete({
       where: { id: itemId }
     });
+
+    // Track line item deletion
+    await trackBudgetChange(
+      currentLineItem.taskBudgetId,
+      'line_item_deleted',
+      userId,
+      currentLineItem,
+      null,
+      'Line item deleted'
+    );
 
     res.json({
       success: true,
@@ -577,6 +678,72 @@ router.delete('/line-items/:itemId', authenticateToken, asyncHandler(async (req,
   } catch (error: any) {
     logger.error('Error deleting line item:', error);
     throw createError(error.message || 'Failed to delete line item', 500);
+  }
+}));
+
+/**
+ * Get budget history for a task
+ */
+router.get('/tasks/:taskId/history', authenticateToken, asyncHandler(async (req, res) => {
+  const { taskId } = req.params;
+  const userId = req.user!.id;
+
+  try {
+    // Verify the task belongs to the user
+    const task = await prisma.task.findUnique({
+      where: { id: taskId, userId }
+    });
+
+    if (!task) {
+      throw createError('Task not found', 404);
+    }
+
+    // Get the task budget
+    const taskBudget = await prisma.taskBudget.findUnique({
+      where: { taskId }
+    });
+
+    if (!taskBudget) {
+      return res.json({
+        success: true,
+        data: {
+          history: []
+        }
+      });
+    }
+
+    // Get budget history
+    const history = await prisma.budgetHistory.findMany({
+      where: { taskBudgetId: taskBudget.id },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true
+          }
+        }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    // Parse JSON strings back to objects
+    const parsedHistory = history.map(entry => ({
+      ...entry,
+      oldValue: entry.oldValue ? JSON.parse(entry.oldValue) : null,
+      newValue: entry.newValue ? JSON.parse(entry.newValue) : null
+    }));
+
+    res.json({
+      success: true,
+      data: {
+        history: parsedHistory
+      }
+    });
+
+  } catch (error) {
+    logger.error('Error fetching budget history', { error: error instanceof Error ? error.message : 'Unknown error' });
+    throw createError('Failed to fetch budget history', 500);
   }
 }));
 
