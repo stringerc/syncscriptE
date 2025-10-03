@@ -92,6 +92,16 @@ export function BudgetModal({ taskId, isOpen, onClose }: BudgetModalProps) {
     enabled: isOpen && !!taskId
   });
 
+  // Fetch budget history
+  const { data: historyData, isLoading: historyLoading } = useQuery({
+    queryKey: ['budget-history', taskId],
+    queryFn: async () => {
+      const response = await api.get(`/budget/tasks/${taskId}/history`);
+      return response.data.data;
+    },
+    enabled: isOpen && !!taskId
+  });
+
   const taskBudget = budgetData?.budget;
 
   // Refetch budget data when modal opens
@@ -782,8 +792,8 @@ export function BudgetModal({ taskId, isOpen, onClose }: BudgetModalProps) {
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogOverlay className="z-[60]" />
-      <DialogContent className="w-[95vw] max-w-6xl max-h-[95vh] overflow-y-auto z-[60]">
-        <DialogHeader>
+      <DialogContent className="w-[95vw] max-w-6xl max-h-[95vh] overflow-y-auto z-[60] [&>button]:hidden">
+        <DialogHeader className="relative">
           <DialogTitle className="flex items-center gap-2">
             <DollarSign className="h-5 w-5" />
             Task Budget
@@ -791,6 +801,15 @@ export function BudgetModal({ taskId, isOpen, onClose }: BudgetModalProps) {
           <DialogDescription>
             Manage budget for this task
           </DialogDescription>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="absolute right-0 top-0 h-6 w-6 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none"
+            onClick={onClose}
+          >
+            <X className="h-4 w-4" />
+            <span className="sr-only">Close</span>
+          </Button>
         </DialogHeader>
 
         <div className="p-6 space-y-6">
@@ -1194,11 +1213,51 @@ export function BudgetModal({ taskId, isOpen, onClose }: BudgetModalProps) {
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <div className="text-center py-8 text-gray-500">
-                      <History className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-                      <p>No history available yet</p>
-                      <p className="text-sm">Budget changes will appear here</p>
-                    </div>
+                    {historyLoading ? (
+                      <div className="text-center py-8 text-gray-500">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                        <p>Loading history...</p>
+                      </div>
+                    ) : historyData?.history?.length > 0 ? (
+                      <div className="space-y-4">
+                        {historyData.history.map((entry: any) => (
+                          <div key={entry.id} className="border rounded-lg p-4 bg-gray-50">
+                            <div className="flex items-center justify-between mb-2">
+                              <div className="flex items-center space-x-2">
+                                <Badge variant="outline" className="text-xs">
+                                  {entry.changeType.replace(/_/g, ' ').toUpperCase()}
+                                </Badge>
+                                <span className="text-sm text-gray-600">
+                                  {new Date(entry.createdAt).toLocaleString()}
+                                </span>
+                              </div>
+                              <span className="text-sm text-gray-500">
+                                by {entry.user?.name || entry.user?.email || 'Unknown'}
+                              </span>
+                            </div>
+                            {entry.changeReason && (
+                              <p className="text-sm text-gray-700 mb-2">{entry.changeReason}</p>
+                            )}
+                            {entry.oldValue && (
+                              <div className="text-xs text-gray-600">
+                                <span className="font-medium">Before:</span> {JSON.stringify(entry.oldValue, null, 2)}
+                              </div>
+                            )}
+                            {entry.newValue && (
+                              <div className="text-xs text-gray-600">
+                                <span className="font-medium">After:</span> {JSON.stringify(entry.newValue, null, 2)}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center py-8 text-gray-500">
+                        <History className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                        <p>No history available yet</p>
+                        <p className="text-sm">Budget changes will appear here</p>
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               </TabsContent>
