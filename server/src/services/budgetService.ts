@@ -165,7 +165,7 @@ export class BudgetService {
 
     if (taskBudget.mode === 'total') {
       estimatedCents = taskBudget.estimatedCents + taskBudget.taxCents + taskBudget.shippingCents;
-      actualCents = taskBudget.actualCents || estimatedCents;
+      actualCents = taskBudget.actualCents || 0; // Don't default to estimatedCents
     } else if (taskBudget.mode === 'lines') {
       // Calculate from line items
       const lineItemTotals = taskBudget.lineItems.reduce(
@@ -187,7 +187,7 @@ export class BudgetService {
       } else {
         // No line items, use the saved estimatedCents from the database
         estimatedCents = taskBudget.estimatedCents + taskBudget.taxCents + taskBudget.shippingCents;
-        actualCents = taskBudget.actualCents || estimatedCents;
+        actualCents = taskBudget.actualCents || 0; // Don't default to estimatedCents
       }
     }
 
