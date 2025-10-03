@@ -35,10 +35,14 @@ function BudgetChip({
     queryKey: ['task-budget', taskId],
     queryFn: async () => {
       if (!taskId) return null;
+      console.log('🔍 BudgetChip: Fetching budget data for task:', taskId);
       const response = await api.get(`/budget/tasks/${taskId}`);
+      console.log('🔍 BudgetChip: Budget data received:', response.data.data);
       return response.data.data;
     },
     enabled: !!taskId,
+    refetchOnWindowFocus: true, // Ensure it refetches when window gains focus
+    staleTime: 0, // Always consider data stale to ensure fresh data
   });
 
   // Extract budget values from the API response structure

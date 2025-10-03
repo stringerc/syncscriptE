@@ -16,10 +16,14 @@ export function BudgetSummary({ taskId }: BudgetSummaryProps) {
   const { data: budgetData, isLoading } = useQuery({
     queryKey: ['task-budget', taskId],
     queryFn: async () => {
+      console.log('🔍 BudgetSummary: Fetching budget data for task:', taskId);
       const response = await api.get(`/budget/tasks/${taskId}`);
+      console.log('🔍 BudgetSummary: Budget data received:', response.data.data);
       return response.data.data;
     },
     enabled: !!taskId,
+    refetchOnWindowFocus: true, // Ensure it refetches when window gains focus
+    staleTime: 0, // Always consider data stale to ensure fresh data
   });
 
   if (isLoading) {
