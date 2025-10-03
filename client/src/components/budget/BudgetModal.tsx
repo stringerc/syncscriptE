@@ -285,6 +285,18 @@ export function BudgetModal({ taskId, isOpen, onClose }: BudgetModalProps) {
       hasChanges = true;
     }
     
+    // Save estimated total in lines mode if it's different from the current value
+    if (taskBudget?.mode === 'lines' && quickTotalValue > 0 && quickTotalValue !== (taskBudget.estimatedCents || 0) / 100) {
+      updateBudgetMutation.mutate({
+        mode: taskBudget.mode,
+        estimatedCents: Math.round(quickTotalValue * 100),
+        taxCents: taskBudget.taxCents || 0,
+        shippingCents: taskBudget.shippingCents || 0,
+        lineItems: taskBudget.lineItems || []
+      });
+      hasChanges = true;
+    }
+    
     // Save any pending line item edits
     if (editingItemId && editingItemData) {
       updateLineItemMutation.mutate({ itemId: editingItemId, data: editingItemData });
