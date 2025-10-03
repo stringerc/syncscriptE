@@ -123,6 +123,8 @@ export const ExportModal: React.FC<ExportModalProps> = ({
 }) => {
   const [selectedFormat, setSelectedFormat] = useState<string>('pdf');
   const [selectedPreset, setSelectedPreset] = useState<string>('owner');
+  const [showPreview, setShowPreview] = useState<boolean>(false);
+  const [previewData, setPreviewData] = useState<any>(null);
   const [options, setOptions] = useState({
     includeBudgets: true,
     includeAcceptanceCriteria: true,
@@ -138,6 +140,23 @@ export const ExportModal: React.FC<ExportModalProps> = ({
   const availableFormats = exportFormats.filter(format => 
     format.availableFor.includes(scope.type)
   );
+
+  const previewMutation = useMutation({
+    mutationFn: async (previewData: any) => {
+      return api.post('/export/preview', previewData);
+    },
+    onSuccess: (response) => {
+      setPreviewData(response.data.data.preview);
+      setShowPreview(true);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Preview Failed",
+        description: error.response?.data?.error || "Failed to generate preview",
+        variant: "destructive"
+      });
+    }
+  });
 
   const exportMutation = useMutation({
     mutationFn: async (exportData: any) => {
@@ -204,6 +223,22 @@ export const ExportModal: React.FC<ExportModalProps> = ({
     }
   });
 
+  const handlePreview = () => {
+    const previewData = {
+      exportType: selectedFormat,
+      scope: {
+        type: scope.type,
+        id: scope.id,
+        ids: scope.ids,
+        groupBy: scope.groupBy
+      },
+      audiencePreset: selectedPreset,
+      sections: ['Overview', 'Tasks', 'Events', 'Budget']
+    };
+
+    previewMutation.mutate(previewData);
+  };
+
   const handleExport = () => {
     const exportData = {
       format: selectedFormat,
@@ -241,7 +276,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogOverlay className="z-[60]" />
-      <DialogContent className="sm:max-w-[600px] z-[60]">
+      <DialogContent className="sm:max-w-[500px] max-h-[80vh] overflow-y-auto z-[60]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Download className="h-5 w-5" />
@@ -252,15 +287,15 @@ export const ExportModal: React.FC<ExportModalProps> = ({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-6">
+        <div className="space-y-4">
           {/* Format Selection */}
-          <div className="space-y-3">
+          <div className="space-y-2">
             <Label>Export Format</Label>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-2">
               {availableFormats.map((format) => (
                 <div
                   key={format.id}
-                  className={`p-3 border rounded-lg cursor-pointer transition-colors ${
+                  className={`p-2 border rounded-lg cursor-pointer transition-colors ${
                     selectedFormat === format.id
                       ? 'border-blue-500 bg-blue-50'
                       : 'border-gray-200 hover:border-gray-300'
@@ -269,22 +304,22 @@ export const ExportModal: React.FC<ExportModalProps> = ({
                 >
                   <div className="flex items-center gap-2 mb-1">
                     {format.icon}
-                    <span className="font-medium">{format.name}</span>
+                    <span className="font-medium text-sm">{format.name}</span>
                   </div>
-                  <p className="text-sm text-gray-600">{format.description}</p>
+                  <p className="text-xs text-gray-600">{format.description}</p>
                 </div>
               ))}
             </div>
           </div>
 
           {/* Audience Preset */}
-          <div className="space-y-3">
+          <div className="space-y-2">
             <Label>Audience</Label>
             <Select value={selectedPreset} onValueChange={setSelectedPreset}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="z-[70]">
                 {audiencePresets.map((preset) => (
                   <SelectItem key={preset.id} value={preset.id}>
                     <div className="flex items-center justify-between w-full">
@@ -309,9 +344,9 @@ export const ExportModal: React.FC<ExportModalProps> = ({
           </div>
 
           {/* Export Options */}
-          <div className="space-y-4">
+          <div className="space-y-2">
             <Label>Options</Label>
-            <div className="space-y-3">
+            <div className="space-y-2">
               <div className="flex items-center space-x-2">
                 <Checkbox
                   id="includeBudgets"
@@ -382,8 +417,8 @@ export const ExportModal: React.FC<ExportModalProps> = ({
           </div>
 
           {/* Preview */}
-          <div className="p-4 bg-gray-50 rounded-lg">
-            <div className="text-sm text-gray-600">
+          <div className="p-3 bg-gray-50 rounded-lg">
+            <div className="text-xs text-gray-600">
               <strong>Preview:</strong> {selectedFormatInfo?.name} export for {selectedPresetInfo?.name} audience
               {selectedPresetInfo?.redactionLevel !== 'none' && (
                 <span className="text-orange-600 ml-1">
@@ -394,9 +429,27 @@ export const ExportModal: React.FC<ExportModalProps> = ({
           </div>
         </div>
 
-        <DialogFooter>
+        <DialogFooter className="flex gap-2">
           <Button variant="outline" onClick={onClose}>
             Cancel
+          </Button>
+          <Button 
+            variant="secondary"
+            onClick={handlePreview}
+            disabled={previewMutation.isPending}
+            className="flex items-center gap-2"
+          >
+            {previewMutation.isPending ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600"></div>
+                Previewing...
+              </>
+            ) : (
+              <>
+                <FileText className="h-4 w-4" />
+                Preview
+              </>
+            )}
           </Button>
           <Button 
             onClick={handleExport}
@@ -414,6 +467,79 @@ export const ExportModal: React.FC<ExportModalProps> = ({
                 Export {selectedFormatInfo?.name}
               </>
             )}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+
+    {/* Preview Modal */}
+    <Dialog open={showPreview} onOpenChange={setShowPreview}>
+      <DialogOverlay className="z-[80]" />
+      <DialogContent className="sm:max-w-[700px] max-h-[80vh] overflow-y-auto z-[80]">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <FileText className="h-5 w-5" />
+            Export Preview
+          </DialogTitle>
+          <DialogDescription>
+            Preview of your {selectedFormatInfo?.name} export for {selectedPresetInfo?.name} audience
+          </DialogDescription>
+        </DialogHeader>
+
+        {previewData && (
+          <div className="space-y-4">
+            <div className="p-4 bg-gray-50 rounded-lg">
+              <h3 className="font-semibold mb-2">Export Details</h3>
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <span className="font-medium">Format:</span> {previewData.format?.toUpperCase()}
+                </div>
+                <div>
+                  <span className="font-medium">Estimated Size:</span> {Math.round((previewData.estimatedSize || 0) / 1024)} KB
+                </div>
+                <div>
+                  <span className="font-medium">Estimated Time:</span> {previewData.estimatedTime || '2-3 minutes'}
+                </div>
+                <div>
+                  <span className="font-medium">Sections:</span> {previewData.sections?.length || 0} included
+                </div>
+              </div>
+            </div>
+
+            <div className="p-4 bg-blue-50 rounded-lg">
+              <h3 className="font-semibold mb-2">Preview Content</h3>
+              <div className="text-sm space-y-2">
+                <div><strong>Title:</strong> {previewData.preview?.title}</div>
+                <div><strong>Description:</strong> {previewData.preview?.description}</div>
+                <div><strong>Sections:</strong> {previewData.preview?.sections?.join(', ')}</div>
+                {previewData.preview?.redactions && previewData.preview.redactions.length > 0 && (
+                  <div><strong>Redactions:</strong> {previewData.preview.redactions.join(', ')}</div>
+                )}
+              </div>
+            </div>
+
+            {previewData.preview?.redactions && previewData.preview.redactions.length > 0 && (
+              <div className="p-4 bg-orange-50 rounded-lg">
+                <h3 className="font-semibold mb-2 text-orange-800">Privacy Notice</h3>
+                <p className="text-sm text-orange-700">
+                  This export will have the following information redacted: {previewData.preview.redactions.join(', ')}. 
+                  Sensitive information will be hidden or replaced with placeholders.
+                </p>
+              </div>
+            )}
+          </div>
+        )}
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setShowPreview(false)}>
+            Close Preview
+          </Button>
+          <Button onClick={() => {
+            setShowPreview(false);
+            handleExport();
+          }}>
+            <Download className="h-4 w-4 mr-2" />
+            Export Now
           </Button>
         </DialogFooter>
       </DialogContent>
