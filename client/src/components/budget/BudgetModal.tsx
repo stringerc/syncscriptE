@@ -399,9 +399,16 @@ export function BudgetModal({ taskId, isOpen, onClose }: BudgetModalProps) {
 
   const handleSaveEstimatedTotal = () => {
     if (quickTotalValue > 0 && taskBudget) {
+      const estimatedCents = Math.round(quickTotalValue * 100);
+      console.log('🔍 Save Estimated Debug:', {
+        quickTotalValue,
+        estimatedCents,
+        mode: taskBudget.mode,
+        taskBudget
+      });
       updateBudgetMutation.mutate({
         mode: taskBudget.mode,
-        estimatedCents: Math.round(quickTotalValue * 100),
+        estimatedCents: estimatedCents,
         taxCents: taskBudget.taxCents || 0,
         shippingCents: taskBudget.shippingCents || 0,
         lineItems: taskBudget.lineItems || []

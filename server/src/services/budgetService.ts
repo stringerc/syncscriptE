@@ -73,6 +73,13 @@ export class BudgetService {
     data: TaskBudgetInput
   ): Promise<TaskBudgetTotals> {
     try {
+      logger.info('🔍 BudgetService.upsertTaskBudget called', {
+        taskId,
+        userId,
+        data,
+        estimatedCents: data.estimatedCents
+      });
+
       // Verify task ownership
       const task = await prisma.task.findFirst({
         where: { id: taskId, userId }
