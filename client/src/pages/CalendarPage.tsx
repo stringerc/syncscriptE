@@ -10,14 +10,16 @@ import { useToast } from '@/hooks/use-toast'
 import { formatDate, formatTime, formatCurrency } from '@/lib/utils'
 import { Event } from '@/shared/types'
 import { EventModal } from '@/components/EventModal'
+import { TaskModal } from '@/components/TaskModal'
 import { ConfirmationModal } from '@/components/ConfirmationModal'
 import { ResourcesDrawer } from '@/components/ResourcesDrawer'
 import { BudgetChip } from '@/components/budget/BudgetChip'
 
 // Calendar Task Item Component (for bullet list in event cards)
-const CalendarTaskItem = memo(({ task, onResourcesClick }: {
+const CalendarTaskItem = memo(({ task, onResourcesClick, onClick }: {
   task: any,
-  onResourcesClick?: (taskId: string) => void
+  onResourcesClick?: (taskId: string) => void,
+  onClick?: (task: any) => void
 }) => {
   // Fetch resources for this task
   const { data: taskResourceData } = useQuery({
@@ -46,11 +48,13 @@ const CalendarTaskItem = memo(({ task, onResourcesClick }: {
 
   return (
     <div 
-      className={`flex items-center gap-1 text-xs text-muted-foreground transition-all duration-200 ${
+      className={`flex items-center gap-1 text-xs transition-all duration-200 cursor-pointer hover:text-foreground hover:underline ${
         task.status === 'COMPLETED' 
           ? 'line-through text-green-600' 
-          : ''
+          : 'text-muted-foreground'
       }`}
+      onClick={() => onClick?.(task)}
+      title="Click to view task details"
     >
       <span>{task.status === 'COMPLETED' ? '✓' : '•'} {task.title}</span>
       {resourceCount > 0 && (
@@ -91,6 +95,7 @@ export function CalendarPage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [eventToDelete, setEventToDelete] = useState<{ id: string; title: string } | null>(null)
   const [resourcesDrawerTaskId, setResourcesDrawerTaskId] = useState<string | null>(null)
+  const [selectedTask, setSelectedTask] = useState<any | null>(null)
   const [syncTimeRange, setSyncTimeRange] = useState('30') // Default to 30 days
 
   const { toast} = useToast()
@@ -590,6 +595,7 @@ export function CalendarPage() {
                                 key={task.id}
                                 task={task}
                                 onResourcesClick={setResourcesDrawerTaskId}
+                                onClick={setSelectedTask}
                               />
                             ))}
                             {eventPreparationTasks[event.id].length > 3 && (
@@ -755,6 +761,22 @@ export function CalendarPage() {
         taskId={resourcesDrawerTaskId || ''}
         isOpen={!!resourcesDrawerTaskId}
         onClose={() => setResourcesDrawerTaskId(null)}
+      />
+      
+      <TaskModal
+        task={selectedTask}
+        isOpen={!!selectedTask}
+        onClose={() => setSelectedTask(null)}
+        onTaskUpdated={() => {
+          // Refresh events data when task is updated
+          queryClient.invalidateQueries({ queryKey: ['events'] })
+          queryClient.invalidateQueries({ queryKey: ['event-preparation-tasks'] })
+        }}
+        onTaskDeleted={() => {
+          // Refresh events data when task is deleted
+          queryClient.invalidateQueries({ queryKey: ['events'] })
+          queryClient.invalidateQueries({ queryKey: ['event-preparation-tasks'] })
+        }}
       />
       </div>
     )

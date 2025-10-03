@@ -238,10 +238,10 @@ const NestedTaskItem = memo(({ task, onResourcesClick, onClick }: {
 
   return (
     <div 
-      className={`flex items-center gap-1 text-xs transition-all duration-200 ${
+      className={`flex items-center gap-1 text-xs transition-all duration-200 cursor-pointer hover:text-foreground hover:underline ${
         task.status === 'COMPLETED' 
           ? 'line-through text-green-600' 
-          : 'text-muted-foreground cursor-pointer hover:text-foreground hover:underline'
+          : 'text-muted-foreground'
       }`}
       onClick={() => onClick?.(task)}
       title="Click to view task details"
