@@ -420,44 +420,59 @@ export function BudgetModal({ taskId, isOpen, onClose }: BudgetModalProps) {
       // Create a video element to show camera feed
       const video = document.createElement('video');
       video.srcObject = stream;
-      video.play();
+      video.autoplay = true;
+      video.playsInline = true;
+      video.muted = true;
+      
+      // Wait for video to be ready
+      await new Promise((resolve) => {
+        video.onloadedmetadata = () => {
+          video.play();
+          resolve(void 0);
+        };
+      });
       
       // Create a modal for camera interface
       const modal = document.createElement('div');
+      modal.className = 'camera-modal';
       modal.style.cssText = `
         position: fixed;
         top: 0;
         left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0,0,0,0.9);
-        z-index: 9999;
+        width: 100vw;
+        height: 100vh;
+        background: rgba(0,0,0,0.95);
+        z-index: 99999;
         display: flex;
         flex-direction: column;
         align-items: center;
         justify-content: center;
+        font-family: system-ui, -apple-system, sans-serif;
       `;
       
       const videoContainer = document.createElement('div');
       videoContainer.style.cssText = `
         position: relative;
-        max-width: 90%;
-        max-height: 70%;
-        border-radius: 8px;
+        max-width: 90vw;
+        max-height: 70vh;
+        border-radius: 12px;
         overflow: hidden;
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
       `;
       
       video.style.cssText = `
         width: 100%;
         height: auto;
         display: block;
+        border-radius: 12px;
       `;
       
       const controls = document.createElement('div');
       controls.style.cssText = `
         display: flex;
-        gap: 16px;
-        margin-top: 20px;
+        gap: 20px;
+        margin-top: 30px;
+        align-items: center;
       `;
       
       const captureBtn = document.createElement('button');
@@ -466,10 +481,16 @@ export function BudgetModal({ taskId, isOpen, onClose }: BudgetModalProps) {
         background: #3b82f6;
         color: white;
         border: none;
-        padding: 12px 24px;
-        border-radius: 8px;
-        font-size: 16px;
+        padding: 16px 32px;
+        border-radius: 12px;
+        font-size: 18px;
+        font-weight: 600;
         cursor: pointer;
+        box-shadow: 0 4px 14px 0 rgba(59, 130, 246, 0.4);
+        transition: all 0.2s ease;
+        user-select: none;
+        -webkit-user-select: none;
+        -webkit-tap-highlight-color: transparent;
       `;
       
       const cancelBtn = document.createElement('button');
@@ -478,13 +499,43 @@ export function BudgetModal({ taskId, isOpen, onClose }: BudgetModalProps) {
         background: #6b7280;
         color: white;
         border: none;
-        padding: 12px 24px;
-        border-radius: 8px;
-        font-size: 16px;
+        padding: 16px 32px;
+        border-radius: 12px;
+        font-size: 18px;
+        font-weight: 600;
         cursor: pointer;
+        box-shadow: 0 4px 14px 0 rgba(107, 114, 128, 0.4);
+        transition: all 0.2s ease;
+        user-select: none;
+        -webkit-user-select: none;
+        -webkit-tap-highlight-color: transparent;
       `;
       
-      const capturePhoto = () => {
+      // Add hover effects
+      captureBtn.onmouseenter = () => {
+        captureBtn.style.background = '#2563eb';
+        captureBtn.style.transform = 'translateY(-2px)';
+      };
+      captureBtn.onmouseleave = () => {
+        captureBtn.style.background = '#3b82f6';
+        captureBtn.style.transform = 'translateY(0)';
+      };
+      
+      cancelBtn.onmouseenter = () => {
+        cancelBtn.style.background = '#4b5563';
+        cancelBtn.style.transform = 'translateY(-2px)';
+      };
+      cancelBtn.onmouseleave = () => {
+        cancelBtn.style.background = '#6b7280';
+        cancelBtn.style.transform = 'translateY(0)';
+      };
+      
+      const capturePhoto = (e: Event) => {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        console.log('Capture button clicked');
+        
         const canvas = document.createElement('canvas');
         const context = canvas.getContext('2d');
         
@@ -502,18 +553,50 @@ export function BudgetModal({ taskId, isOpen, onClose }: BudgetModalProps) {
         
         // Clean up
         stream.getTracks().forEach(track => track.stop());
-        document.body.removeChild(modal);
+        if (document.body.contains(modal)) {
+          document.body.removeChild(modal);
+        }
         setIsScanningReceipt(false);
       };
       
-      const cancelCapture = () => {
+      const cancelCapture = (e: Event) => {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        console.log('Cancel button clicked');
+        
         stream.getTracks().forEach(track => track.stop());
-        document.body.removeChild(modal);
+        if (document.body.contains(modal)) {
+          document.body.removeChild(modal);
+        }
         setIsScanningReceipt(false);
       };
       
+      // Use both onclick and addEventListener for better compatibility
       captureBtn.onclick = capturePhoto;
+      captureBtn.addEventListener('click', capturePhoto, true);
+      captureBtn.addEventListener('touchstart', capturePhoto, true);
+      
       cancelBtn.onclick = cancelCapture;
+      cancelBtn.addEventListener('click', cancelCapture, true);
+      cancelBtn.addEventListener('touchstart', cancelCapture, true);
+      
+      // Add escape key handler
+      const handleEscape = (e: KeyboardEvent) => {
+        if (e.key === 'Escape') {
+          cancelCapture(e);
+        }
+      };
+      document.addEventListener('keydown', handleEscape);
+      
+      // Clean up escape handler when modal is removed
+      const originalRemoveChild = document.body.removeChild;
+      document.body.removeChild = function(node) {
+        if (node === modal) {
+          document.removeEventListener('keydown', handleEscape);
+        }
+        return originalRemoveChild.call(this, node);
+      };
       
       controls.appendChild(captureBtn);
       controls.appendChild(cancelBtn);
@@ -525,6 +608,8 @@ export function BudgetModal({ taskId, isOpen, onClose }: BudgetModalProps) {
       
     } catch (error) {
       console.error('Camera access failed:', error);
+      setIsScanningReceipt(false);
+      
       // Fallback to file input with camera capture
       const input = document.createElement('input');
       input.type = 'file';
@@ -535,7 +620,6 @@ export function BudgetModal({ taskId, isOpen, onClose }: BudgetModalProps) {
         if (file) {
           handleReceiptImage(file);
         }
-        setIsScanningReceipt(false);
       };
       input.click();
     }
