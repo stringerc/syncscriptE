@@ -12,6 +12,7 @@ import { Event } from '@/shared/types'
 import { EventModal } from '@/components/EventModal'
 import { ConfirmationModal } from '@/components/ConfirmationModal'
 import { ResourcesDrawer } from '@/components/ResourcesDrawer'
+import { BudgetChip } from '@/components/budget/BudgetChip'
 
 // Calendar Task Item Component (for bullet list in event cards)
 const CalendarTaskItem = memo(({ task, onResourcesClick }: {
@@ -66,6 +67,7 @@ const CalendarTaskItem = memo(({ task, onResourcesClick }: {
           {resourceCount}
         </Badge>
       )}
+      <BudgetChip taskId={task.id} className="text-[10px] px-1 py-0 h-4" />
     </div>
   )
 })

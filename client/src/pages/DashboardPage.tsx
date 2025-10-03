@@ -16,6 +16,7 @@ import { AnimatedCounter } from '@/components/AnimatedCounter'
 import { getWeatherIcon } from '@/utils/weatherIcons'
 import { useAchievements } from '@/contexts/AchievementsContext'
 import { PinnedEventsRail } from '@/components/PinnedEventsRail'
+import { BudgetChip } from '@/components/budget/BudgetChip'
 import { 
   CheckSquare, 
   Calendar, 
@@ -261,6 +262,7 @@ const NestedTaskItem = memo(({ task, onResourcesClick, onClick }: {
           {taskResourceCount}
         </Badge>
       )}
+      <BudgetChip taskId={task.id} className="text-[10px] px-1 py-0 h-4" />
     </div>
   )
 })
