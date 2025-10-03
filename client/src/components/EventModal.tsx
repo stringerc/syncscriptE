@@ -896,22 +896,20 @@ export function EventModal({ event, isOpen, onClose, onEventUpdated, onEventCrea
             /* View Mode */
             <div className="space-y-4">
               <div>
-                <h3 className="text-lg font-semibold">{event.title}</h3>
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-semibold">{event.title}</h3>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowExportModal(true)}
+                    className="h-8 w-8 p-0"
+                  >
+                    <Download className="w-4 h-4" />
+                  </Button>
+                </div>
                 {event.description && (
                   <p className="text-muted-foreground mt-2">{event.description}</p>
                 )}
-              </div>
-
-              {/* Export Button */}
-              <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
-                <Button
-                  variant="outline"
-                  onClick={() => setShowExportModal(true)}
-                  className="w-full"
-                >
-                  <Download className="w-4 h-4 mr-2" />
-                  Export Event
-                </Button>
               </div>
 
               <div className="space-y-3">
