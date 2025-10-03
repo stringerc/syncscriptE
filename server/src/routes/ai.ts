@@ -1268,7 +1268,7 @@ router.post('/tasks/:taskId/suggest-budget', authenticateToken, asyncHandler(asy
       where: { id: taskId, userId: userId },
       include: {
         event: true,
-        budget: {
+        taskBudget: {
           include: {
             lineItems: {
               include: {
@@ -1289,15 +1289,14 @@ router.post('/tasks/:taskId/suggest-budget', authenticateToken, asyncHandler(asy
       where: {
         userId: userId,
         title: {
-          contains: task.title.split(' ')[0], // Find tasks with similar first word
-          mode: 'insensitive'
+          contains: task.title.split(' ')[0] // Find tasks with similar first word
         },
-        budget: {
+        taskBudget: {
           isNot: null
         }
       },
       include: {
-        budget: true
+        taskBudget: true
       },
       take: 5
     });
@@ -1353,12 +1352,12 @@ router.post('/tasks/:taskId/suggest-budget', authenticateToken, asyncHandler(asy
     
     Event Context: ${task.event ? `Part of event: ${task.event.title} (${task.event.startTime} to ${task.event.endTime})` : 'Standalone task'}
     
-    Current Budget: ${task.budget ? `$${(task.budget.estimatedCents / 100).toFixed(2)}` : 'No budget set'}
-    Existing Line Items: ${task.budget?.lineItems?.length || 0} items
+    Current Budget: ${task.taskBudget ? `$${(task.taskBudget.estimatedCents / 100).toFixed(2)}` : 'No budget set'}
+    Existing Line Items: ${task.taskBudget?.lineItems?.length || 0} items
     
     Similar Tasks History:
     ${similarTasks.map(t => 
-      `- ${t.title}: $${t.budget ? (t.budget.estimatedCents / 100).toFixed(2) : 'No budget'}`
+      `- ${t.title}: $${(t as any).taskBudget ? ((t as any).taskBudget.estimatedCents / 100).toFixed(2) : 'No budget'}`
     ).join('\n') || 'No similar tasks found'}`;
 
     const completion = await openai.chat.completions.create({
