@@ -76,8 +76,10 @@ function BudgetChip({
       return sum + (item.qty * item.unitPriceCents);
     }, 0);
     
-    // Auto-calculate actual cost from line items
-    displayActualCents = lineItemsTotal;
+    // Auto-calculate actual cost from line items (only if there are actual line items)
+    if (lineItemsTotal > 0) {
+      displayActualCents = lineItemsTotal;
+    }
     
     // If there's a manually set estimated total, use that; otherwise use line items total
     if (budgetDetails.estimatedCents && budgetDetails.estimatedCents > 0) {
