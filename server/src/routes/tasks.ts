@@ -746,4 +746,72 @@ router.patch('/:id/restore', authenticateToken, asyncHandler(async (req: AuthReq
   });
 }));
 
+// Convert task to prep task for an event
+router.post('/:id/convert-to-prep', authenticateToken, asyncHandler(async (req: AuthRequest, res) => {
+  const { id } = req.params;
+  const { eventId } = req.body;
+  const userId = req.user!.id;
+
+  if (!eventId) {
+    return res.status(400).json({
+      success: false,
+      error: 'Event ID is required'
+    });
+  }
+
+  // Check if task exists and belongs to user
+  const task = await prisma.task.findFirst({
+    where: { id, userId }
+  });
+
+  if (!task) {
+    return res.status(404).json({
+      success: false,
+      error: 'Task not found'
+    });
+  }
+
+  // Check if event exists and belongs to user
+  const event = await prisma.event.findFirst({
+    where: { id: eventId, userId }
+  });
+
+  if (!event) {
+    return res.status(404).json({
+      success: false,
+      error: 'Event not found'
+    });
+  }
+
+  // Check if task is already a prep task for this event
+  if (task.eventId === eventId) {
+    return res.status(400).json({
+      success: false,
+      error: 'Task is already a prep task for this event'
+    });
+  }
+
+  // Update task to be a prep task for the event
+  const updatedTask = await prisma.task.update({
+    where: { id },
+    data: {
+      eventId: eventId,
+      tags: task.tags ? `${task.tags},preparation` : 'preparation'
+    }
+  });
+
+  logger.info('Task converted to prep task', { 
+    userId, 
+    taskId: id, 
+    eventId,
+    eventTitle: event.title 
+  });
+
+  res.json({
+    success: true,
+    data: updatedTask,
+    message: `Task "${task.title}" is now a prep task for "${event.title}"`
+  });
+}));
+
 export default router;

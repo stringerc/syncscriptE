@@ -71,6 +71,8 @@ export function TaskModal({ task, isOpen, onClose, onTaskUpdated, onTaskDeleted 
   })
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [isListening, setIsListening] = useState(false)
+  const [showConvertToPrep, setShowConvertToPrep] = useState(false)
+  const [selectedEventId, setSelectedEventId] = useState('')
 
   // Initialize form data when task changes
   useEffect(() => {
@@ -495,6 +497,18 @@ export function TaskModal({ task, isOpen, onClose, onTaskUpdated, onTaskDeleted 
     suggestCalendarEventMutation.mutate()
   }
 
+  const handleConvertToPrep = () => {
+    if (!selectedEventId) {
+      toast({
+        title: "Please select an event",
+        description: "You need to choose an event to convert this task to a prep task",
+        variant: "destructive"
+      })
+      return
+    }
+    convertToPrepMutation.mutate(selectedEventId)
+  }
+
   // Fetch resources for the task
   const { data: resourceData } = useQuery({
     queryKey: ['task-resources', task?.id],
@@ -514,6 +528,47 @@ export function TaskModal({ task, isOpen, onClose, onTaskUpdated, onTaskDeleted 
     gcTime: 5 * 60 * 1000, // 5 minutes
     refetchOnMount: true, // Refetch when modal opens
     refetchOnWindowFocus: false, // Don't refetch on focus
+  })
+
+  // Fetch events for conversion dropdown
+  const { data: events } = useQuery({
+    queryKey: ['events'],
+    queryFn: async () => {
+      const response = await api.get('/calendar')
+      return response.data.data || []
+    },
+    enabled: showConvertToPrep,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes
+  })
+
+  // Convert task to prep task mutation
+  const convertToPrepMutation = useMutation({
+    mutationFn: async (eventId: string) => {
+      if (!task) throw new Error('No task to convert')
+      const response = await api.post(`/tasks/${task.id}/convert-to-prep`, { eventId })
+      return response.data
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "Task Converted!",
+        description: data.message || "Task has been converted to a prep task"
+      })
+      queryClient.invalidateQueries({ queryKey: ['tasks'] })
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+      queryClient.invalidateQueries({ queryKey: ['events'] })
+      queryClient.invalidateQueries({ queryKey: ['calendar'] })
+      setShowConvertToPrep(false)
+      setSelectedEventId('')
+      onTaskUpdated?.(data.data)
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Conversion Failed",
+        description: error.response?.data?.error || "Failed to convert task to prep task",
+        variant: "destructive"
+      })
+    }
   })
   
   const resourceCount = Array.isArray(resourceData) ? resourceData.length : 0
@@ -952,6 +1007,18 @@ export function TaskModal({ task, isOpen, onClose, onTaskUpdated, onTaskDeleted 
                     {uncompleteTaskMutation.isPending ? 'Uncompleting...' : 'Uncomplete Task'}
                   </Button>
                 )}
+                {/* Convert to Prep Task Button - only show if task is not already a prep task */}
+                {!task.eventId && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowConvertToPrep(!showConvertToPrep)}
+                    className="border-blue-200 text-blue-700 hover:bg-blue-50 hover:border-blue-300"
+                  >
+                    <Calendar className="w-4 h-4 mr-2" />
+                    Convert to Prep Task
+                  </Button>
+                )}
               </>
             )}
           </div>
@@ -1040,6 +1107,56 @@ export function TaskModal({ task, isOpen, onClose, onTaskUpdated, onTaskDeleted 
           isOpen={lineItemsViewerOpen}
           onClose={() => setLineItemsViewerOpen(false)}
         />
+      )}
+
+      {/* Convert to Prep Task Modal */}
+      {showConvertToPrep && task && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md mx-4">
+            <h3 className="text-lg font-semibold mb-4">Convert to Prep Task</h3>
+            <p className="text-sm text-muted-foreground mb-4">
+              Select an event to convert "{task.title}" into a preparation task.
+            </p>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-2">Select Event:</label>
+                <select
+                  value={selectedEventId}
+                  onChange={(e) => setSelectedEventId(e.target.value)}
+                  className="w-full p-2 border rounded-md bg-white dark:bg-gray-700 text-black dark:text-white"
+                >
+                  <option value="">Choose an event...</option>
+                  {events?.map((event: any) => (
+                    <option key={event.id} value={event.id}>
+                      {event.title} - {new Date(event.startTime).toLocaleDateString()}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              
+              <div className="flex space-x-2 pt-4">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setShowConvertToPrep(false)
+                    setSelectedEventId('')
+                  }}
+                  className="flex-1"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleConvertToPrep}
+                  disabled={convertToPrepMutation.isPending || !selectedEventId}
+                  className="flex-1 bg-blue-600 hover:bg-blue-700"
+                >
+                  {convertToPrepMutation.isPending ? 'Converting...' : 'Convert Task'}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )
