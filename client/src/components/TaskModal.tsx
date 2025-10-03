@@ -788,6 +788,21 @@ export function TaskModal({ task, isOpen, onClose, onTaskUpdated, onTaskDeleted 
                   />
                 </div>
               </div>
+
+              {/* Remove from Event Button - only show in edit mode if task is a prep task */}
+              {task?.eventId && (
+                <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setShowRemoveFromEvent(!showRemoveFromEvent)}
+                    className="w-full border-orange-200 text-orange-700 hover:bg-orange-50 hover:border-orange-300"
+                  >
+                    <X className="w-4 h-4 mr-2" />
+                    Remove from Event
+                  </Button>
+                </div>
+              )}
             </div>
           ) : (
             <div>
@@ -1053,18 +1068,6 @@ export function TaskModal({ task, isOpen, onClose, onTaskUpdated, onTaskDeleted 
                   </Button>
                 )}
                 
-                {/* Remove from Event Button - only show if task is already a prep task */}
-                {task.eventId && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowRemoveFromEvent(!showRemoveFromEvent)}
-                    className="border-orange-200 text-orange-700 hover:bg-orange-50 hover:border-orange-300"
-                  >
-                    <X className="w-4 h-4 mr-2" />
-                    Remove from Event
-                  </Button>
-                )}
               </>
             )}
           </div>
