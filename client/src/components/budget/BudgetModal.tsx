@@ -21,7 +21,10 @@ import {
   List,
   History,
   ExternalLink,
-  Sparkles
+  Sparkles,
+  Camera,
+  Upload,
+  Receipt
 } from 'lucide-react';
 
 interface BudgetModalProps {
@@ -73,6 +76,11 @@ export function BudgetModal({ taskId, isOpen, onClose }: BudgetModalProps) {
   const [isQuickTotalFocused, setIsQuickTotalFocused] = useState<boolean>(false);
   const [focusedPriceInputId, setFocusedPriceInputId] = useState<string | null>(null);
   const [isSuggestingEstimate, setIsSuggestingEstimate] = useState<boolean>(false);
+  
+  // Receipt scanning state
+  const [isScanningReceipt, setIsScanningReceipt] = useState<boolean>(false);
+  const [receiptImage, setReceiptImage] = useState<string | null>(null);
+  const [isProcessingReceipt, setIsProcessingReceipt] = useState<boolean>(false);
 
   // Fetch task budget
   const { data: budgetData, isLoading, refetch } = useQuery({
@@ -395,6 +403,102 @@ export function BudgetModal({ taskId, isOpen, onClose }: BudgetModalProps) {
     suggestEstimateMutation.mutate();
   };
 
+  // Receipt scanning functions
+  const handleTakePhoto = () => {
+    setIsScanningReceipt(true);
+    // Create a file input for camera access
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.capture = 'environment'; // Use back camera on mobile
+    input.onchange = (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (file) {
+        handleReceiptImage(file);
+      }
+      setIsScanningReceipt(false);
+    };
+    input.click();
+  };
+
+  const handleUploadReceipt = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.onchange = (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (file) {
+        handleReceiptImage(file);
+      }
+    };
+    input.click();
+  };
+
+  const handleReceiptImage = async (file: File) => {
+    setIsProcessingReceipt(true);
+    
+    try {
+      // Convert file to base64 for OCR processing
+      const base64 = await fileToBase64(file);
+      setReceiptImage(base64);
+      
+      // Call AI endpoint to parse receipt
+      const response = await api.post('/ai/receipt/parse', {
+        image: base64,
+        taskId: taskId
+      });
+      
+      const { lineItems } = response.data.data;
+      
+      if (lineItems && lineItems.length > 0) {
+        // Auto-populate line items
+        const newLineItems = lineItems.map((item: any) => ({
+          name: item.name,
+          qty: item.qty || 1,
+          unitPriceCents: Math.round((item.price || 0) * 100),
+          categoryId: item.categoryId,
+          notes: item.notes || ''
+        }));
+        
+        // Update the budget with new line items
+        updateBudgetMutation.mutate({
+          mode: 'lines',
+          lineItems: [...(taskBudget?.lineItems || []), ...newLineItems]
+        });
+        
+        toast({
+          title: "Receipt Processed",
+          description: `Found ${lineItems.length} items from your receipt`,
+          variant: "default"
+        });
+      } else {
+        toast({
+          title: "No Items Found",
+          description: "Could not extract line items from the receipt",
+          variant: "destructive"
+        });
+      }
+    } catch (error: any) {
+      console.error('Receipt processing error:', error);
+      toast({
+        title: "Processing Failed",
+        description: error.response?.data?.error || "Failed to process receipt",
+        variant: "destructive"
+      });
+    } finally {
+      setIsProcessingReceipt(false);
+    }
+  };
+
+  const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = error => reject(error);
+    });
+  };
+
 
   if (!isOpen) return null;
 
@@ -578,11 +682,39 @@ export function BudgetModal({ taskId, isOpen, onClose }: BudgetModalProps) {
                         <List className="h-4 w-4 mr-2" />
                         Use Line Items
                       </Button>
-                      <Button onClick={handleAddLineItem} disabled={addLineItemMutation.isPending}>
-                        <Plus className="h-4 w-4 mr-2" />
-                        Add Item
-                      </Button>
+                      <div className="flex gap-2">
+                        <Button onClick={handleAddLineItem} disabled={addLineItemMutation.isPending}>
+                          <Plus className="h-4 w-4 mr-2" />
+                          Add Item
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          onClick={handleTakePhoto}
+                          disabled={isScanningReceipt || isProcessingReceipt}
+                        >
+                          <Camera className="h-4 w-4 mr-2" />
+                          {isScanningReceipt ? 'Taking Photo...' : 'Scan Receipt'}
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          onClick={handleUploadReceipt}
+                          disabled={isProcessingReceipt}
+                        >
+                          <Upload className="h-4 w-4 mr-2" />
+                          Upload Receipt
+                        </Button>
+                      </div>
                     </div>
+
+                    {/* Receipt processing indicator */}
+                    {isProcessingReceipt && (
+                      <div className="flex items-center justify-center p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                        <div className="flex items-center space-x-2">
+                          <Receipt className="h-5 w-5 text-blue-600 animate-pulse" />
+                          <span className="text-blue-800 font-medium">Processing receipt...</span>
+                        </div>
+                      </div>
+                    )}
 
                     {taskBudget?.lineItems && taskBudget.lineItems.length > 0 ? (
                       <div className="space-y-3">

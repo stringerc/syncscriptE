@@ -1421,4 +1421,150 @@ router.post('/tasks/:taskId/suggest-budget', authenticateToken, asyncHandler(asy
   }
 }));
 
+// Parse receipt image and extract line items
+router.post('/receipt/parse', authenticateToken, asyncHandler(async (req: AuthRequest, res) => {
+  const userId = req.user!.id;
+  const { image, taskId } = req.body;
+
+  if (!image) {
+    throw createError('Image is required', 400);
+  }
+
+  if (!openai) {
+    throw createError('AI service not available', 500);
+  }
+
+  try {
+    // Get task context for better parsing
+    const task = await prisma.task.findUnique({
+      where: { id: taskId, userId: userId },
+      include: {
+        event: true
+      }
+    });
+
+    if (!task) {
+      throw createError('Task not found', 404);
+    }
+
+    // Use OpenAI Vision API to analyze the receipt image
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o', // Use GPT-4o for vision capabilities
+      messages: [
+        {
+          role: 'system',
+          content: `You are an expert at parsing receipt images and extracting line items for budget tracking.
+
+Your task is to analyze a receipt image and extract individual line items with the following information:
+- Item name (clean, readable product name)
+- Quantity (if not specified, assume 1)
+- Unit price (in dollars, not cents)
+- Category (if you can determine it: groceries, office supplies, household, etc.)
+
+Return ONLY a JSON array of objects with this exact structure:
+[
+  {
+    "name": "Product Name",
+    "qty": 1,
+    "price": 2.99,
+    "category": "groceries"
+  }
+]
+
+Guidelines:
+- Extract ALL line items from the receipt
+- Use clean, readable product names (remove store codes, abbreviations)
+- Convert prices to decimal format (2.99 not $2.99)
+- If quantity is not clear, assume 1
+- Group similar items if they appear multiple times
+- Ignore taxes, fees, and totals - only extract individual products
+- If you cannot read the receipt clearly, return an empty array`
+        },
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'text',
+              text: `Please analyze this receipt image and extract line items for a task titled "${task.title}". ${task.event ? `This is related to the event "${task.event.title}".` : ''}`
+            },
+            {
+              type: 'image_url',
+              image_url: {
+                url: image
+              }
+            }
+          ]
+        }
+      ],
+      max_tokens: 2000,
+      temperature: 0.1
+    });
+
+    const response = completion.choices[0]?.message?.content;
+    if (!response) {
+      throw createError('No response from AI', 500);
+    }
+
+    let lineItems;
+    try {
+      // Extract JSON from markdown code blocks if present
+      let jsonString = response.trim();
+      if (jsonString.startsWith('```json')) {
+        jsonString = jsonString.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+      } else if (jsonString.startsWith('```')) {
+        jsonString = jsonString.replace(/^```\s*/, '').replace(/\s*```$/, '');
+      }
+      
+      lineItems = JSON.parse(jsonString);
+    } catch (parseError) {
+      logger.error('Failed to parse AI response', { response, error: parseError });
+      throw createError('Invalid AI response format', 500);
+    }
+
+    // Validate the response format
+    if (!Array.isArray(lineItems)) {
+      throw createError('AI response must be an array of line items', 500);
+    }
+
+    // Validate each line item
+    const validatedLineItems = lineItems.map((item: any, index: number) => {
+      if (!item.name || typeof item.name !== 'string') {
+        throw createError(`Invalid item name at index ${index}`, 400);
+      }
+      if (typeof item.qty !== 'number' || item.qty < 1) {
+        item.qty = 1; // Default to 1 if invalid
+      }
+      if (typeof item.price !== 'number' || item.price < 0) {
+        throw createError(`Invalid price at index ${index}`, 400);
+      }
+      return {
+        name: item.name.trim(),
+        qty: Math.round(item.qty),
+        price: Math.round(item.price * 100) / 100, // Round to 2 decimal places
+        category: item.category || 'other'
+      };
+    });
+
+    logger.info('Receipt parsed successfully', { 
+      userId, 
+      taskId, 
+      itemCount: validatedLineItems.length
+    });
+
+    res.json({
+      success: true,
+      data: {
+        lineItems: validatedLineItems,
+        totalItems: validatedLineItems.length,
+        estimatedTotal: validatedLineItems.reduce((sum, item) => sum + (item.price * item.qty), 0)
+      },
+      message: `Successfully extracted ${validatedLineItems.length} items from receipt`
+    });
+
+  } catch (error) {
+    logger.error('Receipt parsing error', { error: error instanceof Error ? error.message : 'Unknown error' });
+    throw createError('Failed to parse receipt', 500);
+  }
+}));
+
 export default router;
