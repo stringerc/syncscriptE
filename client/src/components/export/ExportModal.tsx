@@ -274,6 +274,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
   const selectedPresetInfo = audiencePresets.find(p => p.id === selectedPreset);
 
   return (
+    <>
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogOverlay className="z-[60]" />
       <DialogContent className="sm:max-w-[500px] max-h-[80vh] overflow-y-auto z-[60]">
@@ -544,6 +545,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+    </>
   );
 };
 
