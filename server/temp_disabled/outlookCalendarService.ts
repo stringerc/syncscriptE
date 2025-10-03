@@ -34,17 +34,17 @@ export interface OutlookCalendarEvent {
 
 export class OutlookCalendarService implements CalendarProviderService {
   private accessToken: string;
-  private refreshToken?: string;
+  private refreshTokenValue?: string;
   private expiresAt?: Date;
   private readonly baseUrl = 'https://graph.microsoft.com/v1.0';
 
   constructor(credentials: CalendarCredentials) {
     this.accessToken = credentials.accessToken;
-    this.refreshToken = credentials.refreshToken;
+    this.refreshTokenValue = credentials.refreshToken;
     this.expiresAt = credentials.expiresAt;
   }
 
-  private async makeRequest(method: string, endpoint: string, data?: any) {
+  private async makeRequest(method: 'GET' | 'POST' | 'PUT' | 'DELETE', endpoint: string, data?: any) {
     const url = `${this.baseUrl}${endpoint}`;
     
     try {
@@ -139,7 +139,7 @@ export class OutlookCalendarService implements CalendarProviderService {
   }
 
   async refreshToken(): Promise<CalendarCredentials> {
-    if (!this.refreshToken) {
+    if (!this.refreshTokenValue) {
       throw new Error('No refresh token available for Outlook calendar');
     }
 
@@ -147,7 +147,7 @@ export class OutlookCalendarService implements CalendarProviderService {
       const response = await axios.post('https://login.microsoftonline.com/common/oauth2/v2.0/token', {
         client_id: process.env.OUTLOOK_CLIENT_ID,
         client_secret: process.env.OUTLOOK_CLIENT_SECRET,
-        refresh_token: this.refreshToken,
+        refresh_token: this.refreshTokenValue,
         grant_type: 'refresh_token',
         scope: 'https://graph.microsoft.com/Calendars.ReadWrite'
       });
@@ -155,12 +155,12 @@ export class OutlookCalendarService implements CalendarProviderService {
       const { access_token, refresh_token, expires_in } = response.data;
       
       this.accessToken = access_token;
-      this.refreshToken = refresh_token;
+      this.refreshTokenValue = refresh_token;
       this.expiresAt = new Date(Date.now() + expires_in * 1000);
 
       return {
         accessToken: this.accessToken,
-        refreshToken: this.refreshToken,
+        refreshToken: this.refreshTokenValue,
         expiresAt: this.expiresAt
       };
     } catch (error) {

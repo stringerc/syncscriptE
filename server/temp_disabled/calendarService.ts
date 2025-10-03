@@ -1,8 +1,8 @@
 import { logger } from './logger';
-import { GoogleCalendarService } from './googleCalendarService';
-import { OutlookCalendarService } from './outlookCalendarService';
-import { ExchangeCalendarService } from './exchangeCalendarService';
-import { ICloudCalendarService } from './iCloudCalendarService';
+// import { GoogleCalendarService } from './googleCalendarService';
+// import { OutlookCalendarService } from './outlookCalendarService';
+// import { ExchangeCalendarService } from './exchangeCalendarService';
+// import { ICloudCalendarService } from './iCloudCalendarService';
 
 export interface CalendarEvent {
   id?: string;
@@ -54,25 +54,22 @@ export class MultiCalendarService {
   private providers: Map<CalendarProvider, CalendarProviderService> = new Map();
 
   constructor(credentials: Map<CalendarProvider, CalendarCredentials>) {
-    // Initialize Google Calendar service
-    if (credentials.has('google')) {
-      this.providers.set('google', new GoogleCalendarService(credentials.get('google')!));
-    }
+    // Initialize calendar services - temporarily disabled for deployment
+    // if (credentials.has('google')) {
+    //   this.providers.set('google', new GoogleCalendarService(credentials.get('google')!));
+    // }
 
-    // Initialize Outlook Calendar service
-    if (credentials.has('outlook')) {
-      this.providers.set('outlook', new OutlookCalendarService(credentials.get('outlook')!));
-    }
+    // if (credentials.has('outlook')) {
+    //   this.providers.set('outlook', new OutlookCalendarService(credentials.get('outlook')!));
+    // }
 
-    // Initialize Exchange Calendar service
-    if (credentials.has('exchange')) {
-      this.providers.set('exchange', new ExchangeCalendarService(credentials.get('exchange')!));
-    }
+    // if (credentials.has('exchange')) {
+    //   this.providers.set('exchange', new ExchangeCalendarService(credentials.get('exchange')!));
+    // }
 
-    // Initialize iCloud Calendar service
-    if (credentials.has('icloud')) {
-      this.providers.set('icloud', new ICloudCalendarService(credentials.get('icloud')!));
-    }
+    // if (credentials.has('icloud')) {
+    //   this.providers.set('icloud', new ICloudCalendarService(credentials.get('icloud')!));
+    // }
   }
 
   /**

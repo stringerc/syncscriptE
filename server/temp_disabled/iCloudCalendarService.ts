@@ -42,7 +42,7 @@ export class ICloudCalendarService implements CalendarProviderService {
     this.appPassword = credentials.refreshToken!; // App-specific password
   }
 
-  private async makeRequest(method: string, endpoint: string, data?: any, headers: any = {}) {
+  private async makeRequest(method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PROPFIND' | 'PROPPATCH', endpoint: string, data?: any, headers: any = {}) {
     const url = `${this.baseUrl}${endpoint}`;
     
     try {

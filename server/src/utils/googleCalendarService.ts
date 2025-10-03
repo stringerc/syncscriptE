@@ -1,5 +1,6 @@
 import { google } from 'googleapis';
 import { logger } from './logger';
+// import { CalendarProviderService, CalendarCredentials } from './calendarService';
 
 export interface GoogleCalendarEvent {
   id?: string;
@@ -106,7 +107,7 @@ export class GoogleCalendarService {
   /**
    * Refresh access token if needed
    */
-  async refreshTokenIfNeeded(): Promise<GoogleCalendarCredentials> {
+  async refreshToken(): Promise<GoogleCalendarCredentials> {
     try {
       const { credentials } = await this.oauth2Client.refreshAccessToken();
       

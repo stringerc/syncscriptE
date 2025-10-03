@@ -1,4 +1,15 @@
 import puppeteer from 'puppeteer';
+import { ExportOptions } from './exportService';
+import { PrismaClient } from '@prisma/client';
+import { logger } from '../utils/logger';
+
+const prisma = new PrismaClient();
+
+interface ExportJob {
+  id: string;
+  status: string;
+  progress: number;
+}
 
 export interface PDFExportData {
   title: string;

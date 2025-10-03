@@ -38,15 +38,15 @@ export interface ExchangeCalendarEvent {
 
 export class ExchangeCalendarService implements CalendarProviderService {
   private accessToken: string;
-  private refreshToken: string;
+  private refreshTokenValue: string;
   private readonly baseUrl = 'https://graph.microsoft.com/v1.0';
 
   constructor(credentials: CalendarCredentials) {
     this.accessToken = credentials.accessToken;
-    this.refreshToken = credentials.refreshToken!;
+    this.refreshTokenValue = credentials.refreshToken!;
   }
 
-  private async makeRequest(method: string, endpoint: string, data?: any) {
+  private async makeRequest(method: 'GET' | 'POST' | 'PUT' | 'DELETE', endpoint: string, data?: any) {
     const url = `${this.baseUrl}${endpoint}`;
     
     try {
@@ -180,16 +180,16 @@ export class ExchangeCalendarService implements CalendarProviderService {
       const response = await axios.post('https://login.microsoftonline.com/common/oauth2/v2.0/token', {
         client_id: process.env.OUTLOOK_CLIENT_ID,
         client_secret: process.env.OUTLOOK_CLIENT_SECRET,
-        refresh_token: this.refreshToken,
+        refresh_token: this.refreshTokenValue,
         grant_type: 'refresh_token',
       });
 
       this.accessToken = response.data.access_token;
-      this.refreshToken = response.data.refresh_token;
+      this.refreshTokenValue = response.data.refresh_token;
 
       return {
         accessToken: this.accessToken,
-        refreshToken: this.refreshToken,
+        refreshToken: this.refreshTokenValue,
         expiresAt: new Date(Date.now() + response.data.expires_in * 1000)
       };
     } catch (error) {

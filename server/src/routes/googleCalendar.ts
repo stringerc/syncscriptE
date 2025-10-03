@@ -848,7 +848,7 @@ router.post('/refresh-tokens', authenticateToken, asyncHandler(async (req: AuthR
       expiresAt: integration.expiresAt || undefined
     });
 
-    const newCredentials = await googleCalendarService.refreshTokenIfNeeded();
+    const newCredentials = await googleCalendarService.refreshToken();
 
     // Update the integration with new tokens
     await prisma.calendarIntegration.update({
