@@ -42,15 +42,34 @@ export function BudgetSummary({ taskId }: BudgetSummaryProps) {
     return null;
   }
 
+  // Calculate actual cost from line items when in 'lines' mode
+  let displayActualCents = budgetTotals.actualCents;
+  let displayEstimatedCents = budgetTotals.estimatedCents;
+  
+  if (budgetDetails?.mode === 'lines' && budgetDetails?.lineItems && budgetDetails.lineItems.length > 0) {
+    // Calculate line items total (this becomes the actual cost)
+    const lineItemsTotal = budgetDetails.lineItems.reduce((sum, item) => {
+      return sum + (item.qty * item.unitPriceCents);
+    }, 0);
+    displayActualCents = lineItemsTotal;
+    
+    // If there's a manually set estimated total, use that; otherwise use line items total
+    if (budgetDetails.estimatedCents && budgetDetails.estimatedCents > 0) {
+      displayEstimatedCents = budgetDetails.estimatedCents;
+    } else {
+      displayEstimatedCents = lineItemsTotal;
+    }
+  }
+
   const formatCurrency = (cents: number) => {
     return `$${(cents / 100).toFixed(0)}`;
   };
 
   const getStatusIcon = () => {
-    if (budgetTotals.actualCents !== undefined) {
-      if (budgetTotals.actualCents > budgetTotals.estimatedCents) {
+    if (displayActualCents !== undefined) {
+      if (displayActualCents > displayEstimatedCents) {
         return <TrendingUp className="h-4 w-4 text-orange-600" />;
-      } else if (budgetTotals.actualCents < budgetTotals.estimatedCents) {
+      } else if (displayActualCents < displayEstimatedCents) {
         return <TrendingDown className="h-4 w-4 text-green-600" />;
       } else {
         return <CheckCircle className="h-4 w-4 text-blue-600" />;
@@ -60,10 +79,10 @@ export function BudgetSummary({ taskId }: BudgetSummaryProps) {
   };
 
   const getStatusColor = () => {
-    if (budgetTotals.actualCents !== undefined) {
-      if (budgetTotals.actualCents > budgetTotals.estimatedCents) {
+    if (displayActualCents !== undefined) {
+      if (displayActualCents > displayEstimatedCents) {
         return 'bg-orange-50 border-orange-200';
-      } else if (budgetTotals.actualCents < budgetTotals.estimatedCents) {
+      } else if (displayActualCents < displayEstimatedCents) {
         return 'bg-green-50 border-green-200';
       } else {
         return 'bg-blue-50 border-blue-200';
@@ -97,28 +116,28 @@ export function BudgetSummary({ taskId }: BudgetSummaryProps) {
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium">Estimated:</span>
-              <span className="font-semibold">{formatCurrency(budgetTotals.estimatedCents)}</span>
+              <span className="font-semibold">{formatCurrency(displayEstimatedCents)}</span>
             </div>
             
-            {budgetTotals.actualCents !== undefined && (
+            {displayActualCents !== undefined && (
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium">Actual:</span>
                 <div className="flex items-center gap-2">
                   {getStatusIcon()}
-                  <span className="font-semibold">{formatCurrency(budgetTotals.actualCents)}</span>
+                  <span className="font-semibold">{formatCurrency(displayActualCents)}</span>
                 </div>
               </div>
             )}
             
-            {budgetTotals.actualCents !== undefined && (
+            {displayActualCents !== undefined && (
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium">Variance:</span>
                 <span className={`font-semibold ${
-                  budgetTotals.varianceCents > 0 ? 'text-orange-600' : 
-                  budgetTotals.varianceCents < 0 ? 'text-green-600' : 
+                  (displayActualCents - displayEstimatedCents) > 0 ? 'text-orange-600' : 
+                  (displayActualCents - displayEstimatedCents) < 0 ? 'text-green-600' : 
                   'text-blue-600'
                 }`}>
-                  {budgetTotals.varianceCents > 0 ? '+' : ''}{formatCurrency(budgetTotals.varianceCents)}
+                  {(displayActualCents - displayEstimatedCents) > 0 ? '+' : ''}{formatCurrency(displayActualCents - displayEstimatedCents)}
                 </span>
               </div>
             )}

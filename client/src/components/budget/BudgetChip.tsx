@@ -61,9 +61,16 @@ function BudgetChip({
     const lineItemsTotal = budgetDetails.lineItems.reduce((sum, item) => {
       return sum + (item.qty * item.unitPriceCents);
     }, 0);
-    displayEstimatedCents = lineItemsTotal;
+    
     // Auto-calculate actual cost from line items
     displayActualCents = lineItemsTotal;
+    
+    // If there's a manually set estimated total, use that; otherwise use line items total
+    if (budgetDetails.estimatedCents && budgetDetails.estimatedCents > 0) {
+      displayEstimatedCents = budgetDetails.estimatedCents;
+    } else {
+      displayEstimatedCents = lineItemsTotal;
+    }
   }
 
 
