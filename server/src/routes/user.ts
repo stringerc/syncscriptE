@@ -363,7 +363,10 @@ router.get('/dashboard', authenticateToken, asyncHandler(async (req: AuthRequest
           { dueDate: null, scheduledAt: null }
         ]
       },
-      include: { subtasks: true },
+      include: { 
+        subtasks: true,
+        event: { select: { id: true, title: true } }
+      },
       orderBy: [
         { status: 'asc' }, // Show completed tasks last
         { priority: 'desc' },

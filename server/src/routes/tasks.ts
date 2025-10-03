@@ -175,7 +175,8 @@ router.get('/', authenticateToken, asyncHandler(async (req: AuthRequest, res) =>
     prisma.task.findMany({
       where,
       include: {
-        subtasks: { orderBy: { order: 'asc' } }
+        subtasks: { orderBy: { order: 'asc' } },
+        event: { select: { id: true, title: true } }
       },
       orderBy: { [sortBy]: sortOrder },
       skip,
@@ -227,7 +228,8 @@ router.get('/:id', authenticateToken, asyncHandler(async (req: AuthRequest, res)
       userId: req.user!.id
     },
     include: {
-      subtasks: { orderBy: { order: 'asc' } }
+      subtasks: { orderBy: { order: 'asc' } },
+      event: { select: { id: true, title: true } }
     }
   });
 
