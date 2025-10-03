@@ -5,9 +5,11 @@ import { createError } from '../middleware/errorHandler';
 export interface ExportOptions {
   exportType: 'pdf' | 'docx' | 'pptx' | 'csv' | 'xlsx' | 'ics' | 'html' | 'json';
   scope: {
-    type: 'project' | 'event' | 'script' | 'timeframe';
+    type: 'project' | 'event' | 'script' | 'timeframe' | 'task' | 'tasks';
     id?: string;
+    ids?: string[];
     range?: string;
+    groupBy?: string;
   };
   audiencePreset: 'owner' | 'team' | 'vendor' | 'attendee' | 'personal';
   redactionSettings: {
@@ -18,9 +20,9 @@ export interface ExportOptions {
     watermark: boolean;
     passcodeProtect: boolean;
     expireShareLink: boolean;
-    removeAvatars: boolean;
+    removeAvatars?: boolean;
   };
-  sections: string[];
+  sections?: string[];
   deliveryOptions: {
     download: boolean;
     email: boolean;
@@ -74,7 +76,7 @@ export class ExportService {
           options: JSON.stringify(options),
           status: 'queued',
           progress: 0,
-          sections: JSON.stringify(options.sections),
+          sections: JSON.stringify(options.sections || []),
           redactions: JSON.stringify(options.redactionSettings),
           estimatedSize: await this.estimateExportSize(options),
           expiresAt: options.deliveryOptions?.shareLink 
@@ -320,7 +322,7 @@ export class ExportService {
     }
 
     // Adjust based on sections
-    estimatedSize *= options.sections.length;
+    estimatedSize *= (options.sections?.length || 1);
 
     return Math.round(estimatedSize);
   }
