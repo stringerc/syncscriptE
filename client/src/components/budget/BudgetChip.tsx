@@ -53,7 +53,8 @@ function BudgetChip({
   
   // Use fetched data if available, otherwise use props
   const finalEstimatedCents = budgetTotals?.estimatedCents ?? budgetDetails?.estimatedCents ?? estimatedCents;
-  const finalActualCents = budgetTotals?.actualCents ?? budgetDetails?.actualCents ?? actualCents;
+  // Only use actualCents if it's not 0 (0 means no actual cost yet)
+  const finalActualCents = (budgetTotals?.actualCents ?? budgetDetails?.actualCents ?? actualCents) || undefined;
   const finalMode = budgetDetails?.mode ?? mode;
   const finalIsOverBudget = budgetTotals?.isOverBudget ?? isOverBudget;
   
