@@ -1008,7 +1008,16 @@ export function TaskModal({ task, isOpen, onClose, onTaskUpdated, onTaskDeleted 
                   </Button>
                 )}
                 {/* Convert to Prep Task Button - only show if task is not already a prep task */}
-                {!task.eventId && (
+                {(() => {
+                  console.log('🔍 TaskModal: Checking task for Convert to Prep Task button:', {
+                    taskId: task.id,
+                    taskTitle: task.title,
+                    eventId: task.eventId,
+                    hasEventId: !!task.eventId,
+                    shouldShowButton: !task.eventId
+                  });
+                  return !task.eventId;
+                })() && (
                   <Button
                     variant="outline"
                     size="sm"
