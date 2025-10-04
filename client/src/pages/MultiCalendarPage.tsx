@@ -15,8 +15,11 @@ import {
   AlertCircle,
   ExternalLink,
   Mail,
-  Smartphone
+  Smartphone,
+  Apple
 } from 'lucide-react';
+import { OutlookCalendarIntegration } from '@/components/OutlookCalendarIntegration';
+import { AppleCalendarIntegration } from '@/components/AppleCalendarIntegration';
 
 interface CalendarProvider {
   id: string;
@@ -571,6 +574,41 @@ const MultiCalendarPage = () => {
               )}
             </CardContent>
           </Card>
+        </div>
+      </div>
+
+      {/* Enhanced Calendar Integrations */}
+      <div className="space-y-4">
+        <h2 className="text-xl font-semibold">Enhanced Calendar Integrations</h2>
+        <p className="text-muted-foreground">
+          Advanced calendar integrations with improved OAuth flows and ICS feed support
+        </p>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <OutlookCalendarIntegration
+            onConnected={() => {
+              console.log('Outlook Calendar connected via enhanced integration');
+              // Refresh the providers list
+              queryClient.invalidateQueries({ queryKey: ['calendar-providers'] });
+            }}
+            onDisconnected={() => {
+              console.log('Outlook Calendar disconnected via enhanced integration');
+              // Refresh the providers list
+              queryClient.invalidateQueries({ queryKey: ['calendar-providers'] });
+            }}
+          />
+          
+          <AppleCalendarIntegration
+            onConnected={() => {
+              console.log('Apple Calendar connected via enhanced integration');
+              // Refresh the providers list
+              queryClient.invalidateQueries({ queryKey: ['calendar-providers'] });
+            }}
+            onDisconnected={() => {
+              console.log('Apple Calendar disconnected via enhanced integration');
+              // Refresh the providers list
+              queryClient.invalidateQueries({ queryKey: ['calendar-providers'] });
+            }}
+          />
         </div>
       </div>
 
