@@ -7,6 +7,7 @@
 import express from 'express';
 import { authenticateToken, AuthRequest } from '../middleware/auth';
 import { getOutboxMetrics, getOutboxHealthStatus, getOutboxTrends } from '../services/outboxMetricsService';
+import { getActiveLocks, cleanupExpiredLocks, withCronLock } from '../services/cronLockService';
 import { PrismaClient } from '@prisma/client';
 import { logger } from '../utils/logger';
 import { asyncHandler } from '../utils/asyncHandler';
@@ -263,6 +264,93 @@ router.delete('/outbox/dead-letter/:eventId', authenticateToken, requireAdmin, a
     res.status(500).json({
       success: false,
       error: 'Failed to delete event'
+    });
+  }
+}));
+
+/**
+ * GET /api/admin/cron/locks
+ * Get active cron locks
+ */
+router.get('/cron/locks', authenticateToken, requireAdmin, asyncHandler(async (req: AuthRequest, res) => {
+  try {
+    const { jobName } = req.query;
+    const locks = await getActiveLocks(jobName as string);
+    
+    res.json({
+      success: true,
+      data: locks
+    });
+  } catch (error) {
+    logger.error('Failed to get cron locks', { error });
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get cron locks'
+    });
+  }
+}));
+
+/**
+ * POST /api/admin/cron/cleanup-expired
+ * Clean up expired cron locks
+ */
+router.post('/cron/cleanup-expired', authenticateToken, requireAdmin, asyncHandler(async (req: AuthRequest, res) => {
+  try {
+    const cleanedCount = await cleanupExpiredLocks();
+    
+    res.json({
+      success: true,
+      data: {
+        cleanedCount
+      }
+    });
+  } catch (error) {
+    logger.error('Failed to cleanup expired cron locks', { error });
+    res.status(500).json({
+      success: false,
+      error: 'Failed to cleanup expired locks'
+    });
+  }
+}));
+
+/**
+ * POST /api/admin/cron/test
+ * Test cron lock functionality
+ */
+router.post('/cron/test', authenticateToken, requireAdmin, asyncHandler(async (req: AuthRequest, res) => {
+  try {
+    const { jobName, duration = 1000 } = req.body;
+    
+    if (!jobName) {
+      return res.status(400).json({
+        success: false,
+        error: 'jobName is required'
+      });
+    }
+    
+    const result = await withCronLock(
+      jobName,
+      async () => {
+        // Simulate work
+        await new Promise(resolve => setTimeout(resolve, duration));
+        return { executed: true, jobName, duration };
+      },
+      1, // 1 minute lock
+      { test: true, requestedBy: req.user?.id }
+    );
+    
+    res.json({
+      success: true,
+      data: {
+        executed: result !== null,
+        result
+      }
+    });
+  } catch (error) {
+    logger.error('Failed to test cron lock', { error });
+    res.status(500).json({
+      success: false,
+      error: 'Failed to test cron lock'
     });
   }
 }));

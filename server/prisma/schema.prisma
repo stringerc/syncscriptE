@@ -1824,3 +1824,17 @@ model UserEnergyDailySnapshot {
   @@index([snapshotDate])
   @@map("user_energy_daily_snapshots")
 }
+
+// Cron job locks for preventing concurrent execution
+model CronLock {
+  id          String   @id
+  jobName     String   // Name of the cron job
+  lockedBy    String   // Who acquired the lock (trace ID or process ID)
+  lockedAt    DateTime @default(now())
+  expiresAt   DateTime // When the lock expires
+  metadata    String?  // JSON: additional lock metadata
+
+  @@index([jobName, expiresAt])
+  @@index([expiresAt])
+  @@map("cron_locks")
+}
