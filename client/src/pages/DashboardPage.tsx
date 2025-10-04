@@ -1248,51 +1248,6 @@ export function DashboardPage() {
     }
   })
 
-  // Fetch weather for all events
-  const { data: eventsWeatherData } = useQuery({
-    queryKey: ['events-weather', upcomingEvents, userLocation],
-    queryFn: async () => {
-      if (!upcomingEvents || upcomingEvents.length === 0) return {}
-      
-      console.log('🌤️ Fetching weather for events:', upcomingEvents.length)
-      const response = await api.post('/location/events/weather', {
-        events: upcomingEvents.map(event => ({
-          id: event.id,
-          startTime: event.startTime,
-          location: event.location
-        })),
-        lat: userLocation?.lat,
-        lon: userLocation?.lon
-      })
-      
-      console.log('🌤️ Events weather response:', response.data)
-      
-      if (response.data.success && response.data.data.eventsWithWeather) {
-        const weatherMap: Record<string, { emoji: string; temperature: number; condition: string }> = {}
-        response.data.data.eventsWithWeather.forEach((item: any) => {
-          if (item.weather) {
-            weatherMap[item.eventId] = {
-              emoji: item.weather.emoji,
-              temperature: item.weather.temperature,
-              condition: item.weather.condition
-            }
-          }
-        })
-        console.log('🌤️ Processed events weather:', weatherMap)
-        return weatherMap
-      }
-      
-      return {}
-    },
-    enabled: !!upcomingEvents && upcomingEvents.length > 0,
-    staleTime: 30 * 60 * 1000, // 30 minutes
-    cacheTime: 60 * 60 * 1000, // Keep in cache for 1 hour
-    refetchOnWindowFocus: false,
-    retry: 1,
-    onError: (error) => {
-      console.error('Failed to fetch events weather:', error)
-    }
-  })
 
   // Debug forecast data
   useEffect(() => {
@@ -1429,6 +1384,52 @@ export function DashboardPage() {
   const safeUpcomingEvents = upcomingEvents || []
   const safeRecentAchievements = recentAchievements || []
   const safeActiveStreaks = activeStreaks || []
+
+  // Fetch weather for all events
+  const { data: eventsWeatherData } = useQuery({
+    queryKey: ['events-weather', safeUpcomingEvents, userLocation],
+    queryFn: async () => {
+      if (!safeUpcomingEvents || safeUpcomingEvents.length === 0) return {}
+      
+      console.log('🌤️ Fetching weather for events:', safeUpcomingEvents.length)
+      const response = await api.post('/location/events/weather', {
+        events: safeUpcomingEvents.map(event => ({
+          id: event.id,
+          startTime: event.startTime,
+          location: event.location
+        })),
+        lat: userLocation?.lat,
+        lon: userLocation?.lon
+      })
+      
+      console.log('🌤️ Events weather response:', response.data)
+      
+      if (response.data.success && response.data.data.eventsWithWeather) {
+        const weatherMap: Record<string, { emoji: string; temperature: number; condition: string }> = {}
+        response.data.data.eventsWithWeather.forEach((item: any) => {
+          if (item.weather) {
+            weatherMap[item.eventId] = {
+              emoji: item.weather.emoji,
+              temperature: item.weather.temperature,
+              condition: item.weather.condition
+            }
+          }
+        })
+        console.log('🌤️ Processed events weather:', weatherMap)
+        return weatherMap
+      }
+      
+      return {}
+    },
+    enabled: !!safeUpcomingEvents && safeUpcomingEvents.length > 0,
+    staleTime: 30 * 60 * 1000, // 30 minutes
+    cacheTime: 60 * 60 * 1000, // Keep in cache for 1 hour
+    refetchOnWindowFocus: false,
+    retry: 1,
+    onError: (error) => {
+      console.error('Failed to fetch events weather:', error)
+    }
+  })
   const safeUnreadNotifications = unreadNotifications || []
 
   // Debug logging for dashboard events - disabled for performance
@@ -1679,7 +1680,7 @@ export function DashboardPage() {
             </div>
           </CardHeader>
           <CardContent>
-            {upcomingEvents.length === 0 ? (
+            {safeUpcomingEvents.length === 0 ? (
               <div className="text-center py-8">
                 <Calendar className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
                 <p className="text-muted-foreground">No upcoming events!</p>
@@ -1689,7 +1690,7 @@ export function DashboardPage() {
               </div>
             ) : (
               <div className="space-y-3">
-                {upcomingEvents.slice(0, 5).map((event) => (
+                {safeUpcomingEvents.slice(0, 5).map((event) => (
                   <EventItem
                     key={event.id}
                     event={event}
