@@ -1827,14 +1827,15 @@ model UserEnergyDailySnapshot {
 
 // Cron job locks for preventing concurrent execution
 model CronLock {
-  id          String   @id
-  jobName     String   // Name of the cron job
-  lockedBy    String   // Who acquired the lock (trace ID or process ID)
-  lockedAt    DateTime @default(now())
-  expiresAt   DateTime // When the lock expires
-  metadata    String?  // JSON: additional lock metadata
+  id          String   @id @default(cuid())
+  jobName     String   @map("jobName")   // Name of the cron job
+  lockedBy    String   @map("lockedBy")  // Who acquired the lock (trace ID or process ID)
+  lockedAt    DateTime @map("lockedAt") @default(now())
+  expiresAt   DateTime @map("expiresAt") // When the lock expires
+  metadata    String?  @map("metadata")  // JSON: additional lock metadata
 
   @@index([jobName, expiresAt])
   @@index([expiresAt])
   @@map("cron_locks")
 }
+

@@ -1,6 +1,7 @@
 import { PrismaClient } from '@prisma/client';
 import { logger } from '../utils/logger';
 import { publishEvent, EnergySnapshotCreatedEvent } from './eventService';
+import { metricsService } from './metricsService';
 
 const prisma = new PrismaClient();
 
@@ -123,6 +124,7 @@ export async function resetUserEnergyIfNeeded(userId: string): Promise<boolean> 
       snapshotEP: currentEP 
     });
     
+    metricsService.recordEnergyResetRun();
     return true;
     
   } catch (error) {
@@ -130,6 +132,7 @@ export async function resetUserEnergyIfNeeded(userId: string): Promise<boolean> 
       userId, 
       error: error instanceof Error ? error.message : 'Unknown error' 
     });
+    metricsService.recordEnergyResetError();
     throw error;
   }
 }

@@ -7,6 +7,7 @@
 import { PrismaClient } from '@prisma/client';
 import { logger } from '../utils/logger';
 import { getCurrentTraceContext, logWithTrace } from './traceService';
+import { metricsService } from './metricsService';
 
 const prisma = new PrismaClient();
 
@@ -39,9 +40,8 @@ export async function acquireCronLock(
       // Check for existing active locks
       const existingLocks = await tx.$queryRaw`
         SELECT * FROM cron_locks 
-        WHERE job_name = ${jobName} 
-        AND expires_at > NOW()
-        FOR UPDATE
+        WHERE jobName = ${jobName} 
+        AND expiresAt > datetime('now')
       `;
 
       if (Array.isArray(existingLocks) && existingLocks.length > 0) {
@@ -50,19 +50,20 @@ export async function acquireCronLock(
           existingLocks: existingLocks.length,
           lockId
         });
+        metricsService.recordCronLockAcquireFail(jobName, 'already_locked');
         return null;
       }
 
       // Clean up expired locks
       await tx.$executeRaw`
         DELETE FROM cron_locks 
-        WHERE job_name = ${jobName} 
-        AND expires_at <= NOW()
+        WHERE jobName = ${jobName} 
+        AND expiresAt <= datetime('now')
       `;
 
       // Acquire new lock
       const lock = await tx.$queryRaw`
-        INSERT INTO cron_locks (id, job_name, locked_by, locked_at, expires_at, metadata)
+        INSERT INTO cron_locks (id, jobName, lockedBy, lockedAt, expiresAt, metadata)
         VALUES (${lockId}, ${jobName}, ${lockedBy}, ${lockedAt.toISOString()}, ${expiresAt.toISOString()}, ${JSON.stringify(metadata || {})})
         RETURNING *
       `;
@@ -77,6 +78,7 @@ export async function acquireCronLock(
         lockedBy,
         expiresAt
       });
+      metricsService.recordCronLockAcquireSuccess(jobName);
     }
 
     return result as CronLock | null;
@@ -87,6 +89,7 @@ export async function acquireCronLock(
       lockId,
       error: error instanceof Error ? error.message : 'Unknown error'
     });
+    metricsService.recordCronLockAcquireFail(jobName, 'error');
     throw error;
   }
 }
@@ -110,6 +113,20 @@ export async function releaseCronLock(lockId: string): Promise<boolean> {
         lockId,
         releasedBy: traceContext?.traceId || 'unknown'
       });
+      
+      // Record lock duration if we can find the original lock
+      try {
+        const originalLock = await prisma.cronLock.findUnique({
+          where: { id: lockId }
+        });
+        if (originalLock) {
+          const durationSeconds = (Date.now() - originalLock.lockedAt.getTime()) / 1000;
+          metricsService.recordCronLockHeldDuration(originalLock.jobName, durationSeconds);
+        }
+      } catch (durationError) {
+        // Don't fail the release if we can't record duration
+        logWithTrace('warn', 'Failed to record lock duration', { lockId, error: durationError });
+      }
     } else {
       logWithTrace('warn', 'Cron lock not found or already released', {
         lockId
@@ -140,9 +157,9 @@ export async function extendCronLock(
   try {
     const result = await prisma.$executeRaw`
       UPDATE cron_locks 
-      SET expires_at = ${newExpiresAt.toISOString()}
+      SET expiresAt = ${newExpiresAt.toISOString()}
       WHERE id = ${lockId} 
-      AND expires_at > NOW()
+      AND expiresAt > datetime('now')
     `;
 
     const extended = result > 0;
@@ -177,17 +194,17 @@ export async function getActiveLocks(jobName?: string): Promise<CronLock[]> {
   try {
     let query = `
       SELECT * FROM cron_locks 
-      WHERE expires_at > NOW()
+      WHERE expiresAt > datetime('now')
     `;
     
     const params: any[] = [];
     
     if (jobName) {
-      query += ` AND job_name = $1`;
+      query += ` AND jobName = $1`;
       params.push(jobName);
     }
     
-    query += ` ORDER BY locked_at DESC`;
+    query += ` ORDER BY lockedAt DESC`;
 
     const locks = await prisma.$queryRawUnsafe(query, ...params);
     return Array.isArray(locks) ? locks as CronLock[] : [];
@@ -208,7 +225,7 @@ export async function cleanupExpiredLocks(): Promise<number> {
   try {
     const result = await prisma.$executeRaw`
       DELETE FROM cron_locks 
-      WHERE expires_at <= NOW()
+      WHERE expiresAt <= datetime('now')
     `;
 
     logWithTrace('info', 'Expired cron locks cleaned up', {

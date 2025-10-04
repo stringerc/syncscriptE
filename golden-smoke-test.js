@@ -34,7 +34,7 @@ async function runGoldenSmokeTests() {
     console.log('✅ Database connection working (got response, even if auth failed)');
     passed++;
   } catch (error) {
-    if (error.response?.status === 401 || error.response?.status === 403) {
+    if (error.response?.status === 401) {
       console.log('✅ Database connection working (auth failed as expected)');
       passed++;
     } else {
@@ -52,8 +52,8 @@ async function runGoldenSmokeTests() {
     console.log('✅ Template recommendations API accessible');
     passed++;
   } catch (error) {
-    if (error.response?.status === 401 || error.response?.status === 403 || error.response?.status === 404) {
-      console.log('✅ Template recommendations API accessible (auth/forbidden/not found as expected)');
+    if (error.response?.status === 401 || error.response?.status === 404) {
+      console.log('✅ Template recommendations API accessible (auth/not found as expected)');
       passed++;
     } else {
       console.log('❌ Template recommendations API failed:', error.message);
@@ -70,8 +70,8 @@ async function runGoldenSmokeTests() {
     console.log('✅ Conflict resolver API accessible');
     passed++;
   } catch (error) {
-    if (error.response?.status === 401 || error.response?.status === 403 || error.response?.status === 404) {
-      console.log('✅ Conflict resolver API accessible (auth/forbidden/not found as expected)');
+    if (error.response?.status === 401 || error.response?.status === 404) {
+      console.log('✅ Conflict resolver API accessible (auth/not found as expected)');
       passed++;
     } else {
       console.log('❌ Conflict resolver API failed:', error.message);
@@ -88,8 +88,8 @@ async function runGoldenSmokeTests() {
     console.log('✅ Outlook calendar API accessible');
     passed++;
   } catch (error) {
-    if (error.response?.status === 401 || error.response?.status === 403) {
-      console.log('✅ Outlook calendar API accessible (auth/forbidden as expected)');
+    if (error.response?.status === 401) {
+      console.log('✅ Outlook calendar API accessible (auth failed as expected)');
       passed++;
     } else {
       console.log('❌ Outlook calendar API failed:', error.message);
@@ -106,8 +106,8 @@ async function runGoldenSmokeTests() {
     console.log('✅ Apple/iCloud calendar API accessible');
     passed++;
   } catch (error) {
-    if (error.response?.status === 401 || error.response?.status === 403) {
-      console.log('✅ Apple/iCloud calendar API accessible (auth/forbidden as expected)');
+    if (error.response?.status === 401) {
+      console.log('✅ Apple/iCloud calendar API accessible (auth failed as expected)');
       passed++;
     } else {
       console.log('❌ Apple/iCloud calendar API failed:', error.message);

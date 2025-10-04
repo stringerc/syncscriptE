@@ -49,8 +49,11 @@ import projectResourcesRoutes from './routes/projectResources';
 // import briefRoutes from './routes/brief';
 import calendarAuthRoutes from './routes/calendarAuth';
 import adminRoutes from './routes/admin';
+import metricsRoutes from './routes/metrics';
+import featureFlagKillRoutes from './routes/featureFlagKill';
 import { traceMiddleware } from './services/traceService';
 import { securityHeadersMiddleware, staticSecurityHeadersMiddleware, requestValidationMiddleware } from './middleware/securityHeaders';
+import { metricsMiddleware } from './middleware/metricsMiddleware';
 
 // Import middleware
 import { errorHandler } from './middleware/errorHandler';
@@ -62,6 +65,7 @@ import { logger } from './utils/logger';
 import { startBudgetMonitoring } from './jobs/budgetMonitoringJob';
 import { startEventDispatcher, stopEventDispatcher } from './workers/eventDispatcher';
 import { startDailyEnergyResetCron, stopDailyEnergyResetCron } from './jobs/dailyEnergyResetCron';
+import { metricsService } from './services/metricsService';
 
 // Load environment variables
 dotenv.config();
@@ -162,6 +166,7 @@ app.use((req, res, next) => {
 app.use(generalAPIRateLimit); // Rate limiting
 app.use(idempotencyMiddleware); // Idempotency for write operations
 app.use(traceMiddleware); // Distributed tracing
+app.use(metricsMiddleware); // Metrics collection
 app.use(securityHeadersMiddleware); // Security headers
 app.use(requestValidationMiddleware); // Request validation
 
@@ -285,6 +290,8 @@ app.use('/api/projects', projectResourcesRoutes);
 // app.use('/api/brief', briefRoutes);
 app.use('/api/calendar-auth', calendarAuthRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/admin', featureFlagKillRoutes);
+app.use('/metrics', metricsRoutes);
 
 // Catch-all handler: send back React's index.html file for any non-API routes
 app.get('*', (req, res) => {
@@ -366,6 +373,10 @@ server.listen(PORT, '0.0.0.0', () => {
   // Give the server a moment to fully initialize
   setTimeout(() => {
     logger.info(`🎯 Server fully initialized and ready to serve requests`);
+    
+    // Initialize metrics service
+    metricsService.initialize();
+    logger.info(`📊 Metrics service initialized`);
     
     // Start background jobs
     startBudgetMonitoring();
