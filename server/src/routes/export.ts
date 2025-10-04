@@ -61,6 +61,12 @@ const DOCUMENT_TEMPLATES = {
     description: 'Comprehensive event overview and preparation guide',
     icon: '📅',
     availableFor: ['event']
+  },
+  'briefing-pack': {
+    name: 'Briefing Pack',
+    description: 'Comprehensive project overview and briefing document',
+    icon: '📋',
+    availableFor: ['project']
   }
 };
 
@@ -214,6 +220,82 @@ async function generatePreviewContent(userId: string, exportType: string, scope:
           exportType, 
           template,
           eventId: event.id
+        });
+        throw contentError;
+      }
+    } else if (scope.type === 'project' && scope.id) {
+      logger.info('Fetching project for export preview', { projectId: scope.id, userId });
+      
+      const project = await prisma.project.findFirst({
+        where: { id: scope.id, ownerId: userId },
+        include: {
+          items: true,
+          members: {
+            include: {
+              user: { select: { id: true, name: true, email: true } }
+            }
+          }
+        }
+      });
+
+      if (!project) {
+        logger.error('Project not found for export preview', { projectId: scope.id, userId });
+        throw createError('Project not found', 404);
+      }
+
+      logger.info('Project found for export preview', { 
+        projectId: project.id, 
+        projectName: project.name,
+        itemsCount: project.items?.length || 0,
+        membersCount: project.members?.length || 0
+      });
+
+      title = `Project: ${project.name}`;
+      
+      // Generate content based on export type and template
+      try {
+        switch (exportType.toLowerCase()) {
+          case 'pdf':
+            content = generateProjectPDFPreview(project, audiencePreset, template);
+            estimatedSize = 12000;
+            estimatedTime = '4-5 minutes';
+            break;
+          case 'csv':
+            content = generateProjectCSVPreview(project, audiencePreset, template);
+            estimatedSize = 5000;
+            estimatedTime = '2-3 minutes';
+            break;
+          case 'markdown':
+            content = generateProjectMarkdownPreview(project, audiencePreset, template);
+            estimatedSize = 8000;
+            estimatedTime = '3-4 minutes';
+            break;
+          case 'json':
+            content = generateProjectJSONPreview(project, audiencePreset, template);
+            estimatedSize = 10000;
+            estimatedTime = '2-3 minutes';
+            break;
+          case 'ics':
+            content = generateProjectICSPreview(project, audiencePreset, template);
+            estimatedSize = 4000;
+            estimatedTime = '1-2 minutes';
+            break;
+          default:
+            content = generateProjectGenericPreview(project, audiencePreset, template);
+        }
+        
+        logger.info('Project content generated successfully', { 
+          exportType, 
+          template, 
+          contentLength: content.length 
+        });
+      } catch (contentError) {
+        logger.error('Error generating project content', { 
+          error: contentError.message, 
+          stack: contentError.stack,
+          exportType, 
+          template,
+          projectId: project.id
         });
         throw contentError;
       }
@@ -1646,5 +1728,203 @@ router.post('/tasks', authenticateToken, asyncHandler(async (req, res) => {
     data: { exportJob }
   });
 }));
+
+// Project Export Generation Functions
+
+function generateProjectPDFPreview(project: any, audiencePreset: string, template: string = 'briefing-pack'): string {
+  const redactions = getRedactionsForAudience(audiencePreset);
+  const hideBudgetNumbers = redactions.includes('Budget Details');
+  const hidePII = redactions.includes('PII');
+  
+  // Project Briefing Pack template
+  if (template === 'briefing-pack') {
+    return `PROJECT BRIEFING PACK
+═══════════════════════════════════════════════════════════════════════════════
+
+PROJECT OVERVIEW
+───────────────────────────────────────────────────────────────────────────────
+Name: ${project.name}
+Description: ${project.description || 'No description provided'}
+Privacy: ${project.privacyDefault}
+Created: ${new Date(project.createdAt).toLocaleDateString()}
+Updated: ${new Date(project.updatedAt).toLocaleDateString()}
+
+PROJECT ITEMS
+───────────────────────────────────────────────────────────────────────────────
+${project.items?.map((item: any, index: number) => 
+  `${index + 1}. ${item.itemType.toUpperCase()}: ${item.itemId} (Privacy: ${item.privacy})`
+).join('\n') || 'No items in project'}
+
+PROJECT MEMBERS
+───────────────────────────────────────────────────────────────────────────────
+${project.members?.map((member: any, index: number) => 
+  `${index + 1}. ${hidePII ? '[REDACTED]' : member.user.name || member.user.email} - ${member.role}${member.acceptedAt ? ' (Accepted)' : ' (Pending)'}`
+).join('\n') || 'No members in project'}
+
+PROJECT RESOURCES
+───────────────────────────────────────────────────────────────────────────────
+${project.resources?.length || 0} resources available
+${project.resourceFolders?.length || 0} resource folders
+
+CONTACT INFORMATION
+───────────────────────────────────────────────────────────────────────────────
+Project Owner: ${hidePII ? '[REDACTED]' : 'To be assigned'}
+Team Members: ${project.members?.length || 0}
+
+═══════════════════════════════════════════════════════════════════════════════
+Document prepared: ${new Date().toLocaleDateString()} | ${audiencePreset.toUpperCase()} | Confidential
+Generated by SyncScript AI Life Manager`;
+  }
+  
+  // Default executive summary for projects
+  return `PROJECT EXECUTIVE SUMMARY
+═══════════════════════════════════════════════════════════════════════════════
+
+${project.name}
+${project.description || 'No description provided'}
+
+Privacy: ${project.privacyDefault}
+Items: ${project.items?.length || 0}
+Members: ${project.members?.length || 0}
+
+═══════════════════════════════════════════════════════════════════════════════
+Generated: ${new Date().toLocaleDateString()} | ${audiencePreset.toUpperCase()}`;
+}
+
+function generateProjectCSVPreview(project: any, audiencePreset: string, template?: string): string {
+  const redactions = getRedactionsForAudience(audiencePreset);
+  const hidePII = redactions.includes('PII');
+  
+  return `Project Name,Description,Privacy,Items Count,Members Count,Created Date
+"${project.name}","${project.description || ''}","${project.privacyDefault}","${project.items?.length || 0}","${project.members?.length || 0}","${new Date(project.createdAt).toLocaleDateString()}"
+
+Project Items:
+Item Type,Item ID,Privacy,Added Date
+${project.items?.map((item: any) => 
+  `"${item.itemType}","${item.itemId}","${item.privacy}","${new Date(item.addedAt).toLocaleDateString()}"`
+).join('\n') || 'No items'}
+
+Project Members:
+Name,Email,Role,Status,Invited Date
+${project.members?.map((member: any) => 
+  `"${hidePII ? '[REDACTED]' : (member.user.name || '')}","${hidePII ? '[REDACTED]' : (member.user.email || '')}","${member.role}","${member.acceptedAt ? 'Accepted' : 'Pending'}","${new Date(member.invitedAt).toLocaleDateString()}"`
+).join('\n') || 'No members'}`;
+}
+
+function generateProjectMarkdownPreview(project: any, audiencePreset: string, template?: string): string {
+  const redactions = getRedactionsForAudience(audiencePreset);
+  const hidePII = redactions.includes('PII');
+  
+  return `# ${project.name}
+
+${project.description || 'No description provided'}
+
+## Project Details
+- **Privacy**: ${project.privacyDefault}
+- **Created**: ${new Date(project.createdAt).toLocaleDateString()}
+- **Updated**: ${new Date(project.updatedAt).toLocaleDateString()}
+- **Items**: ${project.items?.length || 0}
+- **Members**: ${project.members?.length || 0}
+
+## Project Items (${project.items?.length || 0})
+${project.items?.map((item: any, index: number) => 
+  `${index + 1}. **${item.itemType.toUpperCase()}**: ${item.itemId} (Privacy: ${item.privacy})`
+).join('\n') || 'No items in project'}
+
+## Project Members (${project.members?.length || 0})
+${project.members?.map((member: any, index: number) => 
+  `${index + 1}. **${hidePII ? '[REDACTED]' : (member.user.name || member.user.email)}** - ${member.role}${member.acceptedAt ? ' (Accepted)' : ' (Pending)'}`
+).join('\n') || 'No members in project'}
+
+## Project Resources
+- **Resources**: ${project.resources?.length || 0}
+- **Folders**: ${project.resourceFolders?.length || 0}
+
+---
+*Generated on ${new Date().toLocaleDateString()} for ${audiencePreset} audience*`;
+}
+
+function generateProjectJSONPreview(project: any, audiencePreset: string, template?: string): string {
+  const redactions = getRedactionsForAudience(audiencePreset);
+  const hidePII = redactions.includes('PII');
+  
+  const projectData = {
+    name: project.name,
+    description: project.description,
+    privacyDefault: project.privacyDefault,
+    createdAt: project.createdAt,
+    updatedAt: project.updatedAt,
+    items: project.items?.map((item: any) => ({
+      itemType: item.itemType,
+      itemId: item.itemId,
+      privacy: item.privacy,
+      addedAt: item.addedAt
+    })) || [],
+    members: project.members?.map((member: any) => ({
+      role: member.role,
+      invitedAt: member.invitedAt,
+      acceptedAt: member.acceptedAt,
+      user: hidePII ? {
+        id: '[REDACTED]',
+        name: '[REDACTED]',
+        email: '[REDACTED]'
+      } : {
+        id: member.user.id,
+        name: member.user.name,
+        email: member.user.email
+      }
+    })) || [],
+    metadata: {
+      generatedAt: new Date().toISOString(),
+      audiencePreset: audiencePreset,
+      template: template || 'default'
+    }
+  };
+  
+  return JSON.stringify(projectData, null, 2);
+}
+
+function generateProjectICSPreview(project: any, audiencePreset: string, template?: string): string {
+  const redactions = getRedactionsForAudience(audiencePreset);
+  
+  let icsContent = `BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//SyncScript//Project Export//EN
+CALSCALE:GREGORIAN
+METHOD:PUBLISH
+X-WR-CALNAME:${project.name}
+X-WR-CALDESC:Project items and milestones`;
+
+  // Note: Since ProjectItem only contains references, we can't directly access event details
+  // In a real implementation, we would need to fetch the actual event/task data
+  // For now, we'll create a placeholder entry for the project itself
+  
+  icsContent += `
+BEGIN:VEVENT
+UID:${project.id}@syncscript.com
+DTSTART:${new Date(project.createdAt).toISOString().replace(/[-:]/g, '').split('.')[0]}Z
+DTEND:${new Date(project.createdAt).toISOString().replace(/[-:]/g, '').split('.')[0]}Z
+SUMMARY:Project: ${project.name}
+DESCRIPTION:${project.description || 'Project created'}
+STATUS:CONFIRMED
+END:VEVENT`;
+
+  icsContent += `
+END:VCALENDAR`;
+
+  return icsContent;
+}
+
+function generateProjectGenericPreview(project: any, audiencePreset: string, template?: string): string {
+  return `Project: ${project.name}
+Description: ${project.description || 'No description provided'}
+Privacy: ${project.privacyDefault}
+Items: ${project.items?.length || 0}
+Members: ${project.members?.length || 0}
+Created: ${new Date(project.createdAt).toLocaleDateString()}
+
+Generated: ${new Date().toLocaleDateString()}
+Audience: ${audiencePreset}`;
+}
 
 export default router;
