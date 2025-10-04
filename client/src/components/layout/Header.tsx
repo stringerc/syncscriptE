@@ -184,16 +184,9 @@ export function Header() {
           <Menu className="w-5 h-5" />
         </Button>
 
-        {/* Brain Logo and Title */}
-        <div className="flex items-center space-x-2 mr-4">
-          <BrainLogo />
-          <div>
-            <h1 className="text-lg font-bold text-foreground">SyncScript</h1>
-          </div>
-        </div>
 
         {/* Search */}
-        <div className="flex-1 max-w-md">
+        <div className="flex-1 max-w-md ml-6">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
@@ -409,6 +402,11 @@ export function Header() {
                 <p className="text-sm font-medium text-foreground">
                   {user?.name || 'User'}
                 </p>
+                {user?.email && (
+                  <p className="text-xs text-muted-foreground">
+                    {user.email}
+                  </p>
+                )}
               </div>
 
               {/* Profile Button */}
@@ -443,16 +441,16 @@ export function Header() {
                 <div className="flex items-center space-x-2 px-2 py-1 bg-slate-50 dark:bg-slate-800 rounded-lg">
                   <div className="relative w-5 h-5">
                     {getWeatherIcon(
-                      currentWeatherData.weather?.condition || currentWeatherData.condition,
-                      currentWeatherData.weather?.emoji || currentWeatherData.emoji
+                      currentWeatherData.data?.weather?.condition || currentWeatherData.weather?.condition || currentWeatherData.condition,
+                      currentWeatherData.data?.weather?.emoji || currentWeatherData.weather?.emoji || currentWeatherData.emoji
                     )}
                   </div>
                   <div className="text-xs">
                     <div className="font-medium text-slate-700 dark:text-slate-300">
-                      {currentWeatherData.weather?.temperature || currentWeatherData.temperature}°
+                      {currentWeatherData.data?.weather?.temperature || currentWeatherData.weather?.temperature || currentWeatherData.temperature}°
                     </div>
                     <div className="text-slate-500 dark:text-slate-400">
-                      {(currentWeatherData.weather?.location || currentWeatherData.location || 'Loading...')
+                      {(currentWeatherData.data?.weather?.location || currentWeatherData.weather?.location || currentWeatherData.location || 'Loading...')
                         .split(',')[0]
                         .trim()}
                     </div>

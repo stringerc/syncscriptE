@@ -1,0 +1,426 @@
+# SyncScript Feature Catalog
+# Source of truth for all user-visible features
+
+features:
+  # Core Productivity
+  - key: tasks
+    title: Task Management
+    domain: planning-core
+    status: implemented
+    flag: null
+    routes:
+      - /tasks
+      - /dashboard
+    must_have_ui:
+      - TaskModal
+      - TaskItem
+      - TaskList
+    invariants:
+      - Tasks must have userId
+      - Tasks can be linked to events
+      - Tasks support subtasks
+      - Tasks have priority levels
+
+  - key: events
+    title: Event Management
+    domain: planning-core
+    status: implemented
+    flag: null
+    routes:
+      - /calendar
+      - /dashboard
+    must_have_ui:
+      - EventModal
+      - EventItem
+      - CalendarView
+    invariants:
+      - Events must have startTime and endTime
+      - Events can have preparation tasks
+      - Events support all-day flag
+
+  - key: calendar-sync
+    title: Calendar Synchronization
+    domain: scheduling-sync
+    status: implemented
+    flag: null
+    routes:
+      - /calendar
+      - /multi-calendar
+    must_have_ui:
+      - CalendarPage
+      - MultiCalendarPage
+    invariants:
+      - External calendar events sync bidirectionally
+      - Conflict detection and resolution
+      - OAuth token management
+
+  # AI & Automation
+  - key: ai-assistant
+    title: AI Assistant
+    domain: search-ai
+    status: implemented
+    flag: askAI
+    routes:
+      - /ai-assistant
+    must_have_ui:
+      - AIAssistantPage
+      - AISearchPanel
+    invariants:
+      - AI responses must be contextual
+      - AI can generate tasks from conversations
+      - AI respects user privacy settings
+
+  - key: voice-input
+    title: Voice Input
+    domain: search-ai
+    status: implemented
+    flag: mic
+    routes:
+      - /tasks
+      - /ai-assistant
+    must_have_ui:
+      - SpeechToTextInput
+    invariants:
+      - Voice input requires user consent
+      - Audio data is processed locally when possible
+      - Fallback to text input always available
+
+  # Budgeting & Financial
+  - key: manual-budgeting
+    title: Manual Budgeting
+    domain: budgeting
+    status: implemented
+    flag: null
+    routes:
+      - /tasks
+      - /events
+    must_have_ui:
+      - BudgetModal
+      - BudgetChip
+      - BudgetDrawer
+    invariants:
+      - Budgets are scoped to tasks/events
+      - Line items support URLs and pricing
+      - Budget history is tracked
+
+  - key: financial-analytics
+    title: Financial Analytics
+    domain: budgeting
+    status: coming_soon
+    flag: financial
+    routes:
+      - /financial
+    must_have_ui:
+      - FinancialPage
+      - BudgetOverview
+      - TransactionList
+    invariants:
+      - Financial data requires secure storage
+      - Analytics respect user privacy
+      - Export capabilities for tax purposes
+
+  # Energy & Gamification
+  - key: energy-engine
+    title: Energy Engine
+    domain: gamification
+    status: implemented
+    flag: energyHUD
+    routes:
+      - /dashboard
+      - /gamification
+    must_have_ui:
+      - EnergyEngine
+      - EnergyLevelChart
+      - EnergyAnalysisGraph
+    invariants:
+      - Energy resets daily at midnight
+      - Energy points (EP) convert to energy (0-100)
+      - Energy display is 0-10 scale
+      - Daily challenges award EP
+
+  - key: achievements
+    title: Achievement System
+    domain: gamification
+    status: implemented
+    flag: null
+    routes:
+      - /gamification
+    must_have_ui:
+      - EnhancedAchievements
+      - AchievementToast
+      - BadgePreview
+    invariants:
+      - Achievements are domain-specific
+      - Progress tracking is persistent
+      - Rarity levels affect display
+
+  - key: energy-analysis
+    title: Energy Analysis
+    domain: gamification
+    status: coming_soon
+    flag: energyAnalysis
+    routes:
+      - /energy-analysis
+    must_have_ui:
+      - EnergyAnalysisPage
+    invariants:
+      - Analysis respects privacy settings
+      - Historical data is preserved
+      - Insights are actionable
+
+  # Templates & Scripts
+  - key: templates
+    title: Template Gallery
+    domain: scripts
+    status: implemented
+    flag: templates
+    routes:
+      - /templates
+    must_have_ui:
+      - TemplateGalleryPage
+      - TemplateRecommendations
+    invariants:
+      - Templates are versioned
+      - Application is idempotent
+      - PII detection is required
+
+  - key: user-scripts
+    title: My Scripts
+    domain: scripts
+    status: implemented
+    flag: null
+    routes:
+      - /templates
+    must_have_ui:
+      - UserScriptGallery
+    invariants:
+      - Scripts are user-owned
+      - Can be created from events
+      - Support favorites and usage tracking
+
+  # Collaboration
+  - key: friends
+    title: Friends System
+    domain: collaboration
+    status: implemented
+    flag: friends
+    routes:
+      - /friends
+    must_have_ui:
+      - FriendsPage
+      - FriendsPicker
+      - FriendsSettings
+    invariants:
+      - Friendship requires mutual consent
+      - Privacy settings are respected
+      - Energy visibility is configurable
+
+  - key: projects
+    title: ShareScript Projects
+    domain: collaboration
+    status: implemented
+    flag: shareScript
+    routes:
+      - /projects
+    must_have_ui:
+      - ProjectsPage
+      - ProjectDetailPage
+      - ProjectSwitcher
+    invariants:
+      - Projects have role-based access
+      - Resource sharing is controlled
+      - Audit logs are maintained
+
+  # Calendar Integrations
+  - key: google-calendar
+    title: Google Calendar
+    domain: scheduling-sync
+    status: implemented
+    flag: googleCalendar
+    routes:
+      - /google-calendar
+      - /multi-calendar
+    must_have_ui:
+      - GoogleCalendarPage
+    invariants:
+      - OAuth 2.0 authentication
+      - Two-way sync with conflict resolution
+      - Token refresh handling
+
+  - key: outlook-calendar
+    title: Outlook Calendar
+    domain: scheduling-sync
+    status: coming_soon
+    flag: outlookCalendar
+    routes:
+      - /outlook-calendar
+    must_have_ui:
+      - OutlookCalendarPage
+    invariants:
+      - Microsoft Graph API integration
+      - Enterprise calendar support
+      - Recurring event handling
+
+  - key: apple-calendar
+    title: Apple Calendar
+    domain: scheduling-sync
+    status: coming_soon
+    flag: appleCalendar
+    routes:
+      - /apple-calendar
+    must_have_ui:
+      - AppleCalendarPage
+    invariants:
+      - CalDAV protocol support
+      - iCloud calendar integration
+      - Privacy-focused implementation
+
+  # Productivity Features
+  - key: focus-lock
+    title: Focus Lock
+    domain: planning-core
+    status: coming_soon
+    flag: focusLock
+    routes:
+      - /tasks
+    must_have_ui:
+      - FocusLockModal
+    invariants:
+      - Blocks distracting websites
+      - Tracks focus time
+      - Integrates with energy system
+
+  - key: priority-hierarchy
+    title: Priority Hierarchy
+    domain: planning-core
+    status: coming_soon
+    flag: priorityHierarchy
+    routes:
+      - /tasks
+    must_have_ui:
+      - PriorityHierarchyView
+    invariants:
+      - Critical path calculation
+      - Dependency management
+      - Slack time computation
+
+  - key: pinned-events
+    title: Pinned Events
+    domain: planning-core
+    status: implemented
+    flag: pinnedEvents
+    routes:
+      - /dashboard
+    must_have_ui:
+      - PinnedEventsRail
+    invariants:
+      - Maximum 5 pinned events
+      - Pinned events appear in dashboard
+      - Order is user-configurable
+
+  # Brief System
+  - key: morning-brief
+    title: Morning Brief
+    domain: planning-core
+    status: coming_soon
+    flag: brief
+    routes:
+      - /dashboard
+    must_have_ui:
+      - BriefModal
+    invariants:
+      - Generated at user's morning time
+      - Includes critical tasks and conflicts
+      - Auto-dismisses after action
+
+  - key: evening-journal
+    title: Evening Journal
+    domain: planning-core
+    status: coming_soon
+    flag: endDay
+    routes:
+      - /dashboard
+    must_have_ui:
+      - EveningJournal
+    invariants:
+      - Captures daily reflection
+      - Plans tomorrow's priorities
+      - Integrates with energy system
+
+  # Notifications
+  - key: notifications
+    title: Notification System
+    domain: collaboration
+    status: coming_soon
+    flag: notifications
+    routes:
+      - /notifications
+    must_have_ui:
+      - NotificationCenter
+      - NotificationPreferences
+    invariants:
+      - Multi-channel delivery
+      - User preference respect
+      - Rate limiting applied
+
+  # Export System
+  - key: export-system
+    title: Export System
+    domain: exports
+    status: implemented
+    flag: null
+    routes:
+      - /export
+    must_have_ui:
+      - ExportModal
+      - ExportPage
+    invariants:
+      - Multiple format support
+      - RBAC-based redaction
+      - Template selection
+      - Professional document generation
+
+  # Search & Discovery
+  - key: search
+    title: Global Search
+    domain: search-ai
+    status: implemented
+    flag: null
+    routes:
+      - /search
+    must_have_ui:
+      - SearchPage
+      - SearchResults
+    invariants:
+      - Searches across tasks, events, projects
+      - AI-powered suggestions
+      - Respects user permissions
+
+  # Settings & Profile
+  - key: profile
+    title: User Profile
+    domain: identity-access
+    status: implemented
+    flag: null
+    routes:
+      - /profile
+    must_have_ui:
+      - ProfilePage
+    invariants:
+      - Profile data is user-owned
+      - Privacy settings are enforced
+      - Avatar support
+
+  - key: settings
+    title: Settings
+    domain: identity-access
+    status: implemented
+    flag: null
+    routes:
+      - /settings
+    must_have_ui:
+      - SettingsPage
+    invariants:
+      - Feature flag management
+      - Integration settings
+      - Privacy controls
