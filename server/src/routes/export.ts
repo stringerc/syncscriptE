@@ -146,6 +146,8 @@ async function generatePreviewContent(userId: string, exportType: string, scope:
           content = generateMultipleTasksGenericPreview(tasks, audiencePreset);
       }
     } else if (scope.type === 'event' && scope.id) {
+      logger.info('Fetching event for export preview', { eventId: scope.id, userId });
+      
       const event = await prisma.event.findFirst({
         where: { id: scope.id, userId },
         include: {
@@ -159,35 +161,59 @@ async function generatePreviewContent(userId: string, exportType: string, scope:
       });
 
       if (!event) {
+        logger.error('Event not found for export preview', { eventId: scope.id, userId });
         throw createError('Event not found', 404);
       }
+
+      logger.info('Event found for export preview', { 
+        eventId: event.id, 
+        eventTitle: event.title,
+        tasksCount: event.tasks?.length || 0
+      });
 
       title = `Event: ${event.title}`;
       
       // Generate content based on export type and template
-      switch (exportType.toLowerCase()) {
-        case 'pdf':
-          content = generateEventPDFPreview(event, audiencePreset, template);
-          estimatedSize = 8000;
-          estimatedTime = '3-4 minutes';
-          break;
-        case 'csv':
-          content = generateEventCSVPreview(event, audiencePreset, template);
-          estimatedSize = 3000;
-          estimatedTime = '1-2 minutes';
-          break;
-        case 'markdown':
-          content = generateEventMarkdownPreview(event, audiencePreset, template);
-          estimatedSize = 5000;
-          estimatedTime = '2-3 minutes';
-          break;
-        case 'json':
-          content = generateEventJSONPreview(event, audiencePreset, template);
-          estimatedSize = 6000;
-          estimatedTime = '1-2 minutes';
-          break;
-        default:
-          content = generateEventGenericPreview(event, audiencePreset, template);
+      try {
+        switch (exportType.toLowerCase()) {
+          case 'pdf':
+            content = generateEventPDFPreview(event, audiencePreset, template);
+            estimatedSize = 8000;
+            estimatedTime = '3-4 minutes';
+            break;
+          case 'csv':
+            content = generateEventCSVPreview(event, audiencePreset, template);
+            estimatedSize = 3000;
+            estimatedTime = '1-2 minutes';
+            break;
+          case 'markdown':
+            content = generateEventMarkdownPreview(event, audiencePreset, template);
+            estimatedSize = 5000;
+            estimatedTime = '2-3 minutes';
+            break;
+          case 'json':
+            content = generateEventJSONPreview(event, audiencePreset, template);
+            estimatedSize = 6000;
+            estimatedTime = '1-2 minutes';
+            break;
+          default:
+            content = generateEventGenericPreview(event, audiencePreset, template);
+        }
+        
+        logger.info('Event content generated successfully', { 
+          exportType, 
+          template, 
+          contentLength: content.length 
+        });
+      } catch (contentError) {
+        logger.error('Error generating event content', { 
+          error: contentError.message, 
+          stack: contentError.stack,
+          exportType, 
+          template,
+          eventId: event.id
+        });
+        throw contentError;
       }
     }
 
