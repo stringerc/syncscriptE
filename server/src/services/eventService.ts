@@ -239,6 +239,67 @@ export async function markEventDelivered(
 }
 
 /**
+ * Mark an event as failed and schedule for retry (enhanced version)
+ */
+export async function markEventFailed(
+  eventId: string,
+  error: string,
+  nextRetryAt: Date
+): Promise<void> {
+  try {
+    await prisma.outbox.update({
+      where: { eventId },
+      data: {
+        status: 'pending',
+        attempts: { increment: 1 },
+        error,
+        nextRetryAt,
+        updatedAt: new Date()
+      }
+    });
+
+    logger.info('Event marked as failed and scheduled for retry', { 
+      eventId, 
+      nextRetryAt,
+      error 
+    });
+  } catch (error) {
+    logger.error('Failed to mark event as failed', { 
+      eventId, 
+      error: error instanceof Error ? error.message : 'Unknown error' 
+    });
+    throw error;
+  }
+}
+
+/**
+ * Move an event to dead letter queue
+ */
+export async function moveToDeadLetter(
+  eventId: string,
+  error: string
+): Promise<void> {
+  try {
+    await prisma.outbox.update({
+      where: { eventId },
+      data: {
+        status: 'dead_letter',
+        error,
+        updatedAt: new Date()
+      }
+    });
+
+    logger.error('Event moved to dead letter queue', { eventId, error });
+  } catch (error) {
+    logger.error('Failed to move event to dead letter', { 
+      eventId, 
+      error: error instanceof Error ? error.message : 'Unknown error' 
+    });
+    throw error;
+  }
+}
+
+/**
  * Clean up old delivered events (run periodically)
  */
 export async function cleanupOldEvents(olderThanDays: number = 7): Promise<number> {

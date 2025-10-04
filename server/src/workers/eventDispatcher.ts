@@ -1,8 +1,31 @@
 import { logger } from '../utils/logger';
-import { getPendingEvents, markEventDelivered } from '../services/eventService';
+import { getPendingEvents, markEventDelivered, markEventFailed, moveToDeadLetter } from '../services/eventService';
 import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
+
+// Configuration for retry backoff
+const RETRY_CONFIG = {
+  maxAttempts: 5,
+  baseDelayMs: 100,
+  maxDelayMs: 3200,
+  jitterMs: 50
+};
+
+/**
+ * Calculate jittered exponential backoff delay
+ */
+function calculateBackoffDelay(attempt: number): number {
+  const exponentialDelay = Math.min(
+    RETRY_CONFIG.baseDelayMs * Math.pow(2, attempt - 1),
+    RETRY_CONFIG.maxDelayMs
+  );
+  
+  // Add jitter to prevent thundering herd
+  const jitter = Math.random() * RETRY_CONFIG.jitterMs;
+  
+  return Math.floor(exponentialDelay + jitter);
+}
 
 // Event handlers - these would be registered by each domain
 const eventHandlers: Record<string, (payload: any) => Promise<void>> = {};
@@ -16,54 +39,98 @@ export function registerEventHandler(eventType: string, handler: (payload: any) 
 }
 
 /**
- * Process a single event
+ * Process a single event with retry logic and dead-letter handling
  */
-async function processEvent(event: any): Promise<void> {
-  const { eventId, eventType, payload } = event;
+async function processEvent(event: any): Promise<{ success: boolean; shouldRetry: boolean }> {
+  const { eventId, eventType, payload, attempts } = event;
   
   try {
     const handler = eventHandlers[eventType];
     if (!handler) {
       logger.warn('No handler found for event type', { eventType, eventId });
       await markEventDelivered(eventId, 'internal', false, `No handler for event type: ${eventType}`);
-      return;
+      return { success: false, shouldRetry: false };
     }
     
     const parsedPayload = JSON.parse(payload);
     await handler(parsedPayload);
     
     await markEventDelivered(eventId, 'internal', true);
-    logger.info('Event processed successfully', { eventId, eventType });
+    logger.info('Event processed successfully', { eventId, eventType, attempts });
+    return { success: true, shouldRetry: false };
     
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    logger.error('Failed to process event', { eventId, eventType, error: errorMessage });
-    await markEventDelivered(eventId, 'internal', false, errorMessage);
+    const currentAttempts = attempts + 1;
+    
+    logger.error('Failed to process event', { 
+      eventId, 
+      eventType, 
+      attempts: currentAttempts,
+      maxAttempts: RETRY_CONFIG.maxAttempts,
+      error: errorMessage 
+    });
+    
+    // Check if we should retry or move to dead letter
+    if (currentAttempts >= RETRY_CONFIG.maxAttempts) {
+      logger.error('Event exceeded max retry attempts, moving to dead letter', { 
+        eventId, 
+        eventType, 
+        attempts: currentAttempts 
+      });
+      
+      await moveToDeadLetter(eventId, errorMessage);
+      return { success: false, shouldRetry: false };
+    }
+    
+    // Schedule retry with backoff
+    const backoffDelay = calculateBackoffDelay(currentAttempts);
+    const nextRetryAt = new Date(Date.now() + backoffDelay);
+    
+    await markEventFailed(eventId, errorMessage, nextRetryAt);
+    
+    logger.info('Event scheduled for retry', { 
+      eventId, 
+      eventType, 
+      attempts: currentAttempts,
+      backoffDelay,
+      nextRetryAt 
+    });
+    
+    return { success: false, shouldRetry: true };
   }
 }
 
 /**
- * Process all pending events
+ * Process all pending events with retry and dead-letter handling
  */
-export async function processPendingEvents(): Promise<{ processed: number; failed: number }> {
+export async function processPendingEvents(): Promise<{ processed: number; failed: number; deadLettered: number }> {
   const events = await getPendingEvents(50); // Process up to 50 events at a time
   
   if (events.length === 0) {
-    return { processed: 0, failed: 0 };
+    return { processed: 0, failed: 0, deadLettered: 0 };
   }
   
   logger.info('Processing pending events', { count: events.length });
   
   let processed = 0;
   let failed = 0;
+  let deadLettered = 0;
   
   for (const event of events) {
     try {
-      await processEvent(event);
-      processed++;
+      const result = await processEvent(event);
+      
+      if (result.success) {
+        processed++;
+      } else if (result.shouldRetry) {
+        failed++;
+      } else {
+        deadLettered++;
+      }
     } catch (error) {
       failed++;
-      logger.error('Failed to process event', { 
+      logger.error('Unexpected error processing event', { 
         eventId: event.eventId, 
         eventType: event.eventType,
         error: error instanceof Error ? error.message : 'Unknown error'
@@ -71,8 +138,14 @@ export async function processPendingEvents(): Promise<{ processed: number; faile
     }
   }
   
-  logger.info('Event processing complete', { processed, failed, total: events.length });
-  return { processed, failed };
+  logger.info('Event processing complete', { 
+    processed, 
+    failed, 
+    deadLettered,
+    total: events.length 
+  });
+  
+  return { processed, failed, deadLettered };
 }
 
 /**

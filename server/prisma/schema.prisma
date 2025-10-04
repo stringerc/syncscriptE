@@ -1764,7 +1764,7 @@ model Outbox {
   payload       String   // JSON: event data
   occurredAt    DateTime @default(now())
   attempts      Int      @default(0)
-  status        String   @default("pending") // 'pending', 'delivered', 'failed'
+  status        String   @default("pending") // 'pending', 'delivered', 'failed', 'dead_letter'
   error         String?  // Error message if delivery failed
   nextRetryAt   DateTime?
   

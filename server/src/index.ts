@@ -48,6 +48,7 @@ import projectResourcesRoutes from './routes/projectResources';
 // import budgetingRoutes from './routes/budgeting';
 // import briefRoutes from './routes/brief';
 import calendarAuthRoutes from './routes/calendarAuth';
+import adminRoutes from './routes/admin';
 
 // Import middleware
 import { errorHandler } from './middleware/errorHandler';
@@ -272,6 +273,7 @@ app.use('/api/projects', projectResourcesRoutes);
 // app.use('/api/budgeting', budgetingRoutes);
 // app.use('/api/brief', briefRoutes);
 app.use('/api/calendar-auth', calendarAuthRoutes);
+app.use('/api/admin', adminRoutes);
 
 // Catch-all handler: send back React's index.html file for any non-API routes
 app.get('*', (req, res) => {
