@@ -1365,16 +1365,23 @@ export function DashboardPage() {
     )
   }
 
-  // Fetch weather for all events - called before any destructuring or conditional logic
+  // Destructure dashboard data for use in the component
+  const { user, upcomingEvents, recentAchievements, activeStreaks, unreadNotifications } = dashboardData || {}
+  
+  // Ensure all arrays are properly initialized to prevent undefined errors
+  const safeUpcomingEvents = upcomingEvents || []
+  const safeRecentAchievements = recentAchievements || []
+  const safeActiveStreaks = activeStreaks || []
+
+  // Fetch weather for all events - called after destructuring but before any conditional logic
   const { data: eventsWeatherData } = useQuery({
-    queryKey: ['events-weather', dashboardData?.upcomingEvents || [], userLocation],
+    queryKey: ['events-weather', safeUpcomingEvents, userLocation],
     queryFn: async () => {
-      const upcomingEvents = dashboardData?.upcomingEvents || []
-      if (!upcomingEvents || upcomingEvents.length === 0) return {}
+      if (!safeUpcomingEvents || safeUpcomingEvents.length === 0) return {}
       
-      console.log('🌤️ Fetching weather for events:', upcomingEvents.length)
+      console.log('🌤️ Fetching weather for events:', safeUpcomingEvents.length)
       const response = await api.post('/location/events/weather', {
-        events: upcomingEvents.map(event => ({
+        events: safeUpcomingEvents.map(event => ({
           id: event.id,
           startTime: event.startTime,
           location: event.location
@@ -1411,14 +1418,6 @@ export function DashboardPage() {
       console.error('Failed to fetch events weather:', error)
     }
   })
-
-  // Destructure dashboard data for use in the component
-  const { user, upcomingEvents, recentAchievements, activeStreaks, unreadNotifications } = dashboardData || {}
-  
-  // Ensure all arrays are properly initialized to prevent undefined errors
-  const safeUpcomingEvents = upcomingEvents || []
-  const safeRecentAchievements = recentAchievements || []
-  const safeActiveStreaks = activeStreaks || []
 
   // Conditional return after all hooks
   if (!dashboardData) {
