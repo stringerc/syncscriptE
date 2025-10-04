@@ -15,27 +15,50 @@ const DOCUMENT_TEMPLATES = {
   'executive-summary': {
     name: 'Executive Summary',
     description: 'Clean, professional format for leadership and stakeholders',
-    icon: '📊'
+    icon: '📊',
+    availableFor: ['task', 'event']
   },
   'detailed-report': {
     name: 'Detailed Report',
-    description: 'Comprehensive format with all task details and analysis',
-    icon: '📋'
+    description: 'Comprehensive format with all details and analysis',
+    icon: '📋',
+    availableFor: ['task', 'event']
   },
   'vendor-packet': {
     name: 'Vendor Packet',
     description: 'Professional format for external vendors and contractors',
-    icon: '🤝'
+    icon: '🤝',
+    availableFor: ['task', 'event']
   },
   'team-checklist': {
     name: 'Team Checklist',
     description: 'Action-oriented format for team members and execution',
-    icon: '✅'
+    icon: '✅',
+    availableFor: ['task', 'event']
   },
   'client-presentation': {
     name: 'Client Presentation',
     description: 'Polished format for client meetings and presentations',
-    icon: '🎯'
+    icon: '🎯',
+    availableFor: ['task', 'event']
+  },
+  'run-of-show': {
+    name: 'Run of Show',
+    description: 'Timeline and logistics for event execution',
+    icon: '🎬',
+    availableFor: ['event']
+  },
+  'attendee-guide': {
+    name: 'Attendee Guide',
+    description: 'Information packet for event attendees',
+    icon: '👥',
+    availableFor: ['event']
+  },
+  'event-briefing': {
+    name: 'Event Briefing',
+    description: 'Comprehensive event overview and preparation guide',
+    icon: '📅',
+    availableFor: ['event']
   }
 };
 
@@ -121,6 +144,50 @@ async function generatePreviewContent(userId: string, exportType: string, scope:
           break;
         default:
           content = generateMultipleTasksGenericPreview(tasks, audiencePreset);
+      }
+    } else if (scope.type === 'event' && scope.id) {
+      const event = await prisma.event.findFirst({
+        where: { id: scope.id, userId },
+        include: {
+          tasks: {
+            include: {
+              subtasks: { orderBy: { order: 'asc' } }
+            },
+            orderBy: { createdAt: 'asc' }
+          }
+        }
+      });
+
+      if (!event) {
+        throw createError('Event not found', 404);
+      }
+
+      title = `Event: ${event.title}`;
+      
+      // Generate content based on export type and template
+      switch (exportType.toLowerCase()) {
+        case 'pdf':
+          content = generateEventPDFPreview(event, audiencePreset, template);
+          estimatedSize = 8000;
+          estimatedTime = '3-4 minutes';
+          break;
+        case 'csv':
+          content = generateEventCSVPreview(event, audiencePreset, template);
+          estimatedSize = 3000;
+          estimatedTime = '1-2 minutes';
+          break;
+        case 'markdown':
+          content = generateEventMarkdownPreview(event, audiencePreset, template);
+          estimatedSize = 5000;
+          estimatedTime = '2-3 minutes';
+          break;
+        case 'json':
+          content = generateEventJSONPreview(event, audiencePreset, template);
+          estimatedSize = 6000;
+          estimatedTime = '1-2 minutes';
+          break;
+        default:
+          content = generateEventGenericPreview(event, audiencePreset, template);
       }
     }
 
@@ -420,6 +487,224 @@ ${redactions.length > 0 ? `Redacted: ${redactions.join(', ')}` : 'Full Access'}
 }
 
 /**
+ * Generate Event PDF preview content with professional templates
+ */
+function generateEventPDFPreview(event: any, audiencePreset: string, template: string = 'executive-summary'): string {
+  const redactions = getRedactionsForAudience(audiencePreset);
+  
+  switch (template) {
+    case 'executive-summary':
+      return generateEventExecutiveSummaryPDF(event, audiencePreset, redactions);
+    case 'detailed-report':
+      return generateEventDetailedReportPDF(event, audiencePreset, redactions);
+    case 'vendor-packet':
+      return generateEventVendorPacketPDF(event, audiencePreset, redactions);
+    case 'team-checklist':
+      return generateEventTeamChecklistPDF(event, audiencePreset, redactions);
+    case 'client-presentation':
+      return generateEventClientPresentationPDF(event, audiencePreset, redactions);
+    case 'run-of-show':
+      return generateEventRunOfShowPDF(event, audiencePreset, redactions);
+    case 'attendee-guide':
+      return generateEventAttendeeGuidePDF(event, audiencePreset, redactions);
+    case 'event-briefing':
+      return generateEventBriefingPDF(event, audiencePreset, redactions);
+    default:
+      return generateEventExecutiveSummaryPDF(event, audiencePreset, redactions);
+  }
+}
+
+/**
+ * Event Executive Summary Template
+ */
+function generateEventExecutiveSummaryPDF(event: any, audiencePreset: string, redactions: string[]): string {
+  return `
+═══════════════════════════════════════════════════════════════════════════════
+                              EVENT EXECUTIVE SUMMARY
+═══════════════════════════════════════════════════════════════════════════════
+
+EVENT: ${event.title}
+STATUS: ${event.status}
+DATE: ${event.startDate ? new Date(event.startDate).toLocaleDateString() : 'TBD'}
+DURATION: ${event.duration || 'Not specified'}
+
+OVERVIEW
+───────────────────────────────────────────────────────────────────────────────
+${event.description || 'No description provided'}
+
+KEY METRICS
+───────────────────────────────────────────────────────────────────────────────
+• Total Tasks: ${event.tasks?.length || 0} items
+• Location: ${event.location || 'TBD'}
+• Attendees: ${event.attendeeCount || 'TBD'}
+
+PREPARATION STATUS
+───────────────────────────────────────────────────────────────────────────────
+${event.tasks && event.tasks.length > 0 ? 
+  event.tasks.map((task: any, index: number) => 
+    `• ${task.title} - ${task.status}`
+  ).join('\n') : 
+  'No preparation tasks defined'}
+
+${event.location ? `
+LOCATION DETAILS
+───────────────────────────────────────────────────────────────────────────────
+${event.location}
+` : ''}
+
+${event.notes ? `
+ADDITIONAL NOTES
+───────────────────────────────────────────────────────────────────────────────
+${event.notes}
+` : ''}
+
+═══════════════════════════════════════════════════════════════════════════════
+Generated: ${new Date().toLocaleDateString()} | Audience: ${audiencePreset.toUpperCase()}
+${redactions.length > 0 ? `Redacted: ${redactions.join(', ')}` : 'Full Access'}
+═══════════════════════════════════════════════════════════════════════════════
+  `.trim();
+}
+
+/**
+ * Event Run of Show Template
+ */
+function generateEventRunOfShowPDF(event: any, audiencePreset: string, redactions: string[]): string {
+  return `
+═══════════════════════════════════════════════════════════════════════════════
+                                RUN OF SHOW
+═══════════════════════════════════════════════════════════════════════════════
+
+EVENT: ${event.title}
+DATE: ${event.startDate ? new Date(event.startDate).toLocaleDateString() : 'TBD'}
+LOCATION: ${event.location || 'TBD'}
+
+TIMELINE
+───────────────────────────────────────────────────────────────────────────────
+${event.tasks && event.tasks.length > 0 ? 
+  event.tasks.map((task: any, index: number) => {
+    const scheduledTime = task.scheduledAt ? new Date(task.scheduledAt).toLocaleTimeString() : 'TBD';
+    return `${scheduledTime} - ${task.title} (${task.estimatedDuration || task.durationMin || 0} min)`;
+  }).join('\n') : 
+  'Timeline to be finalized'}
+
+PREPARATION CHECKLIST
+───────────────────────────────────────────────────────────────────────────────
+${event.tasks && event.tasks.length > 0 ? 
+  event.tasks.map((task: any, index: number) => 
+    `☐ ${task.title} - ${task.status}`
+  ).join('\n') : 
+  '☐ Finalize event details'}
+
+LOGISTICS
+───────────────────────────────────────────────────────────────────────────────
+• Setup Time: ${event.setupTime || 'TBD'}
+• Breakdown Time: ${event.breakdownTime || 'TBD'}
+• Contact: ${event.contactInfo || 'Event Coordinator'}
+
+═══════════════════════════════════════════════════════════════════════════════
+Run of Show prepared: ${new Date().toLocaleDateString()} | Team Access
+${redactions.length > 0 ? `Redacted: ${redactions.join(', ')}` : 'Full Access'}
+═══════════════════════════════════════════════════════════════════════════════
+  `.trim();
+}
+
+/**
+ * Event Attendee Guide Template
+ */
+function generateEventAttendeeGuidePDF(event: any, audiencePreset: string, redactions: string[]): string {
+  return `
+═══════════════════════════════════════════════════════════════════════════════
+                              ATTENDEE GUIDE
+═══════════════════════════════════════════════════════════════════════════════
+
+WELCOME TO: ${event.title}
+
+EVENT DETAILS
+───────────────────────────────────────────────────────────────────────────────
+Date: ${event.startDate ? new Date(event.startDate).toLocaleDateString() : 'TBD'}
+Time: ${event.startDate ? new Date(event.startDate).toLocaleTimeString() : 'TBD'}
+Location: ${event.location || 'TBD'}
+Duration: ${event.duration || 'TBD'}
+
+WHAT TO EXPECT
+───────────────────────────────────────────────────────────────────────────────
+${event.description || 'Event details and agenda will be provided on-site.'}
+
+AGENDA OVERVIEW
+───────────────────────────────────────────────────────────────────────────────
+${event.tasks && event.tasks.length > 0 ? 
+  event.tasks.map((task: any, index: number) => {
+    const scheduledTime = task.scheduledAt ? new Date(task.scheduledAt).toLocaleTimeString() : 'TBD';
+    return `• ${scheduledTime} - ${task.title}`;
+  }).join('\n') : 
+  '• Welcome and introductions\n• Main event activities\n• Closing remarks'}
+
+IMPORTANT INFORMATION
+───────────────────────────────────────────────────────────────────────────────
+• Please arrive 15 minutes early
+• Contact: ${event.contactInfo || 'Event Coordinator'}
+• Questions? Ask any team member
+
+═══════════════════════════════════════════════════════════════════════════════
+Guide prepared: ${new Date().toLocaleDateString()} | Attendee Access
+${redactions.length > 0 ? `Redacted: ${redactions.join(', ')}` : 'Full Access'}
+═══════════════════════════════════════════════════════════════════════════════
+  `.trim();
+}
+
+/**
+ * Event Briefing Template
+ */
+function generateEventBriefingPDF(event: any, audiencePreset: string, redactions: string[]): string {
+  return `
+═══════════════════════════════════════════════════════════════════════════════
+                              EVENT BRIEFING
+═══════════════════════════════════════════════════════════════════════════════
+
+EVENT OVERVIEW
+───────────────────────────────────────────────────────────────────────────────
+Title: ${event.title}
+Date: ${event.startDate ? new Date(event.startDate).toLocaleDateString() : 'TBD'}
+Time: ${event.startDate ? new Date(event.startDate).toLocaleTimeString() : 'TBD'}
+Location: ${event.location || 'TBD'}
+Status: ${event.status}
+
+DESCRIPTION
+───────────────────────────────────────────────────────────────────────────────
+${event.description || 'Event description and objectives'}
+
+PREPARATION TASKS
+───────────────────────────────────────────────────────────────────────────────
+${event.tasks && event.tasks.length > 0 ? 
+  event.tasks.map((task: any, index: number) => 
+    `${index + 1}. ${task.title}
+   Status: ${task.status}
+   Priority: ${task.priority}
+   Due: ${task.dueDate ? new Date(task.dueDate).toLocaleDateString() : 'TBD'}`
+  ).join('\n\n') : 
+  'No preparation tasks defined'}
+
+LOGISTICS
+───────────────────────────────────────────────────────────────────────────────
+• Setup Time: ${event.setupTime || 'TBD'}
+• Breakdown Time: ${event.breakdownTime || 'TBD'}
+• Attendee Count: ${event.attendeeCount || 'TBD'}
+• Contact: ${event.contactInfo || 'Event Coordinator'}
+
+${event.notes ? `
+NOTES
+───────────────────────────────────────────────────────────────────────────────
+${event.notes}
+` : ''}
+
+═══════════════════════════════════════════════════════════════════════════════
+Briefing prepared: ${new Date().toLocaleDateString()} | Team Access
+${redactions.length > 0 ? `Redacted: ${redactions.join(', ')}` : 'Full Access'}
+═══════════════════════════════════════════════════════════════════════════════
+  `.trim();
+}
+
+/**
  * Generate CSV preview content
  */
 function generateCSVPreview(task: any, audiencePreset: string, template?: string): string {
@@ -427,6 +712,16 @@ function generateCSVPreview(task: any, audiencePreset: string, template?: string
   
   return `Title,Status,Priority,Due Date,Duration,Description,Event
 "${task.title}","${task.status}","${task.priority}","${task.dueDate ? new Date(task.dueDate).toLocaleDateString() : ''}","${task.estimatedDuration || task.durationMin || 0}","${(task.description || '').replace(/"/g, '""')}","${task.event?.title || ''}"`;
+}
+
+/**
+ * Generate Event CSV preview content
+ */
+function generateEventCSVPreview(event: any, audiencePreset: string, template?: string): string {
+  const redactions = getRedactionsForAudience(audiencePreset);
+  
+  return `Event Title,Status,Date,Location,Duration,Description,Tasks
+"${event.title}","${event.status}","${event.startDate ? new Date(event.startDate).toLocaleDateString() : ''}","${event.location || ''}","${event.duration || ''}","${(event.description || '').replace(/"/g, '""')}","${event.tasks?.length || 0}"`;
 }
 
 /**
@@ -502,6 +797,86 @@ Priority: ${task.priority}
 Description: ${task.description || 'No description'}
 Subtasks: ${task.subtasks.length}
 Event: ${task.event?.title || 'None'}
+
+Export for: ${audiencePreset} audience`;
+}
+
+/**
+ * Generate Event Markdown preview content
+ */
+function generateEventMarkdownPreview(event: any, audiencePreset: string, template?: string): string {
+  const redactions = getRedactionsForAudience(audiencePreset);
+  
+  return `# ${event.title}
+
+- **Status:** ${event.status}
+- **Date:** ${event.startDate ? new Date(event.startDate).toLocaleDateString() : 'TBD'}
+- **Location:** ${event.location || 'TBD'}
+- **Duration:** ${event.duration || 'TBD'}
+
+## Description
+${event.description || 'No description provided'}
+
+## Preparation Tasks
+${event.tasks && event.tasks.length > 0 ? 
+  event.tasks.map((task: any) => 
+    `- [${task.status === 'COMPLETED' ? 'x' : ' '}] ${task.title} (${task.priority})`
+  ).join('\n') : 
+  '- No preparation tasks'}
+
+## Logistics
+- Setup Time: ${event.setupTime || 'TBD'}
+- Breakdown Time: ${event.breakdownTime || 'TBD'}
+- Attendee Count: ${event.attendeeCount || 'TBD'}
+
+---
+*Export for ${audiencePreset} audience*
+  `.trim();
+}
+
+/**
+ * Generate Event JSON preview content
+ */
+function generateEventJSONPreview(event: any, audiencePreset: string, template?: string): string {
+  const redactions = getRedactionsForAudience(audiencePreset);
+  
+  const eventData = {
+    id: event.id,
+    title: event.title,
+    status: event.status,
+    startDate: event.startDate,
+    endDate: event.endDate,
+    location: event.location,
+    duration: event.duration,
+    description: event.description,
+    tasks: event.tasks?.map((task: any) => ({
+      id: task.id,
+      title: task.title,
+      status: task.status,
+      priority: task.priority,
+      dueDate: task.dueDate
+    })) || [],
+    notes: event.notes,
+    exportMetadata: {
+      audience: audiencePreset,
+      redactions: redactions,
+      generatedAt: new Date().toISOString()
+    }
+  };
+
+  return JSON.stringify(eventData, null, 2);
+}
+
+/**
+ * Generate Event generic preview content
+ */
+function generateEventGenericPreview(event: any, audiencePreset: string, template?: string): string {
+  return `Event: ${event.title}
+Status: ${event.status}
+Date: ${event.startDate ? new Date(event.startDate).toLocaleDateString() : 'TBD'}
+Location: ${event.location || 'TBD'}
+Tasks: ${event.tasks?.length || 0}
+Description: ${event.description || 'No description'}
 
 Export for: ${audiencePreset} audience`;
 }
@@ -696,10 +1071,12 @@ router.post('/preview', authenticateToken, asyncHandler(async (req, res) => {
   try {
     // If no template specified, return available templates
     if (!template) {
-      const availableTemplates = Object.entries(DOCUMENT_TEMPLATES).map(([key, template]) => ({
-        id: key,
-        ...template
-      }));
+      const availableTemplates = Object.entries(DOCUMENT_TEMPLATES)
+        .filter(([key, template]) => template.availableFor.includes(scope.type))
+        .map(([key, template]) => ({
+          id: key,
+          ...template
+        }));
 
       return res.json({
         success: true,
