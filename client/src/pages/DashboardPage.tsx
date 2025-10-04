@@ -725,6 +725,164 @@ export function DashboardPage() {
     enabled: !!token && isHydrated // Re-enabled for functionality
   })
 
+  // Get user location for weather - MUST be before any conditional returns
+  const [userLocation, setUserLocation] = useState<{ lat: number; lon: number } | null>(null)
+
+  // Get user's location and timezone
+  useEffect(() => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        async (position) => {
+          const location = {
+            lat: position.coords.latitude,
+            lon: position.coords.longitude
+          }
+          setUserLocation(location)
+          
+          // Detect timezone from coordinates
+          try {
+            const timezoneInfo = await getTimezoneFromCoordinates(location.lat, location.lon)
+            if (timezoneInfo) {
+              console.log('🌍 Detected timezone:', timezoneInfo.timezone)
+              // Update user profile with detected timezone
+              // This could be sent to the backend to update the user's timezone preference
+            }
+          } catch (error) {
+            console.error('Error detecting timezone:', error)
+          }
+        },
+        (error) => {
+          console.log('Location access denied or failed:', error)
+        }
+      )
+    }
+  }, [])
+
+  // Use React Query for current weather with better caching
+  const { data: currentWeatherData, isLoading: weatherLoading } = useQuery({
+    queryKey: ['current-weather', userLocation],
+    queryFn: async () => {
+      console.log('🌤️ Fetching current weather...')
+      let locationParam = ''
+      if (userLocation) {
+        locationParam = `?lat=${userLocation.lat}&lon=${userLocation.lon}`
+      }
+      const response = await api.get(`/location/weather/current${locationParam}`)
+      console.log('🌤️ Current weather response:', response.data)
+
+      if (response.data.success && response.data.data.weather) {
+        const weather = response.data.data.weather
+        return {
+          emoji: weather.emoji || '🌤️',
+          temperature: weather.temperature || 72,
+          condition: weather.condition || 'Unknown',
+          location: weather.location || response.data.data.location || 'Unknown'
+        }
+      } else {
+        console.log('🌤️ No weather data in response, using fallback')
+        return {
+          emoji: '🌤️',
+          temperature: 72,
+          condition: 'Unknown',
+          location: 'Unknown'
+        }
+      }
+    },
+    enabled: true, // Enable weather on dashboard
+    staleTime: 30 * 60 * 1000, // 30 minutes - much longer cache
+    cacheTime: 60 * 60 * 1000, // Keep in cache for 1 hour
+    refetchOnWindowFocus: false,
+    retry: 1, // Only retry once
+    retryDelay: 1000, // Faster retry
+    onError: (error) => {
+      console.error('Failed to fetch current weather:', error)
+    }
+  })
+
+  // Fetch 6-hour weather forecast
+  const { data: forecastData, isLoading: forecastLoading, error: forecastError } = useQuery({
+    queryKey: ['weather-forecast-6h', userLocation],
+    queryFn: async () => {
+      console.log('🌤️ Fetching 6-hour weather forecast...')
+      let locationParam = ''
+      if (userLocation) {
+        locationParam = `&lat=${userLocation.lat}&lon=${userLocation.lon}`
+      }
+      const response = await api.get(`/location/weather/forecast?days=1${locationParam}`)
+      console.log('🌤️ Forecast response:', response.data)
+
+      if (response.data.success && response.data.data.forecast) {
+        // Get next 6 hours (first 2 forecast entries, as OpenWeather provides 3-hour intervals)
+        const next6Hours = response.data.data.forecast.slice(0, 2).map((item: any) => ({
+          time: new Date(item.timestamp),
+          temperature: item.temperature,
+          condition: item.condition,
+          emoji: item.emoji
+        }))
+        console.log('🌤️ Processed forecast data:', next6Hours)
+        return next6Hours
+      }
+      console.log('🌤️ No forecast data available')
+      return []
+    },
+    enabled: true, // Enable forecast on dashboard
+    staleTime: 30 * 60 * 1000, // 30 minutes
+    cacheTime: 60 * 60 * 1000, // Keep in cache for 1 hour
+    refetchOnWindowFocus: false,
+    retry: 2, // Retry failed requests twice
+    retryDelay: 2000, // Wait 2 seconds between retries
+    onError: (error) => {
+      console.error('Failed to fetch weather forecast:', error)
+    }
+  })
+
+  // Fetch weather for all events - MUST be called before any conditional returns
+  const { data: eventsWeatherData } = useQuery({
+    queryKey: ['events-weather', dashboardData?.upcomingEvents || [], userLocation],
+    queryFn: async () => {
+      const upcomingEvents = dashboardData?.upcomingEvents || []
+      if (!upcomingEvents || upcomingEvents.length === 0) return {}
+      
+      console.log('🌤️ Fetching weather for events:', upcomingEvents.length)
+      const response = await api.post('/location/events/weather', {
+        events: upcomingEvents.map(event => ({
+          id: event.id,
+          startTime: event.startTime,
+          location: event.location
+        })),
+        lat: userLocation?.lat,
+        lon: userLocation?.lon
+      })
+      
+      console.log('🌤️ Events weather response:', response.data)
+      
+      if (response.data.success && response.data.data.eventsWithWeather) {
+        const weatherMap: Record<string, { emoji: string; temperature: number; condition: string }> = {}
+        response.data.data.eventsWithWeather.forEach((item: any) => {
+          if (item.weather) {
+            weatherMap[item.eventId] = {
+              emoji: item.weather.emoji,
+              temperature: item.weather.temperature,
+              condition: item.weather.condition
+            }
+          }
+        })
+        console.log('🌤️ Processed events weather:', weatherMap)
+        return weatherMap
+      }
+      
+      return {}
+    },
+    enabled: true, // Always enabled, but returns empty object if no events
+    staleTime: 30 * 60 * 1000, // 30 minutes
+    cacheTime: 60 * 60 * 1000, // Keep in cache for 1 hour
+    refetchOnWindowFocus: false,
+    retry: 1,
+    onError: (error) => {
+      console.error('Failed to fetch events weather:', error)
+    }
+  })
+
 
 
   const deleteEventMutation = useMutation({
@@ -1137,116 +1295,6 @@ export function DashboardPage() {
     }
   }, [dashboardData?.upcomingEvents, fetchEventWeather, fetchEventPreparationTasks])
 
-  // Get user location for weather
-  const [userLocation, setUserLocation] = useState<{ lat: number; lon: number } | null>(null)
-
-  // Get user's location and timezone
-  useEffect(() => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        async (position) => {
-          const location = {
-            lat: position.coords.latitude,
-            lon: position.coords.longitude
-          }
-          setUserLocation(location)
-          
-          // Detect timezone from coordinates
-          try {
-            const timezoneInfo = await getTimezoneFromCoordinates(location.lat, location.lon)
-            if (timezoneInfo) {
-              console.log('🌍 Detected timezone:', timezoneInfo.timezone)
-              // Update user profile with detected timezone
-              // This could be sent to the backend to update the user's timezone preference
-            }
-          } catch (error) {
-            console.error('Error detecting timezone:', error)
-          }
-        },
-        (error) => {
-          console.log('Location access denied or failed:', error)
-        }
-      )
-    }
-  }, [])
-
-  // Use React Query for current weather with better caching
-  const { data: currentWeatherData, isLoading: weatherLoading } = useQuery({
-    queryKey: ['current-weather', userLocation],
-    queryFn: async () => {
-      console.log('🌤️ Fetching current weather...')
-      let locationParam = ''
-      if (userLocation) {
-        locationParam = `?lat=${userLocation.lat}&lon=${userLocation.lon}`
-      }
-      const response = await api.get(`/location/weather/current${locationParam}`)
-      console.log('🌤️ Current weather response:', response.data)
-
-      if (response.data.success && response.data.data.weather) {
-        const weather = response.data.data.weather
-        return {
-          emoji: weather.emoji || '🌤️',
-          temperature: weather.temperature || 72,
-          condition: weather.condition || 'Unknown',
-          location: weather.location || response.data.data.location || 'Unknown'
-        }
-      } else {
-        console.log('🌤️ No weather data in response, using fallback')
-        return {
-          emoji: '🌤️',
-          temperature: 72,
-          condition: 'Unknown',
-          location: 'Unknown'
-        }
-      }
-    },
-    enabled: true, // Enable weather on dashboard
-    staleTime: 30 * 60 * 1000, // 30 minutes - much longer cache
-    cacheTime: 60 * 60 * 1000, // Keep in cache for 1 hour
-    refetchOnWindowFocus: false,
-    retry: 1, // Only retry once
-    retryDelay: 1000, // Faster retry
-    onError: (error) => {
-      console.error('Failed to fetch current weather:', error)
-    }
-  })
-
-  // Fetch 6-hour weather forecast
-  const { data: forecastData, isLoading: forecastLoading, error: forecastError } = useQuery({
-    queryKey: ['weather-forecast-6h', userLocation],
-    queryFn: async () => {
-      console.log('🌤️ Fetching 6-hour weather forecast...')
-      let locationParam = ''
-      if (userLocation) {
-        locationParam = `&lat=${userLocation.lat}&lon=${userLocation.lon}`
-      }
-      const response = await api.get(`/location/weather/forecast?days=1${locationParam}`)
-      console.log('🌤️ Forecast response:', response.data)
-
-      if (response.data.success && response.data.data.forecast) {
-        // Get next 6 hours (first 2 forecast entries, as OpenWeather provides 3-hour intervals)
-        const next6Hours = response.data.data.forecast.slice(0, 2).map((item: any) => ({
-          time: new Date(item.timestamp),
-          temperature: item.temperature,
-          condition: item.condition,
-          emoji: item.emoji
-        }))
-        console.log('🌤️ Processed forecast data:', next6Hours)
-        return next6Hours
-      }
-      console.log('🌤️ No forecast data available')
-      return []
-    },
-    enabled: true, // Enable forecast on dashboard
-    staleTime: 30 * 60 * 1000, // 30 minutes
-    cacheTime: 60 * 60 * 1000, // Keep in cache for 1 hour
-    refetchOnWindowFocus: false,
-    retry: 2, // Retry failed requests twice
-    retryDelay: 2000, // Wait 2 seconds between retries
-    onError: (error) => {
-      console.error('Failed to fetch weather forecast:', error)
-    }
-  })
 
 
   // Debug forecast data
@@ -1365,52 +1413,6 @@ export function DashboardPage() {
     )
   }
 
-  // Fetch weather for all events - called before any destructuring or conditional logic
-  const { data: eventsWeatherData } = useQuery({
-    queryKey: ['events-weather', dashboardData?.upcomingEvents || [], userLocation],
-    queryFn: async () => {
-      const upcomingEvents = dashboardData?.upcomingEvents || []
-      if (!upcomingEvents || upcomingEvents.length === 0) return {}
-      
-      console.log('🌤️ Fetching weather for events:', upcomingEvents.length)
-      const response = await api.post('/location/events/weather', {
-        events: upcomingEvents.map(event => ({
-          id: event.id,
-          startTime: event.startTime,
-          location: event.location
-        })),
-        lat: userLocation?.lat,
-        lon: userLocation?.lon
-      })
-      
-      console.log('🌤️ Events weather response:', response.data)
-      
-      if (response.data.success && response.data.data.eventsWithWeather) {
-        const weatherMap: Record<string, { emoji: string; temperature: number; condition: string }> = {}
-        response.data.data.eventsWithWeather.forEach((item: any) => {
-          if (item.weather) {
-            weatherMap[item.eventId] = {
-              emoji: item.weather.emoji,
-              temperature: item.weather.temperature,
-              condition: item.weather.condition
-            }
-          }
-        })
-        console.log('🌤️ Processed events weather:', weatherMap)
-        return weatherMap
-      }
-      
-      return {}
-    },
-    enabled: true, // Always enabled, but returns empty object if no events
-    staleTime: 30 * 60 * 1000, // 30 minutes
-    cacheTime: 60 * 60 * 1000, // Keep in cache for 1 hour
-    refetchOnWindowFocus: false,
-    retry: 1,
-    onError: (error) => {
-      console.error('Failed to fetch events weather:', error)
-    }
-  })
 
   // Destructure dashboard data for use in the component
   const { user, upcomingEvents, recentAchievements, activeStreaks, unreadNotifications } = dashboardData || {}
