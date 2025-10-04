@@ -1,6 +1,7 @@
 import { PrismaClient } from '@prisma/client';
 import { v4 as uuidv4 } from 'uuid';
 import { logger } from '../utils/logger';
+import { getCurrentTraceContext, createTraceHeaders } from './traceService';
 
 const prisma = new PrismaClient();
 
@@ -119,15 +120,26 @@ export async function publishEvent(
   payload: DomainEvent
 ): Promise<void> {
   const eventId = uuidv4();
+  const traceContext = getCurrentTraceContext();
   
   try {
+    // Include trace context in the event payload
+    const enrichedPayload = {
+      ...payload,
+      _trace: traceContext ? {
+        traceId: traceContext.traceId,
+        spanId: traceContext.spanId,
+        operation: traceContext.operation
+      } : undefined
+    };
+    
     await prisma.outbox.create({
       data: {
         eventId,
         eventType,
         aggregateType,
         aggregateId,
-        payload: JSON.stringify(payload),
+        payload: JSON.stringify(enrichedPayload),
         status: 'pending',
         attempts: 0
       }
@@ -137,7 +149,9 @@ export async function publishEvent(
       eventId,
       eventType,
       aggregateType,
-      aggregateId
+      aggregateId,
+      traceId: traceContext?.traceId,
+      spanId: traceContext?.spanId
     });
   } catch (error) {
     logger.error('Failed to publish event to outbox', {
@@ -145,6 +159,8 @@ export async function publishEvent(
       eventType,
       aggregateType,
       aggregateId,
+      traceId: traceContext?.traceId,
+      spanId: traceContext?.spanId,
       error: error instanceof Error ? error.message : 'Unknown error'
     });
     throw error;

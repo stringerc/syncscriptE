@@ -1,6 +1,7 @@
 import { logger } from '../utils/logger';
 import { getPendingEvents, markEventDelivered, markEventFailed, moveToDeadLetter } from '../services/eventService';
 import { PrismaClient } from '@prisma/client';
+import { runWithTraceContext, createTraceContext, logWithTrace } from '../services/traceService';
 
 const prisma = new PrismaClient();
 
@@ -44,61 +45,84 @@ export function registerEventHandler(eventType: string, handler: (payload: any) 
 async function processEvent(event: any): Promise<{ success: boolean; shouldRetry: boolean }> {
   const { eventId, eventType, payload, attempts } = event;
   
+  // Parse payload to extract trace context
+  let parsedPayload: any;
+  let traceContext: any;
+  
   try {
-    const handler = eventHandlers[eventType];
-    if (!handler) {
-      logger.warn('No handler found for event type', { eventType, eventId });
-      await markEventDelivered(eventId, 'internal', false, `No handler for event type: ${eventType}`);
-      return { success: false, shouldRetry: false };
-    }
-    
-    const parsedPayload = JSON.parse(payload);
-    await handler(parsedPayload);
-    
-    await markEventDelivered(eventId, 'internal', true);
-    logger.info('Event processed successfully', { eventId, eventType, attempts });
-    return { success: true, shouldRetry: false };
-    
+    parsedPayload = JSON.parse(payload);
+    traceContext = parsedPayload._trace;
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    const currentAttempts = attempts + 1;
-    
-    logger.error('Failed to process event', { 
-      eventId, 
-      eventType, 
-      attempts: currentAttempts,
-      maxAttempts: RETRY_CONFIG.maxAttempts,
-      error: errorMessage 
-    });
-    
-    // Check if we should retry or move to dead letter
-    if (currentAttempts >= RETRY_CONFIG.maxAttempts) {
-      logger.error('Event exceeded max retry attempts, moving to dead letter', { 
+    logger.error('Failed to parse event payload', { eventId, eventType });
+    return { success: false, shouldRetry: false };
+  }
+  
+  // Create trace context for event processing
+  const processingContext = createTraceContext(
+    traceContext?.traceId,
+    traceContext?.spanId,
+    undefined, // No user context in worker
+    `process-event-${eventType}`
+  );
+  
+  return runWithTraceContext(processingContext, async () => {
+    try {
+      const handler = eventHandlers[eventType];
+      if (!handler) {
+        logWithTrace('warn', 'No handler found for event type', { eventType, eventId });
+        await markEventDelivered(eventId, 'internal', false, `No handler for event type: ${eventType}`);
+        return { success: false, shouldRetry: false };
+      }
+      
+      // Remove trace data from payload before passing to handler
+      const { _trace, ...handlerPayload } = parsedPayload;
+      await handler(handlerPayload);
+      
+      await markEventDelivered(eventId, 'internal', true);
+      logWithTrace('info', 'Event processed successfully', { eventId, eventType, attempts });
+      return { success: true, shouldRetry: false };
+      
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const currentAttempts = attempts + 1;
+      
+      logWithTrace('error', 'Failed to process event', { 
         eventId, 
         eventType, 
-        attempts: currentAttempts 
+        attempts: currentAttempts,
+        maxAttempts: RETRY_CONFIG.maxAttempts,
+        error: errorMessage 
       });
       
-      await moveToDeadLetter(eventId, errorMessage);
-      return { success: false, shouldRetry: false };
+      // Check if we should retry or move to dead letter
+      if (currentAttempts >= RETRY_CONFIG.maxAttempts) {
+        logWithTrace('error', 'Event exceeded max retry attempts, moving to dead letter', { 
+          eventId, 
+          eventType, 
+          attempts: currentAttempts 
+        });
+        
+        await moveToDeadLetter(eventId, errorMessage);
+        return { success: false, shouldRetry: false };
+      }
+      
+      // Schedule retry with backoff
+      const backoffDelay = calculateBackoffDelay(currentAttempts);
+      const nextRetryAt = new Date(Date.now() + backoffDelay);
+      
+      await markEventFailed(eventId, errorMessage, nextRetryAt);
+      
+      logWithTrace('info', 'Event scheduled for retry', { 
+        eventId, 
+        eventType, 
+        attempts: currentAttempts,
+        backoffDelay,
+        nextRetryAt 
+      });
+      
+      return { success: false, shouldRetry: true };
     }
-    
-    // Schedule retry with backoff
-    const backoffDelay = calculateBackoffDelay(currentAttempts);
-    const nextRetryAt = new Date(Date.now() + backoffDelay);
-    
-    await markEventFailed(eventId, errorMessage, nextRetryAt);
-    
-    logger.info('Event scheduled for retry', { 
-      eventId, 
-      eventType, 
-      attempts: currentAttempts,
-      backoffDelay,
-      nextRetryAt 
-    });
-    
-    return { success: false, shouldRetry: true };
-  }
+  });
 }
 
 /**

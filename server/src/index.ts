@@ -49,6 +49,7 @@ import projectResourcesRoutes from './routes/projectResources';
 // import briefRoutes from './routes/brief';
 import calendarAuthRoutes from './routes/calendarAuth';
 import adminRoutes from './routes/admin';
+import { traceMiddleware } from './services/traceService';
 
 // Import middleware
 import { errorHandler } from './middleware/errorHandler';
@@ -159,6 +160,7 @@ app.use((req, res, next) => {
 // Apply global middleware
 app.use(generalAPIRateLimit); // Rate limiting
 app.use(idempotencyMiddleware); // Idempotency for write operations
+app.use(traceMiddleware); // Distributed tracing
 
 // Root endpoint
 app.get('/', (req, res) => {
