@@ -11,7 +11,8 @@ import { EventBudgetTab } from '@/components/budget/EventBudgetTab'
 import { TemplateRecommendations } from '@/components/TemplateRecommendations'
 import { ExportModal } from '@/components/export/ExportModal'
 import { SpeechToTextInput } from '@/components/SpeechToTextInput'
-import { X, Save, Trash2, Calendar, Clock, MapPin, DollarSign, Sparkles, Plus, CheckCircle, Circle, Edit3, Eye, Pin, PinOff, Mic, Download } from 'lucide-react'
+import ConflictResolver from '@/components/ConflictResolver'
+import { X, Save, Trash2, Calendar, Clock, MapPin, DollarSign, Sparkles, Plus, CheckCircle, Circle, Edit3, Eye, Pin, PinOff, Mic, Download, AlertTriangle } from 'lucide-react'
 
 interface Event {
   id: string
@@ -232,6 +233,7 @@ export function EventModal({ event, isOpen, onClose, onEventUpdated, onEventCrea
   const [showAddTaskForm, setShowAddTaskForm] = useState(false)
   const [pendingPrepTasks, setPendingPrepTasks] = useState<Array<{title: string, description: string, priority: string}>>([])
   const [showExportModal, setShowExportModal] = useState(false)
+  const [showConflictResolver, setShowConflictResolver] = useState(false)
 
   const generatePreparationTasksMutation = useMutation({
     mutationFn: async () => {
@@ -899,14 +901,26 @@ export function EventModal({ event, isOpen, onClose, onEventUpdated, onEventCrea
               <div>
                 <div className="flex items-center justify-between">
                   <h3 className="text-lg font-semibold">{event.title}</h3>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setShowExportModal(true)}
-                    className="h-8 w-8 p-0"
-                  >
-                    <Download className="w-4 h-4" />
-                  </Button>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setShowConflictResolver(true)}
+                      className="h-8 w-8 p-0"
+                      title="Resolve Schedule Conflicts"
+                    >
+                      <AlertTriangle className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setShowExportModal(true)}
+                      className="h-8 w-8 p-0"
+                      title="Export Event"
+                    >
+                      <Download className="w-4 h-4" />
+                    </Button>
+                  </div>
                 </div>
                 {event.description && (
                   <p className="text-muted-foreground mt-2">{event.description}</p>
@@ -1395,6 +1409,15 @@ export function EventModal({ event, isOpen, onClose, onEventUpdated, onEventCrea
             id: event.id
           }}
           title={`Export "${event.title}"`}
+        />
+      )}
+
+      {/* Conflict Resolver Modal */}
+      {event && (
+        <ConflictResolver
+          eventId={event.id}
+          isOpen={showConflictResolver}
+          onClose={() => setShowConflictResolver(false)}
         />
       )}
     </div>
