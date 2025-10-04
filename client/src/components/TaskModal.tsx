@@ -745,23 +745,24 @@ export function TaskModal({ task, isOpen, onClose, onTaskUpdated, onTaskDeleted 
               </div>
 
               <div>
-                <Label htmlFor="description">Description</Label>
-                <Textarea
-                  id="description"
+                <SpeechToTextInput
                   value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  onChange={(value) => setFormData({ ...formData, description: value })}
+                  placeholder="Describe the task details..."
+                  multiline={true}
                   rows={3}
+                  label="Description"
                 />
               </div>
 
               <div>
-                <Label htmlFor="notes">Notes</Label>
-                <Textarea
-                  id="notes"
+                <SpeechToTextInput
                   value={formData.notes || ''}
-                  onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                  onChange={(value) => setFormData({ ...formData, notes: value })}
                   placeholder="Add any additional notes..."
+                  multiline={true}
                   rows={3}
+                  label="Notes"
                 />
               </div>
 

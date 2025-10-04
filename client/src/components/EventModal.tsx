@@ -10,6 +10,7 @@ import { ConfirmationModal } from '@/components/ConfirmationModal'
 import { EventBudgetTab } from '@/components/budget/EventBudgetTab'
 import { TemplateRecommendations } from '@/components/TemplateRecommendations'
 import { ExportModal } from '@/components/export/ExportModal'
+import { SpeechToTextInput } from '@/components/SpeechToTextInput'
 import { X, Save, Trash2, Calendar, Clock, MapPin, DollarSign, Sparkles, Plus, CheckCircle, Circle, Edit3, Eye, Pin, PinOff, Mic, Download } from 'lucide-react'
 
 interface Event {
@@ -840,13 +841,13 @@ export function EventModal({ event, isOpen, onClose, onEventUpdated, onEventCrea
               </div>
 
               <div>
-                <Label htmlFor="description">Description</Label>
-                <Textarea
-                  id="description"
+                <SpeechToTextInput
                   value={formData.description || ''}
-                  onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                  onChange={(value) => setFormData(prev => ({ ...prev, description: value }))}
                   placeholder="Enter event description..."
+                  multiline={true}
                   rows={3}
+                  label="Description"
                 />
               </div>
 
@@ -982,10 +983,11 @@ export function EventModal({ event, isOpen, onClose, onEventUpdated, onEventCrea
                     onChange={(e) => setNewTaskTitle(e.target.value)}
                     className="text-sm"
                   />
-                  <Textarea
-                    placeholder="Task description (optional)"
+                  <SpeechToTextInput
                     value={newTaskDescription}
-                    onChange={(e) => setNewTaskDescription(e.target.value)}
+                    onChange={(value) => setNewTaskDescription(value)}
+                    placeholder="Task description (optional)"
+                    multiline={true}
                     rows={2}
                     className="text-sm"
                   />
@@ -1039,10 +1041,11 @@ export function EventModal({ event, isOpen, onClose, onEventUpdated, onEventCrea
                     onChange={(e) => setNewTaskTitle(e.target.value)}
                     className="text-sm"
                   />
-                  <Textarea
-                    placeholder="Task description (optional)"
+                  <SpeechToTextInput
                     value={newTaskDescription}
-                    onChange={(e) => setNewTaskDescription(e.target.value)}
+                    onChange={(value) => setNewTaskDescription(value)}
+                    placeholder="Task description (optional)"
+                    multiline={true}
                     rows={2}
                     className="text-sm"
                   />
