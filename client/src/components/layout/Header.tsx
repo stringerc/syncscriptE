@@ -1,4 +1,4 @@
-import { Search, User, LogOut, Settings, UserCircle, Zap, Clock, Calendar, CheckCircle, MessageSquare, Loader2, Trophy, Menu, Sun, Moon } from 'lucide-react'
+import { Search, User, LogOut, Settings, UserCircle, Clock, Calendar, CheckCircle, MessageSquare, Loader2, Trophy, Menu, Sun, Moon, Brain } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useAuthStore } from '@/stores/authStore'
@@ -100,7 +100,7 @@ export function Header() {
       const response = await api.get(`/location/weather/current${locationParam}`)
       return response.data.data || response.data
     },
-    enabled: false, // Disabled for performance
+    enabled: !isDashboard, // Enable weather for non-dashboard pages
     staleTime: 10 * 60 * 1000, // 10 minutes
     refetchOnWindowFocus: false,
   })
@@ -182,6 +182,17 @@ export function Header() {
         >
           <Menu className="w-5 h-5" />
         </Button>
+
+        {/* Brain Logo and Title */}
+        <div className="flex items-center space-x-2 mr-4">
+          <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+            <Brain className="w-5 h-5 text-white" />
+          </div>
+          <div>
+            <h1 className="text-lg font-bold text-foreground">SyncScript</h1>
+            <p className="text-xs text-muted-foreground">AI Life Manager</p>
+          </div>
+        </div>
 
         {/* Search */}
         <div className="flex-1 max-w-md">
@@ -400,9 +411,6 @@ export function Header() {
                 <p className="text-sm font-medium text-foreground">
                   {user?.name || 'User'}
                 </p>
-                <p className="text-xs text-muted-foreground">
-                  Energy Level: {user?.energyLevel ?? 5}/10
-                </p>
               </div>
 
               {/* Profile Button */}
@@ -454,40 +462,6 @@ export function Header() {
                 </div>
               )}
 
-              {/* Energy Display - Better integrated */}
-              <div className="flex items-center space-x-2 px-3 py-1 bg-gradient-to-r from-yellow-50 to-orange-50 dark:from-yellow-900/20 dark:to-orange-900/20 rounded-lg border border-yellow-200 dark:border-yellow-800">
-                <div className="relative">
-                  {/* Simplified energy aura */}
-                  <div 
-                    className={`absolute inset-0 rounded-full ${(user?.energyLevel ?? 5) >= 2 ? 'bg-gradient-to-r from-yellow-400/30 to-yellow-600/40 animate-pulse' : ''}`} 
-                    style={{ 
-                      width: '120%',
-                      height: '120%',
-                      left: '-10%',
-                      top: '-10%',
-                      animationDuration: '2s'
-                    }}
-                  />
-                  
-                  {/* Main lightning bolt - Larger and more visible */}
-                  <Zap 
-                    className={`w-5 h-5 ${
-                      (user?.energyLevel ?? 5) >= 10 ? 'text-yellow-200' : 
-                      (user?.energyLevel ?? 5) >= 9 ? 'text-yellow-300' : 
-                      (user?.energyLevel ?? 5) >= 7 ? 'text-yellow-400' : 
-                      (user?.energyLevel ?? 5) >= 5 ? 'text-yellow-500' : 
-                      (user?.energyLevel ?? 5) >= 3 ? 'text-yellow-600' : 
-                      'text-yellow-700'
-                    }`}
-                    title={`Energy Level: ${user?.energyLevel ?? 5}/10`}
-                  />
-                </div>
-                
-                {/* Energy level number */}
-                <span className="text-sm font-semibold text-yellow-700 dark:text-yellow-300">
-                  {user?.energyLevel ?? 5}
-                </span>
-              </div>
 
               {/* Points Display - Better integrated */}
               {gamificationData && showAchievements && (

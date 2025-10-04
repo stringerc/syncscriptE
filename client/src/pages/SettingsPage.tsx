@@ -32,7 +32,6 @@ interface UserProfile {
   email: string
   name: string
   timezone: string
-  energyLevel: number
 }
 
 export function SettingsPage() {
@@ -40,13 +39,11 @@ export function SettingsPage() {
   const queryClient = useQueryClient()
   const { updateUser } = useAuthStore()
   const [isLoading, setIsLoading] = useState(false)
-  const [energyLevelDebounceTimer, setEnergyLevelDebounceTimer] = useState<NodeJS.Timeout | null>(null)
 
   // Form state
   const [profileData, setProfileData] = useState({
     name: '',
-    timezone: 'UTC',
-    energyLevel: 5
+    timezone: 'UTC'
   })
 
   const [settingsData, setSettingsData] = useState({
@@ -85,8 +82,7 @@ export function SettingsPage() {
     if (profile) {
       setProfileData({
         name: profile.name || '',
-        timezone: profile.timezone || 'UTC',
-        energyLevel: profile.energyLevel ?? 5
+        timezone: profile.timezone || 'UTC'
       })
     }
   }, [profile])
@@ -182,29 +178,6 @@ export function SettingsPage() {
     updateSettingsMutation.mutate(settingsData)
   }
 
-  // Debounced energy level update to prevent rate limiting
-  const debouncedEnergyLevelUpdate = useCallback((newEnergyLevel: number) => {
-    // Clear existing timer
-    if (energyLevelDebounceTimer) {
-      clearTimeout(energyLevelDebounceTimer)
-    }
-
-    // Set new timer
-    const timer = setTimeout(() => {
-      updateProfileMutation.mutate({ energyLevel: newEnergyLevel })
-    }, 1000) // Wait 1 second after user stops changing
-
-    setEnergyLevelDebounceTimer(timer)
-  }, [energyLevelDebounceTimer, updateProfileMutation])
-
-  // Cleanup timer on unmount
-  useEffect(() => {
-    return () => {
-      if (energyLevelDebounceTimer) {
-        clearTimeout(energyLevelDebounceTimer)
-      }
-    }
-  }, [energyLevelDebounceTimer])
 
   const timezones = [
     { value: 'UTC-12', label: 'UTC-12 (Baker Island)' },
@@ -283,25 +256,6 @@ export function SettingsPage() {
                 </select>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="energyLevel">Default Energy Level (1-10)</Label>
-                <Input
-                  id="energyLevel"
-                  type="number"
-                  min="1"
-                  max="10"
-                  value={profileData.energyLevel}
-                  onChange={(e) => {
-                    const newValue = parseInt(e.target.value) || 5
-                    setProfileData(prev => ({ ...prev, energyLevel: newValue }))
-                    // Debounced update to prevent rate limiting
-                    debouncedEnergyLevelUpdate(newValue)
-                  }}
-                />
-                <p className="text-xs text-muted-foreground">
-                  Changes are automatically saved after 1 second
-                </p>
-              </div>
 
               <Button 
                 className="w-full" 

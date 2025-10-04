@@ -23,7 +23,6 @@ import { ProjectsPage } from '@/pages/ProjectsPage'
 import { ProjectDetailPage } from '@/pages/ProjectDetailPage'
 import { FAQPage } from '@/pages/FAQPage'
 import { PrivacyPage } from '@/pages/PrivacyPage'
-import EnergyAnalysisPage from '@/pages/EnergyAnalysisPage'
 import NotificationsPage from '@/pages/NotificationsPage'
 import SearchPage from '@/pages/SearchPage'
 import GamificationPage from '@/pages/GamificationPage'
@@ -101,7 +100,6 @@ function AppContent() {
         <Route path="/export" element={<ExportPage />} />
             <Route path="/financial" element={<FinancialPage />} />
             <Route path="/ai-assistant" element={<AIAssistantPage />} />
-            <Route path="/energy-analysis" element={<EnergyAnalysisPage />} />
             <Route path="/notifications" element={<NotificationsPage />} />
             <Route path="/search" element={<SearchPage />} />
             <Route path="/gamification" element={<GamificationPage />} />

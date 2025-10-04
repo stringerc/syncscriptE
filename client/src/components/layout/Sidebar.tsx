@@ -13,7 +13,6 @@ import {
   BookTemplate,
   Folder,
   ExternalLink,
-  Zap,
   Download
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -31,7 +30,6 @@ const navigation = [
     { name: 'Export', href: '/export', icon: Download },
   { name: 'Financial', href: '/financial', icon: DollarSign, comingSoon: true },
   { name: 'AI Assistant', href: '/ai-assistant', icon: Brain },
-  { name: 'Energy Analysis', href: '/energy-analysis', icon: Zap, comingSoon: true },
   { name: 'Scripts', href: '/templates', icon: BookTemplate },
   { name: 'ShareSync', href: '/projects', icon: Folder },
   { name: 'Profile', href: '/profile', icon: User },
