@@ -1,5 +1,5 @@
 import React from 'react'
-import { Brain } from 'lucide-react'
+import { BrainLogo } from './BrainLogo'
 
 interface SyncScriptLogoProps {
   className?: string
@@ -17,9 +17,7 @@ export const SyncScriptLogo: React.FC<SyncScriptLogoProps> = ({
   }
 
   return (
-    <div className={`${sizeClasses[size]} bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center ${className}`}>
-      <Brain className="text-white w-4 h-4" />
-    </div>
+    <BrainLogo className={`${sizeClasses[size]} ${className}`} />
   )
 }
 

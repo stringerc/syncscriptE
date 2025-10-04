@@ -1,4 +1,4 @@
-import { Search, User, LogOut, Settings, UserCircle, Clock, Calendar, CheckCircle, MessageSquare, Loader2, Trophy, Menu, Sun, Moon, Brain } from 'lucide-react'
+import { Search, User, LogOut, Settings, UserCircle, Clock, Calendar, CheckCircle, MessageSquare, Loader2, Trophy, Menu, Sun, Moon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useAuthStore } from '@/stores/authStore'
@@ -15,6 +15,7 @@ import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
 import { useAchievements } from '@/contexts/AchievementsContext'
 import { useSidebar } from '@/contexts/SidebarContext'
+import { BrainLogo } from '@/components/BrainLogo'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -185,12 +186,9 @@ export function Header() {
 
         {/* Brain Logo and Title */}
         <div className="flex items-center space-x-2 mr-4">
-          <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
-            <Brain className="w-5 h-5 text-white" />
-          </div>
+          <BrainLogo />
           <div>
             <h1 className="text-lg font-bold text-foreground">SyncScript</h1>
-            <p className="text-xs text-muted-foreground">AI Life Manager</p>
           </div>
         </div>
 

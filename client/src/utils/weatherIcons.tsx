@@ -2,6 +2,11 @@ import React from 'react'
 
 // Shared weather icon component - uses API-provided emojis with intelligent combining
 export const getWeatherIcon = (condition: string, emoji?: string, eventTime?: Date) => {
+  // Check if it's nighttime (between 6 PM and 6 AM) - use event time if provided
+  const timeToCheck = eventTime || new Date()
+  const currentHour = timeToCheck.getHours()
+  const isNight = currentHour >= 18 || currentHour < 6
+  
   // If we have an emoji from the API, process it to combine multiple emojis intelligently
   if (emoji) {
     let processedEmoji = emoji
@@ -20,11 +25,21 @@ export const getWeatherIcon = (condition: string, emoji?: string, eventTime?: Da
     } else if (emoji.includes('🌙') && emoji.includes('☀️')) {
       processedEmoji = '☀️' // Sunny night (shouldn't happen, but fallback)
     } else if (emoji.includes('🌙')) {
-      processedEmoji = '🌙' // Just moon (clear night)
+      // For clear conditions with moon emoji, check if it's actually night
+      if (condition?.toLowerCase().includes('clear') || condition?.toLowerCase().includes('sunny')) {
+        processedEmoji = isNight ? '🌙' : '☀️'
+      } else {
+        processedEmoji = '🌙' // Just moon (clear night)
+      }
     } else if (emoji.includes('☁️')) {
       processedEmoji = '☁️' // Just cloudy
     } else if (emoji.includes('☀️')) {
-      processedEmoji = '☀️' // Just sunny
+      // For clear conditions with sun emoji, check if it's actually day
+      if (condition?.toLowerCase().includes('clear') || condition?.toLowerCase().includes('sunny')) {
+        processedEmoji = isNight ? '🌙' : '☀️'
+      } else {
+        processedEmoji = '☀️' // Just sunny
+      }
     } else if (emoji.includes('🌧️')) {
       processedEmoji = '🌧️' // Just rainy
     } else if (emoji.includes('⛈️')) {
