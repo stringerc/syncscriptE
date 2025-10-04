@@ -151,7 +151,7 @@ async function generatePreviewContent(userId: string, exportType: string, scope:
       const event = await prisma.event.findFirst({
         where: { id: scope.id, userId },
         include: {
-          tasks: {
+          preparationTasks: {
             include: {
               subtasks: { orderBy: { order: 'asc' } }
             },
@@ -168,7 +168,7 @@ async function generatePreviewContent(userId: string, exportType: string, scope:
       logger.info('Event found for export preview', { 
         eventId: event.id, 
         eventTitle: event.title,
-        tasksCount: event.tasks?.length || 0
+        tasksCount: event.preparationTasks?.length || 0
       });
 
       title = `Event: ${event.title}`;
@@ -566,14 +566,14 @@ ${event.description || 'No description provided'}
 
 KEY METRICS
 ───────────────────────────────────────────────────────────────────────────────
-• Total Tasks: ${event.tasks?.length || 0} items
+• Total Tasks: ${event.preparationTasks?.length || 0} items
 • Location: ${event.location || 'TBD'}
 • All Day: ${event.isAllDay ? 'Yes' : 'No'}
 
 PREPARATION STATUS
 ───────────────────────────────────────────────────────────────────────────────
-${event.tasks && event.tasks.length > 0 ? 
-  event.tasks.map((task: any, index: number) => 
+${event.preparationTasks && event.preparationTasks.length > 0 ? 
+  event.preparationTasks.map((task: any, index: number) => 
     `• ${task.title} - ${task.status}`
   ).join('\n') : 
   'No preparation tasks defined'}
@@ -610,8 +610,8 @@ LOCATION: ${event.location || 'TBD'}
 
 TIMELINE
 ───────────────────────────────────────────────────────────────────────────────
-${event.tasks && event.tasks.length > 0 ? 
-  event.tasks.map((task: any, index: number) => {
+${event.preparationTasks && event.preparationTasks.length > 0 ? 
+  event.preparationTasks.map((task: any, index: number) => {
     const scheduledTime = task.scheduledAt ? new Date(task.scheduledAt).toLocaleTimeString() : 'TBD';
     return `${scheduledTime} - ${task.title} (${task.estimatedDuration || task.durationMin || 0} min)`;
   }).join('\n') : 
@@ -619,8 +619,8 @@ ${event.tasks && event.tasks.length > 0 ?
 
 PREPARATION CHECKLIST
 ───────────────────────────────────────────────────────────────────────────────
-${event.tasks && event.tasks.length > 0 ? 
-  event.tasks.map((task: any, index: number) => 
+${event.preparationTasks && event.preparationTasks.length > 0 ? 
+  event.preparationTasks.map((task: any, index: number) => 
     `☐ ${task.title} - ${task.status}`
   ).join('\n') : 
   '☐ Finalize event details'}
@@ -668,8 +668,8 @@ ${event.description || 'Event details and agenda will be provided on-site.'}
 
 AGENDA OVERVIEW
 ───────────────────────────────────────────────────────────────────────────────
-${event.tasks && event.tasks.length > 0 ? 
-  event.tasks.map((task: any, index: number) => {
+${event.preparationTasks && event.preparationTasks.length > 0 ? 
+  event.preparationTasks.map((task: any, index: number) => {
     const scheduledTime = task.scheduledAt ? new Date(task.scheduledAt).toLocaleTimeString() : 'TBD';
     return `• ${scheduledTime} - ${task.title}`;
   }).join('\n') : 
@@ -714,8 +714,8 @@ ${event.description || 'Event description and objectives'}
 
 PREPARATION TASKS
 ───────────────────────────────────────────────────────────────────────────────
-${event.tasks && event.tasks.length > 0 ? 
-  event.tasks.map((task: any, index: number) => 
+${event.preparationTasks && event.preparationTasks.length > 0 ? 
+  event.preparationTasks.map((task: any, index: number) => 
     `${index + 1}. ${task.title}
    Status: ${task.status}
    Priority: ${task.priority}
@@ -766,9 +766,9 @@ ${event.description || 'No description provided'}
 
 PREPARATION TASKS ANALYSIS
 ───────────────────────────────────────────────────────────────────────────────
-Total Tasks: ${event.tasks?.length || 0}
-${event.tasks && event.tasks.length > 0 ? 
-  event.tasks.map((task: any, index: number) => 
+Total Tasks: ${event.preparationTasks?.length || 0}
+${event.preparationTasks && event.preparationTasks.length > 0 ? 
+  event.preparationTasks.map((task: any, index: number) => 
     `${index + 1}. ${task.title}
    Status: ${task.status}
    Priority: ${task.priority}
@@ -779,11 +779,11 @@ ${event.tasks && event.tasks.length > 0 ?
 
 STATUS SUMMARY
 ───────────────────────────────────────────────────────────────────────────────
-${event.tasks && event.tasks.length > 0 ? 
-  `• Completed: ${event.tasks.filter((t: any) => t.status === 'COMPLETED').length}
-• In Progress: ${event.tasks.filter((t: any) => t.status === 'IN_PROGRESS').length}
-• Pending: ${event.tasks.filter((t: any) => t.status === 'PENDING').length}
-• Cancelled: ${event.tasks.filter((t: any) => t.status === 'CANCELLED').length}` : 
+${event.preparationTasks && event.preparationTasks.length > 0 ? 
+  `• Completed: ${event.preparationTasks.filter((t: any) => t.status === 'COMPLETED').length}
+• In Progress: ${event.preparationTasks.filter((t: any) => t.status === 'IN_PROGRESS').length}
+• Pending: ${event.preparationTasks.filter((t: any) => t.status === 'PENDING').length}
+• Cancelled: ${event.preparationTasks.filter((t: any) => t.status === 'CANCELLED').length}` : 
   'No tasks to analyze'}
 
 ═══════════════════════════════════════════════════════════════════════════════
@@ -816,8 +816,8 @@ ${event.description || 'Event coordination and logistics'}
 
 REQUIRED SERVICES
 ───────────────────────────────────────────────────────────────────────────────
-${event.tasks && event.tasks.length > 0 ? 
-  event.tasks.map((task: any, index: number) => 
+${event.preparationTasks && event.preparationTasks.length > 0 ? 
+  event.preparationTasks.map((task: any, index: number) => 
     `• ${task.title}`
   ).join('\n') : 
   '• Event setup and coordination\n• Logistics management\n• On-site support'}
@@ -858,8 +858,8 @@ TIME: ${startTime ? startTime.toLocaleTimeString() : 'TBD'} - ${endTime ? endTim
 
 PREPARATION CHECKLIST
 ───────────────────────────────────────────────────────────────────────────────
-${event.tasks && event.tasks.length > 0 ? 
-  event.tasks.map((task: any, index: number) => 
+${event.preparationTasks && event.preparationTasks.length > 0 ? 
+  event.preparationTasks.map((task: any, index: number) => 
     `☐ ${task.title} (${task.priority}) - Due: ${task.dueDate ? new Date(task.dueDate).toLocaleDateString() : 'TBD'}`
   ).join('\n') : 
   '☐ Finalize event details\n☐ Confirm location\n☐ Prepare materials'}
@@ -921,8 +921,8 @@ ${event.description || 'Comprehensive event management and coordination services
 
 PREPARATION ACTIVITIES
 ───────────────────────────────────────────────────────────────────────────────
-${event.tasks && event.tasks.length > 0 ? 
-  event.tasks.map((task: any, index: number) => 
+${event.preparationTasks && event.preparationTasks.length > 0 ? 
+  event.preparationTasks.map((task: any, index: number) => 
     `• ${task.title}`
   ).join('\n') : 
   '• Event planning and coordination\n• Vendor management\n• Logistics coordination'}
@@ -963,7 +963,7 @@ function generateEventCSVPreview(event: any, audiencePreset: string, template?: 
     '';
   
   return `Event Title,Date,Start Time,End Time,Location,Duration,Description,Tasks
-"${event.title}","${startTime ? startTime.toLocaleDateString() : ''}","${startTime ? startTime.toLocaleTimeString() : ''}","${endTime ? endTime.toLocaleTimeString() : ''}","${event.location || ''}","${duration}","${(event.description || '').replace(/"/g, '""')}","${event.tasks?.length || 0}"`;
+"${event.title}","${startTime ? startTime.toLocaleDateString() : ''}","${startTime ? startTime.toLocaleTimeString() : ''}","${endTime ? endTime.toLocaleTimeString() : ''}","${event.location || ''}","${duration}","${(event.description || '').replace(/"/g, '""')}","${event.preparationTasks?.length || 0}"`;
 }
 
 /**
@@ -1066,8 +1066,8 @@ function generateEventMarkdownPreview(event: any, audiencePreset: string, templa
 ${event.description || 'No description provided'}
 
 ## Preparation Tasks
-${event.tasks && event.tasks.length > 0 ? 
-  event.tasks.map((task: any) => 
+${event.preparationTasks && event.preparationTasks.length > 0 ? 
+  event.preparationTasks.map((task: any) => 
     `- [${task.status === 'COMPLETED' ? 'x' : ' '}] ${task.title} (${task.priority})`
   ).join('\n') : 
   '- No preparation tasks'}
@@ -1095,7 +1095,7 @@ function generateEventJSONPreview(event: any, audiencePreset: string, template?:
     location: event.location,
     isAllDay: event.isAllDay,
     description: event.description,
-    tasks: event.tasks?.map((task: any) => ({
+    tasks: event.preparationTasks?.map((task: any) => ({
       id: task.id,
       title: task.title,
       status: task.status,
@@ -1124,7 +1124,7 @@ Date: ${startTime ? startTime.toLocaleDateString() : 'TBD'}
 Time: ${startTime ? startTime.toLocaleTimeString() : 'TBD'} - ${endTime ? endTime.toLocaleTimeString() : 'TBD'}
 Location: ${event.location || 'TBD'}
 All Day: ${event.isAllDay ? 'Yes' : 'No'}
-Tasks: ${event.tasks?.length || 0}
+Tasks: ${event.preparationTasks?.length || 0}
 Description: ${event.description || 'No description'}
 
 Export for: ${audiencePreset} audience`;
