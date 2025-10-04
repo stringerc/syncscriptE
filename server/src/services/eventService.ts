@@ -37,23 +37,76 @@ export interface EnergySnapshotCreatedEvent {
   resetAt: Date;
 }
 
+export interface EnergyPointsEarnedEvent {
+  userId: string;
+  amount: number;
+  source: string;
+  domain: string;
+  description?: string;
+  earnedAt: Date;
+}
+
+export interface EnergyLevelChangedEvent {
+  userId: string;
+  oldLevel: number;
+  newLevel: number;
+  energyGained: number;
+  changedAt: Date;
+}
+
+export interface DailyEnergyResetEvent {
+  userId: string;
+  previousEnergy: number;
+  previousEP: number;
+  resetDate: Date;
+  resetAt: Date;
+}
+
+export interface GamificationEnergyRequestEvent {
+  userId: string;
+  amount: number;
+  source: string;
+  domain: string;
+  description?: string;
+  requestedAt: Date;
+}
+
+export interface AchievementUnlockedEvent {
+  userId: string;
+  achievementId: string;
+  achievementName: string;
+  points: number;
+  unlockedAt: Date;
+}
+
 export type DomainEvent = 
   | TaskCompletedEvent
   | ScriptAppliedEvent
   | CalendarWriteRequestedEvent
-  | EnergySnapshotCreatedEvent;
+  | EnergySnapshotCreatedEvent
+  | EnergyPointsEarnedEvent
+  | EnergyLevelChangedEvent
+  | DailyEnergyResetEvent
+  | GamificationEnergyRequestEvent
+  | AchievementUnlockedEvent;
 
 export type EventType = 
   | 'TaskCompleted'
   | 'ScriptApplied'
   | 'CalendarWriteRequested'
-  | 'EnergySnapshotCreated';
+  | 'EnergySnapshotCreated'
+  | 'EnergyPointsEarned'
+  | 'EnergyLevelChanged'
+  | 'DailyEnergyReset'
+  | 'GamificationEnergyRequest'
+  | 'AchievementUnlocked';
 
 export type AggregateType = 
   | 'Task'
   | 'Script'
   | 'Calendar'
-  | 'Energy';
+  | 'Energy'
+  | 'Gamification';
 
 /**
  * Publish an event to the outbox within the current transaction
