@@ -1365,18 +1365,6 @@ export function DashboardPage() {
     )
   }
 
-  // Conditional return after all hooks
-  if (!dashboardData) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-center">
-          <LoadingSpinner size="lg" />
-          <p className="mt-4 text-muted-foreground">Loading dashboard...</p>
-        </div>
-      </div>
-    )
-  }
-
   // Destructure dashboard data for use in the component
   const { user, upcomingEvents, recentAchievements, activeStreaks, unreadNotifications } = dashboardData || {}
   
@@ -1385,7 +1373,7 @@ export function DashboardPage() {
   const safeRecentAchievements = recentAchievements || []
   const safeActiveStreaks = activeStreaks || []
 
-  // Fetch weather for all events
+  // Fetch weather for all events - called before any early returns
   const { data: eventsWeatherData } = useQuery({
     queryKey: ['events-weather', safeUpcomingEvents, userLocation],
     queryFn: async () => {
@@ -1430,6 +1418,18 @@ export function DashboardPage() {
       console.error('Failed to fetch events weather:', error)
     }
   })
+
+  // Conditional return after all hooks
+  if (!dashboardData) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <LoadingSpinner size="lg" />
+          <p className="mt-4 text-muted-foreground">Loading dashboard...</p>
+        </div>
+      </div>
+    )
+  }
   const safeUnreadNotifications = unreadNotifications || []
 
   // Debug logging for dashboard events - disabled for performance
