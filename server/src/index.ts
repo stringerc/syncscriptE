@@ -50,6 +50,7 @@ import projectResourcesRoutes from './routes/projectResources';
 import calendarAuthRoutes from './routes/calendarAuth';
 import adminRoutes from './routes/admin';
 import { traceMiddleware } from './services/traceService';
+import { securityHeadersMiddleware, staticSecurityHeadersMiddleware, requestValidationMiddleware } from './middleware/securityHeaders';
 
 // Import middleware
 import { errorHandler } from './middleware/errorHandler';
@@ -161,6 +162,8 @@ app.use((req, res, next) => {
 app.use(generalAPIRateLimit); // Rate limiting
 app.use(idempotencyMiddleware); // Idempotency for write operations
 app.use(traceMiddleware); // Distributed tracing
+app.use(securityHeadersMiddleware); // Security headers
+app.use(requestValidationMiddleware); // Request validation
 
 // Root endpoint
 app.get('/', (req, res) => {
@@ -234,7 +237,13 @@ app.get('/api/health', (req, res) => {
 });
 
 // Serve static files from client build
-app.use(express.static('client/dist'));
+app.use(express.static('client/dist', {
+  setHeaders: (res, path) => {
+    // Apply static security headers
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+  }
+}));
 
 // API routes
 app.use('/api/auth', authRoutes);
