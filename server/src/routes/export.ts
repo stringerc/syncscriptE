@@ -518,15 +518,21 @@ function generateEventPDFPreview(event: any, audiencePreset: string, template: s
  * Event Executive Summary Template
  */
 function generateEventExecutiveSummaryPDF(event: any, audiencePreset: string, redactions: string[]): string {
+  const startTime = event.startTime ? new Date(event.startTime) : null;
+  const endTime = event.endTime ? new Date(event.endTime) : null;
+  const duration = startTime && endTime ? 
+    Math.round((endTime.getTime() - startTime.getTime()) / (1000 * 60)) + ' minutes' : 
+    'Not specified';
+
   return `
 ═══════════════════════════════════════════════════════════════════════════════
                               EVENT EXECUTIVE SUMMARY
 ═══════════════════════════════════════════════════════════════════════════════
 
 EVENT: ${event.title}
-STATUS: ${event.status}
-DATE: ${event.startDate ? new Date(event.startDate).toLocaleDateString() : 'TBD'}
-DURATION: ${event.duration || 'Not specified'}
+DATE: ${startTime ? startTime.toLocaleDateString() : 'TBD'}
+TIME: ${startTime ? startTime.toLocaleTimeString() : 'TBD'}
+DURATION: ${duration}
 
 OVERVIEW
 ───────────────────────────────────────────────────────────────────────────────
@@ -536,7 +542,7 @@ KEY METRICS
 ───────────────────────────────────────────────────────────────────────────────
 • Total Tasks: ${event.tasks?.length || 0} items
 • Location: ${event.location || 'TBD'}
-• Attendees: ${event.attendeeCount || 'TBD'}
+• All Day: ${event.isAllDay ? 'Yes' : 'No'}
 
 PREPARATION STATUS
 ───────────────────────────────────────────────────────────────────────────────
@@ -552,12 +558,6 @@ LOCATION DETAILS
 ${event.location}
 ` : ''}
 
-${event.notes ? `
-ADDITIONAL NOTES
-───────────────────────────────────────────────────────────────────────────────
-${event.notes}
-` : ''}
-
 ═══════════════════════════════════════════════════════════════════════════════
 Generated: ${new Date().toLocaleDateString()} | Audience: ${audiencePreset.toUpperCase()}
 ${redactions.length > 0 ? `Redacted: ${redactions.join(', ')}` : 'Full Access'}
@@ -569,13 +569,17 @@ ${redactions.length > 0 ? `Redacted: ${redactions.join(', ')}` : 'Full Access'}
  * Event Run of Show Template
  */
 function generateEventRunOfShowPDF(event: any, audiencePreset: string, redactions: string[]): string {
+  const startTime = event.startTime ? new Date(event.startTime) : null;
+  const endTime = event.endTime ? new Date(event.endTime) : null;
+
   return `
 ═══════════════════════════════════════════════════════════════════════════════
                                 RUN OF SHOW
 ═══════════════════════════════════════════════════════════════════════════════
 
 EVENT: ${event.title}
-DATE: ${event.startDate ? new Date(event.startDate).toLocaleDateString() : 'TBD'}
+DATE: ${startTime ? startTime.toLocaleDateString() : 'TBD'}
+TIME: ${startTime ? startTime.toLocaleTimeString() : 'TBD'} - ${endTime ? endTime.toLocaleTimeString() : 'TBD'}
 LOCATION: ${event.location || 'TBD'}
 
 TIMELINE
@@ -597,9 +601,9 @@ ${event.tasks && event.tasks.length > 0 ?
 
 LOGISTICS
 ───────────────────────────────────────────────────────────────────────────────
-• Setup Time: ${event.setupTime || 'TBD'}
-• Breakdown Time: ${event.breakdownTime || 'TBD'}
-• Contact: ${event.contactInfo || 'Event Coordinator'}
+• All Day Event: ${event.isAllDay ? 'Yes' : 'No'}
+• Location: ${event.location || 'TBD'}
+• Contact: Event Coordinator
 
 ═══════════════════════════════════════════════════════════════════════════════
 Run of Show prepared: ${new Date().toLocaleDateString()} | Team Access
@@ -612,6 +616,12 @@ ${redactions.length > 0 ? `Redacted: ${redactions.join(', ')}` : 'Full Access'}
  * Event Attendee Guide Template
  */
 function generateEventAttendeeGuidePDF(event: any, audiencePreset: string, redactions: string[]): string {
+  const startTime = event.startTime ? new Date(event.startTime) : null;
+  const endTime = event.endTime ? new Date(event.endTime) : null;
+  const duration = startTime && endTime ? 
+    Math.round((endTime.getTime() - startTime.getTime()) / (1000 * 60)) + ' minutes' : 
+    'TBD';
+
   return `
 ═══════════════════════════════════════════════════════════════════════════════
                               ATTENDEE GUIDE
@@ -621,10 +631,10 @@ WELCOME TO: ${event.title}
 
 EVENT DETAILS
 ───────────────────────────────────────────────────────────────────────────────
-Date: ${event.startDate ? new Date(event.startDate).toLocaleDateString() : 'TBD'}
-Time: ${event.startDate ? new Date(event.startDate).toLocaleTimeString() : 'TBD'}
+Date: ${startTime ? startTime.toLocaleDateString() : 'TBD'}
+Time: ${startTime ? startTime.toLocaleTimeString() : 'TBD'} - ${endTime ? endTime.toLocaleTimeString() : 'TBD'}
 Location: ${event.location || 'TBD'}
-Duration: ${event.duration || 'TBD'}
+Duration: ${duration}
 
 WHAT TO EXPECT
 ───────────────────────────────────────────────────────────────────────────────
@@ -642,7 +652,7 @@ ${event.tasks && event.tasks.length > 0 ?
 IMPORTANT INFORMATION
 ───────────────────────────────────────────────────────────────────────────────
 • Please arrive 15 minutes early
-• Contact: ${event.contactInfo || 'Event Coordinator'}
+• Contact: Event Coordinator
 • Questions? Ask any team member
 
 ═══════════════════════════════════════════════════════════════════════════════
@@ -656,6 +666,9 @@ ${redactions.length > 0 ? `Redacted: ${redactions.join(', ')}` : 'Full Access'}
  * Event Briefing Template
  */
 function generateEventBriefingPDF(event: any, audiencePreset: string, redactions: string[]): string {
+  const startTime = event.startTime ? new Date(event.startTime) : null;
+  const endTime = event.endTime ? new Date(event.endTime) : null;
+
   return `
 ═══════════════════════════════════════════════════════════════════════════════
                               EVENT BRIEFING
@@ -664,10 +677,10 @@ function generateEventBriefingPDF(event: any, audiencePreset: string, redactions
 EVENT OVERVIEW
 ───────────────────────────────────────────────────────────────────────────────
 Title: ${event.title}
-Date: ${event.startDate ? new Date(event.startDate).toLocaleDateString() : 'TBD'}
-Time: ${event.startDate ? new Date(event.startDate).toLocaleTimeString() : 'TBD'}
+Date: ${startTime ? startTime.toLocaleDateString() : 'TBD'}
+Time: ${startTime ? startTime.toLocaleTimeString() : 'TBD'} - ${endTime ? endTime.toLocaleTimeString() : 'TBD'}
 Location: ${event.location || 'TBD'}
-Status: ${event.status}
+All Day: ${event.isAllDay ? 'Yes' : 'No'}
 
 DESCRIPTION
 ───────────────────────────────────────────────────────────────────────────────
@@ -686,19 +699,217 @@ ${event.tasks && event.tasks.length > 0 ?
 
 LOGISTICS
 ───────────────────────────────────────────────────────────────────────────────
-• Setup Time: ${event.setupTime || 'TBD'}
-• Breakdown Time: ${event.breakdownTime || 'TBD'}
-• Attendee Count: ${event.attendeeCount || 'TBD'}
-• Contact: ${event.contactInfo || 'Event Coordinator'}
-
-${event.notes ? `
-NOTES
-───────────────────────────────────────────────────────────────────────────────
-${event.notes}
-` : ''}
+• Location: ${event.location || 'TBD'}
+• All Day Event: ${event.isAllDay ? 'Yes' : 'No'}
+• Contact: Event Coordinator
 
 ═══════════════════════════════════════════════════════════════════════════════
 Briefing prepared: ${new Date().toLocaleDateString()} | Team Access
+${redactions.length > 0 ? `Redacted: ${redactions.join(', ')}` : 'Full Access'}
+═══════════════════════════════════════════════════════════════════════════════
+  `.trim();
+}
+
+/**
+ * Event Detailed Report Template
+ */
+function generateEventDetailedReportPDF(event: any, audiencePreset: string, redactions: string[]): string {
+  const startTime = event.startTime ? new Date(event.startTime) : null;
+  const endTime = event.endTime ? new Date(event.endTime) : null;
+  const duration = startTime && endTime ? 
+    Math.round((endTime.getTime() - startTime.getTime()) / (1000 * 60)) + ' minutes' : 
+    'Not specified';
+
+  return `
+═══════════════════════════════════════════════════════════════════════════════
+                              DETAILED EVENT REPORT
+═══════════════════════════════════════════════════════════════════════════════
+
+EVENT INFORMATION
+───────────────────────────────────────────────────────────────────────────────
+Title: ${event.title}
+Date: ${startTime ? startTime.toLocaleDateString() : 'TBD'}
+Time: ${startTime ? startTime.toLocaleTimeString() : 'TBD'} - ${endTime ? endTime.toLocaleTimeString() : 'TBD'}
+Duration: ${duration}
+Location: ${event.location || 'TBD'}
+All Day: ${event.isAllDay ? 'Yes' : 'No'}
+
+DESCRIPTION
+───────────────────────────────────────────────────────────────────────────────
+${event.description || 'No description provided'}
+
+PREPARATION TASKS ANALYSIS
+───────────────────────────────────────────────────────────────────────────────
+Total Tasks: ${event.tasks?.length || 0}
+${event.tasks && event.tasks.length > 0 ? 
+  event.tasks.map((task: any, index: number) => 
+    `${index + 1}. ${task.title}
+   Status: ${task.status}
+   Priority: ${task.priority}
+   Due Date: ${task.dueDate ? new Date(task.dueDate).toLocaleDateString() : 'TBD'}
+   Duration: ${task.estimatedDuration || task.durationMin || 0} minutes`
+  ).join('\n\n') : 
+  'No preparation tasks defined'}
+
+STATUS SUMMARY
+───────────────────────────────────────────────────────────────────────────────
+${event.tasks && event.tasks.length > 0 ? 
+  `• Completed: ${event.tasks.filter((t: any) => t.status === 'COMPLETED').length}
+• In Progress: ${event.tasks.filter((t: any) => t.status === 'IN_PROGRESS').length}
+• Pending: ${event.tasks.filter((t: any) => t.status === 'PENDING').length}
+• Cancelled: ${event.tasks.filter((t: any) => t.status === 'CANCELLED').length}` : 
+  'No tasks to analyze'}
+
+═══════════════════════════════════════════════════════════════════════════════
+Report generated: ${new Date().toLocaleDateString()} | Audience: ${audiencePreset.toUpperCase()}
+${redactions.length > 0 ? `Redacted: ${redactions.join(', ')}` : 'Full Access'}
+═══════════════════════════════════════════════════════════════════════════════
+  `.trim();
+}
+
+/**
+ * Event Vendor Packet Template
+ */
+function generateEventVendorPacketPDF(event: any, audiencePreset: string, redactions: string[]): string {
+  const startTime = event.startTime ? new Date(event.startTime) : null;
+  const endTime = event.endTime ? new Date(event.endTime) : null;
+
+  return `
+═══════════════════════════════════════════════════════════════════════════════
+                              VENDOR PACKET
+═══════════════════════════════════════════════════════════════════════════════
+
+EVENT: ${event.title}
+DATE: ${startTime ? startTime.toLocaleDateString() : 'TBD'}
+TIME: ${startTime ? startTime.toLocaleTimeString() : 'TBD'} - ${endTime ? endTime.toLocaleTimeString() : 'TBD'}
+LOCATION: ${event.location || 'TBD'}
+
+SCOPE OF WORK
+───────────────────────────────────────────────────────────────────────────────
+${event.description || 'Event coordination and logistics'}
+
+REQUIRED SERVICES
+───────────────────────────────────────────────────────────────────────────────
+${event.tasks && event.tasks.length > 0 ? 
+  event.tasks.map((task: any, index: number) => 
+    `• ${task.title}`
+  ).join('\n') : 
+  '• Event setup and coordination\n• Logistics management\n• On-site support'}
+
+DELIVERABLES
+───────────────────────────────────────────────────────────────────────────────
+• Complete event setup according to specifications
+• Professional service delivery
+• Post-event cleanup and reporting
+
+CONTACT INFORMATION
+───────────────────────────────────────────────────────────────────────────────
+Event Coordinator: [Contact Information]
+Location: ${event.location || 'TBD'}
+
+═══════════════════════════════════════════════════════════════════════════════
+Vendor Packet prepared: ${new Date().toLocaleDateString()} | Vendor Access
+${redactions.length > 0 ? `Redacted: ${redactions.join(', ')}` : 'Full Access'}
+═══════════════════════════════════════════════════════════════════════════════
+  `.trim();
+}
+
+/**
+ * Event Team Checklist Template
+ */
+function generateEventTeamChecklistPDF(event: any, audiencePreset: string, redactions: string[]): string {
+  const startTime = event.startTime ? new Date(event.startTime) : null;
+  const endTime = event.endTime ? new Date(event.endTime) : null;
+
+  return `
+═══════════════════════════════════════════════════════════════════════════════
+                              TEAM CHECKLIST
+═══════════════════════════════════════════════════════════════════════════════
+
+EVENT: ${event.title}
+DATE: ${startTime ? startTime.toLocaleDateString() : 'TBD'}
+TIME: ${startTime ? startTime.toLocaleTimeString() : 'TBD'} - ${endTime ? endTime.toLocaleTimeString() : 'TBD'}
+
+PREPARATION CHECKLIST
+───────────────────────────────────────────────────────────────────────────────
+${event.tasks && event.tasks.length > 0 ? 
+  event.tasks.map((task: any, index: number) => 
+    `☐ ${task.title} (${task.priority}) - Due: ${task.dueDate ? new Date(task.dueDate).toLocaleDateString() : 'TBD'}`
+  ).join('\n') : 
+  '☐ Finalize event details\n☐ Confirm location\n☐ Prepare materials'}
+
+DAY-OF CHECKLIST
+───────────────────────────────────────────────────────────────────────────────
+☐ Arrive 30 minutes early
+☐ Set up event space
+☐ Test all equipment
+☐ Welcome attendees
+☐ Execute event timeline
+☐ Clean up venue
+☐ Collect feedback
+
+POST-EVENT CHECKLIST
+───────────────────────────────────────────────────────────────────────────────
+☐ Send thank you notes
+☐ Process feedback
+☐ Update event records
+☐ Schedule follow-up meetings
+
+═══════════════════════════════════════════════════════════════════════════════
+Checklist prepared: ${new Date().toLocaleDateString()} | Team Access
+${redactions.length > 0 ? `Redacted: ${redactions.join(', ')}` : 'Full Access'}
+═══════════════════════════════════════════════════════════════════════════════
+  `.trim();
+}
+
+/**
+ * Event Client Presentation Template
+ */
+function generateEventClientPresentationPDF(event: any, audiencePreset: string, redactions: string[]): string {
+  const startTime = event.startTime ? new Date(event.startTime) : null;
+  const endTime = event.endTime ? new Date(event.endTime) : null;
+
+  return `
+═══════════════════════════════════════════════════════════════════════════════
+                            CLIENT PRESENTATION
+═══════════════════════════════════════════════════════════════════════════════
+
+EVENT OVERVIEW
+───────────────────────────────────────────────────────────────────────────────
+${event.title}
+
+We are pleased to present the comprehensive plan for your upcoming event. Our team has developed a detailed strategy to ensure a successful and memorable experience.
+
+EVENT DETAILS
+───────────────────────────────────────────────────────────────────────────────
+Date: ${startTime ? startTime.toLocaleDateString() : 'TBD'}
+Time: ${startTime ? startTime.toLocaleTimeString() : 'TBD'} - ${endTime ? endTime.toLocaleTimeString() : 'TBD'}
+Location: ${event.location || 'TBD'}
+Duration: ${startTime && endTime ? 
+  Math.round((endTime.getTime() - startTime.getTime()) / (1000 * 60)) + ' minutes' : 
+  'TBD'}
+
+SCOPE OF SERVICES
+───────────────────────────────────────────────────────────────────────────────
+${event.description || 'Comprehensive event management and coordination services'}
+
+PREPARATION ACTIVITIES
+───────────────────────────────────────────────────────────────────────────────
+${event.tasks && event.tasks.length > 0 ? 
+  event.tasks.map((task: any, index: number) => 
+    `• ${task.title}`
+  ).join('\n') : 
+  '• Event planning and coordination\n• Vendor management\n• Logistics coordination'}
+
+NEXT STEPS
+───────────────────────────────────────────────────────────────────────────────
+1. Review and approve event plan
+2. Confirm final details
+3. Execute preparation activities
+4. Deliver exceptional event experience
+
+═══════════════════════════════════════════════════════════════════════════════
+Presentation prepared: ${new Date().toLocaleDateString()} | Client Access
 ${redactions.length > 0 ? `Redacted: ${redactions.join(', ')}` : 'Full Access'}
 ═══════════════════════════════════════════════════════════════════════════════
   `.trim();
@@ -719,9 +930,14 @@ function generateCSVPreview(task: any, audiencePreset: string, template?: string
  */
 function generateEventCSVPreview(event: any, audiencePreset: string, template?: string): string {
   const redactions = getRedactionsForAudience(audiencePreset);
+  const startTime = event.startTime ? new Date(event.startTime) : null;
+  const endTime = event.endTime ? new Date(event.endTime) : null;
+  const duration = startTime && endTime ? 
+    Math.round((endTime.getTime() - startTime.getTime()) / (1000 * 60)) + ' minutes' : 
+    '';
   
-  return `Event Title,Status,Date,Location,Duration,Description,Tasks
-"${event.title}","${event.status}","${event.startDate ? new Date(event.startDate).toLocaleDateString() : ''}","${event.location || ''}","${event.duration || ''}","${(event.description || '').replace(/"/g, '""')}","${event.tasks?.length || 0}"`;
+  return `Event Title,Date,Start Time,End Time,Location,Duration,Description,Tasks
+"${event.title}","${startTime ? startTime.toLocaleDateString() : ''}","${startTime ? startTime.toLocaleTimeString() : ''}","${endTime ? endTime.toLocaleTimeString() : ''}","${event.location || ''}","${duration}","${(event.description || '').replace(/"/g, '""')}","${event.tasks?.length || 0}"`;
 }
 
 /**
@@ -806,13 +1022,19 @@ Export for: ${audiencePreset} audience`;
  */
 function generateEventMarkdownPreview(event: any, audiencePreset: string, template?: string): string {
   const redactions = getRedactionsForAudience(audiencePreset);
+  const startTime = event.startTime ? new Date(event.startTime) : null;
+  const endTime = event.endTime ? new Date(event.endTime) : null;
+  const duration = startTime && endTime ? 
+    Math.round((endTime.getTime() - startTime.getTime()) / (1000 * 60)) + ' minutes' : 
+    'TBD';
   
   return `# ${event.title}
 
-- **Status:** ${event.status}
-- **Date:** ${event.startDate ? new Date(event.startDate).toLocaleDateString() : 'TBD'}
+- **Date:** ${startTime ? startTime.toLocaleDateString() : 'TBD'}
+- **Time:** ${startTime ? startTime.toLocaleTimeString() : 'TBD'} - ${endTime ? endTime.toLocaleTimeString() : 'TBD'}
 - **Location:** ${event.location || 'TBD'}
-- **Duration:** ${event.duration || 'TBD'}
+- **Duration:** ${duration}
+- **All Day:** ${event.isAllDay ? 'Yes' : 'No'}
 
 ## Description
 ${event.description || 'No description provided'}
@@ -825,9 +1047,8 @@ ${event.tasks && event.tasks.length > 0 ?
   '- No preparation tasks'}
 
 ## Logistics
-- Setup Time: ${event.setupTime || 'TBD'}
-- Breakdown Time: ${event.breakdownTime || 'TBD'}
-- Attendee Count: ${event.attendeeCount || 'TBD'}
+- Location: ${event.location || 'TBD'}
+- All Day Event: ${event.isAllDay ? 'Yes' : 'No'}
 
 ---
 *Export for ${audiencePreset} audience*
@@ -843,11 +1064,10 @@ function generateEventJSONPreview(event: any, audiencePreset: string, template?:
   const eventData = {
     id: event.id,
     title: event.title,
-    status: event.status,
-    startDate: event.startDate,
-    endDate: event.endDate,
+    startTime: event.startTime,
+    endTime: event.endTime,
     location: event.location,
-    duration: event.duration,
+    isAllDay: event.isAllDay,
     description: event.description,
     tasks: event.tasks?.map((task: any) => ({
       id: task.id,
@@ -856,7 +1076,6 @@ function generateEventJSONPreview(event: any, audiencePreset: string, template?:
       priority: task.priority,
       dueDate: task.dueDate
     })) || [],
-    notes: event.notes,
     exportMetadata: {
       audience: audiencePreset,
       redactions: redactions,
@@ -871,10 +1090,14 @@ function generateEventJSONPreview(event: any, audiencePreset: string, template?:
  * Generate Event generic preview content
  */
 function generateEventGenericPreview(event: any, audiencePreset: string, template?: string): string {
+  const startTime = event.startTime ? new Date(event.startTime) : null;
+  const endTime = event.endTime ? new Date(event.endTime) : null;
+  
   return `Event: ${event.title}
-Status: ${event.status}
-Date: ${event.startDate ? new Date(event.startDate).toLocaleDateString() : 'TBD'}
+Date: ${startTime ? startTime.toLocaleDateString() : 'TBD'}
+Time: ${startTime ? startTime.toLocaleTimeString() : 'TBD'} - ${endTime ? endTime.toLocaleTimeString() : 'TBD'}
 Location: ${event.location || 'TBD'}
+All Day: ${event.isAllDay ? 'Yes' : 'No'}
 Tasks: ${event.tasks?.length || 0}
 Description: ${event.description || 'No description'}
 
