@@ -83,7 +83,7 @@ const TaskItem = memo(({ task, onComplete, onDelete, onView, onResourcesClick, o
     queryKey: ['task-resources', task.id],
     queryFn: async () => {
       // Disabled to prevent 404 errors and improve performance
-      return []
+        return []
     },
     enabled: false, // Disabled to prevent 404 errors
     staleTime: Infinity, // Never refetch
@@ -221,7 +221,7 @@ const NestedTaskItem = memo(({ task, onResourcesClick, onClick }: {
     queryKey: ['task-resources', task.id],
     queryFn: async () => {
       // Disabled to prevent 404 errors and improve performance
-      return []
+        return []
     },
     enabled: false, // Disabled to prevent 404 errors
     staleTime: Infinity, // Never refetch
@@ -267,7 +267,7 @@ const NestedTaskItem = memo(({ task, onResourcesClick, onClick }: {
 })
 
 // Memoized event item component for performance
-const EventItem = memo(({ event, onView, onDelete, weatherData, preparationTasks, events, allTasks, onResourcesClick, onTaskClick }: { 
+const EventItem = memo(({ event, onView, onDelete, weatherData, preparationTasks, events, allTasks, onResourcesClick, onTaskClick, currentWeatherData }: { 
   event: Event, 
   onView: (id: string) => void, 
   onDelete: (id: string) => void,
@@ -276,7 +276,8 @@ const EventItem = memo(({ event, onView, onDelete, weatherData, preparationTasks
   events?: Event[],
   allTasks?: any[],
   onResourcesClick?: (taskId: string) => void,
-  onTaskClick?: (task: any) => void
+  onTaskClick?: (task: any) => void,
+  currentWeatherData?: { emoji: string; temperature: number; condition: string; location: string } | null
 }) => {
   const [showAllTasks, setShowAllTasks] = useState(false)
   const [showAllNestedTasks, setShowAllNestedTasks] = useState<Record<string, boolean>>({})
@@ -1708,6 +1709,7 @@ export function DashboardPage() {
                       setSelectedTask(task)
                       setIsTaskModalOpen(true)
                     }}
+                    currentWeatherData={currentWeatherData}
                   />
                 ))}
                 <Button 
