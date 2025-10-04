@@ -31,23 +31,23 @@
 
 **Gate**: All PF checks green. If any fails, fix before continuing.
 
-## Stage 2 — Close low-cost gaps (four hardening PRs)
+## Stage 2 — Close low-cost gaps (four hardening PRs) ✅ COMPLETE
 
-### PR G1: Outbox backoff + dead-letter
-- [ ] **Jittered exponential**: 100ms→3.2s, max attempts, dead-letter topic/event
-- [ ] **Gate**: Synthetic failure moves to dead-letter; metrics increment
+### PR G1: Outbox backoff + dead-letter ✅
+- [x] **Jittered exponential**: 100ms→3.2s, max attempts, dead-letter topic/event
+- [x] **Gate**: Synthetic failure moves to dead-letter; metrics increment
 
-### PR G2: Trace IDs end-to-end
-- [ ] **Request/trace ID**: Added to HTTP, events, logs. Propagate across workers
-- [ ] **Gate**: Trace visible in logs for a full suggest→apply→export flow
+### PR G2: Trace IDs end-to-end ✅
+- [x] **Request/trace ID**: Added to HTTP, events, logs. Propagate across workers
+- [x] **Gate**: Trace visible in logs for a full suggest→apply→export flow
 
-### PR G3: Cron idempotency locks
-- [ ] **Advisory DB lock**: Per job/user-batch to prevent concurrent resets
-- [ ] **Gate**: Simulated double-runner executes once
+### PR G3: Cron idempotency locks ✅
+- [x] **Advisory DB lock**: Per job/user-batch to prevent concurrent resets
+- [x] **Gate**: Simulated double-runner executes once
 
-### PR G4: Security headers
-- [ ] **CSP**: Nonce'd, X-Frame-Options: DENY, COOP/COEP/CORP, Referrer-Policy: strict-origin-when-cross-origin
-- [ ] **Gate**: Headers present on all app routes; no console CSP violations for core flows
+### PR G4: Security headers ✅
+- [x] **CSP**: Nonce'd, X-Frame-Options: DENY, COOP/COEP/CORP, Referrer-Policy: strict-origin-when-cross-origin
+- [x] **Gate**: Headers present on all app routes; no console CSP violations for core flows
 
 ## Step 3 — Wire "almost-done" UI bits (tiny, isolated PRs)
 
