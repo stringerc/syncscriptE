@@ -4,8 +4,9 @@ import { authenticateToken } from '../middleware/auth';
 import { exportService } from '../services/exportService';
 import { logger } from '../utils/logger';
 import { createError } from '../middleware/errorHandler';
-import { prisma } from '../utils/prisma';
+import { PrismaClient } from '@prisma/client';
 
+const prisma = new PrismaClient();
 const router = Router();
 
 /**
