@@ -447,17 +447,17 @@ const EventItem = memo(({ event, onView, onDelete, weatherData, preparationTasks
                   )}
                 </span>
               </>
-            ) : weatherData ? (
+            ) : currentWeatherData ? (
               <>
                 <span className="text-xs text-muted-foreground/60">Your location</span>
                 <span 
-                  title={weatherData ? `${weatherData.condition}, ${weatherData.temperature}°F` : 'Weather data unavailable'}
+                  title={currentWeatherData ? `${currentWeatherData.condition}, ${currentWeatherData.temperature}°F` : 'Weather data unavailable'}
                   className="text-lg"
                   style={{ fontSize: '16px' }}
                 >
                   {getWeatherIcon(
-                    weatherData?.condition || 'Unknown',
-                    weatherData?.emoji,
+                    currentWeatherData?.condition || 'Unknown',
+                    currentWeatherData?.emoji,
                     new Date(event.startTime)
                   )}
                 </span>
@@ -1248,6 +1248,52 @@ export function DashboardPage() {
     }
   })
 
+  // Fetch weather for all events
+  const { data: eventsWeatherData } = useQuery({
+    queryKey: ['events-weather', upcomingEvents, userLocation],
+    queryFn: async () => {
+      if (!upcomingEvents || upcomingEvents.length === 0) return {}
+      
+      console.log('🌤️ Fetching weather for events:', upcomingEvents.length)
+      const response = await api.post('/location/events/weather', {
+        events: upcomingEvents.map(event => ({
+          id: event.id,
+          startTime: event.startTime,
+          location: event.location
+        })),
+        lat: userLocation?.lat,
+        lon: userLocation?.lon
+      })
+      
+      console.log('🌤️ Events weather response:', response.data)
+      
+      if (response.data.success && response.data.data.eventsWithWeather) {
+        const weatherMap: Record<string, { emoji: string; temperature: number; condition: string }> = {}
+        response.data.data.eventsWithWeather.forEach((item: any) => {
+          if (item.weather) {
+            weatherMap[item.eventId] = {
+              emoji: item.weather.emoji,
+              temperature: item.weather.temperature,
+              condition: item.weather.condition
+            }
+          }
+        })
+        console.log('🌤️ Processed events weather:', weatherMap)
+        return weatherMap
+      }
+      
+      return {}
+    },
+    enabled: !!upcomingEvents && upcomingEvents.length > 0,
+    staleTime: 30 * 60 * 1000, // 30 minutes
+    cacheTime: 60 * 60 * 1000, // Keep in cache for 1 hour
+    refetchOnWindowFocus: false,
+    retry: 1,
+    onError: (error) => {
+      console.error('Failed to fetch events weather:', error)
+    }
+  })
+
   // Debug forecast data
   useEffect(() => {
     console.log('🌤️ Forecast data state:', { forecastData, forecastLoading, forecastError })
@@ -1412,17 +1458,17 @@ export function DashboardPage() {
         </div>
         <div className="flex items-center space-x-4">
           {/* Current Weather Widget - Header Style */}
-          {currentWeather && (
+          {currentWeatherData && (
             <div className="flex items-center space-x-2 px-2 py-1 bg-slate-50 dark:bg-slate-800 rounded-lg">
               <span className="text-lg">
-                {getWeatherIcon(currentWeather.condition, currentWeather.emoji)}
+                {getWeatherIcon(currentWeatherData.condition, currentWeatherData.emoji)}
               </span>
               <div className="text-xs">
                 <div className="font-medium text-slate-700 dark:text-slate-300">
-                  {currentWeather.temperature}°
+                  {currentWeatherData.temperature}°
                 </div>
                 <div className="text-slate-500 dark:text-slate-400">
-                  {currentWeather.location?.split(',')[0] || 'Current'}
+                  {currentWeatherData.location?.split(',')[0] || 'Current'}
                 </div>
               </div>
             </div>
@@ -1649,7 +1695,7 @@ export function DashboardPage() {
                     event={event}
                     onView={handleViewEvent}
                     onDelete={handleDeleteEvent}
-                    weatherData={eventWeatherData[event.id]}
+                    weatherData={eventsWeatherData?.[event.id]}
                     preparationTasks={eventPreparationTasks[event.id]}
                     events={upcomingEvents}
                     allTasks={allTasks}
