@@ -89,7 +89,7 @@ export function Header() {
     }
   }, [])
 
-  // Weather query for header - only fetch if not on dashboard
+  // Weather query for header - enable on all pages
   const { data: currentWeatherData } = useQuery({
     queryKey: ['current-weather', userLocation],
     queryFn: async () => {
@@ -100,7 +100,7 @@ export function Header() {
       const response = await api.get(`/location/weather/current${locationParam}`)
       return response.data.data || response.data
     },
-    enabled: !isDashboard, // Enable weather for non-dashboard pages
+    enabled: true, // Enable weather on all pages
     staleTime: 10 * 60 * 1000, // 10 minutes
     refetchOnWindowFocus: false,
   })

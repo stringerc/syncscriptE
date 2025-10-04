@@ -1200,7 +1200,7 @@ export function DashboardPage() {
         }
       }
     },
-    enabled: false, // Disabled for performance - weather not critical for initial load
+    enabled: true, // Enable weather on dashboard
     staleTime: 30 * 60 * 1000, // 30 minutes - much longer cache
     cacheTime: 60 * 60 * 1000, // Keep in cache for 1 hour
     refetchOnWindowFocus: false,
@@ -1237,7 +1237,7 @@ export function DashboardPage() {
       console.log('🌤️ No forecast data available')
       return []
     },
-    enabled: false, // Disabled for performance - forecast not critical for initial load
+    enabled: true, // Enable forecast on dashboard
     staleTime: 30 * 60 * 1000, // 30 minutes
     cacheTime: 60 * 60 * 1000, // Keep in cache for 1 hour
     refetchOnWindowFocus: false,
@@ -1464,17 +1464,6 @@ export function DashboardPage() {
             </div>
           ) : null}
           
-          {/* Energy Level */}
-          <div className="flex items-center space-x-2 mt-2">
-            <Zap className="w-5 h-5 text-primary" />
-            <button 
-              onClick={() => navigate('/energy-analysis')}
-              className="text-sm font-medium hover:text-primary transition-colors cursor-pointer"
-              title="Click to optimize your energy and schedule"
-            >
-              Energy: {user.energyLevel ?? 5}/10
-            </button>
-          </div>
         </div>
       </div>
 
