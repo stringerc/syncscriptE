@@ -57,6 +57,8 @@ import { logger } from './utils/logger';
 
 // Import jobs
 import { startBudgetMonitoring } from './jobs/budgetMonitoringJob';
+import { startEventDispatcher, stopEventDispatcher } from './workers/eventDispatcher';
+import { startDailyEnergyResetCron, stopDailyEnergyResetCron } from './jobs/dailyEnergyResetCron';
 
 // Load environment variables
 dotenv.config();
@@ -304,6 +306,15 @@ app.use('*', (req, res) => {
 // Graceful shutdown
 process.on('SIGTERM', async () => {
   logger.info('SIGTERM received, shutting down gracefully');
+  
+  // Stop background workers
+  if ((global as any).eventDispatcherInterval) {
+    stopEventDispatcher((global as any).eventDispatcherInterval);
+  }
+  if ((global as any).energyResetInterval) {
+    stopDailyEnergyResetCron((global as any).energyResetInterval);
+  }
+  
   await prisma.$disconnect();
   server.close(() => {
     logger.info('Server closed');
@@ -313,6 +324,15 @@ process.on('SIGTERM', async () => {
 
 process.on('SIGINT', async () => {
   logger.info('SIGINT received, shutting down gracefully');
+  
+  // Stop background workers
+  if ((global as any).eventDispatcherInterval) {
+    stopEventDispatcher((global as any).eventDispatcherInterval);
+  }
+  if ((global as any).energyResetInterval) {
+    stopDailyEnergyResetCron((global as any).energyResetInterval);
+  }
+  
   await prisma.$disconnect();
   server.close(() => {
     logger.info('Server closed');
@@ -337,6 +357,18 @@ server.listen(PORT, '0.0.0.0', () => {
     // Start background jobs
     startBudgetMonitoring();
     logger.info(`📊 Budget monitoring started`);
+    
+    // Start event dispatcher
+    const eventDispatcherInterval = startEventDispatcher(5000); // Every 5 seconds
+    logger.info(`📡 Event dispatcher started`);
+    
+    // Start daily energy reset cron
+    const energyResetInterval = startDailyEnergyResetCron();
+    logger.info(`⚡ Daily energy reset cron started`);
+    
+    // Store interval IDs for graceful shutdown
+    (global as any).eventDispatcherInterval = eventDispatcherInterval;
+    (global as any).energyResetInterval = energyResetInterval;
   }, 2000);
 });
 

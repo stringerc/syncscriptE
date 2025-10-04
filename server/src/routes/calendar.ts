@@ -5,6 +5,7 @@ import { asyncHandler, createError } from '../middleware/errorHandler';
 import { authenticateToken, AuthRequest } from '../middleware/auth';
 import { logger } from '../utils/logger';
 import EnergyEngineService from '../services/energyEngineService';
+import { idempotencyMiddleware } from '../services/idempotencyService';
 
 const router = express.Router();
 const prisma = new PrismaClient();
@@ -273,7 +274,7 @@ router.get('/:id', authenticateToken, asyncHandler(async (req: AuthRequest, res)
 }));
 
 // Create new event
-router.post('/', authenticateToken, asyncHandler(async (req: AuthRequest, res) => {
+router.post('/', authenticateToken, idempotencyMiddleware('calendar-write'), asyncHandler(async (req: AuthRequest, res) => {
   const eventData = createEventSchema.parse(req.body);
 
   // Validate that end time is after start time
@@ -307,7 +308,7 @@ router.post('/', authenticateToken, asyncHandler(async (req: AuthRequest, res) =
 }));
 
 // Update event
-router.put('/:id', authenticateToken, asyncHandler(async (req: AuthRequest, res) => {
+router.put('/:id', authenticateToken, idempotencyMiddleware('calendar-write'), asyncHandler(async (req: AuthRequest, res) => {
   const { id } = req.params;
   const updateData = updateEventSchema.parse(req.body);
 
@@ -353,7 +354,7 @@ router.put('/:id', authenticateToken, asyncHandler(async (req: AuthRequest, res)
 }));
 
 // Delete event
-router.delete('/:id', authenticateToken, asyncHandler(async (req: AuthRequest, res) => {
+router.delete('/:id', authenticateToken, idempotencyMiddleware('calendar-write'), asyncHandler(async (req: AuthRequest, res) => {
   const { id } = req.params;
 
   const event = await prisma.event.findFirst({

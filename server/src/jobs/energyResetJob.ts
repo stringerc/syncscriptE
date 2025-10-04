@@ -1,66 +1,17 @@
 import { PrismaClient } from '@prisma/client';
 import { EnergyEngineService } from '../services/energyEngineService';
+import { resetAllUsersEnergy } from '../services/dailyEnergyResetService';
 import { logger } from '../utils/logger';
 
 const prisma = new PrismaClient();
 
 /**
- * Daily Energy Reset Job
- * Runs at midnight to:
- * 1. Convert yesterday's EP to Energy
- * 2. Reset energy to 0 for the new day
- * 3. Reset active emblem animations
+ * Daily Energy Reset Job (Legacy - now uses new service)
+ * @deprecated Use resetAllUsersEnergy from dailyEnergyResetService instead
  */
 export async function runDailyEnergyReset() {
-  try {
-    logger.info('🌙 Starting daily energy reset job...');
-
-    // Get all users with energy profiles
-    const users = await prisma.userEnergyProfile.findMany({
-      select: { userId: true }
-    });
-
-    logger.info(`Processing ${users.length} users for energy reset`);
-
-    let successCount = 0;
-    let errorCount = 0;
-
-    for (const { userId } of users) {
-      try {
-        // Step 1: Convert yesterday's EP to energy (for historical tracking)
-        const yesterday = new Date();
-        yesterday.setDate(yesterday.getDate() - 1);
-        yesterday.setHours(0, 0, 0, 0);
-
-        await EnergyEngineService.convertEPToEnergy(userId, yesterday);
-
-        // Step 2: Reset current energy to 0 for the new day
-        await prisma.userEnergyProfile.update({
-          where: { userId },
-          data: {
-            currentEnergy: 0,
-            energyLevel: 0,
-            updatedAt: new Date()
-          }
-        });
-
-        // Step 3: Skip energyHistory logging for now (table may not exist yet)
-
-        successCount++;
-        logger.info(`✅ Reset energy for user ${userId}`);
-      } catch (error) {
-        errorCount++;
-        logger.error(`❌ Failed to reset energy for user ${userId}`, { error });
-      }
-    }
-
-    logger.info(`🎉 Daily energy reset complete! Success: ${successCount}, Errors: ${errorCount}`);
-    
-    return { success: successCount, errors: errorCount };
-  } catch (error) {
-    logger.error('💥 Critical error in daily energy reset job', { error });
-    throw error;
-  }
+  logger.warn('Using legacy energy reset job - consider migrating to dailyEnergyResetService');
+  return await resetAllUsersEnergy();
 }
 
 /**

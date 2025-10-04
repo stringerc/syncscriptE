@@ -33,6 +33,7 @@ model User {
   avatar       String?   // URL to avatar image
   dailyEnergy  EnergyLevel[]
   showHolidays Boolean? @default(true) // Whether to show holiday events
+  lastEnergyResetLocalDate DateTime? // Last date energy was reset (in user's timezone)
   
   // Location
   currentLocation String? // Current city/location
@@ -118,6 +119,9 @@ model User {
   exportJobs               ExportJob[]
   exportTemplates          ExportTemplate[]
   exportAnalytics          ExportAnalytics[]
+  
+  // Daily Energy Snapshots
+  energyDailySnapshots     UserEnergyDailySnapshot[]
 
   @@map("users")
 }
@@ -940,6 +944,7 @@ model UserEnergyProfile {
   userId            String   @unique
   currentEnergy     Int      @default(50) // 0-100 scale
   energyLevel       Int      @default(5)  // 1-10 scale (legacy)
+  epToday           Int      @default(0)  // EP accumulated today
   domainWeights     String?  // JSON object with domain weights
   personalizationData String? // JSON object for personalization
   lastConversion    DateTime?
@@ -1747,4 +1752,75 @@ model ExportAnalytics {
   @@index([exportJobId])
   @@index([createdAt])
   @@map("export_analytics")
+}
+
+// Event System - Outbox Pattern for reliable event delivery
+model Outbox {
+  id            String   @id @default(cuid())
+  eventId       String   @unique // UUID for the event
+  eventType     String   // e.g., 'TaskCompleted', 'ScriptApplied', 'CalendarWriteRequested'
+  aggregateType String   // e.g., 'Task', 'Script', 'Calendar'
+  aggregateId   String   // ID of the aggregate that generated the event
+  payload       String   // JSON: event data
+  occurredAt    DateTime @default(now())
+  attempts      Int      @default(0)
+  status        String   @default("pending") // 'pending', 'delivered', 'failed'
+  error         String?  // Error message if delivery failed
+  nextRetryAt   DateTime?
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  // Delivery tracking
+  deliveries    EventDelivery[]
+  
+  @@index([status, nextRetryAt])
+  @@index([eventType])
+  @@index([aggregateType, aggregateId])
+  @@map("outbox")
+}
+
+model EventDelivery {
+  id          String   @id @default(cuid())
+  eventId     String   // References Outbox.eventId
+  target      String   // Target handler or service
+  deliveredAt DateTime @default(now())
+  success     Boolean
+  error       String?  // Error message if delivery failed
+  
+  outbox      Outbox   @relation(fields: [eventId], references: [eventId], onDelete: Cascade)
+  
+  @@unique([eventId, target])
+  @@index([deliveredAt])
+  @@map("event_delivery")
+}
+
+// Idempotency Keys for safe retries
+model IdempotencyKey {
+  key           String   @id // The idempotency key
+  scope         String   // e.g., 'calendar-write', 'script-apply', 'export-generate'
+  requestHash   String   // Hash of the request to detect changes
+  response      String   // JSON: cached response
+  createdAt     DateTime @default(now())
+  expiresAt     DateTime // When this key expires (e.g., 24 hours)
+  
+  @@index([scope])
+  @@index([expiresAt])
+  @@map("idempotency_keys")
+}
+
+// Daily Energy Reset tracking
+model UserEnergyDailySnapshot {
+  id              String   @id @default(cuid())
+  userId          String
+  snapshotDate    DateTime // Date in user's local timezone
+  energy          Int      // Energy level at snapshot time
+  epToday         Int      // EP accumulated today
+  createdAt       DateTime @default(now())
+  
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, snapshotDate])
+  @@index([snapshotDate])
+  @@map("user_energy_daily_snapshots")
 }

@@ -2,6 +2,7 @@ import express, { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { authenticateToken } from '../middleware/auth';
 import { logger } from '../utils/logger';
+import { idempotencyMiddleware } from '../services/idempotencyService';
 
 const router = express.Router();
 const prisma = new PrismaClient();
@@ -318,7 +319,7 @@ router.post('/:scriptId/favorite', authenticateToken, async (req: AuthRequest, r
  * POST /scripts/:scriptId/apply
  * Apply a user script to an event
  */
-router.post('/:scriptId/apply/:eventId', authenticateToken, async (req: AuthRequest, res: Response) => {
+router.post('/:scriptId/apply/:eventId', authenticateToken, idempotencyMiddleware('script-apply'), async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user!.id;
     const { scriptId, eventId } = req.params;

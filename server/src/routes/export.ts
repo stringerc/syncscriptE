@@ -5,6 +5,7 @@ import { exportService } from '../services/exportService';
 import { logger } from '../utils/logger';
 import { createError } from '../middleware/errorHandler';
 import { PrismaClient } from '@prisma/client';
+import { idempotencyMiddleware } from '../services/idempotencyService';
 
 const prisma = new PrismaClient();
 const router = Router();
@@ -1202,7 +1203,7 @@ function getRedactionsForAudience(audiencePreset: string): string[] {
 /**
  * Create a new export job
  */
-router.post('/create', authenticateToken, asyncHandler(async (req, res) => {
+router.post('/create', authenticateToken, idempotencyMiddleware('export-generate'), asyncHandler(async (req, res) => {
   const userId = req.user!.id;
   const exportOptions = req.body;
 
