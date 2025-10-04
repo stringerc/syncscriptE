@@ -1421,7 +1421,7 @@ export function DashboardPage() {
       
       return {}
     },
-    enabled: !!safeUpcomingEvents && safeUpcomingEvents.length > 0,
+    enabled: true, // Always enabled, but returns empty object if no events
     staleTime: 30 * 60 * 1000, // 30 minutes
     cacheTime: 60 * 60 * 1000, // Keep in cache for 1 hour
     refetchOnWindowFocus: false,
