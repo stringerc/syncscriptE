@@ -222,13 +222,17 @@ export function ExportPage() {
   };
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      <div className="flex items-center gap-3">
-        <Download className="h-8 w-8 text-blue-600" />
-        <div>
-          <h1 className="text-3xl font-bold">Export & Share</h1>
-          <p className="text-gray-600">
-            Export your projects, events, and scripts in various formats
+    <div className="container mx-auto p-6 space-y-8 animate-fade-in">
+      {/* Header with Gradient */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-green-500 via-emerald-500 to-teal-600 p-8 text-white shadow-2xl">
+        <div className="absolute inset-0 bg-black/10"></div>
+        <div className="relative z-10">
+          <h1 className="text-4xl font-bold mb-2 flex items-center gap-3">
+            <Download className="w-10 h-10" />
+            Export & Share
+          </h1>
+          <p className="text-white/90 text-lg">
+            Export your projects, events, and scripts in various formats • {recentExports?.length || 0} exports • {templates?.length || 0} templates
           </p>
         </div>
       </div>

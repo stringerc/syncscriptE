@@ -4,6 +4,10 @@ import { api } from '@/lib/api'
 import { useAuthStore } from '@/stores/authStore'
 
 export interface FeatureFlags {
+  // UI Shell
+  new_ui: boolean
+  cmd_palette: boolean
+  
   // AI Features
   askAI: boolean
   
@@ -28,6 +32,9 @@ export interface FeatureFlags {
   // Energy & Achievements
   energyHUD: boolean
   energyGraph: boolean
+  
+  // APL (Auto-Plan & Place)
+  make_it_real: boolean
 }
 
 interface FeatureFlagsContextType {
@@ -37,7 +44,27 @@ interface FeatureFlagsContextType {
   isFlagEnabled: (flagName: keyof FeatureFlags) => boolean
 }
 
+// Check URL parameters for feature flag overrides (for testing)
+const getUrlFlagOverrides = (): Partial<FeatureFlags> => {
+  const urlParams = new URLSearchParams(window.location.search);
+  const overrides: Partial<FeatureFlags> = {};
+  
+  // Check for new_ui flag
+  if (urlParams.get('new_ui') === 'true') {
+    overrides.new_ui = true;
+  }
+  
+  // Check for make_it_real flag
+  if (urlParams.get('make_it_real') === 'true') {
+    overrides.make_it_real = true;
+  }
+  
+  return overrides;
+};
+
 const defaultFlags: FeatureFlags = {
+  new_ui: true, // Enable new UI shell by default
+  cmd_palette: false,
   askAI: false,
   focusLock: false,
   mic: false,
@@ -50,7 +77,8 @@ const defaultFlags: FeatureFlags = {
   friends: false,
   shareScript: false,
   energyHUD: false,
-  energyGraph: false
+  energyGraph: false,
+  make_it_real: false
 }
 
 const FeatureFlagsContext = createContext<FeatureFlagsContextType>({
@@ -68,12 +96,18 @@ export function FeatureFlagsProvider({ children }: { children: ReactNode }) {
   const { data: flagsData, isLoading } = useQuery({
     queryKey: ['feature-flags'],
     queryFn: async () => {
-      const response = await api.get('/feature-flags/flags')
-      return response.data.data
+      try {
+        const response = await api.get('/feature-flags/flags')
+        return response.data.data
+      } catch (error) {
+        // Silently fail - feature flags default to false
+        console.log('ℹ️ Feature flags unavailable (using defaults)');
+        return DEFAULT_FLAGS;
+      }
     },
     enabled: !!user,
     staleTime: 5 * 60 * 1000, // 5 minutes
-    retry: 1
+    retry: false // Don't retry on failure
   })
 
   // Update flags mutation
@@ -87,7 +121,9 @@ export function FeatureFlagsProvider({ children }: { children: ReactNode }) {
     }
   })
 
-  const flags = flagsData || defaultFlags
+  // Apply URL overrides to flags (for testing)
+  const urlOverrides = getUrlFlagOverrides();
+  const flags = { ...(flagsData || defaultFlags), ...urlOverrides }
 
   const updateFlags = async (updates: Partial<FeatureFlags>) => {
     await updateFlagsMutation.mutateAsync(updates)

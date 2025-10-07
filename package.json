@@ -11,7 +11,11 @@
     "deploy": "npm run build && vercel --prod"
   },
   "devDependencies": {
-    "concurrently": "^8.2.2"
+    "@types/jest": "^30.0.0",
+    "@types/supertest": "^6.0.3",
+    "concurrently": "^8.2.2",
+    "jest": "^30.2.0",
+    "supertest": "^7.1.4"
   },
   "engines": {
     "node": ">=18.0.0"

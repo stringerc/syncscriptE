@@ -1,11 +1,14 @@
 import React, { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Brain, Eye, EyeOff } from 'lucide-react'
+import { Brain, Eye, EyeOff, Star, CheckCircle, Zap, Calendar, Target, ArrowRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { useAuthStore } from '@/stores/authStore'
 import { useToast } from '@/hooks/use-toast'
+import { SyncScriptLogo } from '@/components/ui/SyncScriptLogo'
+import TestimonialsSection from '@/components/TestimonialsSection'
+import { analytics } from '@/services/analytics'
 // import { cn } from '@/lib/utils'
 
 export function AuthPage() {
@@ -93,6 +96,7 @@ export function AuthPage() {
         if (result && !result.success) {
           // Login failed, error is already set in store
           console.log('🔐 AuthPage: Login failed, error:', result.error)
+          analytics.track('login_failed', { error: result.error })
           toast({
             title: "Login failed",
             description: result.error || "Login failed",
@@ -102,6 +106,7 @@ export function AuthPage() {
           return // Don't proceed with success flow
         }
         console.log('🔐 AuthPage: Login successful')
+        analytics.track('login_success', { method: 'email' })
         toast({
           title: "Welcome back!",
           description: "You've successfully logged in to SyncScript."
@@ -129,6 +134,7 @@ export function AuthPage() {
         
         await register(email, password, name)
         console.log('🔐 AuthPage: Registration successful')
+        analytics.track('registration_success', { method: 'email' })
         toast({
           title: "Welcome to SyncScript!",
           description: "Your account has been created successfully."
@@ -171,32 +177,113 @@ export function AuthPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5 flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        {/* Logo */}
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-primary rounded-2xl mb-4">
-            <Brain className="w-8 h-8 text-primary-foreground" />
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50">
+      {/* Hero Section */}
+      <div className="container mx-auto px-4 py-16">
+        <div className="text-center mb-16">
+          <div className="flex justify-center mb-8">
+            <SyncScriptLogo size="lg" showText={true} />
           </div>
-          <h1 className="text-3xl font-bold text-foreground mb-2">SyncScript</h1>
-          <p className="text-muted-foreground">
-            AI-powered life management system
+          <h1 className="text-4xl md:text-6xl font-bold text-gray-900 mb-6">
+            Transform Your
+            <span className="bg-gradient-to-r from-blue-600 via-green-600 to-orange-600 bg-clip-text text-transparent">
+              {' '}Productivity{' '}
+            </span>
+            with AI
+          </h1>
+          <p className="text-xl text-gray-600 max-w-3xl mx-auto mb-8">
+            The only productivity platform that learns your energy patterns, optimizes your schedule, 
+            and helps you achieve more with less effort.
           </p>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+            <Button 
+              size="lg" 
+              className="bg-gradient-to-r from-blue-600 to-green-600 hover:from-blue-700 hover:to-green-700 text-white px-8 py-3"
+              onClick={() => {
+                analytics.track('cta_clicked', { cta: 'start_free_trial', location: 'hero' });
+                setIsLogin(false);
+              }}
+            >
+              Start Free Trial
+              <ArrowRight className="ml-2 w-5 h-5" />
+            </Button>
+            <Button 
+              size="lg" 
+              variant="outline" 
+              className="px-8 py-3"
+              onClick={() => analytics.track('cta_clicked', { cta: 'watch_demo', location: 'hero' })}
+            >
+              Watch Demo
+            </Button>
+          </div>
         </div>
 
-        {/* Auth Form */}
-        <Card className="shadow-lg">
-          <CardHeader className="text-center">
-            <CardTitle className="text-2xl">
-              {isLogin ? 'Welcome Back' : 'Create Account'}
-            </CardTitle>
-            <CardDescription>
-              {isLogin 
-                ? 'Sign in to your SyncScript account' 
-                : 'Get started with your AI-powered life manager'
-              }
-            </CardDescription>
-          </CardHeader>
+        {/* Features Grid */}
+        <div className="grid md:grid-cols-3 gap-8 mb-20 max-w-6xl mx-auto">
+          <div className="text-center p-6">
+            <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <Brain className="w-8 h-8 text-white" />
+            </div>
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">AI-Powered Intelligence</h3>
+            <p className="text-gray-600">Smart task prioritization and energy optimization that learns from your patterns</p>
+          </div>
+          <div className="text-center p-6">
+            <div className="w-16 h-16 bg-gradient-to-r from-green-500 to-green-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <Calendar className="w-8 h-8 text-white" />
+            </div>
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">Seamless Integration</h3>
+            <p className="text-gray-600">Connect your calendar, tasks, and finances in one unified platform</p>
+          </div>
+          <div className="text-center p-6">
+            <div className="w-16 h-16 bg-gradient-to-r from-orange-500 to-orange-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <Target className="w-8 h-8 text-white" />
+            </div>
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">Adaptive Learning</h3>
+            <p className="text-gray-600">Continuously improves based on your productivity patterns and preferences</p>
+          </div>
+        </div>
+
+        {/* Stats Section */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-20 max-w-4xl mx-auto">
+          <div className="text-center">
+            <div className="text-3xl md:text-4xl font-bold text-blue-600 mb-2">50K+</div>
+            <div className="text-gray-600">Active Users</div>
+          </div>
+          <div className="text-center">
+            <div className="text-3xl md:text-4xl font-bold text-green-600 mb-2">40%</div>
+            <div className="text-gray-600">Productivity Boost</div>
+          </div>
+          <div className="text-center">
+            <div className="text-3xl md:text-4xl font-bold text-orange-600 mb-2">4.9/5</div>
+            <div className="text-gray-600">User Rating</div>
+          </div>
+          <div className="text-center">
+            <div className="text-3xl md:text-4xl font-bold text-purple-600 mb-2">99.9%</div>
+            <div className="text-gray-600">Uptime</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Testimonials */}
+      <TestimonialsSection />
+
+      {/* Auth Form Section */}
+      <div className="container mx-auto px-4 py-16">
+        <div className="max-w-md mx-auto">
+
+          {/* Auth Form */}
+          <Card className="shadow-xl border-0">
+            <CardHeader className="text-center">
+              <CardTitle className="text-2xl">
+                {isLogin ? 'Welcome Back' : 'Start Your Journey'}
+              </CardTitle>
+              <CardDescription>
+                {isLogin 
+                  ? 'Sign in to continue optimizing your productivity' 
+                  : 'Join thousands of users transforming their workflow'
+                }
+              </CardDescription>
+            </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
               {!isLogin && (
@@ -321,7 +408,7 @@ export function AuthPage() {
               
               <Button 
                 type="submit" 
-                className="w-full" 
+                className="w-full bg-gradient-to-r from-blue-600 to-green-600 hover:from-blue-700 hover:to-green-700" 
                 disabled={isLoading}
               >
                 {isLoading ? (
@@ -330,7 +417,7 @@ export function AuthPage() {
                     <span>{isLogin ? 'Signing in...' : 'Creating account...'}</span>
                   </div>
                 ) : (
-                  isLogin ? 'Sign In' : 'Create Account'
+                  isLogin ? 'Sign In' : 'Start Free Trial'
                 )}
               </Button>
 
@@ -427,29 +514,29 @@ export function AuthPage() {
           </CardContent>
         </Card>
 
-        {/* Features */}
-        <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
-          <div className="p-4">
-            <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center mx-auto mb-2">
-              <Brain className="w-4 h-4 text-primary" />
-            </div>
-            <h3 className="font-medium text-sm">AI-Powered</h3>
-            <p className="text-xs text-muted-foreground">Smart task prioritization</p>
+        {/* Pricing Link */}
+        <div className="mt-6 text-center">
+          <Link 
+            to="/pricing" 
+            className="text-sm text-blue-600 hover:text-blue-500 font-medium"
+            onClick={() => analytics.track('pricing_link_clicked', { location: 'auth_page' })}
+          >
+            View Pricing Plans →
+          </Link>
+        </div>
+        </div>
+      </div>
+
+      {/* Footer */}
+      <div className="bg-gray-50 py-8">
+        <div className="container mx-auto px-4 text-center">
+          <div className="flex justify-center mb-4">
+            <SyncScriptLogo size="md" showText={true} />
           </div>
-          <div className="p-4">
-            <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center mx-auto mb-2">
-              <Brain className="w-4 h-4 text-primary" />
-            </div>
-            <h3 className="font-medium text-sm">Integrated</h3>
-            <p className="text-xs text-muted-foreground">Calendar, tasks & finance</p>
-          </div>
-          <div className="p-4">
-            <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center mx-auto mb-2">
-              <Brain className="w-4 h-4 text-primary" />
-            </div>
-            <h3 className="font-medium text-sm">Adaptive</h3>
-            <p className="text-xs text-muted-foreground">Learns your patterns</p>
-          </div>
+          <p className="text-gray-600 text-sm">
+            © 2024 SyncScript. All rights reserved. | 
+            <Link to="/privacy" className="ml-2 text-blue-600 hover:text-blue-500">Privacy Policy</Link>
+          </p>
         </div>
       </div>
     </div>

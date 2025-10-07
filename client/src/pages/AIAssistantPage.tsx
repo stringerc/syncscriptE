@@ -517,15 +517,17 @@ export function AIAssistantPage() {
   ]
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center space-x-3">
-        <div className="p-2 bg-primary/10 rounded-lg">
-          <Bot className="w-6 h-6 text-primary" />
-        </div>
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">AI Assistant</h1>
-          <p className="text-muted-foreground mt-1">
-            Your intelligent productivity companion
+    <div className="space-y-8 animate-fade-in">
+      {/* Header with Gradient */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-blue-600 via-cyan-500 to-teal-500 p-8 text-white shadow-2xl">
+        <div className="absolute inset-0 bg-black/10"></div>
+        <div className="relative z-10">
+          <h1 className="text-4xl font-bold mb-2 flex items-center gap-3">
+            <Bot className="w-10 h-10" />
+            AI Assistant
+          </h1>
+          <p className="text-white/90 text-lg">
+            Your intelligent productivity companion • Powered by advanced AI
           </p>
         </div>
       </div>
@@ -857,8 +859,8 @@ export function AIAssistantPage() {
                       <span>Productivity tips</span>
                     </div>
                     <div className="flex items-center space-x-2">
-                      <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
-                      <span>Budget planning (coming soon)</span>
+                      <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                      <span>Budget planning and financial insights</span>
                     </div>
                   </div>
                 </CardContent>
@@ -1001,8 +1003,8 @@ export function AIAssistantPage() {
                     <span>Productivity tips</span>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
-                    <span>Budget planning (coming soon)</span>
+                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                    <span>Budget planning and financial insights</span>
                   </div>
                 </div>
               </CardContent>

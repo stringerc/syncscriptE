@@ -2,15 +2,17 @@ import { Router } from 'express';
 import { metricsService } from '../services/metricsService';
 import { logger } from '../utils/logger';
 import { asyncHandler } from '../middleware/errorHandler';
+import { metricsAuthMiddleware } from '../middleware/metricsAuthMiddleware';
 
 const router = Router();
 
 /**
  * GET /metrics
  * Expose Prometheus metrics
- * Admin-only in staging, public in prod via allowlist
+ * Protected by IP allowlist and optional auth token
+ * PII scrubbing applied to all metric labels
  */
-router.get('/', asyncHandler(async (req, res) => {
+router.get('/', metricsAuthMiddleware, asyncHandler(async (req, res) => {
   try {
     const metrics = await metricsService.getMetrics();
     

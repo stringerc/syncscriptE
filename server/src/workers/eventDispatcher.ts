@@ -209,6 +209,37 @@ registerEventHandler('TaskCompleted', async (payload) => {
 
 registerEventHandler('ScriptApplied', async (payload) => {
   logger.info('Script applied event received', { scriptId: payload.scriptId, userId: payload.userId });
+  
+  // APL Shadow Wiring: Enqueue suggest request for any events created by this script
+  if (payload.eventId) {
+    const { enqueueAplSuggest } = await import('../services/eventService');
+    const { metricsService } = await import('../services/metricsService');
+    
+    const key = `${payload.eventId}:v0:script_applied`;
+    
+    try {
+      await enqueueAplSuggest({
+        userId: payload.userId,
+        eventId: payload.eventId,
+        taskIds: payload.taskIds,
+        key
+      }, key);
+      
+      metricsService.recordFeatureUsed('apl.shadow_enqueued');
+      logger.info('APL suggest request enqueued from ScriptApplied', { 
+        eventId: payload.eventId, 
+        userId: payload.userId,
+        key 
+      });
+    } catch (error) {
+      logger.error('Failed to enqueue APL suggest from ScriptApplied', { 
+        eventId: payload.eventId, 
+        userId: payload.userId,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  }
+  
   // This would trigger analytics, usage tracking, etc.
 });
 
@@ -227,4 +258,66 @@ registerEventHandler('EnergySnapshotCreated', async (payload) => {
     snapshotDate: payload.snapshotDate 
   });
   // This would trigger analytics, reporting, etc.
+});
+
+registerEventHandler('EventCreated', async (payload) => {
+  logger.info('Event created event received', { 
+    eventId: payload.eventId, 
+    userId: payload.userId 
+  });
+  
+  // APL Shadow Wiring: Enqueue suggest request for newly created events
+  const { enqueueAplSuggest } = await import('../services/eventService');
+  const { metricsService } = await import('../services/metricsService');
+  
+  const key = `${payload.eventId}:v0:event_created`;
+  
+  try {
+    await enqueueAplSuggest({
+      userId: payload.userId,
+      eventId: payload.eventId,
+      taskIds: payload.taskIds,
+      key
+    }, key);
+    
+    metricsService.recordFeatureUsed('apl.shadow_enqueued');
+    logger.info('APL suggest request enqueued from EventCreated', { 
+      eventId: payload.eventId, 
+      userId: payload.userId,
+      key 
+    });
+  } catch (error) {
+    logger.error('Failed to enqueue APL suggest from EventCreated', { 
+      eventId: payload.eventId, 
+      userId: payload.userId,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+registerEventHandler('AplSuggestRequested', async (payload) => {
+  logger.info('APL suggest request received', { 
+    eventId: payload.eventId, 
+    userId: payload.userId,
+    key: payload.key
+  });
+  
+  // Shadow handler - no writes yet, just metrics and logging
+  const { metricsService } = await import('../services/metricsService');
+  
+  // Record metrics for shadow processing
+  metricsService.recordAplSuggested();
+  
+  logger.info('APL suggest request processed (shadow mode)', { 
+    eventId: payload.eventId, 
+    userId: payload.userId,
+    key: payload.key,
+    source: 'shadow'
+  });
+  
+  // In real implementation, this would:
+  // 1. Analyze event and associated tasks
+  // 2. Compute available time windows
+  // 3. Create TentativeHold records
+  // 4. Publish TentativeHoldSuggested events
 });

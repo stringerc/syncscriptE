@@ -7,12 +7,16 @@ import { useNotifications } from '@/contexts/NotificationContext'
 const NotificationsPage: React.FC = () => {
   const { notifications, unreadCount, stats, isLoading } = useNotifications()
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      <div className="flex items-center gap-3">
-        <Bell className="h-8 w-8 text-blue-600" />
-        <div>
-          <h1 className="text-3xl font-bold">Notifications</h1>
-          <p className="text-gray-600">
+    <div className="container mx-auto p-6 space-y-8 animate-fade-in">
+      {/* Header with Gradient */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-blue-500 via-indigo-500 to-purple-600 p-8 text-white shadow-2xl">
+        <div className="absolute inset-0 bg-black/10"></div>
+        <div className="relative z-10">
+          <h1 className="text-4xl font-bold mb-2 flex items-center gap-3">
+            <Bell className="w-10 h-10" />
+            Notifications
+          </h1>
+          <p className="text-white/90 text-lg">
             Manage your notification preferences and stay informed
           </p>
         </div>

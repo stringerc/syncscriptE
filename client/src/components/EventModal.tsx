@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { Button } from '@/components/ui/button'
@@ -12,7 +12,10 @@ import { TemplateRecommendations } from '@/components/TemplateRecommendations'
 import { ExportModal } from '@/components/export/ExportModal'
 import { SpeechToTextInput } from '@/components/SpeechToTextInput'
 import ConflictResolver from '@/components/ConflictResolver'
-import { X, Save, Trash2, Calendar, Clock, MapPin, DollarSign, Sparkles, Plus, CheckCircle, Circle, Edit3, Eye, Pin, PinOff, Mic, Download, AlertTriangle } from 'lucide-react'
+import { useFeatureFlags } from '@/contexts/FeatureFlagsContext'
+import { telemetryService as telemetry } from '@/services/telemetryService'
+import { AplActionButton } from '@/components/apl/AplActionButton'
+import { X, Save, Trash2, Calendar, Clock, MapPin, DollarSign, Sparkles, Plus, CheckCircle, Circle, Edit3, Eye, Pin, PinOff, Mic, Download, AlertTriangle, CalendarPlus } from 'lucide-react'
 
 interface Event {
   id: string
@@ -36,6 +39,7 @@ interface EventModalProps {
 export function EventModal({ event, isOpen, onClose, onEventUpdated, onEventCreated }: EventModalProps) {
   const { toast } = useToast()
   const queryClient = useQueryClient()
+  const flags = useFeatureFlags()
   const [isEditing, setIsEditing] = useState(false)
   const [formData, setFormData] = useState({
     title: '',
@@ -45,6 +49,15 @@ export function EventModal({ event, isOpen, onClose, onEventUpdated, onEventCrea
     location: '',
     budgetImpact: 0
   })
+
+  // APL Ghost UI state
+  const [aplReady, setAplReady] = useState(false)
+  const [isSuggesting, setIsSuggesting] = useState(false)
+  const readyCheckedRef = useRef(false)
+  
+  // Event details for APL
+  const eventId = event?.id ?? ""
+  const eventVersion = (event?.version ?? 1) as number
 
   // Fetch preparation tasks for this event
   const { data: preparationTasks, refetch: refetchPreparationTasks } = useQuery({
@@ -84,6 +97,38 @@ export function EventModal({ event, isOpen, onClose, onEventUpdated, onEventCrea
       setNewTaskPriority('MEDIUM')
     }
   }, [event])
+
+  // APL Ready Check (≤150ms, no UI block)
+  useEffect(() => {
+    if (!flags.isFlagEnabled('make_it_real') || !eventId) return
+    if (readyCheckedRef.current) return // dev strict-mode guard
+    readyCheckedRef.current = true
+
+    const t0 = performance.now()
+    const ctl = new AbortController()
+
+    fetch(`/api/apl/ready?eventId=${encodeURIComponent(eventId)}`, {
+      signal: ctl.signal,
+      credentials: "include",
+    })
+      .then((r) => (r.ok ? r.json() : null))
+      .then(() => {
+        setAplReady(true)
+        telemetry.recordEvent("ui.apl.ready_checked", {
+          eventId,
+          dt: Math.round(performance.now() - t0),
+        })
+      })
+      .catch(() => {
+        setAplReady(false)
+        telemetry.recordEvent("ui.apl.ready_failed", {
+          eventId,
+          dt: Math.round(performance.now() - t0),
+        })
+      })
+
+    return () => ctl.abort()
+  }, [flags, eventId])
 
   // Removed excessive logging for performance
 
@@ -920,6 +965,11 @@ export function EventModal({ event, isOpen, onClose, onEventUpdated, onEventCrea
                     >
                       <Download className="w-4 h-4" />
                     </Button>
+                    <AplActionButton
+                      eventId={eventId}
+                      eventVersion={eventVersion}
+                      enabled={Boolean(flags.isFlagEnabled('make_it_real'))}
+                    />
                   </div>
                 </div>
                 {event.description && (

@@ -1,0 +1,308 @@
+/* SyncScript Design Tokens - Inspired by Brain + Gradient Ribbon Logo */
+
+:root {
+  /* ========================================
+     BRAND COLORS (From Logo)
+     ======================================== */
+  
+  /* Primary Brand Colors */
+  --brand-blue: #3B82F6;      /* Light blue from ribbon start */
+  --brand-green: #10B981;     /* Soft green from ribbon middle */
+  --brand-orange: #F59E0B;    /* Orange-red from ribbon end */
+  --brand-gray: #6B7280;      /* Brain outline gray */
+  
+  /* Extended Brand Palette */
+  --brand-blue-light: #60A5FA;
+  --brand-blue-dark: #1D4ED8;
+  --brand-green-light: #34D399;
+  --brand-green-dark: #059669;
+  --brand-orange-light: #FBBF24;
+  --brand-orange-dark: #D97706;
+  --brand-gray-light: #9CA3AF;
+  --brand-gray-dark: #374151;
+  
+  /* ========================================
+     GRADIENT COMBINATIONS
+     ======================================== */
+  
+  /* Primary Brand Gradient (Ribbon) */
+  --gradient-primary: linear-gradient(135deg, var(--brand-blue) 0%, var(--brand-green) 50%, var(--brand-orange) 100%);
+  --gradient-primary-horizontal: linear-gradient(90deg, var(--brand-blue) 0%, var(--brand-green) 50%, var(--brand-orange) 100%);
+  
+  /* Brain-inspired Gradients */
+  --gradient-brain: linear-gradient(135deg, var(--brand-gray) 0%, var(--brand-gray-light) 100%);
+  --gradient-neural: linear-gradient(45deg, var(--brand-blue) 0%, var(--brand-green) 100%);
+  
+  /* Subtle Background Gradients */
+  --gradient-subtle: linear-gradient(135deg, rgba(59, 130, 246, 0.05) 0%, rgba(16, 185, 129, 0.05) 100%);
+  --gradient-warm: linear-gradient(135deg, rgba(245, 158, 11, 0.1) 0%, rgba(16, 185, 129, 0.1) 100%);
+  
+  /* ========================================
+     SEMANTIC COLORS
+     ======================================== */
+  
+  /* Status Colors */
+  --color-success: var(--brand-green);
+  --color-success-light: var(--brand-green-light);
+  --color-success-dark: var(--brand-green-dark);
+  
+  --color-warning: var(--brand-orange);
+  --color-warning-light: var(--brand-orange-light);
+  --color-warning-dark: var(--brand-orange-dark);
+  
+  --color-info: var(--brand-blue);
+  --color-info-light: var(--brand-blue-light);
+  --color-info-dark: var(--brand-blue-dark);
+  
+  --color-error: #EF4444;
+  --color-error-light: #F87171;
+  --color-error-dark: #DC2626;
+  
+  /* ========================================
+     NEUTRAL COLORS
+     ======================================== */
+  
+  /* Light Theme */
+  --color-background: #FFFFFF;
+  --color-surface: #F9FAFB;
+  --color-surface-elevated: #FFFFFF;
+  --color-border: #E5E7EB;
+  --color-border-light: #F3F4F6;
+  
+  --color-text-primary: #111827;
+  --color-text-secondary: var(--brand-gray);
+  --color-text-tertiary: #9CA3AF;
+  --color-text-inverse: #FFFFFF;
+  
+  /* Dark Theme */
+  --color-background-dark: #0F172A;
+  --color-surface-dark: #1E293B;
+  --color-surface-elevated-dark: #334155;
+  --color-border-dark: #475569;
+  --color-border-light-dark: #334155;
+  
+  --color-text-primary-dark: #F8FAFC;
+  --color-text-secondary-dark: #CBD5E1;
+  --color-text-tertiary-dark: #94A3B8;
+  --color-text-inverse-dark: #0F172A;
+  
+  /* ========================================
+     TYPOGRAPHY
+     ======================================== */
+  
+  /* Font Families */
+  --font-primary: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', 'SF Mono', Monaco, 'Cascadia Code', monospace;
+  --font-display: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  
+  /* Font Weights */
+  --font-weight-light: 300;
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+  --font-weight-extrabold: 800;
+  
+  /* Font Sizes */
+  --font-size-xs: 0.75rem;     /* 12px */
+  --font-size-sm: 0.875rem;    /* 14px */
+  --font-size-base: 1rem;      /* 16px */
+  --font-size-lg: 1.125rem;    /* 18px */
+  --font-size-xl: 1.25rem;     /* 20px */
+  --font-size-2xl: 1.5rem;     /* 24px */
+  --font-size-3xl: 1.875rem;   /* 30px */
+  --font-size-4xl: 2.25rem;    /* 36px */
+  --font-size-5xl: 3rem;       /* 48px */
+  --font-size-6xl: 3.75rem;    /* 60px */
+  
+  /* Line Heights */
+  --line-height-tight: 1.25;
+  --line-height-snug: 1.375;
+  --line-height-normal: 1.5;
+  --line-height-relaxed: 1.625;
+  --line-height-loose: 2;
+  
+  /* ========================================
+     SPACING SYSTEM (8px base)
+     ======================================== */
+  
+  --space-0: 0;
+  --space-1: 0.25rem;   /* 4px */
+  --space-2: 0.5rem;    /* 8px */
+  --space-3: 0.75rem;   /* 12px */
+  --space-4: 1rem;      /* 16px */
+  --space-5: 1.25rem;   /* 20px */
+  --space-6: 1.5rem;    /* 24px */
+  --space-8: 2rem;      /* 32px */
+  --space-10: 2.5rem;   /* 40px */
+  --space-12: 3rem;     /* 48px */
+  --space-16: 4rem;     /* 64px */
+  --space-20: 5rem;     /* 80px */
+  --space-24: 6rem;     /* 96px */
+  --space-32: 8rem;     /* 128px */
+  
+  /* ========================================
+     BORDER RADIUS
+     ======================================== */
+  
+  --radius-none: 0;
+  --radius-sm: 0.125rem;   /* 2px */
+  --radius-base: 0.25rem;  /* 4px */
+  --radius-md: 0.375rem;   /* 6px */
+  --radius-lg: 0.5rem;     /* 8px */
+  --radius-xl: 0.75rem;    /* 12px */
+  --radius-2xl: 1rem;      /* 16px */
+  --radius-3xl: 1.5rem;    /* 24px */
+  --radius-full: 9999px;
+  
+  /* ========================================
+     SHADOWS
+     ======================================== */
+  
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-base: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  --shadow-2xl: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  
+  /* Brand-specific shadows */
+  --shadow-brand: 0 4px 14px 0 rgba(59, 130, 246, 0.15);
+  --shadow-success: 0 4px 14px 0 rgba(16, 185, 129, 0.15);
+  --shadow-warning: 0 4px 14px 0 rgba(245, 158, 11, 0.15);
+  
+  /* ========================================
+     TRANSITIONS
+     ======================================== */
+  
+  --transition-fast: 150ms ease-in-out;
+  --transition-base: 200ms ease-in-out;
+  --transition-slow: 300ms ease-in-out;
+  --transition-bounce: 300ms cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  
+  /* ========================================
+     Z-INDEX SCALE
+     ======================================== */
+  
+  --z-dropdown: 1000;
+  --z-sticky: 1020;
+  --z-fixed: 1030;
+  --z-modal-backdrop: 1040;
+  --z-modal: 1050;
+  --z-popover: 1060;
+  --z-tooltip: 1070;
+  --z-toast: 1080;
+  
+  /* ========================================
+     BREAKPOINTS
+     ======================================== */
+  
+  --breakpoint-sm: 640px;
+  --breakpoint-md: 768px;
+  --breakpoint-lg: 1024px;
+  --breakpoint-xl: 1280px;
+  --breakpoint-2xl: 1536px;
+}
+
+/* ========================================
+   DARK THEME OVERRIDES
+   ======================================== */
+
+.dark {
+  --color-background: var(--color-background-dark);
+  --color-surface: var(--color-surface-dark);
+  --color-surface-elevated: var(--color-surface-elevated-dark);
+  --color-border: var(--color-border-dark);
+  --color-border-light: var(--color-border-light-dark);
+  
+  --color-text-primary: var(--color-text-primary-dark);
+  --color-text-secondary: var(--color-text-secondary-dark);
+  --color-text-tertiary: var(--color-text-tertiary-dark);
+  --color-text-inverse: var(--color-text-inverse-dark);
+}
+
+/* ========================================
+   UTILITY CLASSES
+   ======================================== */
+
+/* Brand Gradient Backgrounds */
+.bg-gradient-brand {
+  background: var(--gradient-primary);
+}
+
+.bg-gradient-brand-horizontal {
+  background: var(--gradient-primary-horizontal);
+}
+
+.bg-gradient-brain {
+  background: var(--gradient-brain);
+}
+
+.bg-gradient-neural {
+  background: var(--gradient-neural);
+}
+
+.bg-gradient-subtle {
+  background: var(--gradient-subtle);
+}
+
+.bg-gradient-warm {
+  background: var(--gradient-warm);
+}
+
+/* Brand Text Colors */
+.text-brand-blue { color: var(--brand-blue); }
+.text-brand-green { color: var(--brand-green); }
+.text-brand-orange { color: var(--brand-orange); }
+.text-brand-gray { color: var(--brand-gray); }
+
+/* Brand Background Colors */
+.bg-brand-blue { background-color: var(--brand-blue); }
+.bg-brand-green { background-color: var(--brand-green); }
+.bg-brand-orange { background-color: var(--brand-orange); }
+.bg-brand-gray { background-color: var(--brand-gray); }
+
+/* Brand Border Colors */
+.border-brand-blue { border-color: var(--brand-blue); }
+.border-brand-green { border-color: var(--brand-green); }
+.border-brand-orange { border-color: var(--brand-orange); }
+.border-brand-gray { border-color: var(--brand-gray); }
+
+/* Brand Shadows */
+.shadow-brand { box-shadow: var(--shadow-brand); }
+.shadow-success { box-shadow: var(--shadow-success); }
+.shadow-warning { box-shadow: var(--shadow-warning); }
+
+/* ========================================
+   ANIMATIONS
+   ======================================== */
+
+@keyframes brain-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+@keyframes ribbon-flow {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@keyframes neural-connection {
+  0% { stroke-dashoffset: 100; }
+  100% { stroke-dashoffset: 0; }
+}
+
+.animate-brain-pulse {
+  animation: brain-pulse 2s ease-in-out infinite;
+}
+
+.animate-ribbon-flow {
+  background-size: 200% 200%;
+  animation: ribbon-flow 3s ease infinite;
+}
+
+.animate-neural-connection {
+  stroke-dasharray: 100;
+  animation: neural-connection 2s ease-in-out infinite;
+}

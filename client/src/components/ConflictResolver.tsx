@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -9,6 +9,9 @@ import { Clock, AlertTriangle, CheckCircle, XCircle, Calendar, Users, MapPin } f
 import { api } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
 import { formatDateTime } from '@/lib/utils';
+import { Panel, PanelHeader, PanelTitle, PanelSubtitle, PanelBody, PanelFooter, Toolbar } from '@/components/panels';
+import { useFeatureFlags } from '@/contexts/FeatureFlagsContext';
+import { telemetryService } from '@/services/telemetryService';
 
 interface Conflict {
   id: string;
@@ -32,6 +35,23 @@ const ConflictResolver: React.FC<ConflictResolverProps> = ({ eventId, isOpen, on
   const [selectedConflicts, setSelectedConflicts] = useState<Set<string>>(new Set());
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { isFlagEnabled } = useFeatureFlags();
+  const isNewUI = isFlagEnabled('new_ui');
+
+  // Telemetry for dialog events
+  useEffect(() => {
+    if (isOpen) {
+      telemetryService.recordEvent('ui.dialog.opened', { 
+        screen: 'calendar', 
+        kind: 'conflict-resolver' 
+      });
+    } else {
+      telemetryService.recordEvent('ui.dialog.closed', { 
+        screen: 'calendar', 
+        kind: 'conflict-resolver' 
+      });
+    }
+  }, [isOpen]);
 
   // Fetch conflicts for the event
   const { data: conflictsData, isLoading, refetch } = useQuery({
@@ -190,148 +210,299 @@ const ConflictResolver: React.FC<ConflictResolverProps> = ({ eventId, isOpen, on
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <AlertTriangle className="h-5 w-5 text-orange-500" />
-            Schedule Conflicts
-          </DialogTitle>
-          <DialogDescription>
-            Review and resolve scheduling conflicts for this event
-          </DialogDescription>
-        </DialogHeader>
-
-        {isLoading ? (
-          <div className="flex items-center justify-center py-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-          </div>
-        ) : conflicts.length === 0 ? (
-          <Alert>
-            <CheckCircle className="h-4 w-4" />
-            <AlertDescription>
-              No scheduling conflicts detected. Your event schedule looks good!
-            </AlertDescription>
-          </Alert>
-        ) : (
-          <div className="space-y-4">
-            {/* Summary */}
-            <div className="flex items-center justify-between p-4 bg-muted rounded-lg">
-              <div>
-                <h3 className="font-medium">Found {conflicts.length} conflict{conflicts.length !== 1 ? 's' : ''}</h3>
-                <p className="text-sm text-muted-foreground">
-                  {selectedConflicts.size} selected for resolution
-                </p>
-              </div>
-              {selectedConflicts.size > 0 && (
-                <Button
-                  onClick={handleApplyAll}
-                  disabled={applyAllMutation.isPending}
-                  className="ml-4"
-                >
-                  {applyAllMutation.isPending ? 'Resolving...' : `Resolve ${selectedConflicts.size} Selected`}
-                </Button>
-              )}
-            </div>
-
-            {/* Conflicts List */}
-            <div className="space-y-3">
-              {conflicts.map((conflict) => (
-                <Card key={conflict.id} className={`transition-colors ${
-                  selectedConflicts.has(conflict.id) ? 'ring-2 ring-primary' : ''
-                }`}>
-                  <CardHeader className="pb-3">
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-center gap-2">
-                        {getConflictIcon(conflict.type)}
-                        <CardTitle className="text-base">{conflict.description}</CardTitle>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Badge variant={getConflictBadgeVariant(conflict.type)}>
-                          {conflict.type.replace('_', ' ')}
-                        </Badge>
-                        <input
-                          type="checkbox"
-                          checked={selectedConflicts.has(conflict.id)}
-                          onChange={() => handleConflictSelect(conflict.id)}
-                          className="rounded border-gray-300"
-                        />
-                      </div>
+        {isNewUI ? (
+          <Panel tone="warning">
+            <PanelHeader>
+              <PanelTitle className="flex items-center gap-2">
+                <AlertTriangle className="h-5 w-5 text-orange-500" />
+                Schedule Conflicts
+              </PanelTitle>
+              <PanelSubtitle>
+                Review and resolve scheduling conflicts for this event
+              </PanelSubtitle>
+            </PanelHeader>
+            <PanelBody>
+              {isLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                </div>
+              ) : conflicts.length === 0 ? (
+                <Alert>
+                  <CheckCircle className="h-4 w-4" />
+                  <AlertDescription>
+                    No scheduling conflicts detected. Your event schedule looks good!
+                  </AlertDescription>
+                </Alert>
+              ) : (
+                <div className="space-y-4">
+                  {/* Summary */}
+                  <div className="flex items-center justify-between p-4 bg-muted rounded-lg">
+                    <div>
+                      <h3 className="font-medium">Found {conflicts.length} conflict{conflicts.length !== 1 ? 's' : ''}</h3>
+                      <p className="text-sm text-muted-foreground">
+                        {selectedConflicts.size} selected for resolution
+                      </p>
                     </div>
-                  </CardHeader>
-                  
-                  <CardContent className="pt-0">
-                    <div className="space-y-3">
-                      {/* Affected Tasks */}
-                      <div>
-                        <h4 className="text-sm font-medium mb-2">Affected Tasks:</h4>
-                        <div className="flex flex-wrap gap-1">
-                          {conflict.affectedTasks.map((taskId) => (
-                            <Badge key={taskId} variant="outline" className="text-xs">
-                              {taskId}
-                            </Badge>
-                          ))}
-                        </div>
-                      </div>
+                    {selectedConflicts.size > 0 && (
+                      <Button
+                        onClick={handleApplyAll}
+                        disabled={applyAllMutation.isPending}
+                        className="ml-4"
+                      >
+                        {applyAllMutation.isPending ? 'Resolving...' : `Resolve ${selectedConflicts.size} Selected`}
+                      </Button>
+                    )}
+                  </div>
 
-                      {/* Suggested Fix */}
-                      {conflict.suggestedFix && (
-                        <div className="p-3 bg-muted rounded-lg">
-                          <div className="flex items-center justify-between mb-2">
-                            <h4 className="text-sm font-medium">Suggested Fix:</h4>
-                            <Badge variant={getActionBadgeVariant(conflict.suggestedFix.action)}>
-                              {conflict.suggestedFix.action.replace('_', ' ')}
-                            </Badge>
+                  {/* Conflicts List */}
+                  <div className="space-y-3">
+                    {conflicts.map((conflict) => (
+                      <Card key={conflict.id} className={`transition-colors ${
+                        selectedConflicts.has(conflict.id) ? 'ring-2 ring-primary' : ''
+                      }`}>
+                        <CardHeader className="pb-3">
+                          <div className="flex items-start justify-between">
+                            <div className="flex items-center gap-2">
+                              {getConflictIcon(conflict.type)}
+                              <CardTitle className="text-base">{conflict.description}</CardTitle>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Badge variant={getConflictBadgeVariant(conflict.type)}>
+                                {conflict.type.replace('_', ' ')}
+                              </Badge>
+                              <input
+                                type="checkbox"
+                                checked={selectedConflicts.has(conflict.id)}
+                                onChange={() => handleConflictSelect(conflict.id)}
+                                className="rounded border-gray-300"
+                              />
+                            </div>
                           </div>
-                          <p className="text-sm text-muted-foreground mb-3">
-                            {conflict.suggestedFix.action === 'reschedule' && 
-                              `Reschedule to ${formatDateTime(conflict.suggestedFix.newValue)}`
-                            }
-                            {conflict.suggestedFix.action === 'extend_buffer' && 
-                              `Extend buffer to ${conflict.suggestedFix.newValue} minutes`
-                            }
-                            {conflict.suggestedFix.action === 'remove_dependency' && 
-                              'Remove dependency constraint'
-                            }
-                          </p>
-                          <Button
-                            size="sm"
-                            onClick={() => handleApplyFix(conflict)}
-                            disabled={applyFixMutation.isPending}
-                            className="w-full"
-                          >
-                            {applyFixMutation.isPending ? 'Applying...' : 'Apply Fix'}
-                          </Button>
-                        </div>
-                      )}
+                        </CardHeader>
+                        
+                        <CardContent className="pt-0">
+                          <div className="space-y-3">
+                            {/* Affected Tasks */}
+                            <div>
+                              <h4 className="text-sm font-medium mb-2">Affected Tasks:</h4>
+                              <div className="flex flex-wrap gap-1">
+                                {conflict.affectedTasks.map((taskId) => (
+                                  <Badge key={taskId} variant="outline" className="text-xs">
+                                    {taskId}
+                                  </Badge>
+                                ))}
+                              </div>
+                            </div>
 
-                      {!conflict.suggestedFix && (
-                        <Alert>
-                          <XCircle className="h-4 w-4" />
-                          <AlertDescription>
-                            No automatic fix available. Please resolve this conflict manually.
-                          </AlertDescription>
-                        </Alert>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+                            {/* Suggested Fix */}
+                            {conflict.suggestedFix && (
+                              <div className="p-3 bg-muted rounded-lg">
+                                <div className="flex items-center justify-between mb-2">
+                                  <h4 className="text-sm font-medium">Suggested Fix:</h4>
+                                  <Badge variant={getActionBadgeVariant(conflict.suggestedFix.action)}>
+                                    {conflict.suggestedFix.action.replace('_', ' ')}
+                                  </Badge>
+                                </div>
+                                <p className="text-sm text-muted-foreground mb-3">
+                                  {conflict.suggestedFix.action === 'reschedule' && 
+                                    `Reschedule to ${formatDateTime(conflict.suggestedFix.newValue)}`
+                                  }
+                                  {conflict.suggestedFix.action === 'extend_buffer' && 
+                                    `Extend buffer to ${conflict.suggestedFix.newValue} minutes`
+                                  }
+                                  {conflict.suggestedFix.action === 'remove_dependency' && 
+                                    'Remove dependency constraint'
+                                  }
+                                </p>
+                                <Button
+                                  size="sm"
+                                  onClick={() => handleApplyFix(conflict)}
+                                  disabled={applyFixMutation.isPending}
+                                  className="w-full"
+                                >
+                                  {applyFixMutation.isPending ? 'Applying...' : 'Apply Fix'}
+                                </Button>
+                              </div>
+                            )}
 
-            {/* Actions */}
-            <div className="flex justify-end gap-2 pt-4 border-t">
-              <Button variant="outline" onClick={onClose}>
-                Close
-              </Button>
-              {conflicts.length > 0 && (
-                <Button
-                  onClick={() => refetch()}
-                  variant="secondary"
-                >
-                  Refresh
-                </Button>
+                            {!conflict.suggestedFix && (
+                              <Alert>
+                                <XCircle className="h-4 w-4" />
+                                <AlertDescription>
+                                  No automatic fix available. Please resolve this conflict manually.
+                                </AlertDescription>
+                              </Alert>
+                            )}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                </div>
               )}
-            </div>
-          </div>
+            </PanelBody>
+            <PanelFooter>
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={onClose}>
+                  Close
+                </Button>
+                {conflicts.length > 0 && (
+                  <Button
+                    onClick={() => refetch()}
+                    variant="secondary"
+                  >
+                    Refresh
+                  </Button>
+                )}
+              </div>
+            </PanelFooter>
+          </Panel>
+        ) : (
+          <>
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <AlertTriangle className="h-5 w-5 text-orange-500" />
+                Schedule Conflicts
+              </DialogTitle>
+              <DialogDescription>
+                Review and resolve scheduling conflicts for this event
+              </DialogDescription>
+            </DialogHeader>
+
+            {isLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+              </div>
+            ) : conflicts.length === 0 ? (
+              <Alert>
+                <CheckCircle className="h-4 w-4" />
+                <AlertDescription>
+                  No scheduling conflicts detected. Your event schedule looks good!
+                </AlertDescription>
+              </Alert>
+            ) : (
+              <div className="space-y-4">
+                {/* Summary */}
+                <div className="flex items-center justify-between p-4 bg-muted rounded-lg">
+                  <div>
+                    <h3 className="font-medium">Found {conflicts.length} conflict{conflicts.length !== 1 ? 's' : ''}</h3>
+                    <p className="text-sm text-muted-foreground">
+                      {selectedConflicts.size} selected for resolution
+                    </p>
+                  </div>
+                  {selectedConflicts.size > 0 && (
+                    <Button
+                      onClick={handleApplyAll}
+                      disabled={applyAllMutation.isPending}
+                      className="ml-4"
+                    >
+                      {applyAllMutation.isPending ? 'Resolving...' : `Resolve ${selectedConflicts.size} Selected`}
+                    </Button>
+                  )}
+                </div>
+
+                {/* Conflicts List */}
+                <div className="space-y-3">
+                  {conflicts.map((conflict) => (
+                    <Card key={conflict.id} className={`transition-colors ${
+                      selectedConflicts.has(conflict.id) ? 'ring-2 ring-primary' : ''
+                    }`}>
+                      <CardHeader className="pb-3">
+                        <div className="flex items-start justify-between">
+                          <div className="flex items-center gap-2">
+                            {getConflictIcon(conflict.type)}
+                            <CardTitle className="text-base">{conflict.description}</CardTitle>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Badge variant={getConflictBadgeVariant(conflict.type)}>
+                              {conflict.type.replace('_', ' ')}
+                            </Badge>
+                            <input
+                              type="checkbox"
+                              checked={selectedConflicts.has(conflict.id)}
+                              onChange={() => handleConflictSelect(conflict.id)}
+                              className="rounded border-gray-300"
+                            />
+                          </div>
+                        </div>
+                      </CardHeader>
+                      
+                      <CardContent className="pt-0">
+                        <div className="space-y-3">
+                          {/* Affected Tasks */}
+                          <div>
+                            <h4 className="text-sm font-medium mb-2">Affected Tasks:</h4>
+                            <div className="flex flex-wrap gap-1">
+                              {conflict.affectedTasks.map((taskId) => (
+                                <Badge key={taskId} variant="outline" className="text-xs">
+                                  {taskId}
+                                </Badge>
+                              ))}
+                            </div>
+                          </div>
+
+                          {/* Suggested Fix */}
+                          {conflict.suggestedFix && (
+                            <div className="p-3 bg-muted rounded-lg">
+                              <div className="flex items-center justify-between mb-2">
+                                <h4 className="text-sm font-medium">Suggested Fix:</h4>
+                                <Badge variant={getActionBadgeVariant(conflict.suggestedFix.action)}>
+                                  {conflict.suggestedFix.action.replace('_', ' ')}
+                                </Badge>
+                              </div>
+                              <p className="text-sm text-muted-foreground mb-3">
+                                {conflict.suggestedFix.action === 'reschedule' && 
+                                  `Reschedule to ${formatDateTime(conflict.suggestedFix.newValue)}`
+                                }
+                                {conflict.suggestedFix.action === 'extend_buffer' && 
+                                  `Extend buffer to ${conflict.suggestedFix.newValue} minutes`
+                                }
+                                {conflict.suggestedFix.action === 'remove_dependency' && 
+                                  'Remove dependency constraint'
+                                }
+                              </p>
+                              <Button
+                                size="sm"
+                                onClick={() => handleApplyFix(conflict)}
+                                disabled={applyFixMutation.isPending}
+                                className="w-full"
+                              >
+                                {applyFixMutation.isPending ? 'Applying...' : 'Apply Fix'}
+                              </Button>
+                            </div>
+                          )}
+
+                          {!conflict.suggestedFix && (
+                            <Alert>
+                              <XCircle className="h-4 w-4" />
+                              <AlertDescription>
+                                No automatic fix available. Please resolve this conflict manually.
+                              </AlertDescription>
+                            </Alert>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+
+                {/* Actions */}
+                <div className="flex justify-end gap-2 pt-4 border-t">
+                  <Button variant="outline" onClick={onClose}>
+                    Close
+                  </Button>
+                  {conflicts.length > 0 && (
+                    <Button
+                      onClick={() => refetch()}
+                      variant="secondary"
+                    >
+                      Refresh
+                    </Button>
+                  )}
+                </div>
+              </div>
+            )}
+          </>
         )}
       </DialogContent>
     </Dialog>

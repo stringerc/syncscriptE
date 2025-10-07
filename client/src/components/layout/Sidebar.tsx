@@ -23,20 +23,21 @@ import { useSidebar } from '@/contexts/SidebarContext'
 import { SyncScriptLogo } from '@/components/SyncScriptLogo'
 
 const navigation = [
-  { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+  { name: 'Dashboard', href: '/zero-api', icon: LayoutDashboard },
   { name: 'Tasks', href: '/tasks', icon: CheckSquare },
   { name: 'Calendar', href: '/calendar', icon: Calendar },
     { name: 'Multi-Calendar', href: '/multi-calendar', icon: ExternalLink },
     { name: 'Export', href: '/export', icon: Download },
-  { name: 'Financial', href: '/financial', icon: DollarSign, comingSoon: true },
+  { name: 'Financial', href: '/financial', icon: DollarSign },
   { name: 'AI Assistant', href: '/ai-assistant', icon: Brain },
   { name: 'Scripts', href: '/templates', icon: BookTemplate },
   { name: 'ShareSync', href: '/projects', icon: Folder },
   { name: 'Profile', href: '/profile', icon: User },
   { name: 'Friends', href: '/friends', icon: Users },
   { name: 'Achievements', href: '/gamification', icon: Trophy },
-  { name: 'Notifications', href: '/notifications', icon: Bell, comingSoon: true },
+  { name: 'Notifications', href: '/notifications', icon: Bell },
   { name: 'Settings', href: '/settings', icon: Settings },
+  { name: 'Pricing', href: '/pricing', icon: DollarSign },
 ]
 
 export function Sidebar() {
@@ -45,6 +46,9 @@ export function Sidebar() {
   const queryClient = useQueryClient()
 
   const prefetchData = (href: string) => {
+    // DISABLED for Zero-API mode - no prefetching to avoid unnecessary API calls
+    return;
+
     if (!user) return
 
         // Only prefetch if data is not already cached or is stale

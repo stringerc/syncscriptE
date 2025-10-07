@@ -91,21 +91,23 @@ const GamificationPage: React.FC = () => {
   }
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Trophy className="h-8 w-8 text-yellow-600" />
-          <div>
-            <h1 className="text-3xl font-bold">Achievements</h1>
-            <p className="text-gray-600">
-              Track your progress, earn achievements, and level up!
-            </p>
-          </div>
+    <div className="container mx-auto p-6 space-y-8 animate-fade-in">
+      {/* Header with Gradient */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-yellow-500 via-orange-500 to-red-600 p-8 text-white shadow-2xl">
+        <div className="absolute inset-0 bg-black/10"></div>
+        <div className="relative z-10">
+          <h1 className="text-4xl font-bold mb-2 flex items-center gap-3">
+            <Trophy className="w-10 h-10" />
+            Achievements
+          </h1>
+          <p className="text-white/90 text-lg">
+            Track your progress, earn achievements, and level up! • Level {stats?.level || 1} • {stats?.points || 0} points
+          </p>
         </div>
-        
-        {/* Achievements Toggle */}
-        <Card className="w-80">
+      </div>
+
+      {/* Achievements Toggle */}
+      <Card className="w-80">
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center justify-between text-lg">
               <div className="flex items-center gap-2">
@@ -135,7 +137,6 @@ const GamificationPage: React.FC = () => {
             </CardDescription>
           </CardHeader>
         </Card>
-      </div>
 
       {/* Level Progress */}
       {levelProgress && (

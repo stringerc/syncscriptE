@@ -311,22 +311,29 @@ const MultiCalendarPage = () => {
     .slice(0, 5);
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Multi-Calendar Integration</h1>
-          <p className="text-muted-foreground">
-            Connect and manage multiple calendar providers
-          </p>
+    <div className="container mx-auto p-6 space-y-8 animate-fade-in">
+      {/* Header with Gradient */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-cyan-500 via-blue-500 to-indigo-600 p-8 text-white shadow-2xl">
+        <div className="absolute inset-0 bg-black/10"></div>
+        <div className="relative z-10 flex items-center justify-between">
+          <div>
+            <h1 className="text-4xl font-bold mb-2 flex items-center gap-3">
+              <Calendar className="w-10 h-10" />
+              Multi-Calendar Integration
+            </h1>
+            <p className="text-white/90 text-lg">
+              Connect and manage multiple calendar providers • {providers.length} connected • {events.length} events
+            </p>
+          </div>
+          <Button
+            onClick={handleRefreshTokens}
+            disabled={refreshTokensMutation.isPending}
+            className="bg-white/20 hover:bg-white/30 backdrop-blur-sm border-white/30 text-white text-lg px-6 py-6 shadow-xl hover:shadow-2xl transition-all duration-300"
+          >
+            <RefreshCw className={`h-5 w-5 mr-2 ${refreshTokensMutation.isPending ? 'animate-spin' : ''}`} />
+            Refresh Tokens
+          </Button>
         </div>
-        <Button 
-          onClick={handleRefreshTokens}
-          disabled={refreshTokensMutation.isPending}
-          variant="outline"
-        >
-          <RefreshCw className="h-4 w-4 mr-2" />
-          Refresh Tokens
-        </Button>
       </div>
 
       {/* Apple Calendar Integration Section */}
@@ -464,16 +471,16 @@ const MultiCalendarPage = () => {
               </CardTitle>
               <CardDescription>
                 {isProviderConnected('google') ? (
-                  <div className="space-y-1">
-                    <p>Connected on {new Date(providers.find(p => p.provider === 'google')?.connectedAt || '').toLocaleDateString()}</p>
+                  <span className="space-y-1 block">
+                    <span className="block">Connected on {new Date(providers.find(p => p.provider === 'google')?.connectedAt || '').toLocaleDateString()}</span>
                     {providers.find(p => p.provider === 'google')?.expiresAt && (
-                      <p className="text-xs text-muted-foreground">
+                      <span className="text-xs text-muted-foreground block">
                         Expires: {new Date(providers.find(p => p.provider === 'google')?.expiresAt || '').toLocaleDateString()}
-                      </p>
+                      </span>
                     )}
-                  </div>
+                  </span>
                 ) : (
-                  <p>Connect your Google Calendar to sync events</p>
+                  <span>Connect your Google Calendar to sync events</span>
                 )}
               </CardDescription>
             </CardHeader>
@@ -526,16 +533,16 @@ const MultiCalendarPage = () => {
               </CardTitle>
               <CardDescription>
                 {isProviderConnected('outlook') ? (
-                  <div className="space-y-1">
-                    <p>Connected on {new Date(providers.find(p => p.provider === 'outlook')?.connectedAt || '').toLocaleDateString()}</p>
+                  <span className="space-y-1 block">
+                    <span className="block">Connected on {new Date(providers.find(p => p.provider === 'outlook')?.connectedAt || '').toLocaleDateString()}</span>
                     {providers.find(p => p.provider === 'outlook')?.expiresAt && (
-                      <p className="text-xs text-muted-foreground">
+                      <span className="text-xs text-muted-foreground block">
                         Expires: {new Date(providers.find(p => p.provider === 'outlook')?.expiresAt || '').toLocaleDateString()}
-                      </p>
+                      </span>
                     )}
-                  </div>
+                  </span>
                 ) : (
-                  <p>Connect your Outlook Calendar to sync events</p>
+                  <span>Connect your Outlook Calendar to sync events</span>
                 )}
               </CardDescription>
             </CardHeader>

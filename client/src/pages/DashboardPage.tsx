@@ -47,6 +47,9 @@ import { formatDate, formatTime, formatDateTime, formatCurrency, getPriorityColo
 import { EventModal } from '@/components/EventModal'
 import { TaskModal } from '@/components/TaskModal'
 import { ResourcesDrawer } from '@/components/ResourcesDrawer'
+import AIEnergyCoach from '@/components/AIEnergyCoach'
+import VoiceCommands from '@/components/VoiceCommands'
+import AdvancedAnalytics from '@/components/AdvancedAnalytics'
 import { Task, Event, Achievement, Streak, Notification } from '@/shared/types'
 
 interface DashboardData {
@@ -1581,6 +1584,15 @@ export function DashboardPage() {
 
       {/* Pinned Events Rail */}
       <PinnedEventsRail />
+
+      {/* AI Energy Coach */}
+      <AIEnergyCoach />
+
+      {/* Voice Commands */}
+      <VoiceCommands />
+
+      {/* Advanced Analytics */}
+      <AdvancedAnalytics />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Today's Tasks */}

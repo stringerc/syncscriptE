@@ -1,4 +1,4 @@
-import { Search, User, LogOut, Settings, UserCircle, Clock, Calendar, CheckCircle, MessageSquare, Loader2, Trophy, Menu, Sun, Moon } from 'lucide-react'
+import { Search, User, LogOut, Settings, UserCircle, Clock, Calendar, CheckCircle, MessageSquare, Loader2, Trophy, Menu, Sun, Moon, Bell } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useAuthStore } from '@/stores/authStore'
@@ -6,8 +6,8 @@ import { useState, useCallback, useEffect, useMemo } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { NotificationCenter } from '@/components/notifications/NotificationCenter'
 import { BriefModal } from '@/components/brief/BriefModal'
-import { useQuery } from '@tanstack/react-query'
-import { api } from '@/lib/api'
+// import { useQuery } from '@tanstack/react-query' // Disabled for performance
+// import { api } from '@/lib/api' // Disabled for performance
 import { AnimatedCounter } from '@/components/AnimatedCounter'
 // Removed animation context import
 import { getWeatherIcon } from '@/utils/weatherIcons'
@@ -49,23 +49,9 @@ export function Header() {
     return () => clearTimeout(timer)
   }, [searchQuery])
 
-  // Search query
-  const { data: searchResults, isLoading: isSearching } = useQuery({
-    queryKey: ['header-search', debouncedQuery],
-    queryFn: async () => {
-      if (!debouncedQuery.trim() || debouncedQuery.trim().length < 2) return { tasks: [], events: [], totalResults: 0 }
-      
-      try {
-        const response = await api.get(`/search?q=${encodeURIComponent(debouncedQuery.trim())}`)
-        return response.data.data || response.data
-      } catch (error) {
-        console.error('Search error:', error)
-        return { tasks: [], events: [], totalResults: 0 }
-      }
-    },
-    enabled: !!debouncedQuery.trim() && debouncedQuery.trim().length >= 2,
-    staleTime: 5 * 60 * 1000, // 5 minutes
-  })
+  // Search query - DISABLED for performance
+  const searchResults = { tasks: [], events: [], totalResults: 0 }
+  const isSearching = false
 
   // Get user's current location
   useEffect(() => {
@@ -90,32 +76,11 @@ export function Header() {
     }
   }, [])
 
-  // Weather query for header - enable on all pages
-  const { data: currentWeatherData } = useQuery({
-    queryKey: ['current-weather', userLocation],
-    queryFn: async () => {
-      let locationParam = ''
-      if (userLocation) {
-        locationParam = `?lat=${userLocation.lat}&lon=${userLocation.lon}`
-      }
-      const response = await api.get(`/location/weather/current${locationParam}`)
-      return response.data.data || response.data
-    },
-    enabled: true, // Enable weather on all pages
-    staleTime: 10 * 60 * 1000, // 10 minutes
-    refetchOnWindowFocus: false,
-  })
+  // Weather query for header - DISABLED for performance
+  const currentWeatherData = null // Disabled to prevent API calls
 
-  // Achievements query for header - only fetch if not on dashboard
-  const { data: gamificationData } = useQuery({
-    queryKey: ['gamification-summary'],
-    queryFn: async () => {
-      const response = await api.get('/gamification')
-      return response.data.data
-    },
-    enabled: false, // Disabled for performance
-    staleTime: 30 * 1000, // 30 seconds
-  })
+  // Achievements query for header - DISABLED for performance
+  const gamificationData = null // Disabled to prevent API calls
 
 
   // Search handlers
@@ -362,41 +327,48 @@ export function Header() {
           {/* Dashboard Layout: Brief → End Day → Notifications → Name/Energy → Profile → Logout */}
           {isDashboard ? (
             <>
-              {/* Brief Button - Coming Soon */}
+              {/* Brief Button */}
               <Button
                 variant="ghost"
                 size="sm"
-                disabled
-                className="flex items-center gap-1 px-3 opacity-60"
-                title="Morning Brief - Coming Soon"
+                className="flex items-center gap-1 px-3"
+                title="Morning Brief"
+                onClick={() => {
+                  // TODO: Implement morning brief functionality
+                  console.log('Morning brief clicked')
+                }}
               >
                 <Sun className="w-4 h-4" />
                 <span className="text-sm font-medium">Brief</span>
-                <span className="text-xs text-muted-foreground ml-1">(Soon)</span>
               </Button>
 
-              {/* End Day Button - Coming Soon */}
+              {/* End Day Button */}
               <Button
                 variant="ghost"
                 size="sm"
-                disabled
-                className="flex items-center gap-1 px-3 opacity-60"
-                title="Evening Reflection - Coming Soon"
+                className="flex items-center gap-1 px-3"
+                title="Evening Reflection"
+                onClick={() => {
+                  console.log('🌙 End day clicked - Opening evening reflection');
+                  navigate('/home');
+                  // TODO: Add evening reflection modal or page
+                }}
               >
                 <Moon className="w-4 h-4" />
                 <span className="text-sm font-medium">End Day</span>
-                <span className="text-xs text-muted-foreground ml-1">(Soon)</span>
               </Button>
 
-              {/* Notifications - Coming Soon */}
+              {/* Notifications */}
               <Button
                 variant="ghost"
                 size="icon"
-                disabled
-                className="opacity-60"
-                title="Notifications - Coming Soon"
+                title="Notifications"
+                onClick={() => {
+                  console.log('🔔 Notifications clicked - Opening notification center');
+                  navigate('/notifications');
+                }}
               >
-                <MessageSquare className="w-5 h-5" />
+                <Bell className="w-5 h-5" />
               </Button>
               <div className="text-right">
                 <p className="text-sm font-medium text-foreground">

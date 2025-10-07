@@ -11,7 +11,8 @@ const IDEMPOTENCY_TTL = 24 * 60 * 60 * 1000 // 24 hours
  * Idempotency middleware
  * Prevents duplicate operations by checking idempotency keys
  */
-export function idempotencyMiddleware(req: any, res: Response, next: NextFunction) {
+export function idempotencyMiddleware(scope: string) {
+  return (req: any, res: Response, next: NextFunction) => {
   // Only apply to POST, PUT, PATCH operations
   if (!['POST', 'PUT', 'PATCH'].includes(req.method)) {
     return next()
@@ -60,6 +61,7 @@ export function idempotencyMiddleware(req: any, res: Response, next: NextFunctio
   }
 
   next()
+  }
 }
 
 /**

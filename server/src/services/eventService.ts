@@ -80,6 +80,38 @@ export interface AchievementUnlockedEvent {
   unlockedAt: Date;
 }
 
+export interface TentativeHoldSuggestedEvent {
+  holdId: string;
+  userId: string;
+  eventId: string;
+  start: string;
+  end: string;
+  provider: string;
+  key: string;
+  suggestedAt: Date;
+}
+
+export interface TentativeHoldConfirmedEvent {
+  holdId: string;
+  providerEventId: string;
+  key: string;
+  confirmedAt: Date;
+}
+
+export interface TentativeHoldDismissedEvent {
+  holdId: string;
+  key: string;
+  dismissedAt: Date;
+  reason?: string;
+}
+
+export interface SuggestHoldsRequest {
+  userId: string;
+  eventId: string;
+  taskIds?: string[];
+  key: string;
+}
+
 export type DomainEvent = 
   | TaskCompletedEvent
   | ScriptAppliedEvent
@@ -89,7 +121,10 @@ export type DomainEvent =
   | EnergyLevelChangedEvent
   | DailyEnergyResetEvent
   | GamificationEnergyRequestEvent
-  | AchievementUnlockedEvent;
+  | AchievementUnlockedEvent
+  | TentativeHoldSuggestedEvent
+  | TentativeHoldConfirmedEvent
+  | TentativeHoldDismissedEvent;
 
 export type EventType = 
   | 'TaskCompleted'
@@ -100,14 +135,19 @@ export type EventType =
   | 'EnergyLevelChanged'
   | 'DailyEnergyReset'
   | 'GamificationEnergyRequest'
-  | 'AchievementUnlocked';
+  | 'AchievementUnlocked'
+  | 'TentativeHoldSuggested'
+  | 'TentativeHoldConfirmed'
+  | 'TentativeHoldDismissed'
+  | 'AplSuggestRequested';
 
 export type AggregateType = 
   | 'Task'
   | 'Script'
   | 'Calendar'
   | 'Energy'
-  | 'Gamification';
+  | 'Gamification'
+  | 'TentativeHold';
 
 /**
  * Publish an event to the outbox within the current transaction
@@ -331,4 +371,55 @@ export async function cleanupOldEvents(olderThanDays: number = 7): Promise<numbe
   
   logger.info('Cleaned up old events', { count: result.count, cutoffDate });
   return result.count;
+}
+
+/**
+ * Enqueue APL suggest request to outbox
+ * This is used for shadow wiring - enqueues requests without creating holds yet
+ */
+export async function enqueueAplSuggest(req: SuggestHoldsRequest, key: string): Promise<void> {
+  const eventId = uuidv4();
+  const traceContext = getCurrentTraceContext();
+  
+  try {
+    // Include trace context in the request payload
+    const enrichedPayload = {
+      ...req,
+      _trace: traceContext ? {
+        traceId: traceContext.traceId,
+        spanId: traceContext.spanId,
+        operation: traceContext.operation
+      } : undefined
+    };
+    
+    await prisma.outbox.create({
+      data: {
+        eventId,
+        eventType: 'AplSuggestRequested',
+        aggregateType: 'TentativeHold',
+        aggregateId: req.eventId,
+        payload: JSON.stringify(enrichedPayload),
+        status: 'pending',
+        attempts: 0
+      }
+    });
+    
+    logger.info('APL suggest request enqueued to outbox', {
+      eventId,
+      eventType: 'AplSuggestRequested',
+      aggregateId: req.eventId,
+      userId: req.userId,
+      key,
+      traceId: traceContext?.traceId,
+      spanId: traceContext?.spanId
+    });
+  } catch (error) {
+    logger.error('Failed to enqueue APL suggest request', {
+      eventId,
+      error: error instanceof Error ? error.message : 'Unknown error',
+      userId: req.userId,
+      key
+    });
+    throw error;
+  }
 }

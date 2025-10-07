@@ -1,244 +1,316 @@
-import { PrismaClient } from '@prisma/client'
-import { logger } from '../utils/logger'
-// import { notificationService } from './notificationService'
+import { PrismaClient } from '@prisma/client';
+import { logger } from '../utils/logger';
 
-const prisma = new PrismaClient()
+const prisma = new PrismaClient();
 
-export interface ChallengeSession {
-  id: string
-  userId: string
-  challengeId: string
-  startedAt: Date
-  pausedAt?: Date
-  resumedAt?: Date
-  completedAt?: Date
-  elapsedSeconds: number
-  targetDuration: number
-  isPaused: boolean
-  isComplete: boolean
-  partialCredit: boolean
+interface DailyChallenge {
+  id: string;
+  userId: string;
+  challengeType: string;
+  title: string;
+  description: string;
+  targetValue: number;
+  currentValue: number;
+  rewardEmblemId?: string;
+  rewardPoints: number;
+  startDate: Date;
+  endDate: Date;
+  isCompleted: boolean;
+  completedAt?: Date;
 }
 
-export class DailyChallengeService {
-  private static instance: DailyChallengeService
-  private activeSessions = new Map<string, ChallengeSession>()
+class DailyChallengeService {
+  /**
+   * Generate a daily challenge for user
+   */
+  async generateDailyChallenge(userId: string): Promise<DailyChallenge> {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
 
-  static getInstance(): DailyChallengeService {
-    if (!DailyChallengeService.instance) {
-      DailyChallengeService.instance = new DailyChallengeService()
+    // Check if user already has a challenge today
+    const existing = await prisma.$queryRaw`
+      SELECT * FROM daily_challenges
+      WHERE userId = ${userId}
+        AND startDate = date(${today.toISOString()})
+        AND isCompleted = false
+    ` as any[];
+
+    if (existing.length > 0) {
+      return existing[0];
     }
-    return DailyChallengeService.instance
+
+    // Random challenge types
+    const challengeTypes = [
+      {
+        type: 'peak_performance',
+        title: 'Peak Performance',
+        description: 'Complete 3 tasks at PEAK or HIGH energy',
+        targetValue: 3,
+        rewardPoints: 150
+      },
+      {
+        type: 'task_master',
+        title: 'Task Master',
+        description: 'Complete 5 tasks today',
+        targetValue: 5,
+        rewardPoints: 100
+      },
+      {
+        type: 'energy_warrior',
+        title: 'Energy Warrior',
+        description: 'Log your energy 3 times today',
+        targetValue: 3,
+        rewardPoints: 75
+      },
+      {
+        type: 'early_achiever',
+        title: 'Early Achiever',
+        description: 'Complete 2 tasks before 10am',
+        targetValue: 2,
+        rewardPoints: 120
+      },
+      {
+        type: 'streak_keeper',
+        title: 'Streak Keeper',
+        description: 'Maintain your daily streak',
+        targetValue: 1,
+        rewardPoints: 80
+      }
+    ];
+
+    // Randomly select a challenge
+    const challenge = challengeTypes[Math.floor(Math.random() * challengeTypes.length)];
+
+    // Create challenge
+    const newChallenge = await prisma.$queryRaw`
+      INSERT INTO daily_challenges (
+        id, userId, challengeType, title, description,
+        targetValue, currentValue, rewardPoints,
+        startDate, endDate, isCompleted, createdAt, updatedAt
+      ) VALUES (
+        ${this.generateId()},
+        ${userId},
+        ${challenge.type},
+        ${challenge.title},
+        ${challenge.description},
+        ${challenge.targetValue},
+        0,
+        ${challenge.rewardPoints},
+        date(${today.toISOString()}),
+        date(${tomorrow.toISOString()}),
+        false,
+        datetime('now'),
+        datetime('now')
+      )
+      RETURNING *
+    ` as any[];
+
+    logger.info('Daily challenge generated', { 
+          userId,
+      challengeType: challenge.type,
+      title: challenge.title 
+    });
+
+    return newChallenge[0];
   }
 
   /**
-   * Start a challenge session
+   * Get active challenge for user
    */
-  async startChallenge(userId: string, challengeId: string): Promise<ChallengeSession> {
+  async getActiveChallenge(userId: string): Promise<DailyChallenge | null> {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const challenges = await prisma.$queryRaw`
+      SELECT * FROM daily_challenges
+      WHERE userId = ${userId}
+        AND startDate = date(${today.toISOString()})
+      ORDER BY createdAt DESC
+      LIMIT 1
+    ` as any[];
+
+    return challenges.length > 0 ? challenges[0] : null;
+  }
+
+  /**
+   * Update challenge progress
+   */
+  async updateChallengeProgress(
+    userId: string,
+    challengeType: string,
+    increment: number = 1
+  ): Promise<void> {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // Find today's challenge of this type
+    const challenges = await prisma.$queryRaw`
+      SELECT * FROM daily_challenges
+      WHERE userId = ${userId}
+        AND challengeType = ${challengeType}
+        AND startDate = date(${today.toISOString()})
+        AND isCompleted = false
+    ` as any[];
+
+    if (challenges.length === 0) return;
+
+    const challenge = challenges[0];
+    const newValue = challenge.currentValue + increment;
+
+    // Update progress
+    await prisma.$executeRaw`
+      UPDATE daily_challenges
+      SET currentValue = ${newValue},
+          updatedAt = datetime('now')
+      WHERE id = ${challenge.id}
+    `;
+
+    // Check if completed
+    if (newValue >= challenge.targetValue) {
+      await this.completeChallenge(challenge.id, userId);
+    }
+
+    logger.info('Challenge progress updated', { 
+      userId, 
+      challengeType,
+      progress: `${newValue}/${challenge.targetValue}`
+    });
+  }
+
+  /**
+   * Complete a challenge
+   */
+  private async completeChallenge(
+    challengeId: string,
+    userId: string
+  ): Promise<void> {
+    // Mark as completed
+    await prisma.$executeRaw`
+      UPDATE daily_challenges
+      SET isCompleted = true,
+          completedAt = datetime('now'),
+          updatedAt = datetime('now')
+      WHERE id = ${challengeId}
+    `;
+
+    // Get challenge details
+    const challenges = await prisma.$queryRaw`
+      SELECT * FROM daily_challenges WHERE id = ${challengeId}
+    ` as any[];
+
+    if (challenges.length === 0) return;
+
+    const challenge = challenges[0];
+
+    // Award points (via gamification service would go here)
+    logger.info('Challenge completed!', { 
+      userId, 
+      challengeId,
+      title: challenge.title,
+      pointsAwarded: challenge.rewardPoints
+    });
+
+    // Check for emblem unlocks based on challenge completions
+    await this.checkChallengeEmblemUnlocks(userId);
+  }
+
+  /**
+   * Check and unlock challenge-based emblems
+   */
+  private async checkChallengeEmblemUnlocks(userId: string): Promise<void> {
+    // Get total completed challenges
+    const completed = await prisma.$queryRaw`
+      SELECT COUNT(*) as count FROM daily_challenges
+      WHERE userId = ${userId} AND isCompleted = true
+    ` as any[];
+
+    const totalCompleted = completed[0].count;
+
+    // Thunder Storm: Complete 10 challenges
+    if (totalCompleted >= 10) {
+      await this.unlockEmblem(userId, 'emblem_thunder_storm');
+    }
+
+    // Check for 3 challenges in one day
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const todayCompleted = await prisma.$queryRaw`
+      SELECT COUNT(*) as count FROM daily_challenges
+      WHERE userId = ${userId} 
+        AND isCompleted = true
+        AND startDate = date(${today.toISOString()})
+    ` as any[];
+
+    if (todayCompleted[0].count >= 3) {
+      // Phoenix Flame: 3 challenges in one day
+      await this.unlockEmblem(userId, 'emblem_phoenix_flame');
+    }
+  }
+
+  /**
+   * Unlock an emblem
+   */
+  private async unlockEmblem(userId: string, emblemId: string): Promise<void> {
     try {
-      // Get challenge details
-      const challenge = await prisma.dailyChallenge.findUnique({
-        where: { id: challengeId }
-      })
+      const existing = await prisma.$queryRaw`
+        SELECT * FROM user_emblems
+        WHERE userId = ${userId} AND emblemId = ${emblemId}
+      ` as any[];
 
-      if (!challenge) {
-        throw new Error('Challenge not found')
+      if (existing.length === 0) {
+        await prisma.$executeRaw`
+          INSERT INTO user_emblems (
+            id, userId, emblemId, isUnlocked, unlockedAt, 
+            progress, createdAt, updatedAt
+          ) VALUES (
+            ${this.generateId()},
+            ${userId},
+            ${emblemId},
+            true,
+            datetime('now'),
+            100,
+            datetime('now'),
+            datetime('now')
+          )
+        `;
+        logger.info('Emblem unlocked via challenge!', { userId, emblemId });
       }
-
-      // Check if there's already an active session
-      const existingSession = await prisma.challengeSession.findFirst({
-        where: {
-          userId,
-          challengeId,
-          completedAt: null
-        }
-      })
-
-      if (existingSession) {
-        logger.warn('User already has active session for this challenge', { userId, challengeId })
-        
-        // Resume existing session
-        const session: ChallengeSession = {
-          id: existingSession.id,
-          userId,
-          challengeId,
-          startedAt: existingSession.startedAt,
-          elapsedSeconds: existingSession.elapsedSeconds || 0,
-          targetDuration: challenge.requiredMinutes || 10,
-          isPaused: !!existingSession.pausedAt,
-          isComplete: false,
-          partialCredit: false
-        }
-
-        this.activeSessions.set(session.id, session)
-        return session
-      }
-
-      // Create new session
-      const dbSession = await prisma.challengeSession.create({
-        data: {
-          userId,
-          challengeId,
-          startedAt: new Date(),
-          elapsedSeconds: 0,
-          status: 'IN_PROGRESS'
-        }
-      })
-
-      const session: ChallengeSession = {
-        id: dbSession.id,
-        userId,
-        challengeId,
-        startedAt: dbSession.startedAt,
-        elapsedSeconds: 0,
-        targetDuration: challenge.requiredMinutes || 10,
-        isPaused: false,
-        isComplete: false,
-        partialCredit: false
-      }
-
-      this.activeSessions.set(session.id, session)
-
-      // Log analytics
-      const { analyticsService } = await import('./analyticsService')
-      await analyticsService.logEvent(userId, 'challenge_start', { challengeId })
-
-      logger.info('Challenge session started', { userId, challengeId, sessionId: session.id })
-      
-      return session
     } catch (error) {
-      logger.error('Failed to start challenge', { error, userId, challengeId })
-      throw error
+      logger.error('Error unlocking challenge emblem', { userId, emblemId, error });
     }
   }
 
   /**
-   * Pause challenge session
+   * Get challenge statistics for user
    */
-  async pauseChallenge(sessionId: string): Promise<void> {
-    const session = this.activeSessions.get(sessionId)
-    if (!session) {
-      throw new Error('Session not found')
-    }
+  async getChallengeStats(userId: string): Promise<{
+    totalCompleted: number;
+    currentStreak: number;
+    bestStreak: number;
+  }> {
+    const stats = await prisma.$queryRaw`
+      SELECT 
+        COUNT(*) as totalCompleted
+      FROM daily_challenges
+      WHERE userId = ${userId} AND isCompleted = true
+    ` as any[];
 
-    session.isPaused = true
-    session.pausedAt = new Date()
-
-    await prisma.challengeSession.update({
-      where: { id: sessionId },
-      data: {
-        pausedAt: session.pausedAt,
-        elapsedSeconds: session.elapsedSeconds
-      }
-    })
-
-    // Log analytics
-    const { analyticsService } = await import('./analyticsService')
-    await analyticsService.logEvent(session.userId, 'challenge_pause', { 
-      challengeId: session.challengeId,
-      elapsedSeconds: session.elapsedSeconds 
-    })
-
-    logger.info('Challenge session paused', { sessionId, elapsedSeconds: session.elapsedSeconds })
+    return {
+      totalCompleted: stats[0].totalCompleted,
+      currentStreak: 0, // TODO: Calculate streak
+      bestStreak: 0 // TODO: Calculate best streak
+    };
   }
 
   /**
-   * Resume challenge session
+   * Generate unique ID
    */
-  async resumeChallenge(sessionId: string): Promise<void> {
-    const session = this.activeSessions.get(sessionId)
-    if (!session) {
-      throw new Error('Session not found')
-    }
-
-    session.isPaused = false
-    session.resumedAt = new Date()
-
-    await prisma.challengeSession.update({
-      where: { id: sessionId },
-      data: {
-        resumedAt: session.resumedAt
-      }
-    })
-
-    // Log analytics
-    const { analyticsService } = await import('./analyticsService')
-    await analyticsService.logEvent(session.userId, 'challenge_resume', { 
-      challengeId: session.challengeId 
-    })
-
-    logger.info('Challenge session resumed', { sessionId })
-  }
-
-  /**
-   * Complete challenge session
-   */
-  async completeChallenge(sessionId: string, elapsedMinutes: number, partialCredit: boolean): Promise<void> {
-    const session = this.activeSessions.get(sessionId)
-    if (!session) {
-      throw new Error('Session not found')
-    }
-
-    session.isComplete = true
-    session.partialCredit = partialCredit
-    session.completedAt = new Date()
-
-    // Update database
-    await prisma.challengeSession.update({
-      where: { id: sessionId },
-      data: {
-        completedAt: session.completedAt,
-        elapsedSeconds: Math.floor(elapsedMinutes * 60),
-        status: 'COMPLETED',
-        partialCredit
-      }
-    })
-
-    // Award energy points based on completion
-    const pointsMultiplier = partialCredit ? 0.5 : 1.0
-    const basePoints = 20
-    const pointsAwarded = Math.floor(basePoints * pointsMultiplier * (elapsedMinutes / session.targetDuration))
-
-    // Log analytics
-    const { analyticsService } = await import('./analyticsService')
-    await analyticsService.logEvent(session.userId, 'challenge_complete', { 
-      challengeId: session.challengeId,
-      elapsedMinutes,
-      partialCredit,
-      pointsAwarded
-    })
-
-    // Remove from active sessions
-    this.activeSessions.delete(sessionId)
-
-    logger.info('Challenge session completed', { 
-      sessionId, 
-      elapsedMinutes, 
-      partialCredit,
-      pointsAwarded 
-    })
-  }
-
-  /**
-   * Get active session for user
-   */
-  getActiveSession(userId: string): ChallengeSession | null {
-    for (const session of this.activeSessions.values()) {
-      if (session.userId === userId && !session.isComplete) {
-        return session
-      }
-    }
-    return null
-  }
-
-  /**
-   * Update session elapsed time
-   */
-  updateSessionTime(sessionId: string, elapsedSeconds: number): void {
-    const session = this.activeSessions.get(sessionId)
-    if (session) {
-      session.elapsedSeconds = elapsedSeconds
-    }
+  private generateId(): string {
+    return `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   }
 }
 
-export const dailyChallengeService = DailyChallengeService.getInstance()
+export default new DailyChallengeService();

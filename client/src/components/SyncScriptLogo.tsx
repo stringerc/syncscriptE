@@ -1,5 +1,4 @@
 import React from 'react'
-import { BrainLogo } from './BrainLogo'
 
 interface SyncScriptLogoProps {
   className?: string
@@ -17,7 +16,11 @@ export const SyncScriptLogo: React.FC<SyncScriptLogoProps> = ({
   }
 
   return (
-    <BrainLogo className={`${sizeClasses[size]} ${className}`} />
+    <img
+      src="/syncscript-logo.png"
+      alt="SyncScript Logo"
+      className={`${sizeClasses[size]} ${className} object-contain`}
+    />
   )
 }
 

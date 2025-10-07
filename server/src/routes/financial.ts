@@ -23,6 +23,14 @@ const updateAccountSchema = z.object({
   isActive: z.boolean().optional()
 });
 
+const createTransactionSchema = z.object({
+  amount: z.number(),
+  description: z.string().min(1),
+  date: z.string(),
+  category: z.string().optional(),
+  type: z.enum(['income', 'expense']).optional()
+});
+
 // Get all financial accounts
 router.get('/accounts', authenticateToken, asyncHandler(async (req: AuthRequest, res) => {
   const accounts = await prisma.financialAccount.findMany({
@@ -612,6 +620,48 @@ router.post('/plaid/update-balances', authenticateToken, asyncHandler(async (req
     logger.error('Failed to update balances', { error: error.message, userId: req.user!.id });
     throw createError('Failed to update balances', 500);
   }
+}));
+
+// GET /api/financial/transactions - Get all transactions
+router.get('/transactions', authenticateToken, asyncHandler(async (req: AuthRequest, res) => {
+  const userId = req.user!.id;
+  const limit = req.query.limit ? parseInt(req.query.limit as string) : 50;
+  
+  const transactions = await prisma.transaction.findMany({
+    where: { userId },
+    orderBy: { date: 'desc' },
+    take: limit
+  });
+
+  res.json({
+    success: true,
+    data: transactions
+  });
+}));
+
+// POST /api/financial/transactions - Create new transaction
+router.post('/transactions', authenticateToken, asyncHandler(async (req: AuthRequest, res) => {
+  const transactionData = createTransactionSchema.parse(req.body);
+  const userId = req.user!.id;
+
+  const transaction = await prisma.transaction.create({
+    data: {
+      userId,
+      amount: transactionData.type === 'expense' ? -Math.abs(transactionData.amount) : Math.abs(transactionData.amount),
+      description: transactionData.description,
+      date: new Date(transactionData.date),
+      category: transactionData.category,
+      pending: false
+    }
+  });
+
+  logger.info('Transaction created', { userId, transactionId: transaction.id, amount: transaction.amount });
+
+  res.status(201).json({
+    success: true,
+    data: transaction,
+    message: 'Transaction created successfully'
+  });
 }));
 
 export default router;

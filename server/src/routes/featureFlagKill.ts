@@ -21,8 +21,9 @@ router.post('/feature-flag-kill', authenticateToken, asyncHandler(async (req: Au
     });
   }
 
-  // Only allow admin users to kill feature flags
-  if (req.user?.role !== 'admin') {
+  // Only allow admin users to kill feature flags (check email for now)
+  const adminEmails = ['admin@syncscript.com', 'christopher@syncscript.com'];
+  if (!req.user?.email || !adminEmails.includes(req.user.email)) {
     return res.status(403).json({
       success: false,
       error: 'Only admin users can kill feature flags'
@@ -73,8 +74,9 @@ router.post('/feature-flag-kill', authenticateToken, asyncHandler(async (req: Au
  * Get current status of all feature flags
  */
 router.get('/feature-flag-status', authenticateToken, asyncHandler(async (req: AuthRequest, res) => {
-  // Only allow admin users
-  if (req.user?.role !== 'admin') {
+  // Only allow admin users (check email for now)
+  const adminEmails = ['admin@syncscript.com', 'christopher@syncscript.com'];
+  if (!req.user?.email || !adminEmails.includes(req.user.email)) {
     return res.status(403).json({
       success: false,
       error: 'Only admin users can view feature flag status'

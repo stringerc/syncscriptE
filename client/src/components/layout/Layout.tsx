@@ -1,6 +1,6 @@
 import { ReactNode } from 'react'
 import { Sidebar } from './Sidebar'
-import { Header } from './Header'
+import { HeaderClean } from './HeaderClean'
 import { useSidebar } from '@/contexts/SidebarContext'
 
 interface LayoutProps {
@@ -46,7 +46,7 @@ export function Layout({ children }: LayoutProps) {
 
         {/* Main content */}
         <div className="flex-1 flex flex-col overflow-hidden lg:ml-0">
-          <Header />
+          <HeaderClean />
           <main 
             id="main-content"
             className="flex-1 overflow-auto p-4 lg:p-6"

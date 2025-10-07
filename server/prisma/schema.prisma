@@ -122,6 +122,9 @@ model User {
   
   // Daily Energy Snapshots
   energyDailySnapshots     UserEnergyDailySnapshot[]
+  
+  // Auto-Plan & Place (APL)
+  tentativeHolds           TentativeHold[]
 
   @@map("users")
 }
@@ -645,6 +648,7 @@ model Task {
   updatedAt DateTime @updatedAt
   
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tentativeHolds TentativeHold[] // Auto-Plan & Place tentative holds
 
   @@map("tasks")
 }
@@ -696,6 +700,7 @@ model Event {
   resourceSet ResourceSet? // Optional resource set for this event
   budgetEnvelope BudgetEnvelope? // Manual budgeting envelope for this event
   budgetItems EventBudgetItem[] // Event-level budget items
+  tentativeHolds TentativeHold[] // Auto-Plan & Place tentative holds
 
   @@map("events")
 }
@@ -1837,5 +1842,31 @@ model CronLock {
   @@index([jobName, expiresAt])
   @@index([expiresAt])
   @@map("cron_locks")
+}
+
+// Auto-Plan & Place (APL) - Tentative holds for calendar events
+model TentativeHold {
+  id             String   @id @default(cuid())
+  eventId        String
+  taskId         String?  // Optional: if hold is for specific task
+  userId         String
+  provider       String   // "google" | "outlook" | "apple" | "internal"
+  startsAt       DateTime
+  endsAt         DateTime
+  status         String   // "suggested" | "confirmed" | "dismissed"
+  idempotencyKey String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  event       Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  task        Task?    @relation(fields: [taskId], references: [id], onDelete: SetNull)
+
+  @@unique([idempotencyKey])
+  @@index([eventId, provider, startsAt])
+  @@index([userId, eventId])
+  @@index([status])
+  @@index([provider])
+  @@map("tentative_holds")
 }
 

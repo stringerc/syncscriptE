@@ -59,10 +59,17 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
   const { data, isLoading, refetch } = useQuery({
     queryKey: ['notifications'],
     queryFn: async () => {
-      const response = await api.get('/notifications')
-      return response.data.data
+      try {
+        const response = await api.get('/notifications')
+        return response.data.data
+      } catch (error) {
+        // Silently fail - notifications not critical for new modes
+        console.log('ℹ️ Notifications unavailable (using new mode system)');
+        return [];
+      }
     },
     refetchInterval: 30000, // Refetch every 30 seconds
+    retry: false, // Don't retry on failure
   })
 
   const notifications: Notification[] = Array.isArray(data) ? data : []

@@ -13,7 +13,7 @@ export function metricsMiddleware(req: Request, res: Response, next: NextFunctio
   
   // Override res.end to capture response status and duration
   const originalEnd = res.end;
-  res.end = function(chunk?: any, encoding?: any) {
+  res.end = function(chunk?: any, encoding?: any, cb?: () => void): any {
     const duration = Date.now() - startTime;
     const statusCode = res.statusCode;
     
@@ -21,7 +21,7 @@ export function metricsMiddleware(req: Request, res: Response, next: NextFunctio
     metricsService.recordHttpRequest(route, method, statusCode, duration);
     
     // Call original end
-    originalEnd.call(this, chunk, encoding);
+    return originalEnd.call(this, chunk, encoding, cb);
   };
   
   next();

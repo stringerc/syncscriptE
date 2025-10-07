@@ -141,26 +141,28 @@ export function FriendsPage() {
   }
 
   return (
-    <div className="container max-w-6xl mx-auto p-6 space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold flex items-center gap-2">
-            <Users className="w-8 h-8" />
+    <div className="container max-w-6xl mx-auto p-6 space-y-8 animate-fade-in">
+      {/* Header with Gradient */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-pink-500 via-rose-500 to-red-500 p-8 text-white shadow-2xl">
+        <div className="absolute inset-0 bg-black/10"></div>
+        <div className="relative z-10">
+          <h1 className="text-4xl font-bold mb-2 flex items-center gap-3">
+            <Users className="w-10 h-10" />
             Friends
           </h1>
-          <p className="text-muted-foreground mt-1">
-            Manage your friends and privacy settings
+          <p className="text-white/90 text-lg">
+            Manage your friends and privacy settings • {friends.length} friends • {(requests.sent?.length || 0) + (requests.received?.length || 0)} pending
           </p>
         </div>
+      </div>
 
-        <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <UserPlus className="w-4 h-4 mr-2" />
-              Add Friend
-            </Button>
-          </DialogTrigger>
+      <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+        <DialogTrigger asChild>
+          <Button>
+            <UserPlus className="w-4 h-4 mr-2" />
+            Add Friend
+          </Button>
+        </DialogTrigger>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Send Friend Request</DialogTitle>
@@ -199,7 +201,6 @@ export function FriendsPage() {
             </div>
           </DialogContent>
         </Dialog>
-      </div>
 
       {/* Tabs */}
       <Tabs defaultValue="friends" className="space-y-6">

@@ -6,7 +6,20 @@
  * once the registry is fully integrated.
  */
 
-import { NavLink } from 'react-router-dom'
+import React, { useState, useEffect } from 'react'
+import { NavLink, useLocation } from 'react-router-dom'
+import { ChevronDown, ChevronRight } from 'lucide-react'
+import { cn } from '@/lib/utils'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
+import { useAuthStore } from '@/stores/authStore'
+import { useQueryClient } from '@tanstack/react-query'
+import { useSidebar } from '@/contexts/SidebarContext'
+import { SyncScriptLogo } from '@/components/SyncScriptLogo'
+import { useFeatureFlags } from '@/contexts/FeatureFlagsContext'
+import { navigationRegistry, getFilteredNavigation, NavSection, NavItem } from '@/nav/registry'
+import { telemetryService } from '@/services/telemetryService'
 import { 
   LayoutDashboard, 
   CheckSquare, 
@@ -18,14 +31,9 @@ import {
   Users,
   BookTemplate,
   Folder,
+  Brain,
   Flag
 } from 'lucide-react'
-import { cn } from '@/lib/utils'
-import { useAuthStore } from '@/stores/authStore'
-import { useQueryClient } from '@tanstack/react-query'
-import { useSidebar } from '@/contexts/SidebarContext'
-import { SyncScriptLogo } from '@/components/SyncScriptLogo'
-import { useFeatureFlags } from '@/contexts/FeatureFlagsContext'
 
 // Icon mapping for registry icons
 const iconMap: Record<string, any> = {
@@ -39,93 +47,108 @@ const iconMap: Record<string, any> = {
   Users,
   BookTemplate,
   Folder,
+  Brain,
   Flag
 }
 
-// Mock navigation registry data (in real implementation, this would be imported)
-const navigationSections = [
-  {
-    title: "Core",
-    items: [
-      {
-        name: "Dashboard",
-        href: "/dashboard",
-        icon: "LayoutDashboard"
-      },
-      {
-        name: "Tasks",
-        href: "/tasks",
-        icon: "CheckSquare"
-      },
-      {
-        name: "Calendar",
-        href: "/calendar",
-        icon: "Calendar"
-      }
-    ]
-  },
-  {
-    title: "Plan",
-    items: [
-      {
-        name: "Projects",
-        href: "/projects",
-        icon: "Folder",
-        featureFlag: "shareScript"
-      },
-      {
-        name: "Templates",
-        href: "/templates",
-        icon: "BookTemplate",
-        featureFlag: "templates"
-      }
-    ]
-  },
-  {
-    title: "People",
-    items: [
-      {
-        name: "Friends",
-        href: "/friends",
-        icon: "Users",
-        featureFlag: "friends"
-      }
-    ]
-  },
-  {
-    title: "Me",
-    items: [
-      {
-        name: "Progress",
-        href: "/gamification",
-        icon: "Trophy"
-      },
-      {
-        name: "Notifications",
-        href: "/notifications",
-        icon: "Bell",
-        comingSoon: true,
-        featureFlag: "notifications"
-      },
-      {
-        name: "Profile",
-        href: "/profile",
-        icon: "User"
-      },
-      {
-        name: "Settings",
-        href: "/settings",
-        icon: "Settings"
-      }
-    ]
+// Individual navigation item component
+interface NavItemProps {
+  item: NavItem
+  location: any
+  closeSidebar: () => void
+  prefetchData: (href: string) => void
+}
+
+function NavigationItem({ item, location, closeSidebar, prefetchData }: NavItemProps) {
+  const IconComponent = iconMap[item.icon] || Settings
+  const isActive = location.pathname === item.href
+
+  if (item.comingSoon) {
+    return (
+      <div className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-muted-foreground cursor-not-allowed opacity-60">
+        <IconComponent className="h-5 w-5" />
+        {item.name}
+        <Badge variant="secondary" className="ml-auto text-xs">
+          Soon
+        </Badge>
+      </div>
+    )
   }
-]
+
+  return (
+    <NavLink
+      to={item.href}
+      className={({ isActive }) =>
+        cn(
+          'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200 hover:bg-accent/50 hover:text-accent-foreground group focus:ring-2 focus:ring-brand-primary focus:ring-offset-2 focus:outline-none',
+          isActive 
+            ? 'bg-accent text-accent-foreground shadow-sm' 
+            : 'text-muted-foreground hover:text-foreground'
+        )
+      }
+      onClick={() => {
+        // Record navigation click
+        telemetryService.recordNavClick(item.id);
+        
+        // Close sidebar on mobile after navigation
+        if (window.innerWidth < 1024) {
+          closeSidebar()
+        }
+      }}
+      onMouseEnter={() => {
+        if (item.href === '/dashboard') {
+          prefetchData(item.href)
+        }
+      }}
+      aria-current={isActive ? 'page' : undefined}
+    >
+      <IconComponent className={cn(
+        "h-5 w-5 transition-colors",
+        isActive ? "text-accent-foreground" : "text-muted-foreground group-hover:text-foreground"
+      )} />
+      <span className="flex-1">{item.name}</span>
+      {item.badge && (
+        <Badge 
+          variant={item.badge.variant || 'default'} 
+          className="ml-auto text-xs font-medium"
+        >
+          {item.badge.count}
+        </Badge>
+      )}
+    </NavLink>
+  )
+}
 
 export function RegistrySidebar() {
   const { user } = useAuthStore()
   const { closeSidebar } = useSidebar()
   const queryClient = useQueryClient()
   const { flags } = useFeatureFlags()
+  const location = useLocation()
+  
+  // State for collapsible sections
+  const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({})
+
+  // Load collapsed state from localStorage on mount
+  useEffect(() => {
+    const saved = localStorage.getItem('sidebar-collapsed-sections')
+    if (saved) {
+      try {
+        setCollapsedSections(JSON.parse(saved))
+      } catch (e) {
+        console.warn('Failed to parse collapsed sections from localStorage')
+      }
+    }
+  }, [])
+
+  // Save collapsed state to localStorage
+  const toggleSection = (sectionId: string) => {
+    setCollapsedSections(prev => {
+      const newState = { ...prev, [sectionId]: !prev[sectionId] }
+      localStorage.setItem('sidebar-collapsed-sections', JSON.stringify(newState))
+      return newState
+    })
+  }
 
   const prefetchData = (href: string) => {
     if (!user) return
@@ -138,93 +161,74 @@ export function RegistrySidebar() {
       queryClient.prefetchQuery({
         queryKey,
         queryFn: async () => {
-          const response = await api.get('/user/dashboard')
-          return response.data
+          const response = await fetch('/api/user/dashboard')
+          return response.json()
         },
         staleTime: 5 * 60 * 1000, // 5 minutes
       })
     }
   }
 
-  const getFilteredNavigation = () => {
-    return navigationSections.map(section => ({
-      ...section,
-      items: section.items.filter(item => {
-        // Filter by feature flags
-        if (item.featureFlag && !flags[item.featureFlag as keyof typeof flags]) {
-          return false
-        }
-        return true
-      })
-    })).filter(section => section.items.length > 0)
-  }
-
-  const filteredNavigation = getFilteredNavigation()
+  // Get filtered navigation using our registry
+  const filteredNavigation = getFilteredNavigation(flags, user?.role || 'user')
 
   return (
     <aside 
-      className="fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r bg-background transition-transform duration-300 ease-in-out data-[state=open]:translate-x-0 lg:translate-x-0" 
+      className="fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r border-border bg-background/95 backdrop-blur-sm transition-transform duration-300 ease-in-out data-[state=open]:translate-x-0 lg:translate-x-0" 
       onClick={closeSidebar}
+      role="navigation"
+      aria-label="Main navigation"
     >
-      <div className="flex h-14 items-center justify-between border-b px-4 lg:px-6 flex-shrink-0">
-        <div className="flex items-center space-x-2">
+      <div className="flex h-16 items-center justify-between border-b border-border px-4 lg:px-6 flex-shrink-0 bg-background/80 backdrop-blur-sm">
+        <div className="flex items-center space-x-3">
           <SyncScriptLogo size="sm" />
           <h1 className="text-xl font-bold text-foreground">SyncScript</h1>
         </div>
       </div>
 
       {/* Navigation - Scrollable */}
-      <nav className="flex-1 p-4 space-y-6 overflow-y-auto">
-        {filteredNavigation.map((section) => (
-          <div key={section.title} className="space-y-2">
-            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-              {section.title}
-            </h3>
-            <div className="space-y-1">
-              {section.items.map((item) => {
-                const IconComponent = iconMap[item.icon] || Settings
-                
-                return (
-                  <div key={item.name} className="relative">
-                    {item.comingSoon ? (
-                      <div className="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground cursor-not-allowed">
-                        <IconComponent className="h-5 w-5" />
-                        {item.name}
-                        <span className="ml-auto text-xs bg-muted px-2 py-0.5 rounded-full">
-                          Soon
-                        </span>
-                      </div>
-                    ) : (
-                      <NavLink
-                        to={item.href}
-                        className={({ isActive }) =>
-                          cn(
-                            'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-all hover:bg-accent hover:text-accent-foreground',
-                            isActive ? 'bg-accent text-accent-foreground' : 'text-muted-foreground'
-                          )
-                        }
-                        onClick={(e) => {
-                          // Close sidebar on mobile after navigation
-                          if (window.innerWidth < 1024) {
-                            closeSidebar()
-                          }
-                        }}
-                        onMouseEnter={() => {
-                          if (item.href === '/dashboard') {
-                            prefetchData(item.href)
-                          }
-                        }}
-                      >
-                        <IconComponent className="h-5 w-5" />
-                        {item.name}
-                      </NavLink>
-                    )}
+      <nav className="flex-1 p-4 space-y-6 overflow-y-auto scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
+        {filteredNavigation.map((section) => {
+          const isCollapsed = collapsedSections[section.id] ?? section.defaultCollapsed
+          
+          return (
+            <div key={section.id} className="space-y-2">
+              {section.collapsible ? (
+                <Collapsible open={!isCollapsed} onOpenChange={() => toggleSection(section.id)}>
+                  <CollapsibleTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      className="w-full justify-between p-0 h-auto font-semibold text-xs uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      <span>{section.title}</span>
+                      {isCollapsed ? (
+                        <ChevronRight className="h-4 w-4 transition-transform" />
+                      ) : (
+                        <ChevronDown className="h-4 w-4 transition-transform" />
+                      )}
+                    </Button>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent className="space-y-1 mt-2 data-[state=closed]:animate-collapse-up data-[state=open]:animate-collapse-down">
+                    {section.items.map((item) => (
+                      <NavigationItem key={item.id} item={item} location={location} closeSidebar={closeSidebar} prefetchData={prefetchData} />
+                    ))}
+                  </CollapsibleContent>
+                </Collapsible>
+              ) : (
+                <>
+                  <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-3">
+                    {section.title}
+                  </h3>
+                  <div className="space-y-1">
+                    {section.items.map((item) => (
+                      <NavigationItem key={item.id} item={item} location={location} closeSidebar={closeSidebar} prefetchData={prefetchData} />
+                    ))}
                   </div>
-                )
-              })}
+                </>
+              )}
             </div>
-          </div>
-        ))}
+          )
+        })}
       </nav>
     </aside>
   )

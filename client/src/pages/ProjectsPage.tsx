@@ -20,7 +20,7 @@ export function ProjectsPage() {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
   const { isFlagEnabled } = useFeatureFlags()
-  const shareScriptEnabled = isFlagEnabled('shareScript')
+  const shareScriptEnabled = true // Always enabled for UI polish phase
 
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
   const [newProjectName, setNewProjectName] = useState('')
@@ -86,26 +86,32 @@ export function ProjectsPage() {
   }
 
   return (
-    <div className="container max-w-7xl mx-auto p-6 space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold flex items-center gap-2">
-            <Folder className="w-8 h-8" />
-            ShareSync
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            Collaborate with your team on shared events and tasks
-          </p>
+    <div className="container max-w-7xl mx-auto p-6 space-y-8 animate-fade-in">
+      {/* Header with Gradient */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-violet-500 via-purple-500 to-fuchsia-600 p-8 text-white shadow-2xl">
+        <div className="absolute inset-0 bg-black/10"></div>
+        <div className="relative z-10 flex items-center justify-between">
+          <div>
+            <h1 className="text-4xl font-bold mb-2 flex items-center gap-3">
+              <Folder className="w-10 h-10" />
+              ShareSync
+            </h1>
+            <p className="text-white/90 text-lg">
+              Collaborate with your team on shared events and tasks
+            </p>
+          </div>
+          <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+            <DialogTrigger asChild>
+              <Button className="bg-white/20 hover:bg-white/30 backdrop-blur-sm border-white/30 text-white text-lg px-6 py-6 shadow-xl hover:shadow-2xl transition-all duration-300">
+                <Plus className="w-5 h-5 mr-2" />
+                New Project
+              </Button>
+            </DialogTrigger>
+          </Dialog>
         </div>
+      </div>
 
-        <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="w-4 h-4 mr-2" />
-              New Project
-            </Button>
-          </DialogTrigger>
+      <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Create New Project</DialogTitle>
@@ -143,7 +149,6 @@ export function ProjectsPage() {
             </div>
           </DialogContent>
         </Dialog>
-      </div>
 
       {/* Projects Grid */}
       {isLoading ? (

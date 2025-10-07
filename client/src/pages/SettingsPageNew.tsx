@@ -9,8 +9,10 @@ import { Switch } from '@/components/ui/switch'
 import { Separator } from '@/components/ui/separator'
 import { useToast } from '@/hooks/use-toast'
 import { getCurrentTimezone } from '@/utils/timezone'
-import { User, Bell, Shield, Palette, Save, Loader2 } from 'lucide-react'
+import { User, Bell, Shield, Palette, Save, Loader2, Mail, Calendar } from 'lucide-react'
 import { useAuthStore } from '@/stores/authStore'
+// import { EmailSettings } from '@/components/settings/EmailSettings'
+// import { CalendarSyncSettings } from '@/components/settings/CalendarSyncSettings'
 
 interface UserSettings {
   id: string
@@ -34,11 +36,14 @@ interface UserProfile {
   timezone: string
 }
 
-export function SettingsPage() {
+export function SettingsPageNew() {
   const { toast } = useToast()
   const queryClient = useQueryClient()
   const { updateUser } = useAuthStore()
   const [isLoading, setIsLoading] = useState(false)
+
+  console.log('🚀🚀🚀 NEW SETTINGS PAGE LOADED - THIS IS THE CORRECT ONE! 🚀🚀🚀')
+  console.log('🎯 SettingsPageNew component is now active!')
 
   // Form state
   const [profileData, setProfileData] = useState({
@@ -208,11 +213,16 @@ export function SettingsPage() {
   ]
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">Settings</h1>
-          <p className="text-muted-foreground mt-1">
+    <div className="space-y-8 animate-fade-in">
+      {/* Header with Gradient */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-600 via-gray-600 to-zinc-700 p-8 text-white shadow-2xl">
+        <div className="absolute inset-0 bg-black/10"></div>
+        <div className="relative z-10">
+          <h1 className="text-4xl font-bold mb-2 flex items-center gap-3">
+            <Shield className="w-10 h-10" />
+            Settings
+          </h1>
+          <p className="text-white/90 text-lg">
             Customize your SyncScript experience
           </p>
         </div>
@@ -499,6 +509,12 @@ export function SettingsPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Email Integration */}
+      {/* <EmailSettings /> */}
+
+      {/* Calendar Sync */}
+      {/* <CalendarSyncSettings /> */}
     </div>
   )
 }

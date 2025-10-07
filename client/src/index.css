@@ -1,3 +1,7 @@
+/* Import SyncScript Design System */
+@import './styles/design-tokens.css';
+@import './styles/theme.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -10,7 +14,7 @@
     --card-foreground: 222.2 84% 4.9%;
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
-    --primary: 221.2 83.2% 53.3%;
+    --primary: 221.2 83.2% 53.3%; /* Brand blue */
     --primary-foreground: 210 40% 98%;
     --secondary: 210 40% 96%;
     --secondary-foreground: 222.2 84% 4.9%;
@@ -22,8 +26,13 @@
     --destructive-foreground: 210 40% 98%;
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
-    --ring: 221.2 83.2% 53.3%;
+    --ring: 221.2 83.2% 53.3%; /* Brand blue */
     --radius: 0.5rem;
+    
+    /* Brand-specific variables */
+    --brand-primary: 221.2 83.2% 53.3%; /* Brand blue */
+    --brand-secondary: 142.1 76.2% 36.3%; /* Brand green */
+    --brand-accent: 32.5 94.6% 43.7%; /* Brand orange */
   }
 
   .dark {
@@ -56,6 +65,515 @@
   body {
     @apply bg-background text-foreground;
   }
+  
+  /* Enhanced dark mode text readability */
+  .dark {
+    color-scheme: dark;
+  }
+  
+  .dark * {
+    border-color: rgb(51 65 85) !important; /* slate-700 - lighter borders in dark mode */
+  }
+  
+  /* Ensure text is readable in dark mode - AGGRESSIVE */
+  .dark .text-gray-900 {
+    color: rgb(241 245 249) !important; /* slate-100 */
+  }
+  
+  .dark .text-gray-800 {
+    color: rgb(226 232 240) !important; /* slate-200 */
+  }
+  
+  .dark .text-gray-700 {
+    color: rgb(203 213 225) !important; /* slate-300 */
+  }
+  
+  .dark .text-gray-600 {
+    color: rgb(148 163 184) !important; /* slate-400 */
+  }
+  
+  .dark .text-gray-500 {
+    color: rgb(100 116 139) !important; /* slate-500 */
+  }
+  
+  /* Force all text inside dark mode to be light by default */
+  .dark div,
+  .dark span,
+  .dark p,
+  .dark label,
+  .dark button:not([style*="gradient"]) {
+    color: rgb(226 232 240) !important; /* slate-200 - readable everywhere */
+  }
+  
+  /* Specific overrides for darker text where needed */
+  .dark .font-semibold,
+  .dark .font-bold,
+  .dark h1, .dark h2, .dark h3, .dark h4, .dark h5, .dark h6 {
+    color: rgb(241 245 249) !important; /* slate-100 - brightest for headers */
+  }
+  
+  /* Card backgrounds in dark mode - MORE AGGRESSIVE */
+  .dark .bg-white {
+    background-color: rgb(30 41 59) !important; /* slate-800 */
+  }
+  
+  .dark .bg-gray-50 {
+    background-color: rgb(30 41 59) !important; /* slate-800 */
+  }
+  
+  .dark .bg-gray-100 {
+    background-color: rgb(51 65 85) !important; /* slate-700 */
+  }
+  
+  /* All cards should be dark */
+  .dark [class*="Card"],
+  .dark .card,
+  .dark [class*="rounded-xl"],
+  .dark [class*="rounded-lg"] {
+    background-color: rgb(30 41 59) !important; /* slate-800 */
+  }
+  
+  /* Specifically target theme customizer cards */
+  .dark button[class*="rounded-xl"],
+  .dark button[class*="rounded-lg"] {
+    background-color: rgb(30 41 59) !important;
+    color: rgb(241 245 249) !important; /* slate-100 */
+  }
+  
+  /* Override any inline white backgrounds */
+  .dark [style*="background: white"],
+  .dark [style*="background: #fff"],
+  .dark [style*="background-color: white"],
+  .dark [style*="background-color: #fff"],
+  .dark [style*="background-color: rgb(255, 255, 255)"],
+  .dark [style*="background-color: rgb(255,255,255)"] {
+    background-color: rgb(30 41 59) !important; /* slate-800 */
+  }
+  
+  /* Gradient backgrounds in dark mode should keep their colors */
+  .dark [style*="background-image: linear-gradient"],
+  .dark [style*="backgroundImage"] {
+    color: white !important;
+  }
+  
+  /* Ensure buttons with gradients have white text */
+  .dark button[style*="gradient"] {
+    color: white !important;
+  }
+  
+  /* Shadow adjustments for dark mode */
+  .dark .shadow-xl {
+    box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.5), 0 8px 10px -6px rgb(0 0 0 / 0.5) !important;
+  }
+  
+  .dark .shadow-lg {
+    box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.4), 0 4px 6px -4px rgb(0 0 0 / 0.4) !important;
+  }
+  
+  /* Input fields in dark mode */
+  .dark input,
+  .dark textarea,
+  .dark select {
+    background-color: rgb(51 65 85) !important; /* slate-700 */
+    color: rgb(241 245 249) !important; /* slate-100 */
+    border-color: rgb(71 85 105) !important; /* slate-600 */
+  }
+  
+  .dark input::placeholder,
+  .dark textarea::placeholder {
+    color: rgb(100 116 139) !important; /* slate-500 */
+  }
+  
+  /* Hover states in dark mode */
+  .dark .hover\:bg-gray-100:hover {
+    background-color: rgb(51 65 85) !important; /* slate-700 */
+  }
+  
+  .dark .hover\:bg-white:hover {
+    background-color: rgb(51 65 85) !important; /* slate-700 */
+  }
+  
+  /* Shadcn Card component overrides for dark mode */
+  .dark [class*="CardContent"],
+  .dark [class*="CardHeader"],
+  .dark [class*="CardTitle"],
+  .dark [class*="CardDescription"] {
+    background-color: transparent !important;
+  }
+  
+  /* Ensure Card titles and descriptions are light colored */
+  .dark [class*="CardTitle"] {
+    color: rgb(241 245 249) !important; /* slate-100 */
+  }
+  
+  .dark [class*="CardDescription"] {
+    color: rgb(148 163 184) !important; /* slate-400 */
+  }
+  
+  /* Override purple/pink/blue gradient backgrounds to keep them readable */
+  .dark [class*="from-purple"],
+  .dark [class*="from-pink"],
+  .dark [class*="from-blue"],
+  .dark [class*="from-green"],
+  .dark [class*="from-amber"],
+  .dark [class*="from-violet"] {
+    color: white !important;
+  }
+  
+  /* Make sure light background cards become dark */
+  .dark [class*="bg-purple-50"],
+  .dark [class*="bg-pink-50"],
+  .dark [class*="bg-blue-50"],
+  .dark [class*="bg-green-50"],
+  .dark [class*="bg-amber-50"],
+  .dark [class*="bg-violet-50"] {
+    background-color: rgb(30 41 59) !important; /* slate-800 */
+  }
+  
+  /* ===== BADGES / PILLS / CHIPS - HIGH CONTRAST ===== */
+  
+  /* Priority badges - HIGH visibility */
+  .dark [class*="bg-red-100"],
+  .dark [class*="bg-red-50"] {
+    background-color: rgb(220 38 38) !important; /* red-600 - darker background */
+    color: white !important;
+    border-color: rgb(185 28 28) !important; /* red-700 */
+  }
+  
+  .dark [class*="bg-yellow-100"],
+  .dark [class*="bg-yellow-50"] {
+    background-color: rgb(202 138 4) !important; /* yellow-600 - darker */
+    color: white !important;
+    border-color: rgb(161 98 7) !important; /* yellow-700 */
+  }
+  
+  .dark [class*="bg-orange-100"],
+  .dark [class*="bg-orange-50"] {
+    background-color: rgb(234 88 12) !important; /* orange-600 */
+    color: white !important;
+    border-color: rgb(194 65 12) !important; /* orange-700 */
+  }
+  
+  .dark [class*="bg-green-100"],
+  .dark [class*="bg-green-50"] {
+    background-color: rgb(22 163 74) !important; /* green-600 */
+    color: white !important;
+    border-color: rgb(21 128 61) !important; /* green-700 */
+  }
+  
+  .dark [class*="bg-blue-100"],
+  .dark [class*="bg-blue-50"] {
+    background-color: rgb(37 99 235) !important; /* blue-600 */
+    color: white !important;
+    border-color: rgb(29 78 216) !important; /* blue-700 */
+  }
+  
+  .dark [class*="bg-purple-100"] {
+    background-color: rgb(147 51 234) !important; /* purple-600 */
+    color: white !important;
+    border-color: rgb(126 34 206) !important; /* purple-700 */
+  }
+  
+  .dark [class*="bg-pink-100"] {
+    background-color: rgb(219 39 119) !important; /* pink-600 */
+    color: white !important;
+    border-color: rgb(190 24 93) !important; /* pink-700 */
+  }
+  
+  .dark [class*="bg-indigo-100"] {
+    background-color: rgb(79 70 229) !important; /* indigo-600 */
+    color: white !important;
+    border-color: rgb(67 56 202) !important; /* indigo-700 */
+  }
+  
+  .dark [class*="bg-cyan-100"] {
+    background-color: rgb(8 145 178) !important; /* cyan-600 */
+    color: white !important;
+    border-color: rgb(14 116 144) !important; /* cyan-700 */
+  }
+  
+  /* Energy level badges */
+  .dark .text-red-700,
+  .dark .text-red-600 {
+    color: rgb(252 165 165) !important; /* red-300 - light red for dark mode */
+  }
+  
+  .dark .text-yellow-700,
+  .dark .text-yellow-600 {
+    color: rgb(253 224 71) !important; /* yellow-300 */
+  }
+  
+  .dark .text-green-700,
+  .dark .text-green-600 {
+    color: rgb(134 239 172) !important; /* green-300 */
+  }
+  
+  .dark .text-blue-700,
+  .dark .text-blue-600 {
+    color: rgb(147 197 253) !important; /* blue-300 */
+  }
+  
+  .dark .text-purple-700,
+  .dark .text-purple-600 {
+    color: rgb(216 180 254) !important; /* purple-300 */
+  }
+  
+  /* All small badges/pills - ensure white text */
+  .dark [class*="rounded-full"],
+  .dark [class*="badge"],
+  .dark [class*="chip"],
+  .dark [class*="pill"] {
+    color: white !important;
+  }
+  
+  /* Specific text colors for badges */
+  .dark .text-red-700,
+  .dark .text-orange-700,
+  .dark .text-yellow-700,
+  .dark .text-green-700,
+  .dark .text-blue-700,
+  .dark .text-purple-700,
+  .dark .text-pink-700,
+  .dark .text-indigo-700 {
+    color: white !important;
+  }
+  
+  /* ===== DIALOGS & MODALS - HIGH CONTRAST ===== */
+  
+  /* Dialog/Modal backgrounds should be very dark */
+  .dark [role="dialog"],
+  .dark [role="alertdialog"],
+  .dark .modal,
+  .dark .dialog {
+    background-color: rgb(15 23 42) !important; /* slate-900 - very dark */
+    color: rgb(241 245 249) !important; /* slate-100 - bright text */
+  }
+  
+  /* Modal content areas */
+  .dark [class*="DialogContent"],
+  .dark [class*="ModalContent"] {
+    background-color: rgb(15 23 42) !important; /* slate-900 */
+    color: rgb(241 245 249) !important; /* slate-100 */
+  }
+  
+  /* Modal headers should be bright */
+  .dark [class*="DialogTitle"],
+  .dark [class*="ModalTitle"],
+  .dark [class*="DialogHeader"] h1,
+  .dark [class*="DialogHeader"] h2,
+  .dark [class*="DialogHeader"] h3 {
+    color: rgb(241 245 249) !important; /* slate-100 - almost white */
+  }
+  
+  /* Modal descriptions should be readable */
+  .dark [class*="DialogDescription"],
+  .dark [class*="ModalDescription"] {
+    color: rgb(203 213 225) !important; /* slate-300 - light gray */
+  }
+  
+  /* Fix light gray backgrounds in modals */
+  .dark [class*="bg-gray-200"],
+  .dark [class*="bg-gray-300"] {
+    background-color: rgb(51 65 85) !important; /* slate-700 */
+  }
+  
+  /* ===== ACTIVITY CARDS - HIGH CONTRAST ===== */
+  
+  /* Activity feed cards with colored backgrounds */
+  .dark [class*="from-green"]:not([style*="gradient"]) {
+    background-color: rgb(22 163 74) !important; /* green-600 */
+    color: white !important;
+  }
+  
+  .dark [class*="from-red"]:not([style*="gradient"]) {
+    background-color: rgb(220 38 38) !important; /* red-600 */
+    color: white !important;
+  }
+  
+  .dark [class*="from-orange"]:not([style*="gradient"]) {
+    background-color: rgb(234 88 12) !important; /* orange-600 */
+    color: white !important;
+  }
+  
+  .dark [class*="from-blue"]:not([style*="gradient"]) {
+    background-color: rgb(37 99 235) !important; /* blue-600 */
+    color: white !important;
+  }
+  
+  /* All text inside colored cards should be white or very light */
+  .dark [class*="bg-green-"],
+  .dark [class*="bg-red-"],
+  .dark [class*="bg-orange-"],
+  .dark [class*="bg-blue-"] {
+    color: white !important;
+  }
+  
+  /* Nested text in colored cards */
+  .dark [class*="bg-green-"] *,
+  .dark [class*="bg-red-"] *,
+  .dark [class*="bg-orange-"] *,
+  .dark [class*="bg-blue-"] * {
+    color: white !important;
+  }
+  
+  /* Time/date text should be lighter on colored backgrounds */
+  .dark [class*="bg-green-"] [class*="text-"],
+  .dark [class*="bg-red-"] [class*="text-"],
+  .dark [class*="bg-orange-"] [class*="text-"],
+  .dark [class*="bg-blue-"] [class*="text-"] {
+    color: rgba(255, 255, 255, 0.9) !important;
+  }
+  
+  /* ===== SPECIFIC COMPONENT FIXES ===== */
+  
+  /* AI Modal - top section text */
+  .dark [class*="bg-gradient"] p,
+  .dark [class*="bg-gradient"] div:not([class*="Card"]) {
+    color: rgb(241 245 249) !important; /* Very bright for readability */
+  }
+  
+  /* Calendar/Week legend text */
+  .dark [class*="Peak energy"],
+  .dark [class*="Reserved"] {
+    color: rgb(241 245 249) !important;
+  }
+  
+  /* Challenge cards - green backgrounds need white text */
+  .dark [class*="bg-gradient-to-br"][class*="from-green"] *:not([class*="progress"]) {
+    color: white !important;
+  }
+  
+  /* Ensure subtitles and descriptions are readable on any colored background */
+  .dark [class*="bg-green"] [class*="Description"],
+  .dark [class*="bg-blue"] [class*="Description"],
+  .dark [class*="bg-purple"] [class*="Description"] {
+    color: rgba(255, 255, 255, 0.95) !important;
+  }
+  
+  /* "View All" and "Calendar" links should be white on colored backgrounds */
+  .dark [class*="bg-green"] a,
+  .dark [class*="bg-blue"] a,
+  .dark [class*="bg-purple"] a {
+    color: white !important;
+  }
+  
+  /* Specific text colors that should be light */
+  .dark .text-green-600,
+  .dark .text-blue-600,
+  .dark .text-purple-600 {
+    color: rgb(134 239 172) !important; /* light green for visibility */
+  }
+  
+  /* Progress bars text */
+  .dark [class*="progress"] + *,
+  .dark [class*="EPIC"],
+  .dark [class*="RARE"] {
+    color: white !important;
+  }
+  
+  /* Small muted text on colored backgrounds */
+  .dark [class*="bg-green"] .text-xs,
+  .dark [class*="bg-blue"] .text-xs,
+  .dark [class*="bg-purple"] .text-xs {
+    color: rgba(255, 255, 255, 0.85) !important;
+  }
+  
+  /* Dashboard section headers */
+  .dark h1, .dark h2, .dark h3 {
+    color: rgb(241 245 249) !important;
+  }
+  
+  /* Section subtitles */
+  .dark [class*="subtitle"],
+  .dark [class*="description"] {
+    color: rgb(203 213 225) !important; /* slate-300 */
+  }
+  
+  /* Override any semi-transparent text on colored backgrounds */
+  .dark [class*="bg-green"] [class*="opacity"],
+  .dark [class*="bg-blue"] [class*="opacity"],
+  .dark [class*="bg-purple"] [class*="opacity"] {
+    opacity: 1 !important;
+    color: white !important;
+  }
+  
+  /* Rarity badges */
+  .dark [class*="EPIC"],
+  .dark [class*="RARE"],
+  .dark [class*="LEGENDARY"],
+  .dark [class*="COMMON"] {
+    color: white !important;
+    opacity: 0.9 !important;
+  }
+  
+  /* ===== CRITICAL FIXES ===== */
+  
+  /* Claim button on challenges - MUST be visible */
+  .dark button:has-text("Claim"),
+  .dark [class*="Claim"],
+  .dark button[class*="bg-green"],
+  .dark button[class*="bg-emerald"] {
+    background-color: rgb(22 163 74) !important; /* green-600 */
+    color: white !important;
+    border: 2px solid rgb(21 128 61) !important; /* green-700 */
+    font-weight: 600 !important;
+  }
+  
+  /* Make sure ALL buttons on colored backgrounds are visible */
+  .dark [class*="bg-green"] button,
+  .dark [class*="bg-blue"] button,
+  .dark [class*="bg-purple"] button,
+  .dark [class*="bg-orange"] button {
+    background-color: rgba(255, 255, 255, 0.2) !important;
+    color: white !important;
+    border: 2px solid rgba(255, 255, 255, 0.4) !important;
+    font-weight: 600 !important;
+  }
+  
+  .dark [class*="bg-green"] button:hover,
+  .dark [class*="bg-blue"] button:hover,
+  .dark [class*="bg-purple"] button:hover,
+  .dark [class*="bg-orange"] button:hover {
+    background-color: rgba(255, 255, 255, 0.3) !important;
+    border-color: rgba(255, 255, 255, 0.6) !important;
+  }
+  
+  /* AI Modal gradient backgrounds - text must be SUPER bright */
+  .dark [class*="bg-gradient-to-br"],
+  .dark [class*="bg-gradient-to-r"],
+  .dark [class*="bg-gradient-to-l"],
+  .dark [class*="bg-gradient-to-t"],
+  .dark [class*="bg-gradient-to-b"] {
+    color: white !important;
+  }
+  
+  /* ALL text inside gradient backgrounds */
+  .dark [class*="bg-gradient"] *:not(button):not([style*="gradient"]) {
+    color: white !important;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3) !important;
+  }
+  
+  /* Specific fix for AI modal text */
+  .dark [class*="bg-gradient"] h1,
+  .dark [class*="bg-gradient"] h2,
+  .dark [class*="bg-gradient"] h3,
+  .dark [class*="bg-gradient"] p,
+  .dark [class*="bg-gradient"] span:not([class*="icon"]) {
+    color: white !important;
+    font-weight: 500 !important;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.4) !important;
+  }
+  
+  /* Make gradient text even MORE visible with outline */
+  .dark [class*="from-purple"][class*="to-pink"] *,
+  .dark [class*="from-blue"][class*="to-cyan"] *,
+  .dark [class*="from-green"][class*="to-emerald"] * {
+    color: white !important;
+    -webkit-text-stroke: 0.3px rgba(0, 0, 0, 0.2);
+    text-shadow: 
+      0 1px 2px rgba(0, 0, 0, 0.3),
+      0 2px 4px rgba(0, 0, 0, 0.2) !important;
+  }
 }
 
 /* Custom scrollbar */
@@ -76,8 +594,31 @@
 }
 
 /* Smooth transitions */
-* {
-  transition: color 0.2s ease, background-color 0.2s ease, border-color 0.2s ease;
+/* Removed global transitions that were causing gradient flash on initial render */
+/* Instead, add transitions only where needed via Tailwind's transition utilities */
+
+/* Specific transitions for interactive elements only */
+button, a, input, select, textarea {
+  transition: color 0.2s ease, background-color 0.2s ease, border-color 0.2s ease, opacity 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+/* Enhanced hover effects for buttons */
+button:not(:disabled):hover {
+  transform: translateY(-1px);
+}
+
+button:not(:disabled):active {
+  transform: translateY(0);
+}
+
+/* Card hover effects */
+.card-hover {
+  transition: transform 0.2s ease, box-shadow 0.3s ease;
+}
+
+.card-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
 }
 
 /* Focus styles */
@@ -92,6 +633,88 @@
 
 .animate-slide-in {
   animation: slide-in 0.3s ease-out;
+}
+
+.animate-scale-in {
+  animation: scale-in 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.animate-slide-up {
+  animation: slide-up 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Stagger animations for lists */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slide-in {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes celebration {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 20px rgba(168, 85, 247, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 40px rgba(168, 85, 247, 0.8);
+  }
+}
+
+.animate-celebration {
+  animation: celebration 0.6s ease-in-out;
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
 }
 
 /* Gradient backgrounds */

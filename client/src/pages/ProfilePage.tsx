@@ -276,22 +276,31 @@ export function ProfilePage() {
   }
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold flex items-center gap-2">
-            <User className="w-8 h-8" />
-            Profile Settings
-          </h1>
-          <p className="text-muted-foreground">Manage your account settings and preferences</p>
+    <div className="container mx-auto p-6 space-y-8 animate-fade-in">
+      {/* Header with Gradient */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 p-8 text-white shadow-2xl">
+        <div className="absolute inset-0 bg-black/10"></div>
+        <div className="relative z-10 flex items-center justify-between">
+          <div>
+            <h1 className="text-4xl font-bold mb-2 flex items-center gap-3">
+              <User className="w-10 h-10" />
+              Profile Settings
+            </h1>
+            <p className="text-white/90 text-lg">
+              Manage your account settings and preferences
+            </p>
+          </div>
+          <Button 
+            onClick={() => setIsEditing(!isEditing)}
+            className={`text-lg px-6 py-6 shadow-xl hover:shadow-2xl transition-all duration-300 ${
+              isEditing 
+                ? "bg-white/20 hover:bg-white/30 backdrop-blur-sm border-white/30 text-white" 
+                : "bg-white text-purple-600 hover:bg-white/90"
+            }`}
+          >
+            {isEditing ? "Cancel" : "Edit Profile"}
+          </Button>
         </div>
-        <Button 
-          onClick={() => setIsEditing(!isEditing)}
-          variant={isEditing ? "outline" : "default"}
-        >
-          {isEditing ? "Cancel" : "Edit Profile"}
-        </Button>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -532,30 +541,30 @@ export function ProfilePage() {
 
         {/* Sidebar */}
         <div className="space-y-6">
-          {/* Account Stats */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
+          {/* Account Stats - Beautiful Cards */}
+          <Card className="border-none shadow-xl bg-gradient-to-br from-purple-50 to-pink-50">
+            <CardHeader className="bg-gradient-to-r from-purple-100 to-pink-100 rounded-t-lg">
+              <CardTitle className="flex items-center gap-2 text-purple-900">
                 <TrendingUp className="w-5 h-5" />
                 Account Stats
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Total Tasks</span>
-                <span className="font-semibold">{stats?.totalTasks || 0}</span>
+            <CardContent className="space-y-4 pt-6">
+              <div className="flex items-center justify-between p-3 rounded-lg bg-white/60 backdrop-blur-sm">
+                <span className="text-sm font-medium text-purple-700">Total Tasks</span>
+                <span className="text-2xl font-bold text-purple-600">{stats?.totalTasks || 0}</span>
               </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Completed</span>
-                <span className="font-semibold">{stats?.completedTasks || 0}</span>
+              <div className="flex items-center justify-between p-3 rounded-lg bg-white/60 backdrop-blur-sm">
+                <span className="text-sm font-medium text-green-700">Completed</span>
+                <span className="text-2xl font-bold text-green-600">{stats?.completedTasks || 0}</span>
               </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Events Created</span>
-                <span className="font-semibold">{stats?.totalEvents || 0}</span>
+              <div className="flex items-center justify-between p-3 rounded-lg bg-white/60 backdrop-blur-sm">
+                <span className="text-sm font-medium text-blue-700">Events Created</span>
+                <span className="text-2xl font-bold text-blue-600">{stats?.totalEvents || 0}</span>
               </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600">Current Streak</span>
-                <span className="font-semibold">{stats?.streakDays || 0} days</span>
+              <div className="flex items-center justify-between p-3 rounded-lg bg-gradient-to-r from-orange-100 to-amber-100 border-2 border-orange-300">
+                <span className="text-sm font-medium text-orange-700">Current Streak 🔥</span>
+                <span className="text-2xl font-bold text-orange-600">{stats?.streakDays || 0} days</span>
               </div>
             </CardContent>
           </Card>
