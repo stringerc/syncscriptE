@@ -13,6 +13,10 @@ interface AuthRequest extends Request {
     id: string;
     email: string;
   };
+  body: any;
+  params: any;
+  query: any;
+  headers: any;
 }
 
 /**

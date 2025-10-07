@@ -147,16 +147,18 @@ class EmblemService {
     let timeBonus = 0;
 
     equipped.forEach(emblem => {
-      switch (emblem.bonusType) {
-        case 'points_multiplier':
-          pointsMultiplier += emblem.bonusValue / 100;
-          break;
-        case 'energy_boost':
-          energyBoost += emblem.bonusValue;
-          break;
-        case 'time_bonus':
-          timeBonus += emblem.bonusValue;
-          break;
+      if (emblem.emblem) {
+        switch (emblem.emblem.bonusType) {
+          case 'points_multiplier':
+            pointsMultiplier += emblem.emblem.bonusValue / 100;
+            break;
+          case 'energy_boost':
+            energyBoost += emblem.emblem.bonusValue;
+            break;
+          case 'time_bonus':
+            timeBonus += emblem.emblem.bonusValue;
+            break;
+        }
       }
     });
 
