@@ -1,6 +1,6 @@
 {
   "name": "syncscript-backend",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "SyncScript Backend API",
   "main": "dist/index.js",
   "scripts": {
