@@ -31,5 +31,10 @@
         }
       ]
     }
-  ]
+  ],
+  "functions": {
+    "client/src/**": {
+      "runtime": "nodejs18.x"
+    }
+  }
 }
