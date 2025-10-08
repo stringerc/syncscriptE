@@ -8,14 +8,7 @@ export default defineConfig({
   base: '/',
   build: {
     outDir: 'dist',
-    assetsDir: 'assets',
-    rollupOptions: {
-      output: {
-        assetFileNames: 'assets/[name].[hash].[ext]',
-        chunkFileNames: 'assets/[name].[hash].js',
-        entryFileNames: 'assets/[name].[hash].js'
-      }
-    }
+    assetsDir: 'assets'
   },
   resolve: {
     alias: {
@@ -26,11 +19,6 @@ export default defineConfig({
   server: {
     port: 3000,
     host: true,
-    allowedHosts: [
-      'localhost',
-      '.trycloudflare.com',
-      'employee-ebony-genesis-bought.trycloudflare.com'
-    ],
     proxy: {
       '/api': {
         target: 'http://localhost:5001',
