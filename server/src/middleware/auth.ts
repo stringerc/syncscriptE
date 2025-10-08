@@ -14,6 +14,8 @@ export interface AuthRequest extends Request {
   params: any;
   query: any;
   headers: any;
+  url: string;
+  file?: any;
 }
 
 export const authenticateToken = async (
