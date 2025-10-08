@@ -83,8 +83,9 @@ const io = new Server(server, {
       "https://stringerc.github.io",
       "https://stringerc.github.io/syncscriptE",
       "http://localhost:3000",
-      "https://syncscript-e-qlwn.vercel.app",
-      "https://syncscript-e-qlwn-o4qi2mzmc-christopher-stringers-projects.vercel.app",
+      "https://syncscript-e.vercel.app",
+      "https://syncscript-e-git-main-christopher-stringers-projects.vercel.app",
+      "https://syncscript-2g7v2y7aa-christopher-stringers-projects.vercel.app",
       /^https:\/\/.*\.vercel\.app$/
     ],
     methods: ["GET", "POST"],
