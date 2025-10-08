@@ -23,7 +23,16 @@
   ],
   "headers": [
     {
-      "source": "/assets/(.*)",
+      "source": "/assets/(.*\\.js)",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "application/javascript"
+        }
+      ]
+    },
+    {
+      "source": "/assets/(.*\\.mjs)",
       "headers": [
         {
           "key": "Content-Type",
@@ -31,10 +40,5 @@
         }
       ]
     }
-  ],
-  "functions": {
-    "client/src/**": {
-      "runtime": "nodejs18.x"
-    }
-  }
+  ]
 }
