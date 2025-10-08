@@ -167,19 +167,19 @@ export function registerServiceWorker(): void {
 export function preloadCriticalResources(): void {
   // Only preload in production to avoid development warnings
   if (import.meta.env.MODE === 'production') {
-    // Preload critical fonts
-    const fontLink = document.createElement('link');
-    fontLink.rel = 'preload';
-    fontLink.href = '/fonts/inter.woff2';
-    fontLink.as = 'font';
-    fontLink.type = 'font/woff2';
-    fontLink.crossOrigin = 'anonymous';
-    document.head.appendChild(fontLink);
+    // Preload critical fonts (fonts are loaded via CSS, no need to preload here)
+    // const fontLink = document.createElement('link');
+    // fontLink.rel = 'preload';
+    // fontLink.href = '/fonts/inter.woff2';
+    // fontLink.as = 'font';
+    // fontLink.type = 'font/woff2';
+    // fontLink.crossOrigin = 'anonymous';
+    // document.head.appendChild(fontLink);
     
     // Preload critical images
     const imageLink = document.createElement('link');
     imageLink.rel = 'preload';
-    imageLink.href = '/logo.png';
+    imageLink.href = '/syncscript-logo.png';
     imageLink.as = 'image';
     document.head.appendChild(imageLink);
   }
