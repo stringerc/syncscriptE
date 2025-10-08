@@ -86,6 +86,9 @@ const io = new Server(server, {
       "https://syncscript-e.vercel.app",
       "https://syncscript-e-git-main-christopher-stringers-projects.vercel.app",
       "https://syncscript-2g7v2y7aa-christopher-stringers-projects.vercel.app",
+      "https://syncscript-frontend.vercel.app",
+      "https://syncscript-frontend-git-main-christopher-stringers-projects.vercel.app",
+      "https://syncscript-frontend-gffy3zy9u-christopher-stringers-projects.vercel.app",
       /^https:\/\/.*\.vercel\.app$/
     ],
     methods: ["GET", "POST"],
