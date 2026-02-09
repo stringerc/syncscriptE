@@ -1,0 +1,10 @@
+The issue is on line 1892 of CalendarEventsPage.tsx
+
+The line currently reads:
+        ))}\\n      </div>
+
+It should read:
+        ))}
+      </div>
+
+The \\n is a literal escaped newline character in the source code that shouldn't be there.

@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Date Test</title>
+  <style>
+    body {
+      font-family: monospace;
+      padding: 20px;
+      background: #1a1a1a;
+      color: #fff;
+    }
+    .test {
+      margin: 10px 0;
+      padding: 10px;
+      background: #2a2a2a;
+      border-left: 3px solid #0ea5e9;
+    }
+  </style>
+</head>
+<body>
+  <h1>🔬 Date Constructor Test</h1>
+  <p>Testing if JavaScript Date() is working correctly</p>
+  
+  <div id="results"></div>
+  
+  <script>
+    const results = [];
+    
+    // Test 1: new Date()
+    const now = new Date();
+    results.push(`<div class="test">
+      <strong>TEST 1: new Date()</strong><br>
+      ${now.toString()}<br>
+      Year: ${now.getFullYear()}<br>
+      Month: ${now.getMonth()} (0-indexed, so ${now.getMonth() + 1} actual)<br>
+      Date: ${now.getDate()}<br>
+      Day: ${now.getDay()} (${['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][now.getDay()]})
+    </div>`);
+    
+    // Test 2: Relative date (+10 days)
+    const future = new Date();
+    future.setDate(future.getDate() + 10);
+    results.push(`<div class="test">
+      <strong>TEST 2: 10 days from now</strong><br>
+      ${future.toString()}
+    </div>`);
+    
+    // Test 3: getRelativeDate function (copy from our code)
+    function getRelativeDate(daysOffset, hour = 9, minute = 0) {
+      const date = new Date();
+      date.setDate(date.getDate() + daysOffset);
+      date.setHours(hour, minute, 0, 0);
+      return date;
+    }
+    
+    const testRelative = getRelativeDate(10, 8, 0);
+    results.push(`<div class="test">
+      <strong>TEST 3: getRelativeDate(10, 8, 0)</strong><br>
+      ${testRelative.toString()}
+    </div>`);
+    
+    // Test 4: localStorage
+    const stored = localStorage.getItem('syncscript_calendar_events');
+    const version = localStorage.getItem('syncscript_calendar_events_version');
+    results.push(`<div class="test">
+      <strong>TEST 4: localStorage</strong><br>
+      Version: ${version || 'NOT SET'}<br>
+      Data: ${stored ? `YES (${stored.length} chars)` : 'NO'}
+    </div>`);
+    
+    document.getElementById('results').innerHTML = results.join('');
+    
+    // Also log to console
+    console.log('=== DATE TESTS ===');
+    console.log('new Date():', now);
+    console.log('10 days from now:', future);
+    console.log('getRelativeDate(10):', testRelative);
+  </script>
+</body>
+</html>

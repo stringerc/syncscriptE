@@ -1,0 +1,6 @@
+The corrupt line is:
+    ? goals.title}\nCategory: ${goal.category}\nProgress: ${goal.progress}%\nDeadline: ${goal.deadline}`;
+
+Should be:
+    ? goals
+    : goals.filter(goal => goal.category.toLowerCase() === activeFilter.toLowerCase());

@@ -1,0 +1,7 @@
+Lines to delete: 1148 through approximately 1222
+
+The file has duplicate/corrupt code between the end of the simplified GoalManagementSection (line 1147) and the start of the proper one (around line 1220).
+
+Need to:
+1. Delete lines 1148-1222 (all the corrupt duplicate state/handlers)
+2. Keep the proper version that starts around line 1220
