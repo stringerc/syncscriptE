@@ -21,6 +21,7 @@
  */
 
 import { motion, AnimatePresence } from 'motion/react';
+import { createPortal } from 'react-dom';
 import { 
   Sparkles, 
   ArrowRight, 
@@ -50,7 +51,9 @@ export function EnhancedWelcomeModal({
   onSkipTour,
   userName = 'there'
 }: EnhancedWelcomeModalProps) {
-  return (
+  // Use a portal to render at the top of the DOM tree,
+  // avoiding stacking context issues with parent elements
+  return createPortal(
     <AnimatePresence>
       {show && (
         <>
@@ -59,7 +62,8 @@ export function EnhancedWelcomeModal({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/80 backdrop-blur-md z-[10000]"
+            className="fixed inset-0 bg-black/80 backdrop-blur-md"
+            style={{ zIndex: 99999 }}
             onClick={onClose}
           />
 
@@ -69,7 +73,8 @@ export function EnhancedWelcomeModal({
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.9, y: 20 }}
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-            className="fixed inset-0 z-[10000] flex items-center justify-center p-4"
+            className="fixed inset-0 flex items-center justify-center p-4"
+            style={{ zIndex: 100000 }}
             onClick={onClose}
           >
             <div 
@@ -275,7 +280,8 @@ export function EnhancedWelcomeModal({
           </motion.div>
         </>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body
   );
 }
 

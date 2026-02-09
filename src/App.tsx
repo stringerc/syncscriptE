@@ -58,13 +58,19 @@ import { ProductTour } from './components/onboarding/ProductTour';
 import { OnboardingChecklist } from './components/onboarding/OnboardingChecklist';
 import { useSampleData } from './hooks/useSampleData';
 import { useState, useEffect } from 'react';
+import { useLocation } from 'react-router';
 
 function BetaOnboarding() {
+  const location = useLocation();
   const { loadSampleData, hasLoadedSamples, hasUserData } = useSampleData();
   const [showWelcome, setShowWelcome] = useState(false);
   const [runTour, setRunTour] = useState(false);
 
+  // Only show onboarding on dashboard routes, not the landing page or auth pages
+  const isLandingOrAuth = location.pathname === '/' || location.pathname.startsWith('/auth') || location.pathname === '/login' || location.pathname === '/signup';
+
   useEffect(() => {
+    if (isLandingOrAuth) return; // Don't trigger onboarding on landing/auth pages
     const isFirstTime = !localStorage.getItem('syncscript_has_visited');
     if (isFirstTime) {
       localStorage.setItem('syncscript_has_visited', 'true');
@@ -73,7 +79,10 @@ function BetaOnboarding() {
     } else if (hasLoadedSamples && !hasUserData) {
       loadSampleData();
     }
-  }, []);
+  }, [isLandingOrAuth]);
+
+  // Don't render anything on landing/auth pages
+  if (isLandingOrAuth) return null;
 
   return (
     <>
