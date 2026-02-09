@@ -18,6 +18,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { DashboardLayout } from '../layout/DashboardLayout';
 import { AIInsightsContent } from '../AIInsightsSection';
 import { useAI } from '../../contexts/AIContext';
+import { useOpenClawContext } from '../../contexts/OpenClawContext';
+import { Input } from '../ui/input';
+import type { ChatMessage } from '../../services/openclaw-service';
 
 export function AIAssistantPage() {
   const [message, setMessage] = useState('');
@@ -294,9 +297,7 @@ export function AIAssistantPage() {
                 </div>
               </DialogContent>
             </Dialog>
-            <Badge className="bg-green-500/20 text-green-400 border-green-500/30 px-3 py-1 animate-pulse">
-              ● Active
-            </Badge>
+            <OpenClawStatusBadge />
           </div>
         </div>
 
@@ -357,6 +358,12 @@ function ConversationalInterface({ message, setMessage }: {
     addMessage,
   } = useAI();
 
+  // OpenClaw integration
+  const { isAvailable: openClawAvailable, service: openClawService, config: openClawConfig } = useOpenClawContext();
+
+  // Track OpenClaw conversation history for context
+  const openClawHistoryRef = useRef<ChatMessage[]>([]);
+
   // Initialize conversation if needed
   useEffect(() => {
     if (!activeConversation) {
@@ -375,8 +382,6 @@ function ConversationalInterface({ message, setMessage }: {
       return;
     }
 
-    const currentTime = new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
-    
     // Add user message
     addMessage({
       type: 'user',
@@ -384,14 +389,77 @@ function ConversationalInterface({ message, setMessage }: {
     });
 
     setIsProcessing(true);
+    const userMsg = message;
     setMessage('');
 
     try {
-      // Process command and get AI response
-      const aiResponse = await processCommand(message);
-      addMessage(aiResponse);
-      toast.success('Message sent to AI', { description: 'Response generated' });
+      // Slash commands always go through local NLP (instant, no network)
+      if (userMsg.trim().startsWith('/')) {
+        const aiResponse = await processCommand(userMsg);
+        addMessage(aiResponse);
+        return;
+      }
+
+      // If OpenClaw is connected, route through it for real AI responses
+      if (openClawAvailable && openClawService) {
+        // Build context-enriched prompt
+        const contextSnippet = buildContextSnippet({ tasks, goals, energyData, currentPage });
+
+        // Add to OpenClaw history
+        openClawHistoryRef.current.push({ role: 'user', content: userMsg });
+
+        const apiMessages: ChatMessage[] = [
+          {
+            role: 'system',
+            content: `You are the SyncScript AI assistant — an intelligent productivity companion.
+
+SyncScript is an AI-powered productivity system that works with the user's natural energy rhythms.
+
+Current context:
+${contextSnippet}
+
+Keep responses focused, actionable, and use markdown formatting. Be encouraging and data-driven.`,
+          },
+          ...openClawHistoryRef.current,
+        ];
+
+        const response = await openClawService.chat(apiMessages);
+        const aiContent = response.choices?.[0]?.message?.content ?? 'I processed your request but received an empty response.';
+
+        // Track in history
+        openClawHistoryRef.current.push({ role: 'assistant', content: aiContent });
+
+        // Keep history manageable (last 20 messages)
+        if (openClawHistoryRef.current.length > 20) {
+          openClawHistoryRef.current = openClawHistoryRef.current.slice(-20);
+        }
+
+        addMessage({
+          type: 'ai',
+          content: aiContent,
+          context: currentPage,
+        });
+      } else {
+        // Fallback to local NLP
+        const aiResponse = await processCommand(userMsg);
+        addMessage(aiResponse);
+      }
     } catch (error) {
+      const errMsg = error instanceof Error ? error.message : 'Unknown error';
+      console.error('[AI] Error processing message:', errMsg);
+
+      // If OpenClaw failed, try local fallback
+      if (openClawAvailable) {
+        try {
+          const fallbackResponse = await processCommand(userMsg);
+          addMessage(fallbackResponse);
+          toast.info('OpenClaw unavailable — used local AI', { description: errMsg });
+          return;
+        } catch {
+          // Local also failed
+        }
+      }
+
       toast.error('Failed to process message');
       addMessage({
         type: 'ai',
@@ -959,4 +1027,81 @@ function PredictiveAnalyticsSection() {
       </div>
     </div>
   );
+}
+
+// ─── OpenClaw Status Badge ───────────────────────────────────────────────────
+
+function OpenClawStatusBadge() {
+  const { connectionStatus, latencyMs, isAvailable, checkConnection, config } = useOpenClawContext();
+
+  const statusConfig = {
+    connected: {
+      className: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
+      label: `OpenClaw Connected${latencyMs ? ` (${latencyMs}ms)` : ''}`,
+      dot: 'bg-emerald-400',
+      animate: true,
+    },
+    connecting: {
+      className: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
+      label: 'Connecting to OpenClaw...',
+      dot: 'bg-yellow-400',
+      animate: true,
+    },
+    error: {
+      className: 'bg-red-500/20 text-red-400 border-red-500/30 cursor-pointer',
+      label: 'OpenClaw Error — Click to retry',
+      dot: 'bg-red-400',
+      animate: false,
+    },
+    disconnected: {
+      className: 'bg-gray-500/20 text-gray-400 border-gray-500/30',
+      label: config.enabled ? 'OpenClaw Disconnected' : 'Local AI Mode',
+      dot: 'bg-gray-400',
+      animate: false,
+    },
+  };
+
+  const status = statusConfig[connectionStatus];
+
+  return (
+    <Badge
+      className={`${status.className} px-3 py-1 cursor-pointer transition-all hover:scale-105`}
+      onClick={() => connectionStatus === 'error' ? checkConnection() : undefined}
+    >
+      <span className={`inline-block w-2 h-2 rounded-full mr-2 ${status.dot} ${status.animate ? 'animate-pulse' : ''}`} />
+      {status.label}
+    </Badge>
+  );
+}
+
+// ─── Context Helpers ─────────────────────────────────────────────────────────
+
+function buildContextSnippet(data: {
+  tasks: any[];
+  goals: any[];
+  energyData: any;
+  currentPage: string;
+}): string {
+  const { tasks, goals, energyData, currentPage } = data;
+
+  const lines: string[] = [];
+  lines.push(`Current page: ${currentPage}`);
+  lines.push(`Current energy level: ${energyData.current}%`);
+  lines.push(`Peak hours: ${energyData.peakHours?.join(', ')}:00`);
+  lines.push(`Low energy hours: ${energyData.lowHours?.join(', ')}:00`);
+
+  if (tasks.length > 0) {
+    const active = tasks.filter((t: any) => t.status === 'active');
+    const highPri = tasks.filter((t: any) => t.priority === 'high');
+    lines.push(`Tasks: ${tasks.length} total, ${active.length} active, ${highPri.length} high-priority`);
+    lines.push(`Top tasks: ${tasks.slice(0, 3).map((t: any) => `"${t.title}" (${t.priority})`).join(', ')}`);
+  }
+
+  if (goals.length > 0) {
+    const avgProgress = Math.round(goals.reduce((sum: number, g: any) => sum + g.progress, 0) / goals.length);
+    lines.push(`Goals: ${goals.length} total, avg progress ${avgProgress}%`);
+    lines.push(`Goals: ${goals.map((g: any) => `"${g.title}" (${g.progress}%)`).join(', ')}`);
+  }
+
+  return lines.join('\n');
 }

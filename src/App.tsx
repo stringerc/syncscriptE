@@ -59,6 +59,7 @@ import { OnboardingChecklist } from './components/onboarding/OnboardingChecklist
 import { useSampleData } from './hooks/useSampleData';
 import { useState, useEffect } from 'react';
 import { useLocation } from 'react-router';
+import { OpenClawProvider } from './contexts/OpenClawContext';
 
 function BetaOnboarding() {
   const location = useLocation();
@@ -109,6 +110,7 @@ function AppContent() {
           
           <TeamProvider>
             <Router future={{ v7_startTransition: true }}>
+              <OpenClawProvider>
               <AIProvider>
                 <GamificationPreferencesProvider>
                   <GamificationProvider>
@@ -201,6 +203,7 @@ function AppContent() {
                   </GamificationProvider>
                 </GamificationPreferencesProvider>
               </AIProvider>
+              </OpenClawProvider>
             </Router>
           </TeamProvider>
         </TasksProvider>
