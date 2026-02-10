@@ -1266,9 +1266,15 @@ function OpenClawSettingsPanel() {
           <Brain className="w-5 h-5 text-purple-400" />
           OpenClaw AI Gateway
         </h2>
-        <p className="text-gray-400 text-sm mb-6">
+        <p className="text-gray-400 text-sm mb-2">
           Connect to your self-hosted OpenClaw instance for AI-powered conversations with real model intelligence (Claude, GPT, etc.)
         </p>
+        <div className="flex items-center gap-2 mb-6 p-2 rounded-lg bg-emerald-900/20 border border-emerald-800/30">
+          <div className="w-2 h-2 rounded-full bg-emerald-400" />
+          <span className="text-xs text-emerald-300">
+            DeepSeek AI bridge active — AI chat works even without OpenClaw gateway
+          </span>
+        </div>
 
         {/* Connection Status */}
         <div className="flex items-center gap-3 mb-6 p-3 rounded-lg bg-gray-900/50 border border-gray-700">

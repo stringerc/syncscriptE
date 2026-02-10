@@ -440,24 +440,75 @@ Keep responses focused, actionable, and use markdown formatting. Be encouraging 
           context: currentPage,
         });
       } else {
-        // Fallback to local NLP
-        const aiResponse = await processCommand(userMsg);
-        addMessage(aiResponse);
+        // Fallback: call Vercel serverless DeepSeek bridge
+        const contextSnippet = buildContextSnippet({ tasks, goals, energyData, currentPage });
+        openClawHistoryRef.current.push({ role: 'user', content: userMsg });
+
+        try {
+          const bridgeRes = await fetch('/api/ai/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              messages: openClawHistoryRef.current,
+              context: contextSnippet,
+            }),
+          });
+
+          if (bridgeRes.ok) {
+            const bridgeData = await bridgeRes.json();
+            const aiContent = bridgeData.choices?.[0]?.message?.content
+              ?? bridgeData.data?.response
+              ?? 'I received your message but got an empty response.';
+
+            openClawHistoryRef.current.push({ role: 'assistant', content: aiContent });
+            if (openClawHistoryRef.current.length > 20) {
+              openClawHistoryRef.current = openClawHistoryRef.current.slice(-20);
+            }
+
+            addMessage({ type: 'ai', content: aiContent, context: currentPage });
+          } else {
+            // If serverless bridge also fails, fall back to local NLP
+            const aiResponse = await processCommand(userMsg);
+            addMessage(aiResponse);
+          }
+        } catch {
+          // Network error on bridge, fall back to local NLP
+          const aiResponse = await processCommand(userMsg);
+          addMessage(aiResponse);
+        }
       }
     } catch (error) {
       const errMsg = error instanceof Error ? error.message : 'Unknown error';
       console.error('[AI] Error processing message:', errMsg);
 
-      // If OpenClaw failed, try local fallback
-      if (openClawAvailable) {
-        try {
-          const fallbackResponse = await processCommand(userMsg);
-          addMessage(fallbackResponse);
-          toast.info('OpenClaw unavailable — used local AI', { description: errMsg });
-          return;
-        } catch {
-          // Local also failed
+      // If OpenClaw failed, try Vercel bridge, then local fallback
+      try {
+        const bridgeRes = await fetch('/api/ai/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: userMsg }),
+        });
+        if (bridgeRes.ok) {
+          const bridgeData = await bridgeRes.json();
+          const aiContent = bridgeData.choices?.[0]?.message?.content ?? '';
+          if (aiContent) {
+            addMessage({ type: 'ai', content: aiContent, context: currentPage });
+            toast.info('Used DeepSeek bridge (OpenClaw unavailable)', { description: errMsg });
+            return;
+          }
         }
+      } catch {
+        // Bridge also failed
+      }
+
+      // Final fallback: local NLP
+      try {
+        const fallbackResponse = await processCommand(userMsg);
+        addMessage(fallbackResponse);
+        toast.info('Using local AI (cloud unavailable)', { description: errMsg });
+        return;
+      } catch {
+        // Everything failed
       }
 
       toast.error('Failed to process message');
