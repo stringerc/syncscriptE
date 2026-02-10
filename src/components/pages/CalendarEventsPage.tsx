@@ -92,6 +92,8 @@ import { CalendarIntelligenceBanner } from '../CalendarIntelligenceBanner';
 import { UniversalEventCreationModal } from '../UniversalEventCreationModal';
 import { SmartBreakSuggestions } from '../SmartBreakSuggestions';
 import { LocationInput } from '../LocationInput';
+// PHASE 3: Calendar Optimize Button
+import { CalendarOptimizeButton } from '../CalendarOptimizeButton';
 // ADVANCED UX IMPORTS - Research-backed patterns
 import { QuickTimePicker } from '../QuickTimePicker';
 import { FloatingMiniTimeline } from '../FloatingMiniTimeline';
@@ -2324,6 +2326,18 @@ export function CalendarEventsPage() {
                 <Plus className="w-4 h-4" />
                 New Event
               </Button>
+              
+              {/* PHASE 3: AI Calendar Optimization Button */}
+              <CalendarOptimizeButton
+                events={events}
+                onOptimize={(optimizedEvents) => {
+                  // Apply optimized schedule
+                  console.log('[Phase 3] Applying optimized calendar:', optimizedEvents);
+                  // In production, this would update the calendar events
+                }}
+                className="w-full"
+              />
+              
               <Dialog open={showSmartEventDialog} onOpenChange={setShowSmartEventDialog}>
                 <DialogTrigger asChild>
                   <Button 

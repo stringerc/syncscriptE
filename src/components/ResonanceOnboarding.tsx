@@ -62,7 +62,7 @@ export function ResonanceOnboarding({ onComplete, onSkip }: ResonanceOnboardingP
   const progress = ((currentStep + 1) / steps.length) * 100;
 
   return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 bg-black backdrop-blur-sm z-50 flex items-center justify-center p-4" style={{ opacity: 0.8 }}>
       <motion.div
         className="bg-[#1a1c20] border border-gray-800 rounded-2xl max-w-2xl w-full overflow-hidden"
         initial={{ scale: 0.9, opacity: 0 }}

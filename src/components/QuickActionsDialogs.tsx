@@ -25,6 +25,8 @@ import { toast } from 'sonner@2.0.3';
 import { GOAL_TEMPLATES, TEMPLATE_CATEGORIES, GoalTemplate, getTemplateById } from '../utils/goal-templates';
 import { CURRENT_USER } from '../utils/user-constants';
 import { LocationInput } from './LocationInput';
+import { ImageUploadButton } from './ImageUploadButton';
+import type { ExtractedTask } from '../types/openclaw';
 
 interface NewTaskDialogProps {
   open: boolean;
@@ -53,6 +55,25 @@ export function NewTaskDialog({ open, onOpenChange, onSubmit }: NewTaskDialogPro
 
   const handleRemoveTag = (tagToRemove: string) => {
     setTags(tags.filter(tag => tag !== tagToRemove));
+  };
+
+  const handleImageTaskExtracted = (extractedTask: ExtractedTask) => {
+    // Auto-fill form with extracted task data
+    setTaskTitle(extractedTask.title);
+    if (extractedTask.description) setTaskDescription(extractedTask.description);
+    if (extractedTask.priority) setTaskPriority(extractedTask.priority as 'low' | 'medium' | 'high');
+    if (extractedTask.dueDate) {
+      // Convert ISO date to YYYY-MM-DD format for date input
+      const date = new Date(extractedTask.dueDate);
+      setDueDate(date.toISOString().split('T')[0]);
+    }
+    if (extractedTask.tags && extractedTask.tags.length > 0) {
+      setTags(extractedTask.tags);
+    }
+    
+    toast.success('Task details auto-filled from image', {
+      description: `Confidence: ${Math.round(extractedTask.confidence * 100)}%`,
+    });
   };
 
   const handleSubmit = async () => {
@@ -111,7 +132,16 @@ export function NewTaskDialog({ open, onOpenChange, onSubmit }: NewTaskDialogPro
         <div className="space-y-6 py-4">
           {/* Task Title */}
           <div className="space-y-2">
-            <Label htmlFor="task-title" className="text-white">Task Title *</Label>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="task-title" className="text-white">Task Title *</Label>
+              <div className="flex items-center gap-1">
+                <ImageUploadButton 
+                  onTaskExtracted={handleImageTaskExtracted}
+                  className="text-gray-400 hover:text-teal-400 hover:bg-teal-400/10"
+                />
+                <span className="text-xs text-gray-500">Upload image</span>
+              </div>
+            </div>
             <Input
               id="task-title"
               value={taskTitle}
@@ -1688,7 +1718,7 @@ export function VoiceToTaskDialog({ open, onOpenChange }: VoiceToTaskDialogProps
                             </div>
                           </div>
                         </div>
-                        <div className="absolute inset-0 w-24 h-24 bg-red-500/20 rounded-full animate-ping"></div>
+                        <div className="absolute inset-0 w-24 h-24 bg-red-500 opacity-20 rounded-full animate-ping"></div>
                       </div>
                       <p className="text-white">Listening...</p>
                       <p className="text-gray-400 text-sm">Speak your tasks or goals clearly</p>

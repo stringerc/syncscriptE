@@ -37,7 +37,7 @@ export function AdvancedFeaturesBanner() {
         className="bg-gradient-to-r from-teal-600/10 via-blue-600/10 to-purple-600/10 border border-teal-500/30 rounded-xl p-4 relative overflow-hidden"
       >
         {/* Background glow effect */}
-        <div className="absolute inset-0 bg-gradient-to-r from-teal-500/5 via-blue-500/5 to-purple-500/5 animate-pulse" />
+        <div className="absolute inset-0 bg-gradient-to-r from-teal-500 via-blue-500 to-purple-500 opacity-5 animate-pulse" />
         
         <div className="relative z-10">
           <div className="flex items-start gap-3">

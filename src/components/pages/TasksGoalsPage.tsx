@@ -8,6 +8,7 @@ import {
   Archive, // PHASE 5D: Archive icon
   Sparkles, // PHASE 1.4: Energy reward icon
   BookOpen, // Empty state icon
+  Upload, // PHASE 2: Document upload icon
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { toast } from 'sonner@2.0.3';
@@ -27,6 +28,7 @@ import { TaskDetailModal } from '../TaskDetailModal';
 import { GoalDetailModal } from '../GoalDetailModal';
 import { EditTaskDialog } from '../EditTaskDialog';
 import { EditGoalDialog } from '../EditGoalDialog';
+import { DocumentUploadModal } from '../DocumentUploadModal'; // PHASE 2: Document upload
 import { UserAvatar } from '../user/UserAvatar';
 import { useUserProfile } from '../../utils/user-profile';
 import { copyToClipboard } from '../../utils/clipboard';
@@ -67,6 +69,9 @@ import { DateStatusBadge } from '../DateStatusBadge';
 import { GoalAnalyticsTab } from '../goals/GoalAnalyticsTab';
 import { GoalTemplateLibrary } from '../goals/GoalTemplateLibrary';
 import { GoalTimelineView } from '../goals/GoalTimelineView';
+// PHASE 3: AI Suggestions Cards
+import { AISuggestionsCard } from '../AISuggestionsCard';
+import { AIGoalSuggestionsCard } from '../AIGoalSuggestionsCard';
 
 // Helper function to format date/time in a user-friendly way with enhanced context
 const formatDueDate = (dueDate: string): string => {
@@ -188,6 +193,8 @@ export function TasksGoalsPage() {
   const [isVoiceToGoalOpen, setIsVoiceToGoalOpen] = useState(false);
   const [isAITaskGenOpen, setIsAITaskGenOpen] = useState(false);
   const [isAIGoalGenOpen, setIsAIGoalGenOpen] = useState(false);
+  // PHASE 2: Document upload modal
+  const [isDocumentUploadOpen, setIsDocumentUploadOpen] = useState(false);
   const [isFocusModeOpen, setIsFocusModeOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState<string | null>(null);
   const [selectedGoal, setSelectedGoal] = useState<any>(null);
@@ -639,10 +646,25 @@ export function TasksGoalsPage() {
     toast.success('Task updated', { description: 'Your changes have been saved' });
   };
 
-  // AI Insights specific to Tasks tab - Research-backed visualizations only
+  // AI Insights specific to Tasks tab - Research-backed visualizations + AI Suggestions
   const tasksAIInsightsContent: AIInsightsContent = {
     title: 'Tasks AI Insights',
-    mode: 'full',
+    mode: 'custom',
+    customContent: (
+      <div className="space-y-4">
+        {/* AI Task Suggestions Card */}
+        <AISuggestionsCard 
+          onTaskCreated={(task) => {
+            console.log('[AI Insights] Task created from AI suggestion:', task);
+          }}
+        />
+        
+        {/* Visualizations placeholder - could add back if needed */}
+        <div className="text-xs text-gray-500 text-center py-2">
+          Data visualizations available
+        </div>
+      </div>
+    ),
     insights: [],
     visualizations: [
       // 1. Task Status Distribution (Pie/Bar Chart)
@@ -697,10 +719,25 @@ export function TasksGoalsPage() {
     ],
   };
 
-  // AI Insights specific to Goals tab - Research-backed visualizations only
+  // AI Insights specific to Goals tab - Research-backed visualizations + AI Goal Suggestions
   const goalsAIInsightsContent: AIInsightsContent = {
     title: 'Goals AI Insights',
-    mode: 'full',
+    mode: 'custom',
+    customContent: (
+      <div className="space-y-4">
+        {/* AI Goal Suggestions Card */}
+        <AIGoalSuggestionsCard 
+          onGoalCreated={(goal) => {
+            console.log('[AI Insights] Goal created from AI suggestion:', goal);
+          }}
+        />
+        
+        {/* Visualizations placeholder - could add back if needed */}
+        <div className="text-xs text-gray-500 text-center py-2">
+          Data visualizations available
+        </div>
+      </div>
+    ),
     insights: [],
     visualizations: [
       // 1. Goal Progress Over Time (Actual vs Expected)
@@ -853,6 +890,19 @@ export function TasksGoalsPage() {
                 )
               )}
             </Button>
+            {/* PHASE 2: Document Upload Button (Tasks view only) */}
+            {activeView === 'tasks' && (
+              <Button 
+                variant="outline"
+                className="gap-2 border-teal-500/50 text-teal-400 hover:bg-teal-500/10 hover:border-teal-500 hover:scale-[1.02] transition-all duration-200 active:scale-95"
+                onClick={() => setIsDocumentUploadOpen(true)}
+                title="Upload document to extract tasks"
+              >
+                <Upload className="w-4 h-4" />
+                Upload Document
+              </Button>
+            )}
+            
             <Button 
               className={`gap-2 hover:scale-[1.02] hover:shadow-xl transition-all duration-200 active:scale-95 text-white font-medium ${
                 activeView === 'tasks'
@@ -964,6 +1014,12 @@ export function TasksGoalsPage() {
           open={isNewGoalDialogOpen} 
           onOpenChange={setIsNewGoalDialogOpen}
           onSubmit={handleCreateGoal}
+        />
+        
+        {/* PHASE 2: Document Upload Modal */}
+        <DocumentUploadModal
+          open={isDocumentUploadOpen}
+          onOpenChange={setIsDocumentUploadOpen}
         />
         <VoiceToTaskDialog 
           open={isVoiceToTaskOpen} 

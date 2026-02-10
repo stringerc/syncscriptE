@@ -11,7 +11,7 @@
  * COMPREHENSIVE RESEARCH FOUNDATION (18 NEW STUDIES)
  * ══════════════════════════════════════════════════════════════════════════════
  * 
- * ┌─────────────────────────────────────────────────────────────────────────┐
+ * ┌─────────────────���───────────────────────────────────────────────────────┐
  * │ 1. TEMPORAL AWARENESS & "NEXT UP" SPOTLIGHT                             │
  * └─────────────────────────────────────────────────────────────────────────┘
  * 
@@ -753,51 +753,14 @@ export function TodayScheduleRefined() {
               </div>
             )}
             
-            {/* Temporal Sections */}
-            {temporalSections.map((section) => {
-              const isCollapsed = collapsedSections.has(section.id);
-              const visibleTasks = section.tasks.filter(t => !completedTaskIds.has(t.id));
-              
-              if (visibleTasks.length === 0) return null;
-              
-              return (
-                <div key={section.id}>
-                  <button
-                    onClick={() => toggleSection(section.id)}
-                    className="flex items-center justify-between w-full mb-2 group"
-                  >
-                    <div className="flex items-center gap-2">
-                      {isCollapsed ? (
-                        <ChevronRight className="w-3.5 h-3.5 text-gray-500" />
-                      ) : (
-                        <ChevronDown className="w-3.5 h-3.5 text-gray-500" />
-                      )}
-                      <h4 className={`text-xs font-semibold uppercase tracking-wider ${section.isNow ? 'text-teal-400' : 'text-gray-400'}`}>
-                        {section.label}
-                        {section.isNow && <span className="ml-1.5 text-[10px]">• Now</span>}
-                      </h4>
-                      <span className="text-[10px] text-gray-600">{section.timeRange}</span>
-                    </div>
-                    <span className="text-[10px] text-gray-600">{visibleTasks.length}</span>
-                  </button>
-                  
-                  <AnimatePresence>
-                    {!isCollapsed && (
-                      <motion.div
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: 'auto' }}
-                        exit={{ opacity: 0, height: 0 }}
-                        className="space-y-2 overflow-hidden"
-                      >
-                        {visibleTasks.map(task => 
-                          task.id !== nextUpTask?.id && renderTaskCard(task, false)
-                        )}
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
-              );
-            })}
+            {/* All Tasks (without temporal sections) */}
+            {getSmartSchedule.filter(t => !completedTaskIds.has(t.id) && t.id !== nextUpTask?.id).length > 0 && (
+              <div className="space-y-2">
+                {getSmartSchedule
+                  .filter(t => !completedTaskIds.has(t.id) && t.id !== nextUpTask?.id)
+                  .map((task) => renderTaskCard(task, false))}
+              </div>
+            )}
           </>
         )}
       </div>

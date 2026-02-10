@@ -23,11 +23,11 @@ function FloatingDebris({ size, intensity }: { size: number; intensity: number }
       <motion.div
         className="absolute inset-0 rounded-full pointer-events-none"
         style={{
-          background: 'radial-gradient(circle, rgba(251, 191, 36, 0.3) 0%, transparent 70%)',
+          background: 'radial-gradient(circle, rgb(251, 191, 36) 0%, transparent 70%)',
         }}
         animate={{
           scale: [1, 1.3, 1],
-          opacity: [0.3, 0.6, 0.3],
+          opacity: [0.09, 0.18, 0.09],
         }}
         transition={{
           duration: 2,
@@ -336,11 +336,11 @@ function RippleWaves({ size }: { size: number }) {
           transform: 'translate(-50%, -50%)',
           width: size,
           height: size,
-          background: 'radial-gradient(circle, rgba(168, 85, 247, 0.2) 0%, transparent 70%)',
+          background: 'radial-gradient(circle, rgb(168, 85, 247) 0%, transparent 70%)',
         }}
         animate={{
           scale: [1, 1.2, 1],
-          opacity: [0.5, 0.8, 0.5],
+          opacity: [0.1, 0.16, 0.1],
         }}
         transition={{
           duration: 2.5,

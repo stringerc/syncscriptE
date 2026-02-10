@@ -21,7 +21,6 @@
  */
 
 import { motion, AnimatePresence } from 'motion/react';
-import { createPortal } from 'react-dom';
 import { 
   Sparkles, 
   ArrowRight, 
@@ -51,19 +50,16 @@ export function EnhancedWelcomeModal({
   onSkipTour,
   userName = 'there'
 }: EnhancedWelcomeModalProps) {
-  // Use a portal to render at the top of the DOM tree,
-  // avoiding stacking context issues with parent elements
-  return createPortal(
+  return (
     <AnimatePresence>
       {show && (
         <>
           {/* Backdrop */}
           <motion.div
             initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
+            animate={{ opacity: 0.8 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/80 backdrop-blur-md"
-            style={{ zIndex: 99999 }}
+            className="fixed inset-0 bg-black backdrop-blur-md z-[10000]"
             onClick={onClose}
           />
 
@@ -73,12 +69,10 @@ export function EnhancedWelcomeModal({
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.9, y: 20 }}
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-            className="fixed inset-0 flex items-center justify-center p-4"
-            style={{ zIndex: 100000 }}
-            onClick={onClose}
+            className="fixed inset-0 z-[10000] flex items-center justify-center p-4 pointer-events-none"
           >
             <div 
-              className="relative bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 border border-purple-500/30 rounded-2xl p-8 max-w-2xl w-full shadow-2xl overflow-hidden"
+              className="relative bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 border border-purple-500/30 rounded-2xl p-8 max-w-2xl w-full shadow-2xl overflow-hidden pointer-events-auto"
               onClick={(e) => e.stopPropagation()}
             >
               {/* Animated background effects */}
@@ -280,8 +274,7 @@ export function EnhancedWelcomeModal({
           </motion.div>
         </>
       )}
-    </AnimatePresence>,
-    document.body
+    </AnimatePresence>
   );
 }
 

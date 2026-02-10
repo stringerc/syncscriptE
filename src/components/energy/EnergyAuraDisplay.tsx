@@ -73,12 +73,12 @@ export function EnergyAuraDisplay({
                 key={layer}
                 className="absolute inset-0 rounded-full"
                 style={{
-                  background: `radial-gradient(circle, ${currentColor}40 0%, transparent 70%)`,
+                  background: `radial-gradient(circle, ${currentColor} 0%, transparent 70%)`,
                   filter: `blur(${layer * 8}px)`,
                 }}
                 animate={{
                   scale: [1, 1.1, 1],
-                  opacity: [0.5, 0.8, 0.5],
+                  opacity: [0.125, 0.2, 0.125],
                 }}
                 transition={{
                   duration: 2 + layer * 0.5,

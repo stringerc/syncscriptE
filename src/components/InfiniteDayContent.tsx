@@ -485,7 +485,7 @@ const InfiniteDayContentComponent = ({
               width: `${dragPreview.width ?? 100}%`,
             }}
           >
-            <div className="h-full rounded-lg border-2 border-dashed border-teal-400 bg-teal-500/20 backdrop-blur-sm p-2 flex flex-col justify-center animate-pulse">
+            <div className="h-full rounded-lg border-2 border-dashed border-teal-400 bg-teal-500 bg-opacity-20 backdrop-blur-sm p-2 flex flex-col justify-center animate-pulse">
               <div className="text-teal-300 font-medium text-xs truncate">
                 {dragPreview.title}
               </div>
@@ -996,7 +996,7 @@ const InfiniteDayContentComponent = ({
           }
           
           return (
-            <React.Fragment key={event.id}>
+            <div key={event.id} className="contents">
               {/* ══════════════════════════════════════════════════════════
                   PARENT EVENT CARD (z-index: 10)
                   ══════════════════════════════════════════════════════════ */}
@@ -1109,7 +1109,7 @@ const InfiniteDayContentComponent = ({
                   isExpanded={isEventExpanded}
                 />
               )}
-            </React.Fragment>
+            </div>
           );
         })}
       </div>

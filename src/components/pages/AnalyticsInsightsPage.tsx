@@ -27,6 +27,12 @@ import { CompletionAnalyticsDashboard } from '../analytics/CompletionAnalyticsDa
 import { AnalyticsTestPanel } from '../analytics/AnalyticsTestPanel';
 import { BehaviorInsightsPanel } from '../analytics/BehaviorInsightsPanel';
 import { ComplianceDashboard } from '../analytics/ComplianceDashboard';
+// PHASE 3: AI Insights tab
+import { AnalyticsAIInsights } from '../AnalyticsAIInsights';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
+import { useTasks } from '../../hooks/useTasks';
+import { useGoals } from '../../hooks/useGoals';
+import { useEnergy } from '../../hooks/useEnergy';
 
 // Mock chart components for now - these can be replaced with real implementations
 const ProductivityOverTime = ({ data }: any) => <div className="h-48 bg-gray-800/30 rounded-lg" />;
@@ -44,6 +50,12 @@ const Histogram = ({ data, height, color }: any) => <div className="h-48 bg-gray
 export function AnalyticsInsightsPage() {
   const [timeRange, setTimeRange] = useState<'day' | 'week' | 'month' | 'year'>('week');
   const [showComingSoon, setShowComingSoon] = useState(true);
+  const [activeTab, setActiveTab] = useState<'overview' | 'ai-insights'>('overview');
+
+  // PHASE 3: Get real data for AI insights
+  const { tasks } = useTasks();
+  const { goals } = useGoals();
+  const { energyLogs } = useEnergy();
 
   // AI Insights for Analytics & Insights - Comprehensive Dashboard
   // Research: 10-15 charts optimal (Chartio analysis of 90,000 dashboards)
@@ -290,6 +302,25 @@ export function AnalyticsInsightsPage() {
             </Button>
           ))}
         </div>
+
+        {/* PHASE 3: Tab System */}
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'overview' | 'ai-insights')}>
+          <TabsList className="bg-gray-800/50">
+            <TabsTrigger value="overview" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-teal-600 data-[state=active]:to-blue-600">
+              <BarChart3 className="w-4 h-4 mr-2" />
+              Overview
+            </TabsTrigger>
+            <TabsTrigger value="ai-insights" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600 data-[state=active]:to-indigo-600">
+              <Brain className="w-4 h-4 mr-2" />
+              AI Insights
+              <Badge variant="secondary" className="ml-2 bg-purple-500/20 text-purple-300">
+                Beta
+              </Badge>
+            </TabsTrigger>
+          </TabsList>
+
+          {/* Overview Tab (existing content) */}
+          <TabsContent value="overview" className="space-y-6 mt-6">
 
         {/* Key Metrics Overview */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -700,6 +731,22 @@ export function AnalyticsInsightsPage() {
           </div>
           <ComplianceDashboard />
         </div>
+          </TabsContent>
+
+          {/* PHASE 3: AI Insights Tab */}
+          <TabsContent value="ai-insights" className="mt-6">
+            <AnalyticsAIInsights
+              tasksData={tasks}
+              goalsData={goals}
+              eventsData={[]} // Calendar events would go here
+              energyData={energyLogs || []}
+              onActionClick={(action, target) => {
+                console.log('[Phase 3] AI Insight action:', action, target);
+                // In production, this would navigate or trigger the appropriate action
+              }}
+            />
+          </TabsContent>
+        </Tabs>
       </div>
     </DashboardLayout>
   );

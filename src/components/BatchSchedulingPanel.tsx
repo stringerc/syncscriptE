@@ -184,7 +184,7 @@ export function BatchSchedulingPanel({
     .reduce((sum, p) => sum + p.count, 0);
   
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center">
+    <div className="fixed inset-0 bg-black backdrop-blur-sm z-[100] flex items-center justify-center" style={{ opacity: 0.6 }}>
       <motion.div
         initial={{ opacity: 0, scale: 0.95, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}

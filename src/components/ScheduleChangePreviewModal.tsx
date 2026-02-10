@@ -28,7 +28,7 @@ import {
 } from './ui/tooltip';
 import { useState } from 'react';
 import { AlternativeTimeSlotsView } from './AlternativeTimeSlotsView';
-import { toast } from 'react-toastify';
+import { toast } from 'sonner@2.0.3';
 
 interface ScheduleChangePreviewModalProps {
   isOpen: boolean;
@@ -92,10 +92,10 @@ export function ScheduleChangePreviewModal({
           {/* Backdrop */}
           <motion.div
             initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
+            animate={{ opacity: 0.6 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50"
+            className="fixed inset-0 bg-black backdrop-blur-sm z-50"
           />
 
           {/* Modal */}

@@ -171,7 +171,7 @@ export function ImageCropModal({
   });
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black backdrop-blur-sm" style={{ opacity: 0.9 }}>
       <div className="w-full max-w-2xl mx-4">
         {/* Header */}
         <div className="bg-slate-900 border border-slate-800 rounded-t-lg p-4 flex items-center justify-between">

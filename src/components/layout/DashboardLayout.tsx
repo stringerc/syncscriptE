@@ -167,7 +167,14 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
               }`}
             >
               {/* AI Assistant Panel - Fully Functional */}
-              <AIAssistantPanel isOpen={isAIInsightsOpen} />
+              <AIAssistantPanel 
+                isOpen={isAIInsightsOpen} 
+                onOpenAIInsights={() => {
+                  if (!isAIInsightsOpen) {
+                    handleToggleAIInsights();
+                  }
+                }}
+              />
             </div>
           </div>
         </div>

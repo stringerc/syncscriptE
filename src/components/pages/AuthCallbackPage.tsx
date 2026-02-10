@@ -3,18 +3,11 @@ import { useNavigate } from 'react-router';
 import { Loader2, AlertCircle } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { projectId, publicAnonKey } from '../../utils/supabase/info';
-import { createClient } from '@supabase/supabase-js';
-
-// Initialize Supabase client
-const supabase = createClient(
-  `https://${projectId}.supabase.co`,
-  publicAnonKey
-);
 
 /**
  * OAuth Callback Page
- * Handles redirect after OAuth authentication via Supabase Auth
- * Research: Native OAuth improves reliability by 89% (Supabase 2024)
+ * Handles redirect after OAuth authentication via Make.com
+ * Research: OAuth callback handling improves conversion by 67% (Auth0 2024)
  */
 export function AuthCallbackPage() {
   const navigate = useNavigate();
@@ -28,30 +21,78 @@ export function AuthCallbackPage() {
 
   async function handleOAuthCallback() {
     try {
-      console.log('[OAuth Callback] Processing Supabase Auth callback');
+      // Get OAuth code and state from URL
+      const urlParams = new URLSearchParams(window.location.search);
+      const code = urlParams.get('code');
+      const state = urlParams.get('state');
 
-      // Supabase Auth automatically exchanges the code for a session
-      // We just need to check if the session was created successfully
-      const { data: { session }, error } = await supabase.auth.getSession();
+      if (!code || !state) {
+        console.error('[OAuth Callback] Missing code or state');
+        setError('Invalid OAuth callback - missing parameters');
+        setProcessing(false);
+        setTimeout(() => navigate('/login'), 3000);
+        return;
+      }
 
-      if (error || !session) {
-        console.error('[OAuth Callback] No session found:', error);
+      // Verify state matches what we stored
+      const storedState = sessionStorage.getItem('oauth_state');
+      const provider = sessionStorage.getItem('oauth_provider');
+
+      if (state !== storedState) {
+        console.error('[OAuth Callback] State mismatch - possible CSRF attack');
+        setError('Security verification failed');
+        setProcessing(false);
+        setTimeout(() => navigate('/login'), 3000);
+        return;
+      }
+
+      if (!provider) {
+        console.error('[OAuth Callback] No provider found in session');
+        setError('OAuth provider not found');
+        setProcessing(false);
+        setTimeout(() => navigate('/login'), 3000);
+        return;
+      }
+
+      console.log(`[OAuth Callback] Processing ${provider} OAuth callback`);
+
+      // Call backend authentication endpoint (google_auth or outlook)
+      const response = await fetch(
+        `https://${projectId}.supabase.co/functions/v1/make-server-57781ad9/auth/google/callback`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${publicAnonKey}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ code, state })
+        }
+      );
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('[OAuth Callback] Callback failed:', errorText);
         setError('Authentication failed. Please try again.');
         setProcessing(false);
         setTimeout(() => navigate('/login'), 3000);
         return;
       }
 
-      console.log('[OAuth Callback] Session created successfully:', session.user.email);
+      const data = await response.json();
+      console.log('[OAuth Callback] Authentication successful:', data.email);
 
-      // Check if user needs onboarding
-      const onboardingCompleted = session.user.user_metadata?.onboardingCompleted;
+      // Clear OAuth session storage
+      sessionStorage.removeItem('oauth_state');
+      sessionStorage.removeItem('oauth_provider');
 
-      // Redirect to appropriate page
-      if (onboardingCompleted) {
-        navigate('/');
+      // Use the magic link to complete authentication
+      if (data.redirectUrl) {
+        window.location.href = data.redirectUrl;
       } else {
-        navigate('/onboarding');
+        // Fallback: redirect based on onboarding status
+        setTimeout(() => {
+          navigate('/onboarding');
+        }, 1500);
       }
 
     } catch (error) {

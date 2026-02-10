@@ -1416,9 +1416,9 @@ export function LandingPage() {
         {showDemoModal && (
           <motion.div
             initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
+            animate={{ opacity: 0.8 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            className="fixed inset-0 bg-black backdrop-blur-sm z-50 flex items-center justify-center p-4"
             onClick={() => setShowDemoModal(false)}
           >
             <motion.div
@@ -1441,7 +1441,7 @@ export function LandingPage() {
               {/* Option 1: Video Tutorial (Placeholder) */}
               <div className="aspect-video bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg flex items-center justify-center border border-white/10 mb-6 relative overflow-hidden">
                 {/* Animated Background */}
-                <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/5 to-teal-500/5 animate-pulse" />
+                <div className="absolute inset-0 bg-gradient-to-br from-cyan-500 to-teal-500 opacity-5 animate-pulse" />
                 
                 {/* Content */}
                 <div className="relative text-center text-white/70 p-8">

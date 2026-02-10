@@ -170,36 +170,75 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   async function signInWithGoogle() {
     try {
-      console.log('[Auth] Signing in with Google via Supabase Auth');
+      // Use direct OAuth integration (not Make.com)
+      console.log('[Auth] Initiating Google OAuth via direct integration');
       
-      const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
-          queryParams: {
-            access_type: 'offline',
-            prompt: 'consent',
+      const response = await fetch(
+        `https://${projectId}.supabase.co/functions/v1/make-server-57781ad9/integrations/google_auth/authorize`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${publicAnonKey}`,
+            'Content-Type': 'application/json'
           },
-          scopes: 'openid email profile',
-        },
-      });
+          body: JSON.stringify({
+            scopes: [
+              'https://www.googleapis.com/auth/userinfo.profile',
+              'https://www.googleapis.com/auth/userinfo.email',
+              'openid'
+            ],
+            redirectUri: `${window.location.origin}/auth/callback`
+          })
+        }
+      );
 
-      if (error) {
-        console.error('[Auth] Google OAuth error:', error);
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('[Auth] Failed to initiate Google OAuth:', errorText);
+        
+        // Try to parse error message
+        let errorJson;
+        try {
+          errorJson = JSON.parse(errorText);
+        } catch (e) {
+          errorJson = { error: errorText };
+        }
+        
         return { 
           success: false, 
-          error: error.message || 'Failed to sign in with Google'
+          error: errorJson.error || 'Failed to initiate Google OAuth. Please check server configuration.'
         };
       }
 
-      console.log('[Auth] Redirecting to Google...');
+      const data = await response.json();
+      
+      if (!data.authUrl) {
+        return { 
+          success: false, 
+          error: 'OAuth initialization failed. Server did not return auth URL.'
+        };
+      }
+
+      // Store state for callback verification
+      sessionStorage.setItem('oauth_state', data.state);
+      sessionStorage.setItem('oauth_provider', 'google_auth');
+      
+      // Redirect to Google OAuth flow
+      window.location.href = data.authUrl;
+
       return { success: true };
     } catch (error) {
       console.error('[Auth] Google OAuth error:', error);
-      return { 
-        success: false, 
-        error: error instanceof Error ? error.message : 'Failed to sign in with Google'
-      };
+      
+      // Provide more helpful error message
+      if (error instanceof TypeError && error.message.includes('fetch')) {
+        return { 
+          success: false, 
+          error: 'Cannot connect to authentication server. Please ensure Supabase Edge Functions are deployed and running.' 
+        };
+      }
+      
+      return { success: false, error: 'Google sign in failed. Please try again.' };
     }
   }
 

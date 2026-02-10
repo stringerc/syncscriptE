@@ -636,9 +636,9 @@ function ClusterDetailModal({ cluster, onClose }: any) {
   return (
     <motion.div
       initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
+      animate={{ opacity: 0.8 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-6"
+      className="fixed inset-0 bg-black backdrop-blur-sm z-50 flex items-center justify-center p-6"
       onClick={onClose}
     >
       <motion.div

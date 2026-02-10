@@ -13,7 +13,7 @@ import {
   LayoutDashboard, Calendar, CheckSquare, Target, Zap, 
   Users, BarChart3, Trophy, Puzzle, Settings, Brain,
   Plus, TrendingUp, Search, FileText, MessageSquare,
-  Activity, Clock, Sparkles, ListChecks
+  Activity, Clock, Sparkles, ListChecks, AlertCircle, Bell
 } from 'lucide-react';
 
 export interface PageContext {
@@ -33,7 +33,7 @@ export interface QuickAction {
   icon: any;
   description: string;
   command: string; // What command to run or preset
-  type: 'create' | 'analyze' | 'optimize' | 'navigate' | 'query';
+  type: 'create' | 'analyze' | 'optimize' | 'navigate' | 'query' | 'open-insights';
 }
 
 /**
@@ -164,6 +164,14 @@ export const PAGE_CONTEXTS: Record<string, PageContext> = {
     description: 'Task management and goal tracking',
     quickActions: [
       {
+        id: 'view-ai-suggestions',
+        label: 'View AI Suggestions',
+        icon: Sparkles,
+        description: 'Open AI Task & Goal Suggestions panel',
+        command: 'open-ai-insights-panel',
+        type: 'open-insights',
+      },
+      {
         id: 'create-task',
         label: 'Create Task',
         icon: Plus,
@@ -187,25 +195,17 @@ export const PAGE_CONTEXTS: Record<string, PageContext> = {
         command: 'How are my goals progressing?',
         type: 'query',
       },
-      {
-        id: 'overdue',
-        label: 'Overdue Tasks',
-        icon: Clock,
-        description: 'Show overdue items',
-        command: '/task overdue',
-        type: 'query',
-      },
     ],
     conversationStarters: [
+      'Show me AI task suggestions',
       'What tasks should I work on first?',
       'Create a task for client presentation',
-      'Show me high-priority tasks',
       'How are my goals doing this month?',
     ],
     smartInsights: [
+      '3 new AI task suggestions available in AI Insights',
       '5 tasks due this week',
       '2 goals are behind schedule',
-      'High-energy tasks available for morning',
     ],
     aiCapabilities: [
       'Smart task prioritization',
@@ -668,5 +668,3 @@ export function generateWelcomeMessage(pathname: string): string {
   
   return `${greeting}! I'm your AI Assistant, currently tuned to your **${context.displayName}** page.\n\nI can help you with:\n${context.aiCapabilities.slice(0, 3).map(cap => `• ${cap}`).join('\n')}\n\nWhat would you like to do?`;
 }
-
-import { AlertCircle, Bell } from 'lucide-react';

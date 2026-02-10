@@ -114,10 +114,10 @@ export function MobileNav() {
             {/* Backdrop */}
             <motion.div
               initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
+              animate={{ opacity: 0.6 }}
               exit={{ opacity: 0 }}
               onClick={() => setIsDrawerOpen(false)}
-              className="md:hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50"
+              className="md:hidden fixed inset-0 bg-black backdrop-blur-sm z-50"
             />
 
             {/* Drawer */}

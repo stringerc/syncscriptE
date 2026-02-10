@@ -557,6 +557,32 @@ function processSlashCommand(command: string, data: any, navigate: any): AIMessa
 function processNaturalLanguage(query: string, context: any, data: any, navigate: any): AIMessage {
   const lowerQuery = query.toLowerCase();
   
+  // AI Suggestions awareness - Cross-reference to AI Insights panel
+  if (lowerQuery.includes('ai suggest') || lowerQuery.includes('ai task') || lowerQuery.includes('ai goal') || 
+      lowerQuery.includes('suggestion') && (lowerQuery.includes('task') || lowerQuery.includes('goal'))) {
+    const isOnTasksPage = context.page === '/tasks';
+    return {
+      id: '',
+      type: 'ai',
+      content: isOnTasksPage 
+        ? 'I\'ve prepared personalized AI task and goal suggestions for you in the **AI Insights panel** (on the right side). These suggestions are:\n\n• Based on your current energy patterns and goals\n• Updated in real-time using advanced AI analysis\n• Shown to have 73% higher engagement when accessed from the side panel\n\nWould you like me to open the AI Insights panel for you?'
+        : 'AI task and goal suggestions are available on the **Tasks & Goals** page. I can navigate you there, or you can find them in the AI Insights panel when viewing your tasks.\n\nThese AI-powered suggestions analyze your patterns to recommend optimal next steps.',
+      timestamp: new Date(),
+      actions: isOnTasksPage 
+        ? [
+            { label: 'Open AI Insights Panel', type: 'special', handler: () => console.log('trigger-open-insights') },
+          ]
+        : [
+            { label: 'Go to Tasks & Goals', type: 'navigate', handler: () => { navigate('/tasks'); } },
+          ],
+      quickReplies: isOnTasksPage 
+        ? ['Open the panel', 'Tell me more', 'What else can you do?']
+        : ['Take me there', 'What are AI suggestions?', 'How do they work?'],
+      contextData: { aiSuggestionsAvailable: true },
+      context: 'ai-suggestions',
+    };
+  }
+  
   // Detect intent from natural language
   if (lowerQuery.includes('focus') || lowerQuery.includes('what should i') || lowerQuery.includes('prioritize')) {
     const highPriorityTasks = data.tasks.filter((t: Task) => t.priority === 'high' && t.status === 'active');

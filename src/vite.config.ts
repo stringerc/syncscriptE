@@ -29,7 +29,7 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks: {
-          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
+          'react-vendor': ['react', 'react-dom', 'react-router'],
           'ui-vendor': ['@radix-ui/react-dialog', '@radix-ui/react-dropdown-menu', '@radix-ui/react-popover'],
           'chart-vendor': ['recharts'],
           'utility-vendor': ['date-fns', 'clsx', 'tailwind-merge'],
@@ -42,7 +42,7 @@ export default defineConfig({
     include: [
       'react',
       'react-dom',
-      'react-router-dom',
+      'react-router',
       'lucide-react',
       'date-fns',
       'recharts',

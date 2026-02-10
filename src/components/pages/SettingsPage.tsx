@@ -24,8 +24,6 @@ import { useNavigate } from 'react-router';
 import { useUserProfile } from '../../utils/user-profile';
 import { useAuth } from '../../contexts/AuthContext';
 import { ImageCropModal } from '../ImageCropModal';
-import { useOpenClawContext } from '../../contexts/OpenClawContext';
-import { Brain } from 'lucide-react';
 
 // Default avatar URL
 const DEFAULT_AVATAR = 'https://images.unsplash.com/photo-1576558656222-ba66febe3dec?w=400&h=400&fit=crop&crop=face';
@@ -401,10 +399,6 @@ export function SettingsPage() {
             <TabsTrigger value="privacy">
               <Shield className="w-4 h-4 mr-2" />
               Privacy
-            </TabsTrigger>
-            <TabsTrigger value="openclaw">
-              <Brain className="w-4 h-4 mr-2" />
-              AI / OpenClaw
             </TabsTrigger>
           </TabsList>
 
@@ -1187,11 +1181,6 @@ export function SettingsPage() {
               </div>
             </Card>
           </TabsContent>
-
-          {/* OpenClaw / AI Settings */}
-          <TabsContent value="openclaw" className="space-y-6">
-            <OpenClawSettingsPanel />
-          </TabsContent>
         </Tabs>
 
         {/* Image Crop Modal */}
@@ -1206,226 +1195,5 @@ export function SettingsPage() {
 
       </motion.div>
     </div>
-  );
-}
-
-// ─── OpenClaw Settings Panel ─────────────────────────────────────────────────
-
-function OpenClawSettingsPanel() {
-  const {
-    config,
-    updateConfig,
-    connectionStatus,
-    latencyMs,
-    error,
-    checkConnection,
-    isAvailable,
-  } = useOpenClawContext();
-
-  const [gatewayUrl, setGatewayUrl] = useState(config.gatewayUrl);
-  const [token, setToken] = useState(config.token);
-  const [agentId, setAgentId] = useState(config.agentId);
-  const [isTesting, setIsTesting] = useState(false);
-
-  const handleSave = () => {
-    updateConfig({
-      gatewayUrl: gatewayUrl.replace(/\/$/, ''), // Remove trailing slash
-      token,
-      agentId,
-    });
-    toast.success('OpenClaw settings saved');
-  };
-
-  const handleTestConnection = async () => {
-    // Save first, then test
-    handleSave();
-    setIsTesting(true);
-    const ok = await checkConnection();
-    setIsTesting(false);
-    if (ok) {
-      toast.success('Connected to OpenClaw!', {
-        description: `Gateway responded in ${latencyMs}ms`,
-      });
-    } else {
-      toast.error('Cannot reach OpenClaw', {
-        description: error ?? 'Check your gateway URL and make sure OpenClaw is running',
-      });
-    }
-  };
-
-  const statusColor =
-    connectionStatus === 'connected' ? 'text-emerald-400' :
-    connectionStatus === 'connecting' ? 'text-yellow-400' :
-    connectionStatus === 'error' ? 'text-red-400' :
-    'text-gray-400';
-
-  return (
-    <>
-      <Card className="bg-[#1e2128] border-gray-800 p-6">
-        <h2 className="text-white text-xl mb-1 flex items-center gap-2">
-          <Brain className="w-5 h-5 text-purple-400" />
-          OpenClaw AI Gateway
-        </h2>
-        <p className="text-gray-400 text-sm mb-2">
-          Connect to your self-hosted OpenClaw instance for AI-powered conversations with real model intelligence (Claude, GPT, etc.)
-        </p>
-        <div className="flex items-center gap-2 mb-6 p-2 rounded-lg bg-emerald-900/20 border border-emerald-800/30">
-          <div className="w-2 h-2 rounded-full bg-emerald-400" />
-          <span className="text-xs text-emerald-300">
-            DeepSeek AI bridge active — AI chat works even without OpenClaw gateway
-          </span>
-        </div>
-
-        {/* Connection Status */}
-        <div className="flex items-center gap-3 mb-6 p-3 rounded-lg bg-gray-900/50 border border-gray-700">
-          <div className={`w-3 h-3 rounded-full ${
-            connectionStatus === 'connected' ? 'bg-emerald-400 animate-pulse' :
-            connectionStatus === 'connecting' ? 'bg-yellow-400 animate-pulse' :
-            connectionStatus === 'error' ? 'bg-red-400' :
-            'bg-gray-500'
-          }`} />
-          <span className={`text-sm font-medium ${statusColor}`}>
-            {connectionStatus === 'connected' ? `Connected (${latencyMs}ms)` :
-             connectionStatus === 'connecting' ? 'Connecting...' :
-             connectionStatus === 'error' ? 'Connection Error' :
-             'Not Connected'}
-          </span>
-          {error && connectionStatus === 'error' && (
-            <span className="text-xs text-red-300 ml-auto">{error}</span>
-          )}
-        </div>
-
-        <div className="space-y-4">
-          {/* Enable/Disable */}
-          <div className="flex items-center justify-between">
-            <div className="space-y-0.5">
-              <Label className="text-white">Enable OpenClaw</Label>
-              <p className="text-sm text-gray-400">Use AI gateway for intelligent responses</p>
-            </div>
-            <Switch
-              checked={config.enabled}
-              onCheckedChange={(checked) => {
-                updateConfig({ enabled: checked });
-                toast.success(checked ? 'OpenClaw enabled' : 'OpenClaw disabled — using local AI');
-              }}
-            />
-          </div>
-
-          <Separator className="bg-gray-700" />
-
-          {/* Gateway URL */}
-          <div className="space-y-2">
-            <Label htmlFor="gateway-url" className="text-white">Gateway URL</Label>
-            <Input
-              id="gateway-url"
-              value={gatewayUrl}
-              onChange={(e) => setGatewayUrl(e.target.value)}
-              placeholder="http://localhost:18789"
-              className="bg-gray-800 border-gray-700 text-white"
-            />
-            <p className="text-xs text-gray-500">
-              The URL where your OpenClaw gateway is running (e.g., http://172.31.13.246:18789)
-            </p>
-          </div>
-
-          {/* Auth Token */}
-          <div className="space-y-2">
-            <Label htmlFor="gateway-token" className="text-white">Gateway Token</Label>
-            <Input
-              id="gateway-token"
-              type="password"
-              value={token}
-              onChange={(e) => setToken(e.target.value)}
-              placeholder="Leave empty if no auth required"
-              className="bg-gray-800 border-gray-700 text-white"
-            />
-            <p className="text-xs text-gray-500">
-              Set if your gateway uses token auth (OPENCLAW_GATEWAY_TOKEN)
-            </p>
-          </div>
-
-          {/* Agent ID */}
-          <div className="space-y-2">
-            <Label htmlFor="agent-id" className="text-white">Agent ID</Label>
-            <Input
-              id="agent-id"
-              value={agentId}
-              onChange={(e) => setAgentId(e.target.value)}
-              placeholder="main"
-              className="bg-gray-800 border-gray-700 text-white"
-            />
-            <p className="text-xs text-gray-500">
-              OpenClaw agent to route requests to (default: main)
-            </p>
-          </div>
-
-          {/* Streaming */}
-          <div className="flex items-center justify-between">
-            <div className="space-y-0.5">
-              <Label className="text-white">Stream Responses</Label>
-              <p className="text-sm text-gray-400">Show AI responses as they're generated</p>
-            </div>
-            <Switch
-              checked={config.streaming}
-              onCheckedChange={(checked) => updateConfig({ streaming: checked })}
-            />
-          </div>
-
-          <Separator className="bg-gray-700" />
-
-          {/* Action Buttons */}
-          <div className="flex gap-3">
-            <Button
-              onClick={handleTestConnection}
-              disabled={isTesting || !gatewayUrl}
-              className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
-            >
-              {isTesting ? 'Testing...' : 'Test Connection'}
-            </Button>
-            <Button
-              variant="outline"
-              onClick={handleSave}
-              className="border-gray-600 text-gray-300 hover:bg-gray-700"
-            >
-              Save Settings
-            </Button>
-          </div>
-        </div>
-      </Card>
-
-      {/* Help Card */}
-      <Card className="bg-[#1e2128] border-gray-800 p-6">
-        <h3 className="text-white text-lg mb-3 flex items-center gap-2">
-          <HelpCircle className="w-5 h-5 text-blue-400" />
-          Getting Started with OpenClaw
-        </h3>
-        <div className="space-y-3 text-sm text-gray-400">
-          <p>
-            OpenClaw is a self-hosted AI assistant gateway that connects SyncScript to powerful
-            AI models like Claude and GPT with memory, skills, and tool use.
-          </p>
-          <div className="bg-gray-900/50 rounded-lg p-4 font-mono text-xs text-gray-300 space-y-1">
-            <p className="text-gray-500"># Install OpenClaw</p>
-            <p>npx openclaw@latest</p>
-            <p className="text-gray-500 mt-2"># Or with pnpm</p>
-            <p>pnpm dlx openclaw@latest</p>
-          </div>
-          <p>
-            Once running, enter the gateway URL above (default: <code className="text-purple-300">http://localhost:18789</code>).
-            Enable the Chat Completions endpoint in your OpenClaw config.
-          </p>
-          <p>
-            <a
-              href="https://docs.clawd.bot/"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-purple-400 hover:text-purple-300 underline"
-            >
-              Read the full OpenClaw documentation →
-            </a>
-          </p>
-        </div>
-      </Card>
-    </>
   );
 }

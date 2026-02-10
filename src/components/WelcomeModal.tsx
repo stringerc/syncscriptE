@@ -38,9 +38,9 @@ export function WelcomeModal({
           {/* Backdrop */}
           <motion.div
             initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
+            animate={{ opacity: 0.6 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50"
+            className="fixed inset-0 bg-black backdrop-blur-sm z-50"
             onClick={onClose}
           />
 
@@ -59,18 +59,20 @@ export function WelcomeModal({
               {/* Animated background effects */}
               <div className="absolute inset-0 overflow-hidden pointer-events-none">
                 <motion.div
-                  className="absolute top-0 left-1/4 w-64 h-64 bg-indigo-500/20 rounded-full blur-3xl"
+                  className="absolute top-0 left-1/4 w-64 h-64 rounded-full blur-3xl"
+                  style={{ backgroundColor: '#6366f1' }}
                   animate={{
                     scale: [1, 1.2, 1],
-                    opacity: [0.3, 0.5, 0.3]
+                    opacity: [0.06, 0.1, 0.06]
                   }}
                   transition={{ duration: 4, repeat: Infinity }}
                 />
                 <motion.div
-                  className="absolute bottom-0 right-1/4 w-64 h-64 bg-violet-500/20 rounded-full blur-3xl"
+                  className="absolute bottom-0 right-1/4 w-64 h-64 rounded-full blur-3xl"
+                  style={{ backgroundColor: '#8b5cf6' }}
                   animate={{
                     scale: [1.2, 1, 1.2],
-                    opacity: [0.3, 0.5, 0.3]
+                    opacity: [0.06, 0.1, 0.06]
                   }}
                   transition={{ duration: 4, repeat: Infinity, delay: 2 }}
                 />
@@ -78,7 +80,10 @@ export function WelcomeModal({
 
               {/* Close button */}
               <button
-                onClick={onClose}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onClose();
+                }}
                 className="absolute top-4 right-4 z-10 text-slate-400 hover:text-white transition-colors p-2 rounded-lg hover:bg-slate-800/50"
                 aria-label="Close welcome modal"
               >

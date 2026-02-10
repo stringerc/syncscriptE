@@ -32,7 +32,7 @@ import {
   PartyPopper
 } from 'lucide-react';
 import { Button } from '../ui/button';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 
 interface ChecklistItem {
   id: string;

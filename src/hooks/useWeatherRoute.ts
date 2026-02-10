@@ -109,7 +109,10 @@ export function useWeatherRoute(): UseWeatherRouteReturn {
       
       setLoading(false);
     } catch (err) {
-      console.error('[useWeatherRoute] Error fetching weather:', err);
+      // Don't log AbortError - it's expected when request is aborted (timeout or unmount)
+      if (err instanceof Error && err.name !== 'AbortError') {
+        console.error('[useWeatherRoute] Error fetching weather:', err);
+      }
       setError('Failed to load weather data');
       setLoading(false);
       

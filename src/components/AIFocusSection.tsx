@@ -216,7 +216,6 @@ export function AIFocusSection() {
           <motion.div
             className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
             animate={{
-              opacity: [0.1, 0.2, 0.1],
               scale: [1, 1.05, 1],
             }}
             transition={{
@@ -225,7 +224,8 @@ export function AIFocusSection() {
               ease: 'easeInOut'
             }}
             style={{
-              background: `radial-gradient(circle at center, ${statusColor}15, transparent)`
+              background: `radial-gradient(circle at center, ${statusColor}15, transparent)`,
+              opacity: 0.1
             }}
           />
           
@@ -250,10 +250,10 @@ export function AIFocusSection() {
               
               {/* ═══ LAYER 1: Outer Ambient Glow ═══ */}
               <motion.div
-                className="absolute inset-0 rounded-full opacity-30 blur-xl"
+                className="absolute inset-0 rounded-full blur-xl"
                 animate={{
                   scale: [1, 1.15, 1],
-                  opacity: [0.2, 0.35, 0.2],
+                  opacity: [0.06, 0.105, 0.06],
                 }}
                 transition={{
                   duration: 4,
@@ -261,7 +261,7 @@ export function AIFocusSection() {
                   ease: 'easeInOut'
                 }}
                 style={{
-                  background: `radial-gradient(circle, ${statusColor}60, transparent)`
+                  background: `radial-gradient(circle, ${statusColor}, transparent)`
                 }}
               />
               

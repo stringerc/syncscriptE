@@ -275,6 +275,12 @@ export function setupGlobalErrorHandlers(): void {
   
   // Handle global errors
   window.addEventListener('error', (event) => {
+    // Ignore WebSocket errors - they're handled by the WebSocket manager
+    if (event.target instanceof WebSocket) {
+      event.preventDefault(); // Prevent error from propagating
+      return;
+    }
+    
     const error = event.error instanceof Error
       ? event.error
       : new Error(event.message);

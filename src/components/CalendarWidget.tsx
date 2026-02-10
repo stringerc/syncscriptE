@@ -506,9 +506,9 @@ export function CalendarWidget({ className = '' }: CalendarWidgetProps) {
         {selectedDay !== null && createPortal(
           <motion.div
             initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
+            animate={{ opacity: 0.6 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/60 z-[99999] flex items-center justify-center p-4"
+            className="fixed inset-0 bg-black z-[99999] flex items-center justify-center p-4"
             style={{ margin: 0, padding: '1rem' }}
             onClick={() => setSelectedDay(null)}
           >
