@@ -38,7 +38,7 @@ import { SignupPage } from './components/pages/SignupPage';
 import { OnboardingPage } from './components/pages/OnboardingPage';
 import { AuthCallbackPage } from './components/pages/AuthCallbackPage';
 import { OAuthCallbackPage } from './components/pages/OAuthCallbackPage';
-import { OAuthTestPage } from './components/pages/OAuthTestPage';
+// OAuthTestPage removed (contained secrets)
 
 // Design System Showcases
 import { DesignSystemShowcase } from './components/pages/DesignSystemShowcase';
@@ -141,7 +141,7 @@ function AppContent() {
                               
                               {/* OAuth Integration Callback */}
                               <Route path="/oauth-callback" element={<OAuthCallbackPage />} />
-                              <Route path="/oauth-test" element={<OAuthTestPage />} />
+                              {/* OAuth test page removed for security */}
 
                               {/* Catch all - redirect to landing */}
                               <Route path="*" element={<Navigate to="/" replace />} />

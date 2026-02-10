@@ -8,7 +8,7 @@ import { motion } from 'motion/react';
 import { BarChart3, Bot, TestTube, ArrowLeft, Mail } from 'lucide-react';
 import { Button } from './ui/button';
 import { FeedbackIntelligenceDashboard } from './FeedbackIntelligenceDashboard';
-import { DiscordSetupGuide } from './DiscordSetupGuide';
+// DiscordSetupGuide removed (contained secrets)
 import { FeedbackTestWidget } from './FeedbackTestWidget';
 import { DigestConfigPanel } from './DigestConfigPanel';
 
@@ -71,7 +71,7 @@ export function FeedbackAdminPage() {
         transition={{ duration: 0.3 }}
       >
         {activeTab === 'dashboard' && <FeedbackIntelligenceDashboard />}
-        {activeTab === 'setup' && <DiscordSetupGuide />}
+        {activeTab === 'setup' && <div className="p-6 text-center text-muted-foreground">Discord setup guide removed for security</div>}
         {activeTab === 'digest' && (
           <div className="max-w-4xl mx-auto p-6">
             <DigestConfigPanel />
