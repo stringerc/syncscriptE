@@ -59,11 +59,7 @@
   },
   "rewrites": [
     {
-      "source": "/api/ai/:path*",
-      "destination": "/api/ai/:path*"
-    },
-    {
-      "source": "/(.*)",
+      "source": "/((?!api/).*)",
       "destination": "/index.html"
     }
   ],
