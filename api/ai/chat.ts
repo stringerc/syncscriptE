@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
-const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY || 'sk-1400eabd03024b3ca711beb21e6d84a2';
+const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
 const DEEPSEEK_URL = 'https://api.deepseek.com/v1/chat/completions';
 
 const SYSTEM_PROMPT = `You are SyncScript AI Assistant — an intelligent productivity companion built into the SyncScript app. SyncScript is an AI-powered productivity system that works with the user's natural energy rhythms.

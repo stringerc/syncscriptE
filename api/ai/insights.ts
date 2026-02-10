@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
-const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY || 'sk-1400eabd03024b3ca711beb21e6d84a2';
+const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
 const DEEPSEEK_URL = 'https://api.deepseek.com/v1/chat/completions';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
