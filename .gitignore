@@ -44,3 +44,4 @@ src/DOWNLOAD_AND_DEPLOY_CHECKLIST.md
 src/PRODUCTION_DEPLOYMENT_COMPLETE.md
 src/DOCUMENTATION_INDEX.md
 src/components/DiscordSetupGuide.tsx
+src/vercel.json
