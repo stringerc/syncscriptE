@@ -24,6 +24,7 @@ import {
   isWebSocketInitialized,
 } from '../utils/openclaw-websocket';
 import { useAuth } from './AuthContext';
+import { publicAnonKey } from '../utils/supabase/info';
 import type {
   ChatRequest,
   ChatResponse,
@@ -140,17 +141,12 @@ export function OpenClawProvider({
     // Pattern: Frontend -> Supabase -> EC2 OpenClaw -> DeepSeek AI
     const supabaseProjectId = 'kwhnrlzibgfedtxpkbgb';
     const effectiveBaseUrl = `https://${supabaseProjectId}.supabase.co/functions/v1/make-server-57781ad9/openclaw`;
-    // Use real Supabase auth token (required by edge function security middleware)
-    // Fall back to passed apiKey prop, then hardcoded key (for dev/testing only)
-    const effectiveApiKey = accessToken || apiKey || 'syncscript-openclaw-integration';
+    // Use real Supabase auth token when available (for authenticated requests)
+    // Fall back to publicAnonKey (valid JWT that passes Supabase gateway)
+    // This matches the pattern used by ALL other edge function calls in the app
+    const effectiveApiKey = accessToken || apiKey || publicAnonKey;
 
-    // Don't initialize until we have a real auth token (user is logged in)
-    if (!accessToken) {
-      console.log('[OpenClaw] Waiting for auth token before initializing...');
-      return;
-    }
-
-    // Initialize (or re-initialize with fresh token)
+    // Initialize (or re-initialize with fresh token when auth state changes)
     try {
       const openclawClient = initializeOpenClaw({
         apiKey: effectiveApiKey,
@@ -159,7 +155,7 @@ export function OpenClawProvider({
       });
       setClient(openclawClient);
       setIsInitialized(true);
-      console.log('[OpenClaw] Client initialized with Supabase bridge and auth token');
+      console.log('[OpenClaw] Client initialized with', accessToken ? 'auth token' : 'anon key');
     } catch (error) {
       console.error('[OpenClaw] Failed to initialize client:', error);
       toast.error('Failed to initialize AI assistant');
