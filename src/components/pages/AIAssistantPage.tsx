@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
+import ReactMarkdown from 'react-markdown';
 import { 
   Brain, Send, Mic, Sparkles, TrendingUp, Zap, Target,
   MessageSquare, BarChart3, Lightbulb, AlertCircle, CheckCircle2,
@@ -349,35 +350,42 @@ export function AIAssistantPage() {
               memories={memories} 
               loading={loadingMemories}
               onLoadMemories={async () => {
-                if (!isInitialized) {
-                  toast.error('Memory unavailable', { description: 'OpenClaw AI not connected' });
-                  return;
-                }
+                // Build memories from conversation history
                 setLoadingMemories(true);
                 try {
-                  const result = await getMemories();
-                  setMemories(result.memories || []);
-                  toast.success(`Loaded ${result.memories?.length || 0} memories`);
+                  const saved = localStorage.getItem('ai-conversations');
+                  const convos = saved ? JSON.parse(saved) : [];
+                  const extractedMemories: any[] = [];
+                  
+                  for (const conv of convos) {
+                    for (const msg of (conv.messages || [])) {
+                      if (msg.type === 'ai' && msg.content && msg.content.length > 30) {
+                        extractedMemories.push({
+                          id: msg.id || `mem-${Date.now()}`,
+                          content: msg.content.slice(0, 200) + (msg.content.length > 200 ? '...' : ''),
+                          type: 'conversation',
+                          timestamp: new Date(msg.timestamp).getTime(),
+                          importance: 0.5,
+                          tags: [conv.title || 'Chat'],
+                        });
+                      }
+                    }
+                  }
+                  
+                  setMemories(extractedMemories.slice(-20).reverse());
                 } catch (error) {
                   console.error('[Memory] Load error:', error);
-                  toast.error('Failed to load memories');
                 } finally {
                   setLoadingMemories(false);
                 }
               }}
               onQueryMemory={async (query: string) => {
-                if (!isInitialized) {
-                  toast.error('Memory unavailable', { description: 'OpenClaw AI not connected' });
-                  return [];
-                }
-                try {
-                  const result = await queryMemory({ query, limit: 20 });
-                  return result.memories || [];
-                } catch (error) {
-                  console.error('[Memory] Query error:', error);
-                  toast.error('Failed to search memories');
-                  return [];
-                }
+                // Filter existing memories by search query
+                const q = query.toLowerCase();
+                return memories.filter((m: any) => 
+                  m.content?.toLowerCase().includes(q) || 
+                  m.tags?.some((t: string) => t.toLowerCase().includes(q))
+                );
               }}
             />
           </TabsContent>
@@ -414,6 +422,7 @@ function ConversationalInterface({ message, setMessage, aiSettings }: {
     getContextualSuggestions,
     tasks,
     goals,
+    calendarEvents,
     energyData,
     activeConversation,
     createConversation,
@@ -465,7 +474,14 @@ function ConversationalInterface({ message, setMessage, aiSettings }: {
     setMessage('');
 
     try {
-      // PHASE 1: Try OpenClaw first, fallback to mock if not available
+      // Build conversation history for context
+      const conversationHistory = (activeConversation?.messages || [])
+        .slice(-10)
+        .map(m => ({
+          role: m.type === 'user' ? 'user' : 'assistant',
+          content: m.content,
+        }));
+
       if (isInitialized) {
         console.log('[AI Assistant] Using OpenClaw for response');
         
@@ -473,28 +489,61 @@ function ConversationalInterface({ message, setMessage, aiSettings }: {
           message: userMessage,
           conversationId: activeConversation?.id,
           context: {
-            userId: 'current_user', // TODO: Get from auth context
-            currentPage: 'ai-assistant',
+            userId: 'current_user',
+            currentPage,
             userPreferences: aiSettings,
+            conversationHistory,
+            // Pass real user data so AI has context to work with
+            userData: {
+              tasks: tasks.map(t => ({ title: t.title, priority: t.priority, status: t.status, dueDate: t.dueDate })),
+              calendarEvents: calendarEvents.map(e => ({ title: e.title, time: e.time, type: e.type, duration: e.duration })),
+              goals: goals.map(g => ({ title: g.title, progress: g.progress, target: g.target })),
+              energyData: {
+                currentLevel: energyData.currentLevel,
+                peakHours: energyData.peakHours,
+                trend: energyData.trend,
+              },
+            },
           },
         });
+
+        // Handle tool results from AI (actions it performed)
+        const toolResults = (openClawResponse as any).toolResults;
+        if (toolResults && toolResults.length > 0) {
+          console.log('[AI Assistant] Tool results:', toolResults);
+          for (const result of toolResults) {
+            if (result.action === 'navigate_to_page' && result.page) {
+              // Navigate after a short delay so the message renders first
+              setTimeout(() => {
+                const pageRoutes: Record<string, string> = {
+                  'dashboard': '/dashboard',
+                  'tasks-goals': '/tasks-goals',
+                  'calendar': '/calendar',
+                  'ai': '/ai',
+                  'settings': '/settings',
+                  'energy-focus': '/energy-focus',
+                  'integrations': '/integrations',
+                };
+                const route = pageRoutes[result.page];
+                if (route) window.location.href = route;
+              }, 1500);
+            }
+          }
+        }
 
         addMessage({
           type: 'ai',
           content: openClawResponse.message.content,
-          // Include any suggested actions or extracted tasks
           ...(openClawResponse.suggestedActions && { 
             actions: openClawResponse.suggestedActions 
           }),
         });
         
-        // Response added to conversation — no toast needed on the AI page
       } else {
         // Fallback to mock AI (existing system)
         console.log('[AI Assistant] Using mock AI (OpenClaw not available)');
         const aiResponse = await processCommand(userMessage);
         addMessage(aiResponse);
-        // Response added to conversation — no toast needed on the AI page
       }
     } catch (error) {
       console.error('[AI Assistant] Error:', error);
@@ -646,7 +695,13 @@ function ConversationalInterface({ message, setMessage, aiSettings }: {
                     ? 'bg-gradient-to-r from-teal-600 to-blue-600 text-white' 
                     : 'bg-gray-800 text-gray-200'
                 }`}>
-                  <p className="leading-relaxed whitespace-pre-line">{msg.content}</p>
+                  {msg.type === 'ai' ? (
+                    <div className="leading-relaxed prose prose-invert prose-sm max-w-none prose-p:my-1 prose-ul:my-1 prose-ol:my-1 prose-li:my-0.5 prose-headings:my-2 prose-strong:text-teal-300 prose-code:text-teal-300 prose-code:bg-gray-900/50 prose-code:px-1 prose-code:py-0.5 prose-code:rounded">
+                      <ReactMarkdown>{msg.content}</ReactMarkdown>
+                    </div>
+                  ) : (
+                    <p className="leading-relaxed whitespace-pre-line">{msg.content}</p>
+                  )}
                   
                   {/* AI Metrics */}
                   {msg.metrics && (
