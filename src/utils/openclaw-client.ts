@@ -51,16 +51,16 @@ const DEFAULT_CONFIG: Partial<OpenClawConfig> = {
  * API endpoints
  */
 const ENDPOINTS = {
-  chat: '/api/chat',
-  voice: '/api/voice/transcribe',
-  document: '/api/document/analyze',
-  image: '/api/image/analyze',
-  memory: '/api/memory',
-  suggestions: '/api/suggestions/tasks',
-  calendarOptimize: '/api/calendar/optimize',
-  insights: '/api/insights',
-  productivity: '/api/productivity/predict',
-  automation: '/api/automation',
+  chat: '/chat',
+  voice: '/voice/transcribe',
+  document: '/document/analyze',
+  image: '/image/analyze',
+  memory: '/memory',
+  suggestions: '/suggestions/tasks',
+  calendarOptimize: '/calendar/optimize',
+  insights: '/insights',
+  productivity: '/productivity/predict',
+  automation: '/automation',
 } as const;
 
 // ============================================================================
@@ -796,7 +796,7 @@ export class OpenClawClient {
    */
   async healthCheck(): Promise<boolean> {
     try {
-      const response = await this.request('/api/health', {
+      const response = await this.request('/health', {
         method: 'GET',
         timeout: 5000,
       });
