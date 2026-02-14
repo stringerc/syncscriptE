@@ -130,7 +130,6 @@ export class OpenClawClient {
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${this.config.apiKey}`,
-            'X-Request-ID': requestId,
             ...headers,
           },
           body: body ? JSON.stringify(body) : undefined,

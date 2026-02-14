@@ -126,6 +126,9 @@ app.use(
         'http://localhost:5173',
         'https://syncscript.com',
         'https://www.syncscript.com',
+        'https://syncscript.app',
+        'https://www.syncscript.app',
+        'https://the-new-syncscript.vercel.app',
         // Figma Make builder origins
         'https://www.figma.com',
         'https://figma.com',
@@ -141,6 +144,11 @@ app.use(
         return origin;
       }
       
+      // Also allow any Vercel preview/deployment URLs for SyncScript
+      if (origin && origin.includes('syncscript') && origin.endsWith('.vercel.app')) {
+        return origin;
+      }
+      
       // Figma Make iframe origins - allow any figma.com subdomain
       if (origin && (origin.includes('figma.com') || origin.includes('www.figma.com'))) {
         return origin;
@@ -149,7 +157,7 @@ app.use(
       // Default: allow same-origin requests (no origin header)
       return origin || '*';
     },
-    allowHeaders: ["Content-Type", "Authorization"],
+    allowHeaders: ["Content-Type", "Authorization", "X-Request-ID"],
     allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     exposeHeaders: ["Content-Length"],
     maxAge: 600,
