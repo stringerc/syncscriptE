@@ -1,5 +1,5 @@
-import { useNavigate, useLocation } from 'react-router';
-import { useState } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { useState, useEffect } from 'react';
 import { 
   LayoutDashboard, Target, Calendar, Bot, Zap, Waves, Users, 
   TrendingUp, Gamepad2, Link2, Building2, FileText, Menu, Settings,
@@ -8,11 +8,20 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import logoImage from 'figma:asset/914d5787f554946c037cbfbb2cf65fcc0de06278.png';
 import { navigationLinks } from '../utils/navigation';
+import { useAI } from '../contexts/AIContext';
 
 export function MobileNav() {
   const navigate = useNavigate();
   const location = useLocation();
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const { hasUnreadAIMessage, clearUnreadAIMessage } = useAI();
+  
+  // Clear unread dot when user navigates to AI page
+  useEffect(() => {
+    if (location.pathname.startsWith('/ai') && hasUnreadAIMessage) {
+      clearUnreadAIMessage();
+    }
+  }, [location.pathname, hasUnreadAIMessage, clearUnreadAIMessage]);
 
   const navItems = [
     { icon: LayoutDashboard, label: 'Dashboard', id: 'Dashboard', path: navigationLinks.sidebar.dashboard },
@@ -82,7 +91,7 @@ export function MobileNav() {
           {/* AI */}
           <button
             onClick={() => navigate(navigationLinks.sidebar.ai)}
-            className={`flex flex-col items-center justify-center gap-0.5 py-2 px-1 rounded-lg transition-all min-h-[60px] ${
+            className={`relative flex flex-col items-center justify-center gap-0.5 py-2 px-1 rounded-lg transition-all min-h-[60px] ${
               location.pathname === navigationLinks.sidebar.ai
                 ? 'text-teal-400 bg-teal-600/20'
                 : 'text-gray-400 active:bg-gray-700/30'
@@ -90,6 +99,9 @@ export function MobileNav() {
           >
             <Bot className="w-6 h-6" />
             <span className="text-[10px] font-medium">AI</span>
+            {hasUnreadAIMessage && !location.pathname.startsWith('/ai') && (
+              <span className="absolute top-1.5 right-2 w-2 h-2 bg-red-500 rounded-full animate-pulse" />
+            )}
           </button>
 
           {/* Menu Drawer Trigger */}

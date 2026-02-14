@@ -9,7 +9,7 @@
  */
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { useLocation, useNavigate } from 'react-router';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 // Task data structure
 export interface Task {
@@ -107,6 +107,10 @@ interface AIContextType {
   
   // Proactive suggestions
   getContextualSuggestions: () => string[];
+  
+  // Unread AI notification
+  hasUnreadAIMessage: boolean;
+  clearUnreadAIMessage: () => void;
 }
 
 const AIContext = createContext<AIContextType | undefined>(undefined);
@@ -234,6 +238,7 @@ export function AIProvider({ children }: { children: ReactNode }) {
   });
   
   const [activeConversation, setActiveConversation] = useState<Conversation | null>(null);
+  const [hasUnreadAIMessage, setHasUnreadAIMessage] = useState(false);
   
   // Save conversations to localStorage whenever they change
   useEffect(() => {
@@ -297,12 +302,14 @@ export function AIProvider({ children }: { children: ReactNode }) {
     
     const newMessage: AIMessage = {
       ...message,
-      id: `msg-${Date.now()}`,
+      id: `msg-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       timestamp: new Date(),
     };
     
+    const conversationId = activeConversation?.id;
+    
     setConversations(prev => prev.map(conv => {
-      if (conv.id === activeConversation?.id) {
+      if (conv.id === conversationId) {
         return {
           ...conv,
           messages: [...conv.messages, newMessage],
@@ -312,12 +319,19 @@ export function AIProvider({ children }: { children: ReactNode }) {
       return conv;
     }));
     
-    if (activeConversation) {
-      setActiveConversation({
-        ...activeConversation,
-        messages: [...activeConversation.messages, newMessage],
+    // Use functional update to always get the latest state (prevents stale closure bug)
+    setActiveConversation(prev => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        messages: [...prev.messages, newMessage],
         updatedAt: new Date(),
-      });
+      };
+    });
+    
+    // If this is an AI response and user is not on the AI page, flag it as unread
+    if (message.type === 'ai' && !location.pathname.startsWith('/ai')) {
+      setHasUnreadAIMessage(true);
     }
   };
   
@@ -337,6 +351,10 @@ export function AIProvider({ children }: { children: ReactNode }) {
     return currentContext.suggestions;
   };
   
+  const clearUnreadAIMessage = () => {
+    setHasUnreadAIMessage(false);
+  };
+  
   return (
     <AIContext.Provider
       value={{
@@ -354,6 +372,8 @@ export function AIProvider({ children }: { children: ReactNode }) {
         addMessage,
         processCommand,
         getContextualSuggestions: getContextualSuggestionsFunc,
+        hasUnreadAIMessage,
+        clearUnreadAIMessage,
       }}
     >
       {children}

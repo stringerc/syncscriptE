@@ -418,7 +418,13 @@ function ConversationalInterface({ message, setMessage, aiSettings }: {
     activeConversation,
     createConversation,
     addMessage,
+    clearUnreadAIMessage,
   } = useAI();
+  
+  // Clear unread notification when AI page is active
+  useEffect(() => {
+    clearUnreadAIMessage();
+  }, []);
 
   // PHASE 1: OpenClaw Integration
   const { 
@@ -482,13 +488,13 @@ function ConversationalInterface({ message, setMessage, aiSettings }: {
           }),
         });
         
-        toast.success('AI response', { description: 'Powered by OpenClaw' });
+        // Response added to conversation — no toast needed on the AI page
       } else {
         // Fallback to mock AI (existing system)
         console.log('[AI Assistant] Using mock AI (OpenClaw not available)');
         const aiResponse = await processCommand(userMessage);
         addMessage(aiResponse);
-        toast.success('Message sent to AI', { description: 'Response generated (demo mode)' });
+        // Response added to conversation — no toast needed on the AI page
       }
     } catch (error) {
       console.error('[AI Assistant] Error:', error);
