@@ -1,4 +1,4 @@
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router';
 import { useState, useEffect } from 'react';
 import { 
   LayoutDashboard, Target, Calendar, Bot, Zap, Waves, Users, 
