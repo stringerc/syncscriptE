@@ -23,6 +23,7 @@ import {
   getWebSocket,
   isWebSocketInitialized,
 } from '../utils/openclaw-websocket';
+import { useAuth } from './AuthContext';
 import type {
   ChatRequest,
   ChatResponse,
@@ -127,6 +128,9 @@ export function OpenClawProvider({
   const [client, setClient] = useState<OpenClawClient | null>(null);
   const [ws, setWs] = useState<OpenClawWebSocket | null>(null);
 
+  // Get the real Supabase access token from AuthContext
+  const { accessToken } = useAuth();
+
   // ==========================================================================
   // INITIALIZATION
   // ==========================================================================
@@ -136,26 +140,29 @@ export function OpenClawProvider({
     // Pattern: Frontend -> Supabase -> EC2 OpenClaw -> DeepSeek AI
     const supabaseProjectId = 'kwhnrlzibgfedtxpkbgb';
     const effectiveBaseUrl = `https://${supabaseProjectId}.supabase.co/functions/v1/make-server-57781ad9/openclaw`;
-    const effectiveApiKey = apiKey || 'syncscript-openclaw-integration';
+    // Use real Supabase auth token (required by edge function security middleware)
+    // Fall back to passed apiKey prop, then hardcoded key (for dev/testing only)
+    const effectiveApiKey = accessToken || apiKey || 'syncscript-openclaw-integration';
 
-    // Initialize client
-    if (!isOpenClawInitialized()) {
-      try {
-        const openclawClient = initializeOpenClaw({
-          apiKey: effectiveApiKey,
-          baseUrl: effectiveBaseUrl, // Use Supabase bridge
-          wsUrl: wsUrl || effectiveBaseUrl.replace('https://', 'wss://'),
-        });
-        setClient(openclawClient);
-        setIsInitialized(true);
-        console.log('[OpenClaw] Client initialized with Supabase bridge:', effectiveBaseUrl);
-      } catch (error) {
-        console.error('[OpenClaw] Failed to initialize client:', error);
-        toast.error('Failed to initialize AI assistant');
-      }
-    } else {
-      setClient(getOpenClawClient());
+    // Don't initialize until we have a real auth token (user is logged in)
+    if (!accessToken) {
+      console.log('[OpenClaw] Waiting for auth token before initializing...');
+      return;
+    }
+
+    // Initialize (or re-initialize with fresh token)
+    try {
+      const openclawClient = initializeOpenClaw({
+        apiKey: effectiveApiKey,
+        baseUrl: effectiveBaseUrl, // Use Supabase bridge
+        wsUrl: wsUrl || effectiveBaseUrl.replace('https://', 'wss://'),
+      });
+      setClient(openclawClient);
       setIsInitialized(true);
+      console.log('[OpenClaw] Client initialized with Supabase bridge and auth token');
+    } catch (error) {
+      console.error('[OpenClaw] Failed to initialize client:', error);
+      toast.error('Failed to initialize AI assistant');
     }
 
     // Initialize WebSocket
@@ -194,7 +201,7 @@ export function OpenClawProvider({
         // Continue without WebSocket - not critical
       }
     }
-  }, [apiKey, baseUrl, wsUrl, autoConnect]);
+  }, [accessToken, apiKey, baseUrl, wsUrl, autoConnect]);
 
   // ==========================================================================
   // CHAT
