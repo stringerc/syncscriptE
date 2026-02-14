@@ -9,7 +9,7 @@
  * - Error boundaries: 94% better error handling (React docs)
  */
 
-import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from 'react';
 import { toast } from 'sonner@2.0.3';
 import {
   OpenClawClient,
@@ -132,6 +132,15 @@ export function OpenClawProvider({
   // Get the real Supabase access token from AuthContext
   const { accessToken } = useAuth();
 
+  // Keep a ref to the latest accessToken so the tokenGetter closure always reads current value
+  const accessTokenRef = useRef(accessToken);
+  useEffect(() => {
+    accessTokenRef.current = accessToken;
+    if (accessToken) {
+      console.log('[OpenClaw] Auth token updated (available for next request)');
+    }
+  }, [accessToken]);
+
   // ==========================================================================
   // INITIALIZATION
   // ==========================================================================
@@ -141,21 +150,21 @@ export function OpenClawProvider({
     // Pattern: Frontend -> Supabase -> EC2 OpenClaw -> DeepSeek AI
     const supabaseProjectId = 'kwhnrlzibgfedtxpkbgb';
     const effectiveBaseUrl = `https://${supabaseProjectId}.supabase.co/functions/v1/make-server-57781ad9/openclaw`;
-    // Use real Supabase auth token when available (for authenticated requests)
-    // Fall back to publicAnonKey (valid JWT that passes Supabase gateway)
-    // This matches the pattern used by ALL other edge function calls in the app
-    const effectiveApiKey = accessToken || apiKey || publicAnonKey;
 
-    // Initialize (or re-initialize with fresh token when auth state changes)
+    // Dynamic token getter: at REQUEST time, use the latest auth token or fall back to anon key
+    // This solves the race condition where the client initializes before the auth session loads
+    const tokenGetter = () => accessTokenRef.current || apiKey || publicAnonKey;
+
+    // Initialize once (tokenGetter handles dynamic auth)
     try {
       const openclawClient = initializeOpenClaw({
-        apiKey: effectiveApiKey,
+        apiKey: publicAnonKey, // Default for config (tokenGetter overrides at request time)
         baseUrl: effectiveBaseUrl, // Use Supabase bridge
         wsUrl: wsUrl || effectiveBaseUrl.replace('https://', 'wss://'),
-      });
+      }, tokenGetter);
       setClient(openclawClient);
       setIsInitialized(true);
-      console.log('[OpenClaw] Client initialized with', accessToken ? 'auth token' : 'anon key');
+      console.log('[OpenClaw] Client initialized with dynamic token getter');
     } catch (error) {
       console.error('[OpenClaw] Failed to initialize client:', error);
       toast.error('Failed to initialize AI assistant');
@@ -197,7 +206,7 @@ export function OpenClawProvider({
         // Continue without WebSocket - not critical
       }
     }
-  }, [accessToken, apiKey, baseUrl, wsUrl, autoConnect]);
+  }, [apiKey, baseUrl, wsUrl, autoConnect]);
 
   // ==========================================================================
   // CHAT

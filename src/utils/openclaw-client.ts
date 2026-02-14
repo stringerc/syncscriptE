@@ -72,9 +72,11 @@ export class OpenClawClient {
   private requestCount = 0;
   private errorCount = 0;
   private isDemoMode: boolean;
+  private tokenGetter?: () => string;
 
-  constructor(config: OpenClawConfig) {
+  constructor(config: OpenClawConfig, tokenGetter?: () => string) {
     this.config = { ...DEFAULT_CONFIG, ...config };
+    this.tokenGetter = tokenGetter;
     // Detect demo mode - if using specific demo key, skip actual API calls
     // If using Supabase bridge, it's NOT demo mode
     this.isDemoMode = config.apiKey === 'demo_key_replace_with_real_key' || 
@@ -125,11 +127,14 @@ export class OpenClawClient {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), timeout);
 
+        // Use tokenGetter for dynamic token (e.g. Supabase session), fall back to config
+        const authToken = this.tokenGetter ? this.tokenGetter() : this.config.apiKey;
+
         const response = await fetch(`${this.config.baseUrl}${endpoint}`, {
           method,
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${this.config.apiKey}`,
+            'Authorization': `Bearer ${authToken}`,
             ...headers,
           },
           body: body ? JSON.stringify(body) : undefined,
@@ -816,8 +821,8 @@ let clientInstance: OpenClawClient | null = null;
 /**
  * Initialize OpenClaw client
  */
-export function initializeOpenClaw(config: OpenClawConfig): OpenClawClient {
-  clientInstance = new OpenClawClient(config);
+export function initializeOpenClaw(config: OpenClawConfig, tokenGetter?: () => string): OpenClawClient {
+  clientInstance = new OpenClawClient(config, tokenGetter);
   return clientInstance;
 }
 
