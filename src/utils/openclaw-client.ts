@@ -234,6 +234,7 @@ export class OpenClawClient {
     const response = await this.request<ChatResponse>(ENDPOINTS.chat, {
       method: 'POST',
       body: request,
+      timeout: 90000, // 90s — tool calling requires multiple AI roundtrips
     });
 
     if (!response.success || !response.data) {

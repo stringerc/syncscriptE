@@ -379,35 +379,47 @@ The user is currently on: ${currentPage}`;
         body.tool_choice = 'auto';
       }
       
-      const resp = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
-          'Content-Type': 'application/json',
-          'HTTP-Referer': 'https://syncscript.app',
-          'X-Title': 'SyncScript',
-        },
-        body: JSON.stringify(body),
-      });
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 55000); // 55s edge fn safety net
       
-      if (!resp.ok) {
-        const errorText = await resp.text();
-        console.error(`[OpenClaw Bridge] OpenRouter error: ${resp.status} ${errorText}`);
-        throw new Error(`AI service error: ${resp.status}`);
+      try {
+        const resp = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
+            'Content-Type': 'application/json',
+            'HTTP-Referer': 'https://syncscript.app',
+            'X-Title': 'SyncScript',
+          },
+          body: JSON.stringify(body),
+          signal: controller.signal,
+        });
+        
+        clearTimeout(timeoutId);
+        
+        if (!resp.ok) {
+          const errorText = await resp.text();
+          console.error(`[OpenClaw Bridge] OpenRouter error: ${resp.status} ${errorText}`);
+          throw new Error(`AI service error: ${resp.status}`);
+        }
+        
+        return resp.json();
+      } catch (err: any) {
+        clearTimeout(timeoutId);
+        if (err.name === 'AbortError') {
+          throw new Error('AI request timed out — please try again');
+        }
+        throw err;
       }
-      
-      return resp.json();
     };
     
-    // ── Tool execution loop (max 3 rounds) ───────────────────────────────
+    // ── Tool execution loop (max 1 tool round for speed) ──────────────────
     let aiData = await callAI(messages);
     let assistantMsg = aiData.choices?.[0]?.message;
     const toolResults: any[] = [];
-    let rounds = 0;
     
-    while (assistantMsg?.tool_calls && assistantMsg.tool_calls.length > 0 && rounds < 3) {
-      rounds++;
-      console.log(`[OpenClaw Bridge] Tool call round ${rounds}:`, assistantMsg.tool_calls.map((tc: any) => tc.function.name));
+    if (assistantMsg?.tool_calls && assistantMsg.tool_calls.length > 0) {
+      console.log(`[OpenClaw Bridge] Tool calls:`, assistantMsg.tool_calls.map((tc: any) => tc.function.name));
       
       // Add assistant's tool call message to history
       messages.push(assistantMsg);
@@ -553,8 +565,8 @@ The user is currently on: ${currentPage}`;
         });
       }
       
-      // Call AI again with tool results (no tools this round to get final text)
-      aiData = await callAI(messages, rounds < 2);
+      // Call AI again with tool results — NO tools this time to get final text fast
+      aiData = await callAI(messages, false);
       assistantMsg = aiData.choices?.[0]?.message;
     }
     
