@@ -12,13 +12,10 @@
  * - Resonance calculations
  */
 
-// DEMO MODE: Set to true to use demonstration date
-const DEMO_MODE = true;
+// DEMO MODE: Set to false to use real current date
+const DEMO_MODE = false;
 
-// Demonstration date: Friday, February 6, 2026 (ACTUAL CURRENT DATE)
-// RESEARCH: Google Design (2024) - "Demo environments should mirror real-world scenarios"
-// RESEARCH: Apple HIG (2024) - "Keep demo data current to prevent user confusion"
-// This ensures calendar smart-scroll shows relevant "current time" positioning
+// Demonstration date (only used when DEMO_MODE is true)
 const DEMO_DATE = new Date(2026, 1, 6, 10, 30, 0, 0); // 10:30 AM on Feb 6, 2026 (Friday)
 
 /**

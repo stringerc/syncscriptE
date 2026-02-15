@@ -531,12 +531,26 @@ function ConversationalInterface({ message, setMessage, aiSettings }: {
           }
         }
 
+        // Extract schedule data from tool results for visual rendering
+        let scheduleData: any = null;
+        if (toolResults) {
+          const scheduleResult = toolResults.find((r: any) => r.action === 'optimize_schedule' && r.optimizedSchedule);
+          if (scheduleResult) {
+            scheduleData = {
+              optimizedSchedule: scheduleResult.optimizedSchedule,
+              strategy: scheduleResult.strategy,
+              changes: scheduleResult.changes,
+            };
+          }
+        }
+
         addMessage({
           type: 'ai',
           content: openClawResponse.message.content,
           ...(openClawResponse.suggestedActions && { 
             actions: openClawResponse.suggestedActions 
           }),
+          ...(scheduleData && { contextData: scheduleData }),
         });
         
       } else {
@@ -702,6 +716,67 @@ function ConversationalInterface({ message, setMessage, aiSettings }: {
                   ) : (
                     <p className="leading-relaxed whitespace-pre-line">{msg.content}</p>
                   )}
+
+                  {/* Visual Calendar Snapshot */}
+                  {msg.contextData?.optimizedSchedule && (
+                    <div className="mt-4 pt-4 border-t border-gray-700">
+                      <div className="flex items-center gap-2 mb-3">
+                        <Calendar className="w-4 h-4 text-teal-400" />
+                        <span className="text-xs font-semibold text-teal-300 uppercase tracking-wide">Schedule Snapshot</span>
+                      </div>
+                      <div className="relative space-y-0">
+                        {msg.contextData.optimizedSchedule
+                          .sort((a: any, b: any) => {
+                            const parseTime = (t: string) => {
+                              const match = t.match(/(\d+):(\d+)\s*(AM|PM)/i);
+                              if (!match) return 0;
+                              let h = parseInt(match[1]);
+                              const m = parseInt(match[2]);
+                              if (match[3].toUpperCase() === 'PM' && h !== 12) h += 12;
+                              if (match[3].toUpperCase() === 'AM' && h === 12) h = 0;
+                              return h * 60 + m;
+                            };
+                            return parseTime(a.time) - parseTime(b.time);
+                          })
+                          .map((event: any, i: number) => {
+                            const typeColors: Record<string, string> = {
+                              focus: 'border-teal-500 bg-teal-500/10',
+                              task: 'border-blue-500 bg-blue-500/10',
+                              meeting: 'border-purple-500 bg-purple-500/10',
+                              break: 'border-yellow-500 bg-yellow-500/10',
+                            };
+                            const typeIcons: Record<string, string> = {
+                              focus: '🎯',
+                              task: '📋',
+                              meeting: '👥',
+                              break: '☕',
+                            };
+                            const colorClass = typeColors[event.type] || 'border-gray-500 bg-gray-500/10';
+                            return (
+                              <div key={i} className="flex items-stretch gap-3">
+                                {/* Timeline line */}
+                                <div className="flex flex-col items-center w-16 shrink-0">
+                                  <span className="text-[10px] text-gray-400 font-mono whitespace-nowrap">{event.time}</span>
+                                  {i < msg.contextData.optimizedSchedule.length - 1 && (
+                                    <div className="w-px flex-1 bg-gray-700 mt-1 mb-0" />
+                                  )}
+                                </div>
+                                {/* Event card */}
+                                <div className={`flex-1 border-l-2 ${colorClass} rounded-r-lg px-3 py-2 mb-1.5`}>
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="text-sm">{typeIcons[event.type] || '📌'}</span>
+                                    <span className="text-xs font-medium text-gray-200">{event.title}</span>
+                                  </div>
+                                  {event.duration && (
+                                    <span className="text-[10px] text-gray-500 ml-6">{event.duration}</span>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+                      </div>
+                    </div>
+                  )}
                   
                   {/* AI Metrics */}
                   {msg.metrics && (
@@ -767,6 +842,28 @@ function ConversationalInterface({ message, setMessage, aiSettings }: {
               </div>
             </div>
           ))}
+          
+          {/* Thinking Indicator */}
+          {isProcessing && (
+            <div className="flex justify-start">
+              <div className="max-w-[80%]">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-8 h-8 bg-gradient-to-br from-teal-600 to-blue-600 rounded-lg flex items-center justify-center animate-pulse">
+                    <Brain className="w-5 h-5 text-white" />
+                  </div>
+                  <span className="text-sm text-gray-400">Nexus is thinking...</span>
+                </div>
+                <div className="rounded-2xl p-4 bg-gray-800 text-gray-200">
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-2.5 h-2.5 bg-teal-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                    <span className="w-2.5 h-2.5 bg-teal-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                    <span className="w-2.5 h-2.5 bg-teal-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+          
           <div ref={chatEndRef} />
         </div>
 

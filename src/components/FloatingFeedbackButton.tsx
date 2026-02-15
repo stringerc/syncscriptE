@@ -73,19 +73,9 @@ export function FloatingFeedbackButton({
     }
   }, []);
   
-  // Keyboard shortcut: Shift + ?
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Shift + ? (Shift + / on US keyboards)
-      if (e.shiftKey && e.key === '?') {
-        e.preventDefault();
-        handleOpenDiscord();
-      }
-    };
-    
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  // Keyboard shortcut removed — Shift+? is a common typing character
+  // and should not be hijacked for navigation. Discord is accessible
+  // via the floating button in the bottom-right corner.
   
   const handleOpenDiscord = () => {
     // Capture page context for better feedback
@@ -221,7 +211,7 @@ export function FloatingFeedbackButton({
                       PRO TIP
                     </div>
                     <p className="text-xs text-gray-300">
-                      Press <kbd className="px-1.5 py-0.5 bg-gray-800 border border-gray-600 rounded text-white font-mono">Shift</kbd> + <kbd className="px-1.5 py-0.5 bg-gray-800 border border-gray-600 rounded text-white font-mono">?</kbd> anytime to open Discord!
+                      Click this button anytime to open Discord!
                     </p>
                   </div>
                   
@@ -272,10 +262,7 @@ export function FloatingFeedbackButton({
                   Report bugs, suggest features, or get instant help from our team!
                 </div>
                 <div className="flex items-center gap-1 text-xs text-purple-300">
-                  <span>Keyboard:</span>
-                  <kbd className="px-1.5 py-0.5 bg-gray-800 border border-gray-600 rounded font-mono">Shift</kbd>
-                  <span>+</span>
-                  <kbd className="px-1.5 py-0.5 bg-gray-800 border border-gray-600 rounded font-mono">?</kbd>
+                  <span>Click the button to join our Discord!</span>
                 </div>
               </div>
             </motion.div>
@@ -292,7 +279,7 @@ export function FloatingFeedbackButton({
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
           className="relative group"
-          aria-label="Open feedback and support. Press Shift + ? or click to join our Discord community for instant help, bug reports, and feature suggestions."
+          aria-label="Open feedback and support. Click to join our Discord community for instant help, bug reports, and feature suggestions."
           role="button"
           tabIndex={0}
         >
