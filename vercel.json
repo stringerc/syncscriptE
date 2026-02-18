@@ -32,7 +32,7 @@
         },
         {
           "key": "Content-Security-Policy",
-          "value": "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://accounts.google.com https://apis.google.com https://js.sentry-cdn.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https: http:; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.twilio.com https://accounts.google.com https://oauth2.googleapis.com https://www.googleapis.com https://graph.microsoft.com https://login.microsoftonline.com https://slack.com https://*.sentry.io https://api.openweathermap.org https://syncscript.app https://www.syncscript.app http://localhost:*; frame-src 'self' https://accounts.google.com; media-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self' https://accounts.google.com https://login.microsoftonline.com https://slack.com"
+          "value": "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://accounts.google.com https://apis.google.com https://js.sentry-cdn.com https://www.googletagmanager.com https://www.google-analytics.com https://plausible.io https://vercel.live; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https: http:; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.twilio.com https://accounts.google.com https://oauth2.googleapis.com https://www.googleapis.com https://graph.microsoft.com https://login.microsoftonline.com https://slack.com https://*.sentry.io https://api.openweathermap.org https://syncscript.app https://www.syncscript.app https://www.google-analytics.com https://plausible.io https://vercel.live https://integrate.api.nvidia.com http://localhost:*; frame-src 'self' https://accounts.google.com https://vercel.live; media-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self' https://accounts.google.com https://login.microsoftonline.com https://slack.com"
         }
       ]
     },
@@ -94,6 +94,10 @@
     {
       "path": "/api/cron/weekly-report",
       "schedule": "0 14 * * 1"
+    },
+    {
+      "path": "/api/phone/scheduled-briefing",
+      "schedule": "* * * * *"
     }
   ]
 }

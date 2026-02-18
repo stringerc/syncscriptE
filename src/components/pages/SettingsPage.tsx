@@ -1,13 +1,13 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { 
   Settings, User, Bell, Lock, Palette, Globe, Zap, 
   Shield, Download, Trash2, Moon, Sun, Volume2, Mail,
   Smartphone, Calendar, Database, Code, HelpCircle,
   ChevronRight, Check, X, Link2, Users, MapPin, Cloud,
-  Camera
+  Camera, BookOpen, MessageSquare, CheckCircle2, Activity
 } from 'lucide-react';
 import { motion } from 'motion/react';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { Switch } from '../ui/switch';
@@ -20,7 +20,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Slider } from '../ui/slider';
 import { EnergySettings } from '../energy/EnergySettings';
 import { EnergyHistory } from '../energy/EnergyHistory';
-import { useNavigate } from 'react-router';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useUserProfile } from '../../utils/user-profile';
 import { useAuth } from '../../contexts/AuthContext';
 import { ImageCropModal } from '../ImageCropModal';
@@ -28,40 +28,165 @@ import { ImageCropModal } from '../ImageCropModal';
 // Default avatar URL
 const DEFAULT_AVATAR = 'https://images.unsplash.com/photo-1576558656222-ba66febe3dec?w=400&h=400&fit=crop&crop=face';
 
+// ── Persistent settings helper ──────────────────────────────────────────────
+const SETTINGS_KEY = 'syncscript_settings';
+
+interface AppSettings {
+  darkMode: boolean;
+  notifications: boolean;
+  emailDigest: boolean;
+  soundEffects: boolean;
+  autoSave: boolean;
+  resonanceMode: boolean;
+  phaseAlignment: boolean;
+  resonanceOverlay: boolean;
+  autoTaskMove: boolean;
+  explainMoves: boolean;
+  energyReminders: number[];
+  showTeamBadges: boolean;
+  teamTasksInMyTasks: boolean;
+  showLocationWeather: boolean;
+  clickableTeamBadges: boolean;
+  // Previously non-persisted settings - now saved
+  themeAccent: string;
+  fontSize: string;
+  language: string;
+  timezone: string;
+  dateFormat: string;
+  optimizationMode: string;
+  phaseAnchorTime: string;
+}
+
+const DEFAULT_SETTINGS: AppSettings = {
+  darkMode: true,
+  notifications: true,
+  emailDigest: true,
+  soundEffects: true,
+  autoSave: true,
+  resonanceMode: true,
+  phaseAlignment: true,
+  resonanceOverlay: true,
+  autoTaskMove: false,
+  explainMoves: true,
+  energyReminders: [75],
+  showTeamBadges: true,
+  teamTasksInMyTasks: true,
+  showLocationWeather: true,
+  clickableTeamBadges: true,
+  // Newly persisted defaults
+  themeAccent: 'teal',
+  fontSize: 'medium',
+  language: 'en',
+  timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'America/Los_Angeles',
+  dateFormat: 'mdy',
+  optimizationMode: 'balanced',
+  phaseAnchorTime: '9:00',
+};
+
+function loadSettings(): AppSettings {
+  try {
+    const raw = localStorage.getItem(SETTINGS_KEY);
+    if (raw) return { ...DEFAULT_SETTINGS, ...JSON.parse(raw) };
+  } catch { /* ignore parse errors */ }
+  return { ...DEFAULT_SETTINGS };
+}
+
+function saveSettings(settings: AppSettings) {
+  try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch { /* ignore */ }
+}
+
 export function SettingsPage() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { profile, updateProfile } = useUserProfile();
   const { uploadPhoto } = useAuth();
+  
+  // Read initial tab from URL (?tab=integrations etc.)
+  const validTabs = ['general', 'account', 'energy', 'notifications', 'resonance', 'privacy', 'integrations', 'briefing'];
+  const initialTab = validTabs.includes(searchParams.get('tab') || '') ? searchParams.get('tab')! : 'general';
   
   // Photo editing state
   const [showCropModal, setShowCropModal] = useState(false);
   const [tempImageSrc, setTempImageSrc] = useState<string>('');
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   
-  // Debug state (for development - can be toggled)
-  const [showDebugInfo, setShowDebugInfo] = useState(false);
+  // Load persisted settings
+  const [settings, setSettings] = useState<AppSettings>(loadSettings);
   
-  const [darkMode, setDarkMode] = useState(true);
-  const [notifications, setNotifications] = useState(true);
-  const [emailDigest, setEmailDigest] = useState(true);
-  const [soundEffects, setSoundEffects] = useState(true);
-  const [autoSave, setAutoSave] = useState(true);
-  const [resonanceMode, setResonanceMode] = useState(true);
-  const [phaseAlignment, setPhaseAlignment] = useState(true);
+  // Persist every time settings change
+  useEffect(() => { saveSettings(settings); }, [settings]);
   
-  // Resonance settings
-  const [conservativeMode, setConservativeMode] = useState(false);
-  const [resonanceOverlay, setResonanceOverlay] = useState(true);
-  const [autoTaskMove, setAutoTaskMove] = useState(false);
-  const [explainMoves, setExplainMoves] = useState(true);
+  // Helper to update a single setting
+  const updateSetting = useCallback(<K extends keyof AppSettings>(key: K, value: AppSettings[K]) => {
+    setSettings(prev => ({ ...prev, [key]: value }));
+  }, []);
   
-  const [energyReminders, setEnergyReminders] = useState([75]);
+  // Destructure for easy access in JSX
+  const {
+    darkMode, notifications, emailDigest, soundEffects, autoSave,
+    resonanceMode, phaseAlignment, resonanceOverlay, autoTaskMove,
+    explainMoves, energyReminders, showTeamBadges, teamTasksInMyTasks,
+    showLocationWeather, clickableTeamBadges,
+  } = settings;
   
-  // Team settings
-  const [showTeamBadges, setShowTeamBadges] = useState(true);
-  const [teamTasksInMyTasks, setTeamTasksInMyTasks] = useState(true);
-  const [showLocationWeather, setShowLocationWeather] = useState(true);
-  const [clickableTeamBadges, setClickableTeamBadges] = useState(true);
+  // Setter shorthands that persist
+  const setDarkMode = (v: boolean) => updateSetting('darkMode', v);
+  const setNotifications = (v: boolean) => updateSetting('notifications', v);
+  const setEmailDigest = (v: boolean) => updateSetting('emailDigest', v);
+  const setSoundEffects = (v: boolean) => updateSetting('soundEffects', v);
+  const setAutoSave = (v: boolean) => updateSetting('autoSave', v);
+  const setResonanceMode = (v: boolean) => updateSetting('resonanceMode', v);
+  const setPhaseAlignment = (v: boolean) => updateSetting('phaseAlignment', v);
+  const setResonanceOverlay = (v: boolean) => updateSetting('resonanceOverlay', v);
+  const setAutoTaskMove = (v: boolean) => updateSetting('autoTaskMove', v);
+  const setExplainMoves = (v: boolean) => updateSetting('explainMoves', v);
+  const setEnergyReminders = (v: number[]) => updateSetting('energyReminders', v);
+  const conservativeMode = false; // derived from resonanceMode
+
+  const [briefingTime, setBriefingTime] = useState('07:00');
+  const [briefingTimezone, setBriefingTimezone] = useState('America/New_York');
+  const [briefingDays, setBriefingDays] = useState(['mon', 'tue', 'wed', 'thu', 'fri']);
+  const [briefingEnabled, setBriefingEnabled] = useState(false);
+  const [briefingPhone, setBriefingPhone] = useState('');
+  const [briefingType, setBriefingType] = useState<'morning' | 'evening' | 'weekly-recap'>('morning');
+  const [savingBriefing, setSavingBriefing] = useState(false);
+
+  const toggleBriefingDay = (day: string) => {
+    setBriefingDays(prev =>
+      prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day]
+    );
+  };
+
+  const saveBriefingSchedule = async () => {
+    if (!briefingPhone) { toast.error('Phone number is required'); return; }
+    setSavingBriefing(true);
+    try {
+      const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || '';
+      const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+      if (!SUPABASE_URL || !SUPABASE_ANON_KEY) { toast.error('Supabase not configured'); return; }
+      await fetch(`${SUPABASE_URL}/functions/v1/make-server-57781ad9/kv/set`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` },
+        body: JSON.stringify({
+          key: `briefing_schedule:${profile?.id || 'unknown'}`,
+          value: JSON.stringify({
+            time: briefingTime,
+            timezone: briefingTimezone,
+            days: briefingDays,
+            enabled: briefingEnabled,
+            phoneNumber: briefingPhone,
+            userId: profile?.id || '',
+            type: briefingType,
+          }),
+        }),
+      });
+      toast.success('Briefing schedule saved!');
+    } catch (e) {
+      toast.error('Failed to save briefing schedule');
+    } finally {
+      setSavingBriefing(false);
+    }
+  };
 
   /**
    * Handle photo selection - ADVANCED IMPLEMENTATION
@@ -374,8 +499,8 @@ export function SettingsPage() {
           <p className="text-gray-400">Customize your SyncScript experience</p>
         </div>
 
-        <Tabs defaultValue="general" className="space-y-6">
-          <TabsList className="bg-[#1e2128] border border-gray-800">
+        <Tabs defaultValue={initialTab} className="space-y-6" onValueChange={(v) => setSearchParams({ tab: v }, { replace: true })}>
+          <TabsList className="bg-[#1e2128] border border-gray-800 flex-wrap">
             <TabsTrigger value="general">
               <Settings className="w-4 h-4 mr-2" />
               General
@@ -396,9 +521,17 @@ export function SettingsPage() {
               <Zap className="w-4 h-4 mr-2" />
               Resonance
             </TabsTrigger>
+            <TabsTrigger value="integrations">
+              <Link2 className="w-4 h-4 mr-2" />
+              Integrations
+            </TabsTrigger>
             <TabsTrigger value="privacy">
               <Shield className="w-4 h-4 mr-2" />
               Privacy
+            </TabsTrigger>
+            <TabsTrigger value="briefing">
+              <Smartphone className="w-4 h-4 mr-2" />
+              Briefing Calls
             </TabsTrigger>
           </TabsList>
 
@@ -638,47 +771,7 @@ export function SettingsPage() {
                     💡 Click photo or button to upload. JPG, PNG, or WebP. Max 10MB.
                   </p>
                   
-                  {/* DEBUG INFO - Shows upload state (can be toggled) */}
-                  <div className="mt-4 pt-4 border-t border-gray-800">
-                    <button
-                      onClick={() => setShowDebugInfo(!showDebugInfo)}
-                      className="text-xs text-gray-500 hover:text-gray-400 transition-colors"
-                    >
-                      {showDebugInfo ? '▼' : '▶'} Developer Debug Info
-                    </button>
-                    
-                    {showDebugInfo && (
-                      <div className="mt-2 p-3 bg-slate-900 border border-slate-700 rounded-lg space-y-2 font-mono text-xs">
-                        <div className="text-slate-300">
-                          <span className="text-slate-500">Modal State:</span>{' '}
-                          <span className={showCropModal ? 'text-green-400' : 'text-red-400'}>
-                            {showCropModal ? 'OPEN ✓' : 'CLOSED ✗'}
-                          </span>
-                        </div>
-                        <div className="text-slate-300">
-                          <span className="text-slate-500">Image Loaded:</span>{' '}
-                          <span className={tempImageSrc ? 'text-green-400' : 'text-red-400'}>
-                            {tempImageSrc ? `YES (${(tempImageSrc.length / 1024).toFixed(0)}KB) ✓` : 'NO ✗'}
-                          </span>
-                        </div>
-                        <div className="text-slate-300">
-                          <span className="text-slate-500">Uploading:</span>{' '}
-                          <span className={uploadingPhoto ? 'text-yellow-400' : 'text-green-400'}>
-                            {uploadingPhoto ? 'IN PROGRESS...' : 'READY ✓'}
-                          </span>
-                        </div>
-                        <div className="text-slate-300">
-                          <span className="text-slate-500">Current Avatar:</span>{' '}
-                          <span className="text-blue-400 truncate block max-w-xs">
-                            {profile.avatar}
-                          </span>
-                        </div>
-                        <div className="mt-2 pt-2 border-t border-slate-700 text-slate-400">
-                          💡 If modal doesn't appear, check browser console (F12)
-                        </div>
-                      </div>
-                    )}
-                  </div>
+                  {/* Debug info removed — not needed in production */}
                 </div>
               </div>
             </Card>
@@ -780,7 +873,7 @@ export function SettingsPage() {
                   />
                 </div>
 
-                <Button variant="outline" className="gap-2">
+                <Button variant="outline" className="gap-2" onClick={() => toast.info('Coming soon', { description: 'Password management will be available in a future update' })}>
                   Update Password
                 </Button>
 
@@ -791,9 +884,7 @@ export function SettingsPage() {
                     <Label className="text-white">Two-Factor Authentication</Label>
                     <p className="text-sm text-gray-400">Add an extra layer of security</p>
                   </div>
-                  <Button variant="outline" size="sm">
-                    Enable
-                  </Button>
+                  <Badge variant="outline" className="text-xs text-gray-400 border-gray-600">Coming Soon</Badge>
                 </div>
               </div>
             </Card>
@@ -1083,6 +1174,129 @@ export function SettingsPage() {
             </Card>
           </TabsContent>
 
+          {/* Integrations */}
+          <TabsContent value="integrations" className="space-y-6">
+            <Card className="bg-[#1e2128] border-gray-800 p-6">
+              <h2 className="text-white text-xl mb-2 flex items-center gap-2">
+                <Link2 className="w-5 h-5 text-teal-400" />
+                Connected Services
+              </h2>
+              <p className="text-sm text-gray-400 mb-6">Connect your favorite tools to supercharge your productivity.</p>
+              
+              <div className="space-y-4">
+                {/* Google Calendar */}
+                <div className="flex items-center justify-between p-4 bg-[#1a1c20] border border-gray-800 rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-blue-600/20 rounded-lg flex items-center justify-center">
+                      <Calendar className="w-5 h-5 text-blue-400" />
+                    </div>
+                    <div>
+                      <Label className="text-white font-medium">Google Calendar</Label>
+                      <p className="text-sm text-gray-400">Sync events and schedule</p>
+                    </div>
+                  </div>
+                  <Button variant="outline" size="sm" onClick={() => toast.info('Coming soon', { description: 'Google Calendar integration is in development' })}>
+                    Connect
+                  </Button>
+                </div>
+
+                {/* Notion */}
+                <div className="flex items-center justify-between p-4 bg-[#1a1c20] border border-gray-800 rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-gray-600/20 rounded-lg flex items-center justify-center">
+                      <BookOpen className="w-5 h-5 text-gray-300" />
+                    </div>
+                    <div>
+                      <Label className="text-white font-medium">Notion</Label>
+                      <p className="text-sm text-gray-400">Import tasks and notes</p>
+                    </div>
+                  </div>
+                  <Button variant="outline" size="sm" onClick={() => toast.info('Coming soon', { description: 'Notion integration is in development' })}>
+                    Connect
+                  </Button>
+                </div>
+
+                {/* Slack */}
+                <div className="flex items-center justify-between p-4 bg-[#1a1c20] border border-gray-800 rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-purple-600/20 rounded-lg flex items-center justify-center">
+                      <MessageSquare className="w-5 h-5 text-purple-400" />
+                    </div>
+                    <div>
+                      <Label className="text-white font-medium">Slack</Label>
+                      <p className="text-sm text-gray-400">Get notifications and updates</p>
+                    </div>
+                  </div>
+                  <Button variant="outline" size="sm" onClick={() => toast.info('Coming soon', { description: 'Slack integration is in development' })}>
+                    Connect
+                  </Button>
+                </div>
+
+                {/* Todoist */}
+                <div className="flex items-center justify-between p-4 bg-[#1a1c20] border border-gray-800 rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-rose-600/20 rounded-lg flex items-center justify-center">
+                      <CheckCircle2 className="w-5 h-5 text-rose-400" />
+                    </div>
+                    <div>
+                      <Label className="text-white font-medium">Todoist</Label>
+                      <p className="text-sm text-gray-400">Import and sync tasks</p>
+                    </div>
+                  </div>
+                  <Button variant="outline" size="sm" onClick={() => toast.info('Coming soon', { description: 'Todoist integration is in development' })}>
+                    Connect
+                  </Button>
+                </div>
+
+                {/* Apple Health */}
+                <div className="flex items-center justify-between p-4 bg-[#1a1c20] border border-gray-800 rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-green-600/20 rounded-lg flex items-center justify-center">
+                      <Activity className="w-5 h-5 text-green-400" />
+                    </div>
+                    <div>
+                      <Label className="text-white font-medium">Apple Health / Google Fit</Label>
+                      <p className="text-sm text-gray-400">Energy tracking from real biometrics</p>
+                    </div>
+                  </div>
+                  <Button variant="outline" size="sm" onClick={() => toast.info('Coming soon', { description: 'Health integration is in development' })}>
+                    Connect
+                  </Button>
+                </div>
+
+                {/* Spotify */}
+                <div className="flex items-center justify-between p-4 bg-[#1a1c20] border border-gray-800 rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-green-600/20 rounded-lg flex items-center justify-center">
+                      <Volume2 className="w-5 h-5 text-green-400" />
+                    </div>
+                    <div>
+                      <Label className="text-white font-medium">Spotify</Label>
+                      <p className="text-sm text-gray-400">Focus playlists and productivity music</p>
+                    </div>
+                  </div>
+                  <Button variant="outline" size="sm" onClick={() => toast.info('Coming soon', { description: 'Spotify integration is in development' })}>
+                    Connect
+                  </Button>
+                </div>
+              </div>
+            </Card>
+
+            <Card className="bg-gradient-to-br from-teal-600/10 to-blue-600/10 border-teal-600/30 p-6">
+              <h2 className="text-white text-xl mb-2 flex items-center gap-2">
+                <Code className="w-5 h-5 text-teal-400" />
+                Developer API
+              </h2>
+              <p className="text-sm text-gray-400 mb-4">Build custom integrations using the SyncScript API.</p>
+              <div className="p-3 bg-[#1a1c20] rounded-lg border border-gray-800">
+                <code className="text-xs text-teal-300 font-mono">
+                  API endpoint: https://api.syncscript.app/v1
+                </code>
+              </div>
+              <Badge variant="outline" className="mt-3 text-xs text-gray-400 border-gray-600">API access coming in v1.0</Badge>
+            </Card>
+          </TabsContent>
+
           {/* Privacy Settings */}
           <TabsContent value="privacy" className="space-y-6">
             <Card className="bg-[#1e2128] border-gray-800 p-6">
@@ -1153,7 +1367,27 @@ export function SettingsPage() {
                 <Button 
                   variant="outline" 
                   className="w-full gap-2 justify-start"
-                  onClick={() => toast.success('Export started', { description: 'Your data will be ready shortly' })}
+                  onClick={() => {
+                    try {
+                      const data: Record<string, any> = {};
+                      for (let i = 0; i < localStorage.length; i++) {
+                        const key = localStorage.key(i);
+                        if (key && key.startsWith('syncscript')) {
+                          try { data[key] = JSON.parse(localStorage.getItem(key) || ''); } catch { data[key] = localStorage.getItem(key); }
+                        }
+                      }
+                      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement('a');
+                      a.href = url;
+                      a.download = `syncscript-export-${new Date().toISOString().slice(0, 10)}.json`;
+                      a.click();
+                      URL.revokeObjectURL(url);
+                      toast.success('Data exported!', { description: 'JSON file downloaded to your device' });
+                    } catch {
+                      toast.error('Export failed', { description: 'Could not export data' });
+                    }
+                  }}
                 >
                   <Download className="w-4 h-4" />
                   Export All Data
@@ -1162,7 +1396,33 @@ export function SettingsPage() {
                 <Button 
                   variant="outline" 
                   className="w-full gap-2 justify-start"
-                  onClick={() => toast.info('Import data', { description: 'Choose a file to import' })}
+                  onClick={() => {
+                    const input = document.createElement('input');
+                    input.type = 'file';
+                    input.accept = '.json';
+                    input.onchange = (e: any) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      const reader = new FileReader();
+                      reader.onload = () => {
+                        try {
+                          const data = JSON.parse(reader.result as string);
+                          let count = 0;
+                          for (const [key, value] of Object.entries(data)) {
+                            if (key.startsWith('syncscript')) {
+                              localStorage.setItem(key, typeof value === 'string' ? value : JSON.stringify(value));
+                              count++;
+                            }
+                          }
+                          toast.success('Data imported!', { description: `Restored ${count} data entries. Refresh to see changes.` });
+                        } catch {
+                          toast.error('Import failed', { description: 'Invalid file format' });
+                        }
+                      };
+                      reader.readAsText(file);
+                    };
+                    input.click();
+                  }}
                 >
                   <Download className="w-4 h-4 rotate-180" />
                   Import Data
@@ -1173,10 +1433,126 @@ export function SettingsPage() {
                 <Button 
                   variant="outline" 
                   className="w-full gap-2 justify-start text-rose-400 border-rose-600/50 hover:bg-rose-600/20"
-                  onClick={() => toast.error('Clear all data?', { description: 'This cannot be undone' })}
+                  onClick={() => {
+                    if (window.confirm('Are you sure you want to clear ALL SyncScript data? This cannot be undone.')) {
+                      const keys = [];
+                      for (let i = 0; i < localStorage.length; i++) {
+                        const key = localStorage.key(i);
+                        if (key && key.startsWith('syncscript')) keys.push(key);
+                      }
+                      keys.forEach(k => localStorage.removeItem(k));
+                      toast.success('All data cleared', { description: `Removed ${keys.length} entries. Refresh to reset.` });
+                    }
+                  }}
                 >
                   <Trash2 className="w-4 h-4" />
                   Clear All Data
+                </Button>
+              </div>
+            </Card>
+          </TabsContent>
+
+          {/* Briefing Calls Settings */}
+          <TabsContent value="briefing" className="space-y-6">
+            <Card className="bg-[#1e2128] border-gray-800 p-6">
+              <h2 className="text-white text-xl mb-4 flex items-center gap-2">
+                <Smartphone className="w-5 h-5" />
+                Scheduled Briefing Calls
+              </h2>
+              <p className="text-gray-400 text-sm mb-6">
+                Nexus can call you automatically with your daily briefing — tasks, calendar, insights, and more.
+              </p>
+
+              <div className="space-y-5">
+                <div className="flex items-center justify-between">
+                  <div className="flex-1">
+                    <Label className="text-white">Enable Briefing Calls</Label>
+                    <p className="text-sm text-gray-400">Nexus will call you at your scheduled time</p>
+                  </div>
+                  <Switch checked={briefingEnabled} onCheckedChange={setBriefingEnabled} />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-white mb-1 block">Call Time</Label>
+                    <Input
+                      type="time"
+                      value={briefingTime}
+                      onChange={(e) => setBriefingTime(e.target.value)}
+                      className="bg-[#2a2d35] border-gray-700 text-white"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-white mb-1 block">Briefing Type</Label>
+                    <select
+                      value={briefingType}
+                      onChange={(e) => setBriefingType(e.target.value as any)}
+                      className="w-full h-10 rounded-md border border-gray-700 bg-[#2a2d35] text-white px-3"
+                    >
+                      <option value="morning">Morning Briefing</option>
+                      <option value="evening">Evening Review</option>
+                      <option value="weekly-recap">Weekly Recap (Sundays)</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <Label className="text-white mb-2 block">Days</Label>
+                  <div className="flex gap-2 flex-wrap">
+                    {['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'].map(day => (
+                      <button
+                        key={day}
+                        onClick={() => toggleBriefingDay(day)}
+                        className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                          briefingDays.includes(day)
+                            ? 'bg-purple-600 text-white'
+                            : 'bg-[#2a2d35] text-gray-400 hover:text-white'
+                        }`}
+                      >
+                        {day.charAt(0).toUpperCase() + day.slice(1)}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <Label className="text-white mb-1 block">Phone Number</Label>
+                  <Input
+                    type="tel"
+                    placeholder="+1 (555) 123-4567"
+                    value={briefingPhone}
+                    onChange={(e) => setBriefingPhone(e.target.value)}
+                    className="bg-[#2a2d35] border-gray-700 text-white"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Include country code (e.g. +1 for US)</p>
+                </div>
+
+                <div>
+                  <Label className="text-white mb-1 block">Timezone</Label>
+                  <select
+                    value={briefingTimezone}
+                    onChange={(e) => setBriefingTimezone(e.target.value)}
+                    className="w-full h-10 rounded-md border border-gray-700 bg-[#2a2d35] text-white px-3"
+                  >
+                    <option value="America/New_York">Eastern (New York)</option>
+                    <option value="America/Chicago">Central (Chicago)</option>
+                    <option value="America/Denver">Mountain (Denver)</option>
+                    <option value="America/Los_Angeles">Pacific (Los Angeles)</option>
+                    <option value="America/Phoenix">Arizona (Phoenix)</option>
+                    <option value="Pacific/Honolulu">Hawaii</option>
+                    <option value="America/Anchorage">Alaska</option>
+                    <option value="Europe/London">London (GMT)</option>
+                    <option value="Europe/Paris">Paris (CET)</option>
+                    <option value="Asia/Tokyo">Tokyo (JST)</option>
+                  </select>
+                </div>
+
+                <Button
+                  onClick={saveBriefingSchedule}
+                  disabled={savingBriefing}
+                  className="w-full bg-purple-600 hover:bg-purple-700 text-white"
+                >
+                  {savingBriefing ? 'Saving...' : 'Save Briefing Schedule'}
                 </Button>
               </div>
             </Card>

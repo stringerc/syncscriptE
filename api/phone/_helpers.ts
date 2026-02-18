@@ -1432,6 +1432,7 @@ interface LiveContext {
   weather?: { temp: number; description: string; feelsLike: number; humidity: number; windSpeed: number; icon: string; alerts: string[] };
   traffic?: { conditions: string; estimatedCommute: string; incidents: string[] };
   emailInsights?: { username: string; keywords: string[]; possibleInterests: string[]; locationHint?: string; nameHint?: string };
+  moodAndInsights?: string;
 }
 
 async function fetchWeatherForCall(lat?: number, lon?: number): Promise<LiveContext['weather'] | undefined> {
@@ -1601,6 +1602,10 @@ function buildLiveContextBlock(ctx: LiveContext): string {
     }
   }
 
+  if (ctx.moodAndInsights) {
+    parts.push(ctx.moodAndInsights);
+  }
+
   return parts.length > 0 ? `\n${parts.join('\n')}` : '';
 }
 
@@ -1695,26 +1700,21 @@ export async function generatePhoneAIResponse(
   callContext?: string,
   liveContext?: LiveContext,
 ): Promise<string> {
-  const config = getTwilioConfig();
-
   if (!isAIConfigured()) {
     return "I'm having trouble connecting to my brain right now. Let me try again in a moment.";
   }
 
-  // Check for profanity first — return a fun response before hitting the AI
   if (detectProfanity(userSpeech)) {
     console.log(`[PhoneAI] Profanity detected: "${userSpeech.slice(0, 30)}..."`);
     return getProfanityResponse();
   }
 
-  // Check for Easter eggs
   const easterEgg = checkEasterEggs(userSpeech);
   if (easterEgg) {
     console.log(`[PhoneAI] Easter egg triggered: "${userSpeech.slice(0, 30)}..."`);
     return easterEgg;
   }
 
-  // Build the system prompt with context
   const today = new Date().toISOString().split('T')[0];
   const contextBlock = callContext && CALL_PERSONALITY[callContext]
     ? CALL_PERSONALITY[callContext]
@@ -1746,14 +1746,889 @@ export async function generatePhoneAIResponse(
     });
 
     const rawResponse = result.content || "I didn't quite catch that. What were you saying?";
-
-    // Apply content rating filter to Nexus's own response
     const rating = getContentRating();
     return filterResponse(rawResponse, rating);
   } catch (error) {
     console.error('[PhoneAI] AI generation error:', error);
     return "Sorry, I'm having a technical hiccup. Bear with me.";
   }
+}
+
+// ============================================================================
+// PHONE AI WITH FULL TOOL ACCESS (via OpenClaw Bridge)
+// ============================================================================
+
+/**
+ * Generate a phone AI response using the same OpenClaw bridge that powers
+ * the chat AI, giving the phone AI access to all 20+ tools (tasks, calendar,
+ * integrations, email drafts, SMS, schedule optimization, etc.).
+ */
+export async function generatePhoneAIResponseWithTools(
+  userSpeech: string,
+  userId: string,
+  conversationHistory?: string,
+  callContext?: string,
+  liveContext?: LiveContext,
+  callMemory?: CallMemory | null,
+): Promise<{ spoken: string; toolResults?: any[] }> {
+  if (detectProfanity(userSpeech)) {
+    console.log(`[PhoneAI+Tools] Profanity detected`);
+    return { spoken: getProfanityResponse() };
+  }
+
+  const easterEgg = checkEasterEggs(userSpeech);
+  if (easterEgg) {
+    return { spoken: easterEgg };
+  }
+
+  const SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+  const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+    console.warn('[PhoneAI+Tools] Missing Supabase env — falling back to plain AI');
+    const fallback = await generatePhoneAIResponse(userSpeech, conversationHistory, callContext, liveContext);
+    return { spoken: fallback };
+  }
+
+  const userData = await fetchUserDataForPhone(userId);
+
+  const historyMessages: { role: string; content: string }[] = [];
+  if (conversationHistory) {
+    for (const line of conversationHistory.split('\n')) {
+      const trimmed = line.trim();
+      if (trimmed.startsWith('User: ')) {
+        historyMessages.push({ role: 'user', content: trimmed.slice(6) });
+      } else if (trimmed.startsWith('AI: ')) {
+        historyMessages.push({ role: 'assistant', content: trimmed.slice(4) });
+      }
+    }
+  }
+
+  const liveContextBlock = liveContext ? buildLiveContextBlock(liveContext) : '';
+  const callContextBlock = callContext && CALL_PERSONALITY[callContext] ? CALL_PERSONALITY[callContext] : '';
+
+  let memoryBlock = '';
+  if (callMemory) {
+    memoryBlock = `\nPREVIOUS CALL MEMORY (from ${callMemory.lastCallDate}):\n` +
+      `Summary: ${callMemory.summary}\n` +
+      `Key topics: ${callMemory.keyTopics.join(', ')}\n` +
+      `Actions taken: ${callMemory.actionsTaken.join(', ')}\n` +
+      `Use this to provide continuity — reference past topics naturally.`;
+  }
+
+  try {
+    const resp = await fetch(
+      `${SUPABASE_URL}/functions/v1/make-server-57781ad9/openclaw/chat`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+        },
+        body: JSON.stringify({
+          message: userSpeech,
+          userId,
+          context: {
+            currentPage: 'phone-call',
+            conversationHistory: historyMessages,
+            isPhoneCall: true,
+            callContext: callContextBlock,
+            liveContext: liveContextBlock,
+            callMemory: memoryBlock,
+            userData,
+          },
+        }),
+      }
+    );
+
+    if (!resp.ok) {
+      console.error(`[PhoneAI+Tools] Bridge returned ${resp.status}: ${await resp.text()}`);
+      const fallback = await generatePhoneAIResponse(userSpeech, conversationHistory, callContext, liveContext);
+      return { spoken: fallback };
+    }
+
+    const data = await resp.json();
+    const spoken = data.data?.message?.content || "Sorry, I'm having a hiccup. Could you say that again?";
+    const toolResults = data.data?.toolResults;
+
+    const rating = getContentRating();
+    return {
+      spoken: filterResponse(spoken, rating),
+      toolResults,
+    };
+  } catch (error) {
+    console.error('[PhoneAI+Tools] Bridge call failed:', error);
+    const fallback = await generatePhoneAIResponse(userSpeech, conversationHistory, callContext, liveContext);
+    return { spoken: fallback };
+  }
+}
+
+// ============================================================================
+// USER DATA FETCHER FOR PHONE CONTEXT
+// ============================================================================
+
+async function fetchUserDataForPhone(userId: string): Promise<Record<string, any>> {
+  const SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+  const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) return {};
+
+  try {
+    const kvResp = await fetch(`${SUPABASE_URL}/functions/v1/make-server-57781ad9/kv/get?key=user_data:${userId}`, {
+      headers: { 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` },
+    });
+
+    if (kvResp.ok) {
+      const kvData = await kvResp.json();
+      if (kvData.value) {
+        console.log(`[PhoneAI] Loaded user data from KV for ${userId}`);
+        return typeof kvData.value === 'string' ? JSON.parse(kvData.value) : kvData.value;
+      }
+    }
+  } catch (e) {
+    console.warn('[PhoneAI] Failed to fetch user data from KV:', e);
+  }
+
+  return {};
+}
+
+// ============================================================================
+// PERSISTENT CROSS-CALL MEMORY
+// ============================================================================
+
+export interface CallMemory {
+  lastCallDate: string;
+  summary: string;
+  keyTopics: string[];
+  actionsTaken: string[];
+}
+
+export async function loadCallMemory(userId: string): Promise<CallMemory | null> {
+  const SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+  const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY || !userId) return null;
+
+  try {
+    const resp = await fetch(`${SUPABASE_URL}/functions/v1/make-server-57781ad9/kv/get?key=phone_memory:${userId}`, {
+      headers: { 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` },
+    });
+    if (resp.ok) {
+      const data = await resp.json();
+      if (data.value) {
+        const mem = typeof data.value === 'string' ? JSON.parse(data.value) : data.value;
+        console.log(`[PhoneAI] Loaded call memory for ${userId} from ${mem.lastCallDate}`);
+        return mem as CallMemory;
+      }
+    }
+  } catch (e) {
+    console.warn('[PhoneAI] Failed to load call memory:', e);
+  }
+  return null;
+}
+
+export async function saveCallMemory(userId: string, conversationHistory: string[]): Promise<void> {
+  const SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+  const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY || !userId || conversationHistory.length === 0) return;
+
+  const transcript = conversationHistory.join('\n');
+
+  try {
+    const summaryResp = await callAI([
+      {
+        role: 'system',
+        content: 'Summarize this phone conversation in 2-3 sentences. Extract key topics and any actions taken. Respond ONLY with valid JSON: {"summary":"...","keyTopics":["..."],"actionsTaken":["..."]}',
+      },
+      { role: 'user', content: transcript },
+    ] as AIMessage[], { maxTokens: 200, temperature: 0.3 });
+
+    let memory: CallMemory;
+    try {
+      const parsed = JSON.parse(summaryResp.content || '{}');
+      memory = {
+        lastCallDate: new Date().toISOString().split('T')[0],
+        summary: parsed.summary || transcript.slice(0, 300),
+        keyTopics: parsed.keyTopics || [],
+        actionsTaken: parsed.actionsTaken || [],
+      };
+    } catch {
+      memory = {
+        lastCallDate: new Date().toISOString().split('T')[0],
+        summary: transcript.slice(0, 300),
+        keyTopics: [],
+        actionsTaken: [],
+      };
+    }
+
+    await fetch(`${SUPABASE_URL}/functions/v1/make-server-57781ad9/kv/set`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+      },
+      body: JSON.stringify({
+        key: `phone_memory:${userId}`,
+        value: JSON.stringify(memory),
+      }),
+    });
+
+    console.log(`[PhoneAI] Saved call memory for ${userId}: "${memory.summary.slice(0, 80)}..."`);
+  } catch (e) {
+    console.error('[PhoneAI] Failed to save call memory:', e);
+  }
+}
+
+/**
+ * Send an SMS via Twilio REST API (used by send_sms tool in OpenClaw bridge).
+ */
+export async function sendTwilioSms(to: string, body: string): Promise<{ success: boolean; sid?: string; error?: string }> {
+  const config = getTwilioConfig();
+  const basicAuth = Buffer.from(`${config.accountSid}:${config.authToken}`).toString('base64');
+
+  try {
+    const resp = await fetch(
+      `https://api.twilio.com/2010-04-01/Accounts/${config.accountSid}/Messages.json`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Basic ${basicAuth}`,
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: new URLSearchParams({
+          To: to,
+          From: config.twilioNumber,
+          Body: body,
+        }),
+      }
+    );
+
+    if (resp.ok) {
+      const data = await resp.json();
+      console.log(`[PhoneAI] SMS sent: ${data.sid}`);
+      return { success: true, sid: data.sid };
+    } else {
+      const errText = await resp.text();
+      console.error(`[PhoneAI] SMS send failed (${resp.status}):`, errText);
+      return { success: false, error: errText };
+    }
+  } catch (e: any) {
+    console.error('[PhoneAI] SMS send error:', e);
+    return { success: false, error: e.message };
+  }
+}
+
+// ============================================================================
+// FEATURE 2: MOOD DETECTION FROM SPEECH TEXT
+// ============================================================================
+
+export type MoodState = 'stressed' | 'tired' | 'excited' | 'frustrated' | 'sad' | 'neutral' | 'energized';
+
+const STRESS_WORDS = ['stressed', 'overwhelmed', 'too much', "can't handle", 'behind', 'deadline', 'swamped', 'drowning', 'crazy', 'insane', 'killing me', 'losing it'];
+const TIRED_WORDS = ['tired', 'exhausted', 'whatever', 'i guess', "i don't know", "don't care", 'meh', 'barely', 'didn\'t sleep', 'no energy', 'drained'];
+const EXCITED_WORDS = ['amazing', 'awesome', 'fantastic', 'incredible', 'love it', 'yes!', 'let\'s go', 'perfect', 'best', 'excited', 'great news', 'can\'t wait', 'pumped'];
+const FRUSTRATED_WORDS = ['ugh', 'annoying', 'frustrated', 'broken', 'doesn\'t work', 'hate', 'stupid', 'ridiculous', 'waste', 'pointless', 'give up'];
+const SAD_WORDS = ['sad', 'depressed', 'lonely', 'miss', 'lost', 'rough day', 'bad day', 'struggling', 'hard time', 'tough', 'difficult'];
+const ENERGIZED_WORDS = ['fired up', 'motivated', 'productive', 'on fire', 'crushing it', 'nailed it', 'killed it', 'smashed it', 'on a roll', 'let\'s do this'];
+
+export function detectMoodFromSpeech(text: string, history: string[] = []): MoodState {
+  const lower = text.toLowerCase();
+  const recentHistory = history.slice(-4).join(' ').toLowerCase();
+  const combined = lower + ' ' + recentHistory;
+
+  const scores: Record<MoodState, number> = {
+    stressed: 0, tired: 0, excited: 0, frustrated: 0, sad: 0, neutral: 0, energized: 0,
+  };
+
+  for (const w of STRESS_WORDS) if (combined.includes(w)) scores.stressed += 2;
+  for (const w of TIRED_WORDS) if (combined.includes(w)) scores.tired += 2;
+  for (const w of EXCITED_WORDS) if (combined.includes(w)) scores.excited += 2;
+  for (const w of FRUSTRATED_WORDS) if (combined.includes(w)) scores.frustrated += 2;
+  for (const w of SAD_WORDS) if (combined.includes(w)) scores.sad += 2;
+  for (const w of ENERGIZED_WORDS) if (combined.includes(w)) scores.energized += 2;
+
+  if (lower.length < 15) scores.tired += 1;
+  if (lower.includes('!') || lower.length > 100) scores.excited += 1;
+  if ((lower.match(/\.\.\./g) || []).length >= 2) scores.tired += 1;
+
+  const max = Math.max(...Object.values(scores));
+  if (max === 0) return 'neutral';
+
+  return (Object.entries(scores) as [MoodState, number][])
+    .sort((a, b) => b[1] - a[1])[0][0];
+}
+
+export function getMoodPromptOverride(mood: MoodState, consecutiveNegativeTurns: number): string {
+  if (consecutiveNegativeTurns >= 2 && ['stressed', 'sad', 'frustrated'].includes(mood)) {
+    return `\n## BAD DAY PROTOCOL — ACTIVE
+The user has been stressed/down for multiple turns. Be extra warm and brief. Proactively offer to lighten their load:
+- Suggest rescheduling non-essential tasks to tomorrow
+- Offer to clear their afternoon
+- Be supportive and empathetic, not just productive
+- Say something like: "Hey, sounds like today's been a lot. Want me to push anything non-critical to tomorrow and free up your evening?"`;
+  }
+
+  switch (mood) {
+    case 'stressed':
+      return '\nMOOD: User sounds stressed. Be warm, brief, and action-oriented. Offer to help lighten their load.';
+    case 'tired':
+      return '\nMOOD: User sounds tired/low-energy. Be gentle and concise. Suggest only the most important things.';
+    case 'excited':
+      return '\nMOOD: User sounds excited! Match their energy. Celebrate with them and ride the momentum.';
+    case 'frustrated':
+      return '\nMOOD: User sounds frustrated. Acknowledge it, then pivot to solutions fast. Don\'t over-empathize — fix things.';
+    case 'sad':
+      return '\nMOOD: User sounds down. Be genuinely warm and caring. Ask how they\'re doing before jumping into tasks.';
+    case 'energized':
+      return '\nMOOD: User is fired up! Match their energy and help them channel it into action. Suggest ambitious moves.';
+    default:
+      return '';
+  }
+}
+
+// ============================================================================
+// FEATURE 3: DEEP USER PROFILE WITH LONG-TERM MEMORY
+// ============================================================================
+
+export interface UserProfile {
+  name?: string;
+  wakeUpTime?: string;
+  preferences: { communicationStyle?: string; briefingDetail?: string };
+  mentionedPeople: { name: string; relationship: string; lastMentioned: string; context: string }[];
+  interests: string[];
+  mentionedGoals: string[];
+  patterns: { peakProductivity?: string; commonStressors?: string[] };
+  lifeEvents: { event: string; date: string; followUp: boolean }[];
+  updatedAt: string;
+}
+
+function getSupabaseConfig() {
+  return {
+    url: process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '',
+    key: process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '',
+  };
+}
+
+async function kvGet(key: string): Promise<any> {
+  const { url, key: anonKey } = getSupabaseConfig();
+  if (!url || !anonKey) return null;
+  try {
+    const resp = await fetch(`${url}/functions/v1/make-server-57781ad9/kv/get?key=${encodeURIComponent(key)}`, {
+      headers: { 'Authorization': `Bearer ${anonKey}` },
+    });
+    if (!resp.ok) return null;
+    const data = await resp.json();
+    return data.value ? (typeof data.value === 'string' ? JSON.parse(data.value) : data.value) : null;
+  } catch { return null; }
+}
+
+async function kvSet(key: string, value: any): Promise<void> {
+  const { url, key: anonKey } = getSupabaseConfig();
+  if (!url || !anonKey) return;
+  try {
+    await fetch(`${url}/functions/v1/make-server-57781ad9/kv/set`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${anonKey}` },
+      body: JSON.stringify({ key, value: JSON.stringify(value) }),
+    });
+  } catch (e) { console.warn('[KV] Set failed:', e); }
+}
+
+export async function loadUserProfile(userId: string): Promise<UserProfile | null> {
+  return kvGet(`user_profile:${userId}`);
+}
+
+export async function updateUserProfile(userId: string, transcript: string): Promise<void> {
+  if (!transcript || transcript.length < 20) return;
+
+  const existing = await loadUserProfile(userId) || {
+    preferences: {},
+    mentionedPeople: [],
+    interests: [],
+    mentionedGoals: [],
+    patterns: {},
+    lifeEvents: [],
+    updatedAt: new Date().toISOString(),
+  };
+
+  try {
+    const result = await callAI([
+      {
+        role: 'system',
+        content: `Extract profile information from this phone conversation. Return ONLY valid JSON with these optional fields:
+{"name":"string or null","mentionedPeople":[{"name":"string","relationship":"string","context":"string"}],"interests":["string"],"mentionedGoals":["string"],"lifeEvents":[{"event":"string","followUp":true/false}]}
+Only include fields where you found NEW information. If nothing new, return {}`,
+      },
+      { role: 'user', content: transcript },
+    ] as AIMessage[], { maxTokens: 300, temperature: 0.2 });
+
+    const extracted = JSON.parse(result.content || '{}');
+    const today = new Date().toISOString().split('T')[0];
+
+    if (extracted.name && !existing.name) existing.name = extracted.name;
+
+    if (extracted.mentionedPeople?.length) {
+      for (const p of extracted.mentionedPeople) {
+        const idx = existing.mentionedPeople.findIndex(
+          (ep) => ep.name.toLowerCase() === p.name.toLowerCase()
+        );
+        if (idx >= 0) {
+          existing.mentionedPeople[idx].lastMentioned = today;
+          if (p.context) existing.mentionedPeople[idx].context = p.context;
+        } else {
+          existing.mentionedPeople.push({ ...p, lastMentioned: today });
+        }
+      }
+    }
+
+    if (extracted.interests?.length) {
+      for (const i of extracted.interests) {
+        if (!existing.interests.some((ei) => ei.toLowerCase() === i.toLowerCase())) {
+          existing.interests.push(i);
+        }
+      }
+    }
+
+    if (extracted.mentionedGoals?.length) {
+      for (const g of extracted.mentionedGoals) {
+        if (!existing.mentionedGoals.some((eg) => eg.toLowerCase() === g.toLowerCase())) {
+          existing.mentionedGoals.push(g);
+        }
+      }
+    }
+
+    if (extracted.lifeEvents?.length) {
+      for (const le of extracted.lifeEvents) {
+        existing.lifeEvents.push({ ...le, date: today });
+      }
+    }
+
+    existing.updatedAt = new Date().toISOString();
+    await kvSet(`user_profile:${userId}`, existing);
+    console.log(`[PhoneAI] Updated user profile for ${userId}`);
+  } catch (e) {
+    console.warn('[PhoneAI] Profile extraction failed:', e);
+  }
+}
+
+// ============================================================================
+// FEATURE 4: PROACTIVE "I NOTICED" INSIGHTS
+// ============================================================================
+
+export interface ProactiveInsight {
+  type: 'celebration' | 'warning' | 'suggestion' | 'milestone' | 'pattern';
+  text: string;
+  priority: number;
+}
+
+export interface UserStats {
+  dailyTasksCompleted: Record<string, number>;
+  dailyTasksPlanned: Record<string, number>;
+  currentStreak: number;
+  bestStreak: number;
+  totalTasksCompleted: number;
+  totalCallMinutes: number;
+  lastUpdated: string;
+}
+
+export async function loadUserStats(userId: string): Promise<UserStats> {
+  const stats = await kvGet(`user_stats:${userId}`);
+  return stats || {
+    dailyTasksCompleted: {},
+    dailyTasksPlanned: {},
+    currentStreak: 0,
+    bestStreak: 0,
+    totalTasksCompleted: 0,
+    totalCallMinutes: 0,
+    lastUpdated: new Date().toISOString(),
+  };
+}
+
+export async function recordTaskCompletion(userId: string, count: number): Promise<void> {
+  const stats = await loadUserStats(userId);
+  const today = new Date().toISOString().split('T')[0];
+  stats.dailyTasksCompleted[today] = (stats.dailyTasksCompleted[today] || 0) + count;
+  stats.totalTasksCompleted += count;
+
+  const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+  if (stats.dailyTasksCompleted[yesterday] > 0) {
+    stats.currentStreak += 1;
+  } else if (!stats.dailyTasksCompleted[today]) {
+    stats.currentStreak = 1;
+  }
+  if (stats.currentStreak > stats.bestStreak) stats.bestStreak = stats.currentStreak;
+
+  stats.lastUpdated = new Date().toISOString();
+  await kvSet(`user_stats:${userId}`, stats);
+}
+
+export async function generateProactiveInsights(userId: string): Promise<ProactiveInsight[]> {
+  const stats = await loadUserStats(userId);
+  const profile = await loadUserProfile(userId);
+  const insights: ProactiveInsight[] = [];
+  const today = new Date().toISOString().split('T')[0];
+
+  // Streak celebration
+  if (stats.currentStreak >= 3) {
+    insights.push({
+      type: 'celebration',
+      text: `${stats.currentStreak}-day productivity streak! You've completed tasks every day for ${stats.currentStreak} days straight.`,
+      priority: stats.currentStreak >= 7 ? 10 : 7,
+    });
+  }
+
+  // Best week ever detection
+  const last7Days = Array.from({ length: 7 }, (_, i) =>
+    new Date(Date.now() - i * 86400000).toISOString().split('T')[0]
+  );
+  const thisWeekTotal = last7Days.reduce((sum, d) => sum + (stats.dailyTasksCompleted[d] || 0), 0);
+  const prev7Days = Array.from({ length: 7 }, (_, i) =>
+    new Date(Date.now() - (i + 7) * 86400000).toISOString().split('T')[0]
+  );
+  const lastWeekTotal = prev7Days.reduce((sum, d) => sum + (stats.dailyTasksCompleted[d] || 0), 0);
+
+  if (thisWeekTotal > lastWeekTotal && lastWeekTotal > 0) {
+    const pct = Math.round(((thisWeekTotal - lastWeekTotal) / lastWeekTotal) * 100);
+    if (pct >= 20) {
+      insights.push({
+        type: 'milestone',
+        text: `Your productivity is up ${pct}% compared to last week. ${thisWeekTotal} tasks completed vs ${lastWeekTotal}.`,
+        priority: 8,
+      });
+    }
+  }
+
+  // Declining pattern warning
+  if (thisWeekTotal < lastWeekTotal * 0.5 && lastWeekTotal > 5) {
+    insights.push({
+      type: 'warning',
+      text: `Task completion dropped from ${lastWeekTotal} to ${thisWeekTotal} this week. Everything okay?`,
+      priority: 6,
+    });
+  }
+
+  // Mentioned goals follow-up
+  if (profile?.mentionedGoals?.length) {
+    const randomGoal = profile.mentionedGoals[Math.floor(Math.random() * profile.mentionedGoals.length)];
+    insights.push({
+      type: 'suggestion',
+      text: `You mentioned wanting to "${randomGoal}" — made any progress on that?`,
+      priority: 4,
+    });
+  }
+
+  // Life event follow-ups
+  if (profile?.lifeEvents?.length) {
+    for (const le of profile.lifeEvents) {
+      if (le.followUp) {
+        const eventDate = new Date(le.date);
+        const daysSince = Math.floor((Date.now() - eventDate.getTime()) / 86400000);
+        if (daysSince >= 7 && daysSince <= 30) {
+          insights.push({
+            type: 'suggestion',
+            text: `You mentioned "${le.event}" about ${daysSince} days ago — how's that going?`,
+            priority: 5,
+          });
+        }
+      }
+    }
+  }
+
+  return insights.sort((a, b) => b.priority - a.priority);
+}
+
+// ============================================================================
+// FEATURE 5: RELATIONSHIP RADAR
+// ============================================================================
+
+export interface RelationshipReminder {
+  name: string;
+  relationship: string;
+  daysSinceContact: number;
+  lastContext: string;
+  type: 'drift' | 'birthday' | 'followup';
+}
+
+export async function getRelationshipReminders(userId: string): Promise<RelationshipReminder[]> {
+  const profile = await loadUserProfile(userId);
+  if (!profile?.mentionedPeople?.length) return [];
+
+  const reminders: RelationshipReminder[] = [];
+  const today = new Date();
+
+  for (const person of profile.mentionedPeople) {
+    if (!person.lastMentioned) continue;
+    const lastDate = new Date(person.lastMentioned);
+    const daysSince = Math.floor((today.getTime() - lastDate.getTime()) / 86400000);
+
+    const isClose = ['family', 'close friend', 'partner', 'best friend', 'mom', 'dad', 'sister', 'brother']
+      .some(r => person.relationship.toLowerCase().includes(r));
+
+    if (isClose && daysSince >= 14) {
+      reminders.push({
+        name: person.name,
+        relationship: person.relationship,
+        daysSinceContact: daysSince,
+        lastContext: person.context,
+        type: 'drift',
+      });
+    } else if (!isClose && daysSince >= 30) {
+      reminders.push({
+        name: person.name,
+        relationship: person.relationship,
+        daysSinceContact: daysSince,
+        lastContext: person.context,
+        type: 'drift',
+      });
+    }
+  }
+
+  // Check life event follow-ups that involve people
+  for (const le of (profile.lifeEvents || [])) {
+    if (le.followUp) {
+      const daysSince = Math.floor((today.getTime() - new Date(le.date).getTime()) / 86400000);
+      if (daysSince >= 7 && daysSince <= 21) {
+        reminders.push({
+          name: le.event,
+          relationship: 'life event',
+          daysSinceContact: daysSince,
+          lastContext: le.event,
+          type: 'followup',
+        });
+      }
+    }
+  }
+
+  return reminders.sort((a, b) => b.daysSinceContact - a.daysSinceContact);
+}
+
+// ============================================================================
+// FEATURE 6: WEEKLY RECAP BUILDER
+// ============================================================================
+
+export interface WeeklyRecap {
+  tasksCompleted: number;
+  tasksPlanned: number;
+  completionRate: number;
+  topDay: { day: string; count: number };
+  streak: number;
+  bestStreak: number;
+  weekOverWeekChange: number;
+  highlights: string[];
+  nextWeekSuggestions: string[];
+}
+
+export async function buildWeeklyRecap(userId: string): Promise<WeeklyRecap> {
+  const stats = await loadUserStats(userId);
+  const profile = await loadUserProfile(userId);
+
+  const last7Days = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(Date.now() - i * 86400000);
+    return d.toISOString().split('T')[0];
+  });
+
+  const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+  const tasksCompleted = last7Days.reduce((s, d) => s + (stats.dailyTasksCompleted[d] || 0), 0);
+  const tasksPlanned = last7Days.reduce((s, d) => s + (stats.dailyTasksPlanned[d] || 0), 0);
+
+  let topDay = { day: 'today', count: 0 };
+  for (const d of last7Days) {
+    const count = stats.dailyTasksCompleted[d] || 0;
+    if (count > topDay.count) {
+      topDay = { day: dayNames[new Date(d + 'T12:00:00').getDay()], count };
+    }
+  }
+
+  const prev7 = Array.from({ length: 7 }, (_, i) =>
+    new Date(Date.now() - (i + 7) * 86400000).toISOString().split('T')[0]
+  );
+  const lastWeekTotal = prev7.reduce((s, d) => s + (stats.dailyTasksCompleted[d] || 0), 0);
+  const weekOverWeekChange = lastWeekTotal > 0
+    ? Math.round(((tasksCompleted - lastWeekTotal) / lastWeekTotal) * 100)
+    : 0;
+
+  const highlights: string[] = [];
+  if (stats.currentStreak >= 3) highlights.push(`${stats.currentStreak}-day productivity streak`);
+  if (weekOverWeekChange > 20) highlights.push(`Productivity up ${weekOverWeekChange}% from last week`);
+  if (topDay.count >= 5) highlights.push(`Power day: ${topDay.count} tasks on ${topDay.day}`);
+
+  const nextWeekSuggestions: string[] = [];
+  if (tasksCompleted < 10) nextWeekSuggestions.push('Try breaking big tasks into smaller ones for more momentum');
+  if (profile?.mentionedGoals?.length) {
+    nextWeekSuggestions.push(`Check in on your goal: "${profile.mentionedGoals[0]}"`);
+  }
+
+  return {
+    tasksCompleted,
+    tasksPlanned: tasksPlanned || tasksCompleted,
+    completionRate: tasksPlanned > 0 ? Math.round((tasksCompleted / tasksPlanned) * 100) : 0,
+    topDay,
+    streak: stats.currentStreak,
+    bestStreak: stats.bestStreak,
+    weekOverWeekChange,
+    highlights,
+    nextWeekSuggestions,
+  };
+}
+
+// ============================================================================
+// FEATURE 7: VIRAL SHAREABLE STATS
+// ============================================================================
+
+export interface ViralStat {
+  stat: string;
+  wittyComment: string;
+  category: 'productivity' | 'streak' | 'milestone' | 'comparison';
+}
+
+export async function generateViralStats(userId: string): Promise<ViralStat[]> {
+  const stats = await loadUserStats(userId);
+  const benchmarks = await kvGet('global_benchmarks') || {
+    avgTasksPerWeek: 12,
+    avgCompletionRate: 65,
+    avgStreak: 2,
+  };
+
+  const viralStats: ViralStat[] = [];
+
+  const last7Days = Array.from({ length: 7 }, (_, i) =>
+    new Date(Date.now() - i * 86400000).toISOString().split('T')[0]
+  );
+  const weeklyTasks = last7Days.reduce((s, d) => s + (stats.dailyTasksCompleted[d] || 0), 0);
+
+  if (weeklyTasks > benchmarks.avgTasksPerWeek) {
+    const percentile = Math.min(99, Math.round(((weeklyTasks - benchmarks.avgTasksPerWeek) / benchmarks.avgTasksPerWeek) * 50 + 50));
+    viralStats.push({
+      stat: `${weeklyTasks} tasks completed this week — top ${100 - percentile}% of all users`,
+      wittyComment: percentile >= 90
+        ? "I'm not saying you're a productivity god, but... I'm heavily implying it."
+        : "You're outpacing most people. Keep it up and you'll be in legend territory.",
+      category: 'productivity',
+    });
+  }
+
+  if (stats.currentStreak >= 3) {
+    viralStats.push({
+      stat: `${stats.currentStreak}-day streak — tasks completed every single day`,
+      wittyComment: stats.currentStreak >= 7
+        ? "A full week without missing a day. Your consistency is genuinely impressive."
+        : "Three days in a row and counting. Momentum is a beautiful thing.",
+      category: 'streak',
+    });
+  }
+
+  if (stats.totalTasksCompleted >= 100) {
+    viralStats.push({
+      stat: `${stats.totalTasksCompleted} total tasks completed since joining`,
+      wittyComment: stats.totalTasksCompleted >= 500
+        ? "Half a thousand tasks. You've been quietly building an empire."
+        : "Triple digits. You're in the hundred club now.",
+      category: 'milestone',
+    });
+  }
+
+  if (stats.bestStreak >= 5) {
+    viralStats.push({
+      stat: `Personal best: ${stats.bestStreak}-day streak`,
+      wittyComment: "That's your record. Let's see if we can beat it.",
+      category: 'streak',
+    });
+  }
+
+  return viralStats;
+}
+
+// ============================================================================
+// BRIEFING CONTEXT BUILDER (for scheduled/proactive calls)
+// ============================================================================
+
+export async function buildBriefingContext(userId: string): Promise<string> {
+  const [profile, insights, relationships, recap, viralStats, weather] = await Promise.all([
+    loadUserProfile(userId),
+    generateProactiveInsights(userId),
+    getRelationshipReminders(userId),
+    buildWeeklyRecap(userId),
+    generateViralStats(userId),
+    fetchWeatherForCall(),
+  ]);
+
+  const parts: string[] = [];
+
+  if (profile?.name) parts.push(`USER'S NAME: ${profile.name}. Use it naturally.`);
+
+  if (weather) {
+    parts.push(`WEATHER: ${weather.temp}°F, ${weather.description}.${weather.alerts.length ? ' ALERT: ' + weather.alerts.join(', ') : ''}`);
+  }
+
+  parts.push(`TODAY'S STATS: ${recap.tasksCompleted} tasks completed this week. ${recap.streak > 0 ? `${recap.streak}-day streak.` : ''}`);
+
+  if (insights.length > 0) {
+    const topInsights = insights.slice(0, 3);
+    parts.push('PROACTIVE INSIGHTS (weave these in naturally, don\'t read them as a list):');
+    for (const insight of topInsights) {
+      const prefix = insight.type === 'celebration' ? 'CELEBRATE' : insight.type === 'warning' ? 'HEADS UP' : 'MENTION';
+      parts.push(`- ${prefix}: ${insight.text}`);
+    }
+  }
+
+  if (relationships.length > 0) {
+    const topRelationships = relationships.slice(0, 2);
+    parts.push('RELATIONSHIP REMINDERS (mention casually, don\'t be a robot about it):');
+    for (const r of topRelationships) {
+      if (r.type === 'drift') {
+        parts.push(`- It's been ${r.daysSinceContact} days since they mentioned ${r.name} (${r.relationship}). Last context: "${r.lastContext}". Ask how they're doing.`);
+      } else if (r.type === 'followup') {
+        parts.push(`- Follow up on: "${r.lastContext}" (${r.daysSinceContact} days ago)`);
+      }
+    }
+  }
+
+  if (viralStats.length > 0) {
+    const topStat = viralStats[0];
+    parts.push(`SHAREABLE STAT: ${topStat.stat}. Deliver it with flair: "${topStat.wittyComment}"`);
+  }
+
+  if (profile?.mentionedGoals?.length) {
+    parts.push(`USER'S GOALS: ${profile.mentionedGoals.join(', ')}. Reference these when relevant.`);
+  }
+
+  return parts.join('\n');
+}
+
+// ============================================================================
+// BRIEFING SCHEDULE MANAGEMENT
+// ============================================================================
+
+export interface BriefingSchedule {
+  time: string;
+  timezone: string;
+  enabled: boolean;
+  days: string[];
+  phoneNumber: string;
+  userId: string;
+  type: 'morning' | 'evening' | 'weekly-recap';
+  lastCalledDate?: string;
+}
+
+export async function getBriefingSchedule(userId: string): Promise<BriefingSchedule | null> {
+  return kvGet(`briefing_schedule:${userId}`);
+}
+
+export async function setBriefingSchedule(userId: string, schedule: Partial<BriefingSchedule>): Promise<void> {
+  const existing = await getBriefingSchedule(userId) || {
+    time: '07:00',
+    timezone: 'America/New_York',
+    enabled: true,
+    days: ['mon', 'tue', 'wed', 'thu', 'fri'],
+    phoneNumber: '',
+    userId,
+    type: 'morning' as const,
+  };
+  const updated = { ...existing, ...schedule, userId };
+  await kvSet(`briefing_schedule:${userId}`, updated);
+  console.log(`[Briefing] Schedule updated for ${userId}: ${updated.time} ${updated.timezone} [${updated.days.join(',')}]`);
 }
 
 // ============================================================================
