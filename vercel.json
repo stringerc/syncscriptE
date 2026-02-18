@@ -28,7 +28,11 @@
         },
         {
           "key": "Permissions-Policy",
-          "value": "camera=(), microphone=(), geolocation=()"
+          "value": "camera=(), microphone=(self), geolocation=(self)"
+        },
+        {
+          "key": "Content-Security-Policy",
+          "value": "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://accounts.google.com https://apis.google.com https://js.sentry-cdn.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https: http:; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.twilio.com https://accounts.google.com https://oauth2.googleapis.com https://www.googleapis.com https://graph.microsoft.com https://login.microsoftonline.com https://slack.com https://*.sentry.io https://api.openweathermap.org https://syncscript.app https://www.syncscript.app http://localhost:*; frame-src 'self' https://accounts.google.com; media-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self' https://accounts.google.com https://login.microsoftonline.com https://slack.com"
         }
       ]
     },
@@ -57,6 +61,7 @@
       "maxDuration": 30
     }
   },
+  "redirects": [],
   "rewrites": [
     {
       "source": "/((?!api/).*)",
@@ -68,5 +73,27 @@
   },
   "git": {
     "deploymentEnabled": true
-  }
+  },
+  "crons": [
+    {
+      "path": "/api/cron/wake-up",
+      "schedule": "45 11 * * *"
+    },
+    {
+      "path": "/api/cron/guest-cleanup",
+      "schedule": "0 4 * * *"
+    },
+    {
+      "path": "/api/cron/process-emails",
+      "schedule": "0 9 * * *"
+    },
+    {
+      "path": "/api/cron/growth-tweet",
+      "schedule": "0 15 * * *"
+    },
+    {
+      "path": "/api/cron/weekly-report",
+      "schedule": "0 14 * * 1"
+    }
+  ]
 }

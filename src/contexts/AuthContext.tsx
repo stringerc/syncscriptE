@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { projectId, publicAnonKey } from '../utils/supabase/info';
 import { createClient } from '@supabase/supabase-js';
+import { clearAllAppData } from '../utils/session-cleanup';
 
 // Initialize Supabase client
 const supabase = createClient(
@@ -57,9 +58,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Check for existing session on mount
+  // Check for existing session on mount AND listen for auth state changes
   useEffect(() => {
     checkSession();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        console.log('[Auth] State changed:', event, session?.user?.email);
+
+        if (event === 'SIGNED_IN' && session) {
+          setAccessToken(session.access_token);
+          await fetchUserProfile(session.user.id, session.access_token);
+        } else if (event === 'SIGNED_OUT') {
+          setUser(null);
+          setAccessToken(null);
+        } else if (event === 'TOKEN_REFRESHED' && session) {
+          setAccessToken(session.access_token);
+        }
+      }
+    );
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
   async function checkSession() {
@@ -170,9 +191,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   async function signInWithGoogle() {
     try {
-      // Use direct OAuth integration (not Make.com)
-      console.log('[Auth] Initiating Google OAuth via direct integration');
-      
+      // Try Supabase native Google OAuth first (cleanest flow)
+      console.log('[Auth] Trying Supabase native Google OAuth...');
+
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent',
+          },
+        },
+      });
+
+      if (!error && data?.url) {
+        console.log('[Auth] Native OAuth URL obtained, redirecting...');
+        window.location.href = data.url;
+        return { success: true };
+      }
+
+      // Fallback: custom edge function OAuth flow
+      console.log('[Auth] Native OAuth unavailable, using custom flow:', error?.message);
+
       const response = await fetch(
         `https://${projectId}.supabase.co/functions/v1/make-server-57781ad9/integrations/google_auth/authorize`,
         {
@@ -194,130 +235,58 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('[Auth] Failed to initiate Google OAuth:', errorText);
-        
-        // Try to parse error message
-        let errorJson;
-        try {
-          errorJson = JSON.parse(errorText);
-        } catch (e) {
-          errorJson = { error: errorText };
-        }
-        
-        return { 
-          success: false, 
-          error: errorJson.error || 'Failed to initiate Google OAuth. Please check server configuration.'
-        };
+        console.error('[Auth] Custom OAuth init failed:', errorText);
+        return { success: false, error: 'Failed to start Google sign in. Please try again.' };
       }
 
-      const data = await response.json();
-      
-      if (!data.authUrl) {
-        return { 
-          success: false, 
-          error: 'OAuth initialization failed. Server did not return auth URL.'
-        };
+      const authData = await response.json();
+
+      if (!authData.authUrl) {
+        return { success: false, error: 'OAuth initialization failed.' };
       }
 
-      // Store state for callback verification
-      sessionStorage.setItem('oauth_state', data.state);
+      sessionStorage.setItem('oauth_state', authData.state);
       sessionStorage.setItem('oauth_provider', 'google_auth');
-      
-      // Redirect to Google OAuth flow
-      window.location.href = data.authUrl;
+      window.location.href = authData.authUrl;
 
       return { success: true };
     } catch (error) {
       console.error('[Auth] Google OAuth error:', error);
-      
-      // Provide more helpful error message
-      if (error instanceof TypeError && error.message.includes('fetch')) {
-        return { 
-          success: false, 
-          error: 'Cannot connect to authentication server. Please ensure Supabase Edge Functions are deployed and running.' 
-        };
-      }
-      
       return { success: false, error: 'Google sign in failed. Please try again.' };
     }
   }
 
   async function signInWithMicrosoft() {
     try {
-      // Use direct OAuth integration (not Make.com)
-      console.log('[Auth] Initiating Microsoft OAuth via direct integration');
-      
-      const response = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-57781ad9/integrations/outlook/authorize`,
-        {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${publicAnonKey}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            scopes: [
-              'https://graph.microsoft.com/User.Read',
-              'https://graph.microsoft.com/Calendars.ReadWrite',
-              'https://graph.microsoft.com/Mail.Read'
-            ],
-            redirectUri: `${window.location.origin}/auth/callback`
-          })
-        }
-      );
+      console.log('[Auth] Initiating Microsoft OAuth via Supabase native provider');
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('[Auth] Failed to initiate Microsoft OAuth:', errorText);
-        
-        // Try to parse error message
-        let errorJson;
-        try {
-          errorJson = JSON.parse(errorText);
-        } catch (e) {
-          errorJson = { error: errorText };
-        }
-        
-        return { 
-          success: false, 
-          error: errorJson.error || 'Failed to initiate Microsoft OAuth. Please check server configuration.'
-        };
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'azure',
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+          scopes: 'openid profile email User.Read Calendars.ReadWrite',
+        },
+      });
+
+      if (error) {
+        console.error('[Auth] Microsoft OAuth error:', error);
+        return { success: false, error: error.message };
       }
 
-      const data = await response.json();
-      
-      if (!data.authUrl) {
-        return { 
-          success: false, 
-          error: 'OAuth initialization failed. Server did not return auth URL.'
-        };
+      if (data.url) {
+        window.location.href = data.url;
       }
-
-      // Store state for callback verification
-      sessionStorage.setItem('oauth_state', data.state);
-      sessionStorage.setItem('oauth_provider', 'outlook');
-      
-      // Redirect to Microsoft OAuth flow
-      window.location.href = data.authUrl;
 
       return { success: true };
     } catch (error) {
       console.error('[Auth] Microsoft OAuth error:', error);
-      
-      // Provide more helpful error message
-      if (error instanceof TypeError && error.message.includes('fetch')) {
-        return { 
-          success: false, 
-          error: 'Cannot connect to authentication server. Please ensure Supabase Edge Functions are deployed and running.' 
-        };
-      }
-      
       return { success: false, error: 'Microsoft sign in failed. Please try again.' };
     }
   }
 
   async function signOut() {
     await supabase.auth.signOut();
+    clearAllAppData();
     setUser(null);
     setAccessToken(null);
   }
@@ -552,6 +521,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   async function continueAsGuest() {
     try {
+      // Wipe all previous session data so the guest sees a completely empty workspace
+      clearAllAppData();
       console.log('[Auth] Creating guest session...');
       
       const response = await fetch(

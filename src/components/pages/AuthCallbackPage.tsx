@@ -1,36 +1,74 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router';
+import { useNavigate } from 'react-router-dom';
 import { Loader2, AlertCircle } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { projectId, publicAnonKey } from '../../utils/supabase/info';
+import { createClient } from '@supabase/supabase-js';
+
+const supabase = createClient(
+  `https://${projectId}.supabase.co`,
+  publicAnonKey
+);
 
 /**
  * OAuth Callback Page
- * Handles redirect after OAuth authentication via Make.com
- * Research: OAuth callback handling improves conversion by 67% (Auth0 2024)
+ *
+ * Handles two auth flows:
+ * 1. Supabase native OAuth (tokens in URL hash — handled by onAuthStateChange)
+ * 2. Custom edge-function OAuth (code+state in URL query → verifyOtp)
  */
 export function AuthCallbackPage() {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
   const [error, setError] = useState('');
   const [processing, setProcessing] = useState(true);
 
   useEffect(() => {
-    handleOAuthCallback();
+    handleCallback();
   }, []);
 
-  async function handleOAuthCallback() {
+  // Once auth resolves (from either flow), redirect
+  useEffect(() => {
+    if (error) return;
+    if (user && !loading) {
+      const destination = user.onboardingCompleted ? '/dashboard' : '/onboarding';
+      navigate(destination, { replace: true });
+    }
+  }, [user, loading, error, navigate]);
+
+  async function handleCallback() {
     try {
-      // Get OAuth code and state from URL
+      // Check if this is a Supabase native OAuth callback (tokens in hash)
+      // onAuthStateChange in AuthContext will handle this automatically
+      if (window.location.hash && window.location.hash.includes('access_token')) {
+        // Supabase native flow — just wait for onAuthStateChange
+        setProcessing(false);
+        return;
+      }
+
+      // Otherwise, handle custom edge-function OAuth (code+state in query)
       const urlParams = new URLSearchParams(window.location.search);
       const code = urlParams.get('code');
       const state = urlParams.get('state');
+      const errorParam = urlParams.get('error');
+      const errorDescription = urlParams.get('error_description');
+
+      if (errorParam) {
+        setError(errorDescription || errorParam);
+        setProcessing(false);
+        setTimeout(() => navigate('/login', { replace: true }), 3000);
+        return;
+      }
 
       if (!code || !state) {
-        console.error('[OAuth Callback] Missing code or state');
-        setError('Invalid OAuth callback - missing parameters');
-        setProcessing(false);
-        setTimeout(() => navigate('/login'), 3000);
+        // No code/state and no hash tokens — wait briefly for onAuthStateChange
+        setTimeout(() => {
+          if (!user) {
+            setError('Invalid callback — missing parameters');
+            setProcessing(false);
+            setTimeout(() => navigate('/login', { replace: true }), 3000);
+          }
+        }, 3000);
         return;
       }
 
@@ -39,24 +77,16 @@ export function AuthCallbackPage() {
       const provider = sessionStorage.getItem('oauth_provider');
 
       if (state !== storedState) {
-        console.error('[OAuth Callback] State mismatch - possible CSRF attack');
-        setError('Security verification failed');
+        console.error('[OAuth Callback] State mismatch');
+        setError('Security verification failed. Please try again.');
         setProcessing(false);
-        setTimeout(() => navigate('/login'), 3000);
+        setTimeout(() => navigate('/login', { replace: true }), 3000);
         return;
       }
 
-      if (!provider) {
-        console.error('[OAuth Callback] No provider found in session');
-        setError('OAuth provider not found');
-        setProcessing(false);
-        setTimeout(() => navigate('/login'), 3000);
-        return;
-      }
+      console.log(`[OAuth Callback] Processing ${provider} callback`);
 
-      console.log(`[OAuth Callback] Processing ${provider} OAuth callback`);
-
-      // Call backend authentication endpoint (google_auth or outlook)
+      // Exchange code via edge function
       const response = await fetch(
         `https://${projectId}.supabase.co/functions/v1/make-server-57781ad9/auth/google/callback`,
         {
@@ -71,39 +101,63 @@ export function AuthCallbackPage() {
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('[OAuth Callback] Callback failed:', errorText);
+        console.error('[OAuth Callback] Server error:', errorText);
         setError('Authentication failed. Please try again.');
         setProcessing(false);
-        setTimeout(() => navigate('/login'), 3000);
+        setTimeout(() => navigate('/login', { replace: true }), 3000);
         return;
       }
 
       const data = await response.json();
-      console.log('[OAuth Callback] Authentication successful:', data.email);
+      console.log('[OAuth Callback] Server response:', data.email, 'hasTokenHash:', !!data.tokenHash);
 
-      // Clear OAuth session storage
+      // Clean up session storage
       sessionStorage.removeItem('oauth_state');
       sessionStorage.removeItem('oauth_provider');
 
-      // Use the magic link to complete authentication
-      if (data.redirectUrl) {
-        window.location.href = data.redirectUrl;
-      } else {
-        // Fallback: redirect based on onboarding status
-        setTimeout(() => {
-          navigate('/onboarding');
-        }, 1500);
+      // Establish Supabase session using the token_hash (no redirect needed)
+      if (data.tokenHash) {
+        const { error: verifyError } = await supabase.auth.verifyOtp({
+          token_hash: data.tokenHash,
+          type: 'magiclink',
+        });
+
+        if (verifyError) {
+          console.error('[OAuth Callback] OTP verification failed:', verifyError);
+          // Fall back to magic link redirect
+          if (data.redirectUrl) {
+            window.location.href = data.redirectUrl;
+            return;
+          }
+          setError('Session creation failed. Please try again.');
+          setProcessing(false);
+          setTimeout(() => navigate('/login', { replace: true }), 3000);
+          return;
+        }
+
+        console.log('[OAuth Callback] Session established via verifyOtp');
+        // onAuthStateChange in AuthContext will pick up the new session
+        setProcessing(false);
+        return;
       }
 
-    } catch (error) {
-      console.error('[OAuth Callback] Error:', error);
-      setError('An unexpected error occurred');
+      // Fallback: use magic link redirect if no tokenHash
+      if (data.redirectUrl) {
+        window.location.href = data.redirectUrl;
+        return;
+      }
+
+      // Last resort: just navigate to onboarding
+      navigate('/onboarding', { replace: true });
+
+    } catch (err) {
+      console.error('[OAuth Callback] Error:', err);
+      setError('An unexpected error occurred. Please try again.');
       setProcessing(false);
-      setTimeout(() => navigate('/login'), 3000);
+      setTimeout(() => navigate('/login', { replace: true }), 3000);
     }
   }
 
-  // Show error state
   if (error) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 flex items-center justify-center p-4">
@@ -127,7 +181,6 @@ export function AuthCallbackPage() {
           {processing ? 'Completing sign in...' : 'Redirecting...'}
         </h2>
         <p className="text-slate-400">Please wait while we set up your account</p>
-        <p className="text-xs text-slate-500 mt-2">Powered by Make.com OAuth</p>
       </div>
     </div>
   );
