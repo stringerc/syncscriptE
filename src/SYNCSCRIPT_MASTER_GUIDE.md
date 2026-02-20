@@ -30,6 +30,52 @@ This is the **SINGLE SOURCE OF TRUTH** for the entire SyncScript application. Ev
 
 ## 🆕 LATEST UPDATES
 
+### 🔧 UX POLISH ROUND: POST-CHECKOUT, AUTH VISUAL ALIGNMENT & QUICK FIXES (February 18, 2026)
+
+**Five targeted improvements** to close gaps between the marketing site and the authenticated app experience.
+
+#### 1. POST-CHECKOUT SUCCESS EXPERIENCE
+- **File:** `src/components/pages/SignupPage.tsx`
+- **What:** When a user completes Stripe checkout, they're redirected to `/signup?checkout=success&session_id=...&email=...`
+- **New flow:** Detects `checkout=success` URL param → renders a celebratory success state with:
+  - Party popper icon + "You're subscribed!" heading
+  - Green "Payment confirmed" banner
+  - Email pre-filled (read-only) from Stripe session
+  - Streamlined account creation: name + password only
+  - "Activate my account" CTA with cyan/teal gradient
+  - Side-by-side Google/Microsoft OAuth buttons as alternatives
+- **Visual:** Cyan/teal/emerald color scheme with radial glow backdrop
+- **Non-checkout visitors** see the standard signup form (unchanged layout, updated colors)
+
+#### 2. SIGNUP & LOGIN VISUAL ALIGNMENT
+- **Files:** `src/components/pages/SignupPage.tsx`, `src/components/pages/LoginPage.tsx`
+- **What:** Both auth pages now match the marketing site visual DNA
+- **Background:** Changed from `from-slate-950 via-slate-900 to-indigo-950` → `from-[#0a0e1a] via-[#0f1420] to-[#0a0e1a]`
+- **Glow orbs:** Changed from indigo/violet → cyan/teal (opacity lowered to 0.15)
+- **Buttons:** `from-indigo-600 to-violet-600` → `from-cyan-600 to-teal-600`
+- **Links:** `text-indigo-400` → `text-cyan-400` across forgot-password, sign-up/sign-in links, terms
+- **Info badge:** `bg-indigo-500/10` → `bg-cyan-500/10`
+- **Result:** Seamless visual flow from Landing/Pricing → Checkout → Signup → Dashboard
+
+#### 3. COPYRIGHT YEAR FIX
+- **File:** `src/components/pages/LandingPage.tsx` (footer)
+- **Change:** `© 2025 SyncScript` → `© 2026 SyncScript`
+
+#### 4. ENTERPRISE CONTACT CTA FIX
+- **File:** `src/components/pages/LandingPage.tsx` (~line 1076)
+- **Change:** Enterprise plan CTA now routes to `/contact` (ContactSalesPage) instead of `/pricing`
+- **Before:** `navigate(plan.ctaAction === 'contact' ? '/pricing' : '/signup')`
+- **After:** `navigate(plan.ctaAction === 'contact' ? '/contact' : '/signup')`
+
+#### 5. ANALYTICS ACTIVATION — PLAUSIBLE
+- **File:** `index.html`
+- **Change:** Uncommented Plausible Analytics script tag
+- **Script:** `<script defer data-domain="syncscript.app" src="https://plausible.io/js/script.js"></script>`
+- **Why Plausible:** Privacy-friendly (no cookies, no consent banner needed), GDPR/CCPA compliant out of the box, lightweight (~1KB script)
+- **GA4** remains commented out until a Measurement ID is configured
+
+---
+
 ### 🚀 SESSION 2: STRIPE CHECKOUT, ENTERPRISE PIPELINE, SHARED ORB & UX POLISH (February 18, 2026)
 
 **Major Enhancement:** Built complete Stripe checkout integration on pricing page, full enterprise sales AI pipeline, unified the 3D orb into a single shared instance for seamless page transitions, and polished hero section spacing across all marketing pages.

@@ -139,11 +139,11 @@ export function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-[#0a0e1a] via-[#0f1420] to-[#0a0e1a] flex items-center justify-center p-4">
       {/* Background Effects */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-indigo-500 opacity-20 rounded-full blur-3xl animate-pulse" />
-        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-violet-500 opacity-20 rounded-full blur-3xl animate-pulse delay-1000" />
+        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-cyan-500 opacity-15 rounded-full blur-3xl animate-pulse" />
+        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-teal-500 opacity-15 rounded-full blur-3xl animate-pulse delay-1000" />
       </div>
 
       <motion.div
@@ -246,7 +246,7 @@ export function LoginPage() {
             <div className="flex justify-end">
               <Link
                 to="/forgot-password"
-                className="text-sm text-indigo-400 hover:text-indigo-300 transition-colors"
+                className="text-sm text-cyan-400 hover:text-cyan-300 transition-colors"
               >
                 Forgot password?
               </Link>
@@ -256,7 +256,7 @@ export function LoginPage() {
             <Button
               type="submit"
               disabled={loading}
-              className="w-full bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-medium h-11"
+              className="w-full bg-gradient-to-r from-cyan-600 to-teal-600 hover:from-cyan-500 hover:to-teal-500 text-white font-medium h-11"
             >
               {loading ? (
                 <>
@@ -325,7 +325,7 @@ export function LoginPage() {
             <span className="text-slate-400">Don't have an account? </span>
             <Link
               to="/signup"
-              className="text-indigo-400 hover:text-indigo-300 font-medium transition-colors"
+              className="text-cyan-400 hover:text-cyan-300 font-medium transition-colors"
             >
               Sign up
             </Link>

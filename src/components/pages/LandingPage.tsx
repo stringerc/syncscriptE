@@ -1073,7 +1073,7 @@ export function LandingPage() {
                     ))}
                   </ul>
                   <button
-                    onClick={() => navigate(plan.ctaAction === 'contact' ? '/pricing' : '/signup')}
+                    onClick={() => navigate(plan.ctaAction === 'contact' ? '/contact' : '/signup')}
                     className={`w-full px-5 py-2.5 rounded-lg font-medium transition-all text-sm ${
                       plan.popular
                         ? 'bg-gradient-to-r from-cyan-500 to-teal-500 hover:from-cyan-400 hover:to-teal-400 text-white shadow-lg shadow-cyan-500/30'
@@ -1545,7 +1545,7 @@ export function LandingPage() {
               <img src={imgImageSyncScript} alt="SyncScript" className="h-6" />
             </div>
             <p className="text-sm text-white/50 text-center sm:text-left">
-              © 2025 SyncScript. All rights reserved.
+              © 2026 SyncScript. All rights reserved.
             </p>
             <div className="flex items-center gap-4">
               <a href="https://x.com/SyncScriptApp" target="_blank" rel="noopener noreferrer" className="text-white/50 hover:text-white transition-colors" aria-label="Follow us on X (Twitter)">
