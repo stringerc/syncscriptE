@@ -3,7 +3,7 @@ import { Check, X, ChevronDown, Shield, Zap, MessageCircle, Play, ArrowRight, Cl
 import { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { motion, useInView, useScroll, useTransform, AnimatePresence } from 'motion/react';
 
-const HeroScene = lazy(() => import('../landing/HeroScene').then(m => ({ default: m.HeroScene })));
+
 import { AnimatedSection, StaggerContainer, StaggerItem, CountUp } from '../AnimatedSection';
 import { MagneticButton } from '../MagneticButton';
 import { BentoGrid } from '../BentoGrid';
@@ -147,6 +147,28 @@ export function LandingPage() {
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  // Signal demo modal state to the global FloatingFeedbackButton
+  useEffect(() => {
+    const el = document.documentElement;
+    if (showDemoModal) {
+      el.dataset.demoModal = demoStep >= 3 ? 'last' : 'open';
+    } else {
+      delete el.dataset.demoModal;
+    }
+    return () => { delete el.dataset.demoModal; };
+  }, [showDemoModal, demoStep]);
+
+  // Signal floating CTA state so the feedback button can shift up
+  useEffect(() => {
+    const el = document.documentElement;
+    if (showFloatingCTA) {
+      el.dataset.floatingCta = 'visible';
+    } else {
+      delete el.dataset.floatingCta;
+    }
+    return () => { delete el.dataset.floatingCta; };
+  }, [showFloatingCTA]);
 
   // Calculate ROI
   const timesSavedPerWeek = Math.round((tasksPerDay * 0.2 * 5 * hoursPerDay) / 60); // 20% efficiency gain
@@ -414,13 +436,6 @@ export function LandingPage() {
             }}
           />
         </div>
-
-        {/* 3D Particle Orb */}
-        <Suspense fallback={null}>
-          <div className="absolute inset-0 z-[1] pointer-events-none overflow-hidden">
-            <HeroScene />
-          </div>
-        </Suspense>
 
         <div className="relative z-10">
           <div className="text-center max-w-5xl mx-auto mb-12 sm:mb-16">
@@ -833,7 +848,7 @@ export function LandingPage() {
                   <h2 className="text-3xl sm:text-4xl lg:text-5xl font-semibold mb-4 sm:mb-6 tracking-[-0.02em]">
                     Call Nexus.
                     <br />
-                    <span className="bg-gradient-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent">
+                    <span className="text-indigo-300">
                       Manage Your Day by Voice.
                     </span>
                   </h2>
@@ -1049,7 +1064,7 @@ export function LandingPage() {
                     <span className="text-base sm:text-lg text-white/50 font-normal">/{plan.price === 0 ? 'forever' : 'mo'}</span>
                   </div>
                   <p className="text-xs text-white/50 mb-5">{plan.subtitle}</p>
-                  <ul className="space-y-2.5 mb-7 text-sm">
+                  <ul className="space-y-2.5 mb-10 text-sm">
                     {plan.features.filter(f => f.included).slice(0, 5).map((f) => (
                       <li key={f.text} className="flex items-start gap-2">
                         <Check className="w-4 h-4 text-cyan-400 mt-0.5 shrink-0" />
@@ -1237,7 +1252,7 @@ export function LandingPage() {
               </motion.div>
             </div>
 
-            <div className="text-center mt-10">
+            <div className="text-center mt-16 sm:mt-20">
               <button
                 onClick={() => navigateWithParticles('/features')}
                 className="text-cyan-400 hover:text-cyan-300 text-sm font-medium transition-colors"
@@ -1420,7 +1435,7 @@ export function LandingPage() {
       </section>
 
       {/* Final CTA Section */}
-      <section className="py-20 sm:py-32 relative overflow-hidden">
+      <section className="pt-20 sm:pt-32 pb-28 sm:pb-32 relative overflow-hidden">
         {/* Ambient background glow */}
         <div className="absolute inset-0 bg-gradient-to-br from-cyan-900/20 via-transparent to-teal-900/20" />
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-cyan-500/[0.04] rounded-full blur-[120px] pointer-events-none" />
@@ -1667,21 +1682,42 @@ export function LandingPage() {
                     ))}
                   </div>
                   <div className="bg-white/5 rounded-lg p-3">
-                    <p className="text-xs text-white/50 mb-2">Weekly Trend</p>
-                    <div className="flex items-end gap-1 h-16">
-                      {[35, 42, 38, 55, 48, 62, 70].map((h, i) => (
-                        <motion.div
-                          key={i}
-                          initial={{ height: 0 }}
-                          animate={{ height: `${h}%` }}
-                          transition={{ duration: 0.6, delay: 0.4 + i * 0.08 }}
-                          className="flex-1 bg-gradient-to-t from-emerald-500/60 to-teal-400/80 rounded-sm"
-                        />
+                    <div className="flex items-center justify-between mb-3">
+                      <p className="text-xs text-white/50">Weekly Trend</p>
+                      <p className="text-xs text-emerald-400 font-medium">+23% vs last week</p>
+                    </div>
+                    <div className="flex items-end gap-2" style={{ height: 80 }}>
+                      {[
+                        { px: 22, label: '4.2h' },
+                        { px: 28, label: '5.0h' },
+                        { px: 25, label: '4.5h' },
+                        { px: 38, label: '6.6h' },
+                        { px: 33, label: '5.7h' },
+                        { px: 44, label: '7.4h' },
+                        { px: 52, label: '8.3h' },
+                      ].map((bar, i) => (
+                        <div key={i} className="flex-1 flex flex-col items-center justify-end">
+                          <motion.span
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            transition={{ delay: 0.8 + i * 0.08 }}
+                            className="text-[8px] text-white/40 leading-none mb-1"
+                          >
+                            {bar.label}
+                          </motion.span>
+                          <motion.div
+                            initial={{ height: '0px' }}
+                            animate={{ height: `${bar.px}px` }}
+                            transition={{ duration: 0.6, delay: 0.4 + i * 0.1, ease: [0.25, 0.1, 0.25, 1] }}
+                            style={{ minWidth: '100%' }}
+                            className={`rounded-sm ${i === 6 ? 'bg-gradient-to-t from-emerald-500 to-teal-400' : 'bg-gradient-to-t from-emerald-600 to-teal-500'}`}
+                          />
+                        </div>
                       ))}
                     </div>
-                    <div className="flex justify-between mt-1">
-                      {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((d) => (
-                        <span key={d} className="text-[10px] text-white/30 flex-1 text-center">{d}</span>
+                    <div className="flex gap-1.5 mt-1.5">
+                      {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((d, i) => (
+                        <span key={i} className={`flex-1 text-[10px] text-center ${i === 6 ? 'text-emerald-400 font-medium' : 'text-white/30'}`}>{d}</span>
                       ))}
                     </div>
                   </div>
@@ -1757,11 +1793,24 @@ export function LandingPage() {
                 animate={{ scale: 1, opacity: 1, y: 0 }}
                 exit={{ scale: 0.92, opacity: 0, y: 20 }}
                 transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-                className="bg-gradient-to-b from-gray-900 to-[#0a0e1a] border border-white/10 rounded-2xl max-w-5xl w-full relative overflow-y-auto max-h-[90vh]"
+                className="max-w-5xl w-full relative max-h-[90vh]"
                 onClick={(e) => e.stopPropagation()}
               >
-                {/* Ambient glow behind content */}
-                <div className={`absolute top-0 left-1/2 -translate-x-1/2 w-96 h-96 bg-gradient-to-br ${slide.color} opacity-[0.06] rounded-full blur-[100px] pointer-events-none`} />
+                {/* Ambient glow — outside the scroll container so it's never clipped */}
+                <div
+                  className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full pointer-events-none z-0 hidden sm:block transition-all duration-700"
+                  style={{ background: `radial-gradient(circle, ${
+                    [
+                      'rgba(6,182,212,0.22)',
+                      'rgba(168,85,247,0.22)',
+                      'rgba(16,185,129,0.22)',
+                      'rgba(249,115,22,0.22)',
+                    ][demoStep] || 'rgba(6,182,212,0.22)'
+                  } 0%, transparent 70%)` }}
+                />
+
+                {/* Card with scroll */}
+                <div className="bg-gradient-to-b from-gray-900 to-[#0a0e1a] border border-white/10 rounded-2xl w-full relative overflow-y-auto max-h-[90vh]">
 
                 {/* Close button */}
                 <button
@@ -1772,34 +1821,35 @@ export function LandingPage() {
                 </button>
 
                 {/* Progress bar */}
-                <div className="flex gap-1.5 px-4 sm:px-6 pt-4 sm:pt-5">
-                  {demoSlides.map((_, i) => (
+                <div className="relative z-10 flex gap-1.5 px-4 sm:px-6 pt-4 sm:pt-5">
+                  {demoSlides.map((s, i) => (
                     <button
                       key={i}
                       onClick={() => setDemoStep(i)}
-                      className="flex-1 h-1 rounded-full transition-all duration-500 overflow-hidden bg-white/10"
+                      className="flex-1 h-1.5 rounded-full transition-all duration-500 overflow-hidden bg-white/10"
                     >
                       <motion.div
                         initial={false}
                         animate={{ width: i <= demoStep ? '100%' : '0%' }}
                         transition={{ duration: 0.5 }}
-                        className={`h-full rounded-full bg-gradient-to-r ${slide.color}`}
+                        className={`h-full rounded-full bg-gradient-to-r ${s.color}`}
+                        style={{ boxShadow: i <= demoStep ? '0 0 8px rgba(255,255,255,0.15)' : 'none' }}
                       />
                     </button>
                   ))}
                 </div>
 
                 {/* Step indicator */}
-                <div className="flex items-center justify-between px-4 sm:px-6 pt-3 sm:pt-4 pb-1 sm:pb-2">
+                <div className="relative z-10 flex items-center justify-between px-4 sm:px-6 pt-3 sm:pt-4 pb-1 sm:pb-2" style={{ textShadow: '0 1px 6px rgba(0,0,0,0.5)' }}>
                   <span className="text-[10px] sm:text-xs text-white/40 font-medium tracking-wide uppercase">Step {demoStep + 1} of {demoSlides.length}</span>
                   <div className="flex items-center gap-1 text-[10px] sm:text-xs text-white/30">
-                    <div className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
+                    <div className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse drop-shadow-[0_0_4px_rgba(74,222,128,0.5)]" />
                     Interactive Demo
                   </div>
                 </div>
 
                 {/* Main content area */}
-                <div className="grid md:grid-cols-2 gap-0 md:gap-6 p-4 sm:p-6 pt-2">
+                <div className="relative z-10 grid md:grid-cols-2 gap-0 md:gap-6 p-4 sm:p-6 pt-2">
                   {/* Left: Info */}
                   <AnimatePresence mode="wait">
                     <motion.div
@@ -1810,11 +1860,11 @@ export function LandingPage() {
                       transition={{ duration: 0.35 }}
                       className="flex flex-col justify-center mb-6 md:mb-0"
                     >
-                      <div className={`inline-flex items-center justify-center w-14 h-14 rounded-xl bg-gradient-to-br ${slide.color} ${slide.shadowColor} shadow-lg mb-5`}>
+                      <div className={`inline-flex items-center justify-center w-14 h-14 rounded-xl bg-gradient-to-br ${slide.color} ${slide.shadowColor} shadow-lg mb-5 drop-shadow-[0_2px_12px_rgba(0,0,0,0.6)]`}>
                         {slide.icon}
                       </div>
-                      <h3 className="text-2xl sm:text-3xl font-bold mb-2 tracking-tight">{slide.title}</h3>
-                      <p className="text-white/60 mb-6 font-light">{slide.subtitle}</p>
+                      <h3 className="text-2xl sm:text-3xl font-bold mb-2 tracking-tight" style={{ textShadow: '0 2px 12px rgba(0,0,0,0.7)' }}>{slide.title}</h3>
+                      <p className="text-white/60 mb-6 font-light" style={{ textShadow: '0 1px 8px rgba(0,0,0,0.6)' }}>{slide.subtitle}</p>
                       <ul className="space-y-3">
                         {slide.features.map((feature, i) => (
                           <motion.li
@@ -1823,8 +1873,9 @@ export function LandingPage() {
                             animate={{ opacity: 1, x: 0 }}
                             transition={{ delay: 0.15 + i * 0.1 }}
                             className="flex items-center gap-3 text-sm text-white/70"
+                            style={{ textShadow: '0 1px 8px rgba(0,0,0,0.6)' }}
                           >
-                            <div className={`w-5 h-5 rounded-full bg-gradient-to-br ${slide.color} flex items-center justify-center shrink-0`}>
+                            <div className={`w-5 h-5 rounded-full bg-gradient-to-br ${slide.color} flex items-center justify-center shrink-0 drop-shadow-[0_1px_4px_rgba(0,0,0,0.5)]`}>
                               <Check className="w-3 h-3 text-white" />
                             </div>
                             {feature}
@@ -1853,42 +1904,60 @@ export function LandingPage() {
                 </div>
 
                 {/* Navigation */}
-                <div className="flex items-center justify-between px-4 sm:px-6 pb-5 sm:pb-6 pt-2">
-                  <button
-                    onClick={() => setDemoStep(Math.max(0, demoStep - 1))}
-                    disabled={demoStep === 0}
-                    className="text-xs sm:text-sm text-white/50 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors flex items-center gap-1"
-                  >
-                    <ArrowRight className="w-3.5 h-3.5 sm:w-4 sm:h-4 rotate-180" />
-                    Back
-                  </button>
-
-                  <div className="flex items-center gap-2 sm:gap-3">
-                    <button
-                      onClick={() => { navigate('/login?guest=true'); setShowDemoModal(false); setDemoStep(0); }}
-                      className="text-xs sm:text-sm text-cyan-400 hover:text-cyan-300 transition-colors font-medium hidden sm:block"
-                    >
-                      Try Live Dashboard
-                    </button>
-
-                    {demoStep < demoSlides.length - 1 ? (
+                <div className="relative z-10 px-4 sm:px-6 pb-5 sm:pb-6 pt-2">
+                  {demoStep < demoSlides.length - 1 ? (
+                    <div className="flex items-center justify-between">
                       <button
-                        onClick={() => setDemoStep(demoStep + 1)}
-                        className={`bg-gradient-to-r ${slide.color} text-white px-4 sm:px-6 py-2 sm:py-2.5 rounded-lg text-xs sm:text-sm font-medium transition-all hover:scale-105 active:scale-95 shadow-lg ${slide.shadowColor} inline-flex items-center gap-1.5 sm:gap-2`}
+                        onClick={() => setDemoStep(Math.max(0, demoStep - 1))}
+                        disabled={demoStep === 0}
+                        className="text-xs sm:text-sm text-white/50 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors flex items-center gap-1"
                       >
-                        Next
-                        <ArrowRight className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                        <ArrowRight className="w-3.5 h-3.5 sm:w-4 sm:h-4 rotate-180" />
+                        Back
                       </button>
-                    ) : (
+                      <div className="flex items-center gap-2 sm:gap-3">
+                        <button
+                          onClick={() => { navigate('/login?guest=true'); setShowDemoModal(false); setDemoStep(0); }}
+                          className="text-xs sm:text-sm text-cyan-400 hover:text-cyan-300 transition-colors font-medium hidden sm:block"
+                        >
+                          Try Live Dashboard
+                        </button>
+                        <button
+                          onClick={() => setDemoStep(demoStep + 1)}
+                          className={`bg-gradient-to-r ${slide.color} text-white px-4 sm:px-6 py-2 sm:py-2.5 rounded-lg text-xs sm:text-sm font-medium transition-all hover:scale-105 active:scale-95 shadow-lg ${slide.shadowColor} inline-flex items-center gap-1.5 sm:gap-2`}
+                        >
+                          Next
+                          <ArrowRight className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center gap-3">
                       <button
                         onClick={() => { setShowBetaModal(true); setShowDemoModal(false); setDemoStep(0); }}
-                        className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-4 sm:px-6 py-2 sm:py-2.5 rounded-lg text-xs sm:text-sm font-medium transition-all hover:scale-105 active:scale-95 shadow-lg shadow-indigo-500/30 inline-flex items-center gap-1.5 sm:gap-2"
+                        className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-8 sm:px-10 py-2.5 sm:py-3 rounded-lg text-sm sm:text-base font-medium transition-all hover:scale-105 active:scale-95 shadow-lg shadow-indigo-500/30 inline-flex items-center gap-2"
                       >
-                        <Sparkles className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                        Join Beta
+                        <Sparkles className="w-4 h-4 sm:w-5 sm:h-5" />
+                        Join Beta - It&apos;s Free
                       </button>
-                    )}
-                  </div>
+                      <div className="flex items-center gap-4">
+                        <button
+                          onClick={() => setDemoStep(demoStep - 1)}
+                          className="text-xs sm:text-sm text-white/50 hover:text-white transition-colors flex items-center gap-1"
+                        >
+                          <ArrowRight className="w-3.5 h-3.5 rotate-180" />
+                          Back
+                        </button>
+                        <button
+                          onClick={() => { navigate('/login?guest=true'); setShowDemoModal(false); setDemoStep(0); }}
+                          className="text-xs sm:text-sm text-cyan-400 hover:text-cyan-300 transition-colors font-medium"
+                        >
+                          Try Live Dashboard →
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
                 </div>
               </motion.div>
             </motion.div>

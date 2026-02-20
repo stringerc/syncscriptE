@@ -17,6 +17,7 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { EmailQueueProcessor } from './components/EmailQueueProcessor';
 import { FloatingFeedbackButton } from './components/FloatingFeedbackButton';
 import { ParticleTransitionProvider } from './components/ParticleTransition';
+import { SharedMarketingOrb } from './components/SharedMarketingOrb';
 import { DashboardLayout } from './components/layout/DashboardLayout';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { TasksContextDiagnostic } from './components/TasksContextDiagnostic';
@@ -74,6 +75,7 @@ const ForgotPasswordPage = lazy(() => import('./components/pages/ForgotPasswordP
 const FeaturesPage = lazy(() => import('./components/pages/FeaturesPage').then(m => ({ default: m.FeaturesPage })));
 const PricingPage = lazy(() => import('./components/pages/PricingPage').then(m => ({ default: m.PricingPage })));
 const FAQPage = lazy(() => import('./components/pages/FAQPage').then(m => ({ default: m.FAQPage })));
+const ContactSalesPage = lazy(() => import('./components/pages/ContactSalesPage').then(m => ({ default: m.ContactSalesPage })));
 import { MarketingShell } from './components/layout/MarketingShell';
 
 function AppContent() {
@@ -107,6 +109,7 @@ function AppContent() {
                               
                               <Toaster position="top-right" richColors />
                             <ParticleTransitionProvider>
+                            <SharedMarketingOrb />
                             <Suspense fallback={<PageLoading />}>
                             <Routes>
                               {/* Landing Page (no layout) */}
@@ -118,6 +121,9 @@ function AppContent() {
                                 <Route path="/pricing" element={null} />
                                 <Route path="/faq" element={null} />
                               </Route>
+
+                              {/* Enterprise Contact / Sales */}
+                              <Route path="/contact" element={<ContactSalesPage />} />
 
                               {/* Marketing / Info (no layout) */}
                               <Route path="/about" element={<AboutPage />} />

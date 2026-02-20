@@ -217,7 +217,7 @@ export function FeaturesPage() {
     <div className="relative min-h-screen text-white">
 
       {/* ─── Hero ──────────────────────────────────────────────────────────── */}
-      <section className="relative z-10 pt-44 sm:pt-56 pb-28 sm:pb-44">
+      <section className="relative z-10 min-h-[60vh] flex flex-col justify-center pb-28 sm:pb-44">
         {/* Ambient gradient glows */}
         <div className="absolute inset-0 pointer-events-none overflow-hidden opacity-30">
           <motion.div

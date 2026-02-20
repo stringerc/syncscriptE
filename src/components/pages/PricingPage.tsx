@@ -1,393 +1,471 @@
-/**
- * Pricing Page Component
- * 
- * Beautiful, modern pricing page with Stripe integration.
- * Features:
- * - 3 pricing tiers (Starter, Professional, Enterprise)
- * - 14-day free trial
- * - Secure Stripe checkout
- * - Responsive design
- * - Feature comparison
- * - FAQ section
- */
-
-import { useState } from 'react';
-import { motion } from 'motion/react';
-import { 
-  Check, Zap, Shield, Users, TrendingUp, Crown,
-  ArrowRight, Sparkles, Lock, HelpCircle
+import { useState, useRef, useEffect } from 'react';
+import { useNavigate } from 'react-router';
+import { motion, AnimatePresence } from 'motion/react';
+import {
+  Check, X, ArrowRight, Sparkles, Shield, Clock, ChevronDown,
+  Zap, Lock, HelpCircle, Loader2, Mail,
 } from 'lucide-react';
-import { Button } from '../ui/button';
-import { Badge } from '../ui/badge';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '../ui/card';
-import { useStripe } from '../../hooks/useStripe';
-import { toast } from 'sonner@2.0.3';
+import { PLANS as PRICING_PLANS, formatPrice, type PricingPlan } from '../../config/pricing';
+import { projectId, publicAnonKey } from '../../utils/supabase/info';
 
-interface PricingPageProps {
-  userId: string;
-  userEmail: string;
-}
+const viewport = { once: true, amount: 0.2 };
+const ease = [0.22, 1, 0.36, 1] as const;
+const STRIPE_BASE = `https://${projectId}.supabase.co/functions/v1/make-server-57781ad9/stripe`;
 
-export function PricingPage({ userId, userEmail }: PricingPageProps) {
-  const [billingInterval, setBillingInterval] = useState<'month' | 'year'>('month');
-  const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
-  
-  const { createCheckoutSession, loading, error } = useStripe(userId);
+export function PricingPage() {
+  const navigate = useNavigate();
+  const [annual, setAnnual] = useState(false);
+  const [openFaq, setOpenFaq] = useState<number | null>(null);
 
-  const handleSelectPlan = async (planId: string) => {
-    setLoadingPlan(planId);
-    
+  const [checkoutPlan, setCheckoutPlan] = useState<PricingPlan | null>(null);
+  const [checkoutEmail, setCheckoutEmail] = useState('');
+  const [checkoutLoading, setCheckoutLoading] = useState(false);
+  const [checkoutError, setCheckoutError] = useState<string | null>(null);
+  const emailInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (checkoutPlan && emailInputRef.current) {
+      emailInputRef.current.focus();
+    }
+  }, [checkoutPlan]);
+
+  const handleCheckout = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!checkoutPlan || !checkoutEmail.trim()) return;
+
+    setCheckoutLoading(true);
+    setCheckoutError(null);
+
     try {
-      const successUrl = `${window.location.origin}/subscription/success`;
-      const cancelUrl = `${window.location.origin}/pricing`;
-      
-      const checkoutUrl = await createCheckoutSession(
-        planId,
-        userEmail,
-        successUrl,
-        cancelUrl
-      );
-      
-      // Redirect to Stripe Checkout
-      window.location.href = checkoutUrl;
+      const guestId = crypto.randomUUID();
+      const res = await fetch(`${STRIPE_BASE}/create-checkout-session`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${publicAnonKey}`,
+        },
+        body: JSON.stringify({
+          plan_id: checkoutPlan.id,
+          user_id: guestId,
+          email: checkoutEmail.trim(),
+          success_url: `${window.location.origin}/signup?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
+          cancel_url: `${window.location.origin}/pricing`,
+        }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || 'Unable to start checkout. Please try again.');
+      }
+
+      const { url } = await res.json();
+      if (url) {
+        window.location.href = url;
+      } else {
+        throw new Error('No checkout URL returned.');
+      }
     } catch (err) {
-      toast.error('Failed to start checkout');
-      console.error(err);
-      setLoadingPlan(null);
+      setCheckoutError(err instanceof Error ? err.message : 'Something went wrong.');
+    } finally {
+      setCheckoutLoading(false);
     }
   };
 
-  const plans = [
-    {
-      id: 'starter',
-      name: 'Starter',
-      description: 'Perfect for individuals getting started',
-      icon: Zap,
-      color: 'from-blue-500 to-cyan-500',
-      price: {
-        month: 19,
-        year: 190 // ~$16/mo with annual billing
-      },
-      features: [
-        'Up to 50 tasks per month',
-        'Basic calendar integration',
-        'Email support',
-        '2 team members',
-        'Mobile app access',
-        'Basic analytics',
-        '14-day free trial'
-      ],
-      cta: 'Start Free Trial',
-      popular: false
-    },
-    {
-      id: 'professional',
-      name: 'Professional',
-      description: 'For professionals and small teams',
-      icon: TrendingUp,
-      color: 'from-purple-500 to-pink-500',
-      price: {
-        month: 49,
-        year: 490 // ~$41/mo with annual billing
-      },
-      features: [
-        'Unlimited tasks',
-        'Advanced calendar integration',
-        'Priority support',
-        'Up to 10 team members',
-        'Advanced analytics',
-        'AI-powered insights',
-        'Custom workflows',
-        'API access',
-        '14-day free trial'
-      ],
-      cta: 'Start Free Trial',
-      popular: true
-    },
-    {
-      id: 'enterprise',
-      name: 'Enterprise',
-      description: 'For large teams and organizations',
-      icon: Crown,
-      color: 'from-orange-500 to-red-500',
-      price: {
-        month: 99,
-        year: 990 // ~$83/mo with annual billing
-      },
-      features: [
-        'Everything in Professional',
-        'Unlimited team members',
-        'Dedicated support',
-        'SSO/SAML',
-        'Advanced security',
-        'Custom integrations',
-        'SLA guarantee',
-        'Onboarding assistance',
-        'Custom contract'
-      ],
-      cta: 'Start Free Trial',
-      popular: false
+  const handleCtaClick = (plan: PricingPlan) => {
+    if (plan.ctaAction === 'contact') {
+      navigate('/contact');
+    } else if (plan.ctaAction === 'checkout') {
+      setCheckoutPlan(plan);
+      setCheckoutEmail('');
+      setCheckoutError(null);
+    } else {
+      navigate('/signup');
     }
-  ];
+  };
 
   const faqs = [
-    {
-      question: 'What happens after the free trial?',
-      answer: 'After your 14-day free trial ends, your card will be charged automatically. You can cancel anytime before the trial ends with no charge.'
-    },
-    {
-      question: 'Can I change plans later?',
-      answer: 'Yes! You can upgrade or downgrade your plan at any time. Changes are prorated automatically.'
-    },
-    {
-      question: 'Is my payment information secure?',
-      answer: 'Absolutely. We use Stripe for payment processing, which is PCI DSS compliant and trusted by millions of businesses worldwide.'
-    },
-    {
-      question: 'What happens if I cancel?',
-      answer: 'You can cancel anytime. Your subscription will remain active until the end of your billing period, then you\'ll be downgraded to the free plan.'
-    },
-    {
-      question: 'Do you offer refunds?',
-      answer: 'Yes, we offer a 30-day money-back guarantee. If you\'re not satisfied, contact us for a full refund.'
-    }
+    { q: 'What happens after the free trial?', a: 'After your 14-day free trial ends, you can continue on the Free plan or upgrade. No surprise charges.' },
+    { q: 'Can I change plans later?', a: 'Yes! Upgrade or downgrade at any time. Changes are prorated automatically.' },
+    { q: 'Is my payment information secure?', a: 'Absolutely. We use Stripe for payment processing — PCI DSS compliant and trusted by millions of businesses.' },
+    { q: 'Do you offer refunds?', a: 'Yes. 30-day money-back guarantee, no questions asked.' },
+    { q: 'What happens if I cancel?', a: "Your subscription stays active until the end of your billing period. After that you move to the Free plan — your data is always yours." },
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#0a0a1a] via-[#1a1a2e] to-[#0a0a1a]">
-      {/* Header */}
-      <div className="container mx-auto px-4 sm:px-6 py-10 sm:py-12 lg:py-16 text-center">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-8"
-        >
-          <Badge className="mb-4 bg-purple-500/10 text-purple-400 border-purple-500/20">
-            <Sparkles className="mr-1 h-3 w-3" />
-            14-Day Free Trial
-          </Badge>
-          
-          <h1 className="mb-4 text-3xl sm:text-4xl lg:text-5xl font-bold text-white">
-            Choose Your Plan
-          </h1>
-          
-          <p className="mx-auto max-w-2xl text-base sm:text-lg text-gray-400">
-            Start with a 14-day free trial. No credit card required during trial. Cancel anytime.
-          </p>
-        </motion.div>
+    <div className="relative min-h-screen text-white">
 
-        {/* Billing Toggle */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="mb-8 lg:mb-12 flex flex-wrap items-center justify-center gap-3 sm:gap-4"
-        >
-          <span className={`text-sm ${billingInterval === 'month' ? 'text-white font-semibold' : 'text-gray-400'}`}>
-            Monthly
-          </span>
-          
-          <button
-            onClick={() => setBillingInterval(billingInterval === 'month' ? 'year' : 'month')}
-            className="relative inline-flex h-6 w-11 items-center rounded-full bg-purple-600 transition-colors"
+      {/* ─── Hero ──────────────────────────────────────────────────────────── */}
+      <section className="relative z-10 min-h-[60vh] flex flex-col justify-center pb-10 sm:pb-14">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 text-center">
+          <motion.div
+            initial={{ opacity: 0, y: 24 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.7, ease }}
           >
-            <span
-              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                billingInterval === 'year' ? 'translate-x-6' : 'translate-x-1'
-              }`}
-            />
-          </button>
-          
-          <span className={`text-sm ${billingInterval === 'year' ? 'text-white font-semibold' : 'text-gray-400'}`}>
-            Yearly
-            <Badge className="ml-2 bg-green-500/10 text-green-400 border-green-500/20">
-              Save 17%
-            </Badge>
-          </span>
-        </motion.div>
-      </div>
+            <h1 className="text-4xl sm:text-5xl md:text-6xl font-semibold tracking-[-0.02em] leading-[1.08] mb-5">
+              Simple, Transparent{' '}
+              <span className="bg-gradient-to-r from-cyan-400 via-teal-400 to-emerald-400 bg-clip-text text-transparent">
+                Pricing
+              </span>
+            </h1>
+            <p className="text-lg sm:text-xl text-white/60 font-light max-w-2xl mx-auto">
+              Start free. Upgrade when you&apos;re ready. Cancel anytime.
+            </p>
+          </motion.div>
 
-      {/* Pricing Cards */}
-      <div className="container mx-auto px-4 sm:px-6 pb-10 lg:pb-16">
-        <div className="grid gap-6 sm:gap-8 md:grid-cols-2 lg:grid-cols-3">
-          {plans.map((plan, index) => {
-            const Icon = plan.icon;
-            const price = plan.price[billingInterval];
-            const isLoading = loadingPlan === plan.id;
-            
-            return (
+          {/* Billing toggle */}
+          <motion.div
+            className="mt-8 flex items-center justify-center gap-4"
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.15, ease }}
+          >
+            <span className={`text-sm font-medium transition-colors ${!annual ? 'text-white' : 'text-white/40'}`}>Monthly</span>
+            <button
+              onClick={() => setAnnual(!annual)}
+              className="relative inline-flex h-8 w-14 shrink-0 items-center rounded-full bg-white/10 border border-white/15 transition-colors hover:border-white/25"
+              aria-label="Toggle billing interval"
+            >
+              <motion.span
+                className="absolute w-6 h-6 rounded-full bg-gradient-to-r from-cyan-400 to-teal-400 shadow-lg shadow-cyan-500/25"
+                animate={{ x: annual ? 29 : 3 }}
+                transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+              />
+            </button>
+            <span className={`text-sm font-medium transition-colors ${annual ? 'text-white' : 'text-white/40'}`}>
+              Yearly
+              <span className="ml-2 text-xs text-emerald-400/80">Save ~20%</span>
+            </span>
+          </motion.div>
+        </div>
+      </section>
+
+      {/* ─── Pricing Cards ────────────────────────────────────────────────── */}
+      <section className="relative z-10 py-8 sm:py-12">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6">
+          <motion.div
+            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6"
+            initial="hidden"
+            whileInView="visible"
+            viewport={viewport}
+            variants={{
+              hidden: {},
+              visible: { transition: { staggerChildren: 0.08 } },
+            }}
+          >
+            {PRICING_PLANS.map((plan) => (
               <motion.div
                 key={plan.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.1 }}
+                className={`backdrop-blur-sm rounded-2xl p-5 sm:p-7 relative flex flex-col ${
+                  plan.popular
+                    ? 'bg-gradient-to-br from-cyan-900/30 to-teal-900/30 border-2 border-cyan-500 transform lg:scale-105 shadow-2xl shadow-cyan-500/20'
+                    : 'bg-white/5 border border-white/10 hover:bg-white/[0.07] hover:border-white/15 transition-colors'
+                }`}
+                variants={{
+                  hidden: { opacity: 0, y: 20 },
+                  visible: { opacity: 1, y: 0 },
+                }}
+                transition={{ duration: 0.5, ease }}
               >
-                <Card 
-                  className={`relative overflow-hidden border-white/10 bg-gradient-to-br from-[#1a1a2e]/60 to-[#16213e]/60 backdrop-blur-xl ${
-                    plan.popular ? 'ring-2 ring-purple-500' : ''
+                {plan.popular && (
+                  <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 bg-gradient-to-r from-cyan-500 to-teal-500 text-white text-xs font-bold px-4 py-1 rounded-full whitespace-nowrap">
+                    MOST POPULAR
+                  </div>
+                )}
+
+                <h3 className="text-xl font-semibold tracking-tight mb-1.5">{plan.name}</h3>
+                <p className="text-xs text-white/45 font-light mb-4">{plan.subtitle}</p>
+
+                <div className="mb-1">
+                  <span className="text-3xl sm:text-4xl font-semibold tracking-tight">
+                    {formatPrice(plan, annual)}
+                  </span>
+                  <span className="text-sm text-white/40 font-light ml-1">
+                    /{plan.price === 0 ? 'forever' : 'mo'}
+                  </span>
+                </div>
+                {annual && plan.priceAnnual && plan.price !== 0 && (
+                  <p className="text-xs text-emerald-400/70 mb-4">
+                    Save ${((plan.price as number) - plan.priceAnnual) * 12}/year
+                  </p>
+                )}
+                {(!annual || !plan.priceAnnual || plan.price === 0) && <div className="mb-4" />}
+
+                <div className="h-px bg-gradient-to-r from-transparent via-white/[0.08] to-transparent mb-5" />
+
+                <ul className="space-y-2.5 flex-1 mb-8">
+                  {plan.features.map((f) => (
+                    <li key={f.text} className="flex items-start gap-2.5">
+                      {f.included ? (
+                        <Check className={`w-4 h-4 mt-0.5 shrink-0 ${f.highlight ? 'text-emerald-400' : 'text-cyan-400/70'}`} strokeWidth={2} />
+                      ) : (
+                        <X className="w-4 h-4 mt-0.5 shrink-0 text-white/20" strokeWidth={2} />
+                      )}
+                      <span className={`text-sm font-light ${f.included ? 'text-white/70' : 'text-white/30'} ${f.highlight ? 'font-medium text-white/90' : ''}`}>
+                        {f.text}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+
+                <button
+                  onClick={() => handleCtaClick(plan)}
+                  className={`w-full px-5 py-2.5 rounded-xl font-medium transition-all text-sm ${
+                    plan.popular
+                      ? 'bg-gradient-to-r from-cyan-500 to-teal-500 hover:from-cyan-400 hover:to-teal-400 text-white shadow-lg shadow-cyan-500/20'
+                      : 'bg-white/[0.07] hover:bg-white/[0.12] border border-white/[0.12] hover:border-white/[0.2] text-white/80 hover:text-white'
                   }`}
                 >
-                  {plan.popular && (
-                    <div className="absolute top-0 right-0 left-0 h-1 bg-gradient-to-r from-purple-500 to-pink-500" />
-                  )}
-                  
-                  {plan.popular && (
-                    <Badge className="absolute top-4 right-4 bg-gradient-to-r from-purple-500 to-pink-500 border-0">
-                      <Sparkles className="mr-1 h-3 w-3" />
-                      Most Popular
-                    </Badge>
-                  )}
-
-                  <CardHeader>
-                    <div className={`mb-4 inline-flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br ${plan.color}`}>
-                      <Icon className="h-6 w-6 text-white" />
-                    </div>
-                    
-                    <CardTitle className="text-2xl text-white">
-                      {plan.name}
-                    </CardTitle>
-                    
-                    <CardDescription className="text-gray-400">
-                      {plan.description}
-                    </CardDescription>
-
-                    <div className="mt-4 flex items-baseline gap-2">
-                      <span className="text-4xl font-bold text-white">
-                        ${price}
-                      </span>
-                      <span className="text-gray-400">
-                        /{billingInterval === 'month' ? 'month' : 'year'}
-                      </span>
-                    </div>
-                    
-                    {billingInterval === 'year' && (
-                      <p className="text-sm text-green-400">
-                        Save ${(plan.price.month * 12) - plan.price.year} per year
-                      </p>
-                    )}
-                  </CardHeader>
-
-                  <CardContent>
-                    <ul className="space-y-3">
-                      {plan.features.map((feature, idx) => (
-                        <li key={idx} className="flex items-start gap-3">
-                          <Check className="mt-0.5 h-5 w-5 flex-shrink-0 text-green-400" />
-                          <span className="text-sm text-gray-300">{feature}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </CardContent>
-
-                  <CardFooter>
-                    <Button
-                      onClick={() => handleSelectPlan(plan.id)}
-                      disabled={isLoading}
-                      className={`w-full bg-gradient-to-r ${plan.color} hover:opacity-90 transition-opacity`}
-                    >
-                      {isLoading ? (
-                        <>
-                          <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                          Processing...
-                        </>
-                      ) : (
-                        <>
-                          {plan.cta}
-                          <ArrowRight className="ml-2 h-4 w-4" />
-                        </>
-                      )}
-                    </Button>
-                  </CardFooter>
-                </Card>
-              </motion.div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Trust Badges */}
-      <div className="container mx-auto px-4 pb-16">
-        <div className="mx-auto max-w-4xl rounded-2xl border border-white/10 bg-gradient-to-br from-[#1a1a2e]/60 to-[#16213e]/60 p-8 backdrop-blur-xl">
-          <div className="grid gap-8 md:grid-cols-3 text-center">
-            <div>
-              <Lock className="mx-auto mb-3 h-8 w-8 text-green-400" />
-              <h3 className="mb-2 font-semibold text-white">Secure Payments</h3>
-              <p className="text-sm text-gray-400">
-                PCI DSS compliant via Stripe
-              </p>
-            </div>
-            <div>
-              <Shield className="mx-auto mb-3 h-8 w-8 text-blue-400" />
-              <h3 className="mb-2 font-semibold text-white">Money-Back Guarantee</h3>
-              <p className="text-sm text-gray-400">
-                30-day full refund policy
-              </p>
-            </div>
-            <div>
-              <Users className="mx-auto mb-3 h-8 w-8 text-purple-400" />
-              <h3 className="mb-2 font-semibold text-white">Trusted by 10,000+ Users</h3>
-              <p className="text-sm text-gray-400">
-                Join our growing community
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* FAQ Section */}
-      <div className="container mx-auto px-4 sm:px-6 pb-10 lg:pb-16">
-        <div className="mx-auto max-w-3xl">
-          <h2 className="mb-6 sm:mb-8 text-center text-2xl sm:text-3xl font-bold text-white">
-            Frequently Asked Questions
-          </h2>
-          
-          <div className="space-y-4">
-            {faqs.map((faq, index) => (
-              <motion.div
-                key={index}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.05 }}
-              >
-                <Card className="border-white/10 bg-gradient-to-br from-[#1a1a2e]/60 to-[#16213e]/60 backdrop-blur-xl">
-                  <CardHeader>
-                    <CardTitle className="flex items-start gap-3 text-lg text-white">
-                      <HelpCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-purple-400" />
-                      {faq.question}
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-gray-400">{faq.answer}</p>
-                  </CardContent>
-                </Card>
+                  {plan.cta}
+                </button>
               </motion.div>
             ))}
-          </div>
+          </motion.div>
         </div>
-      </div>
+      </section>
 
-      {/* Final CTA */}
-      <div className="container mx-auto px-4 sm:px-6 pb-12 sm:pb-16 lg:pb-24">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mx-auto max-w-3xl text-center rounded-2xl border border-purple-500/20 bg-gradient-to-br from-purple-500/10 to-pink-500/10 p-6 sm:p-8 lg:p-12 backdrop-blur-xl"
-        >
-          <h2 className="mb-4 text-2xl sm:text-3xl font-bold text-white">
-            Ready to Transform Your Productivity?
-          </h2>
-          <p className="mb-6 sm:mb-8 text-base sm:text-lg text-gray-300">
-            Start your 14-day free trial today. No credit card required.
-          </p>
-          <Button
-            onClick={() => handleSelectPlan('professional')}
-            size="lg"
-            className="bg-gradient-to-r from-purple-500 to-pink-500 hover:opacity-90 transition-opacity"
+      {/* ─── Trust strip ──────────────────────────────────────────────────── */}
+      <section className="relative z-10 py-14 sm:py-20">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6">
+          <motion.div
+            className="flex flex-wrap items-center justify-center gap-8 sm:gap-14 text-sm text-white/50"
+            initial="hidden"
+            whileInView="visible"
+            viewport={viewport}
+            variants={{
+              hidden: {},
+              visible: { transition: { staggerChildren: 0.08 } },
+            }}
           >
-            Start Free Trial
-            <ArrowRight className="ml-2 h-5 w-5" />
-          </Button>
-        </motion.div>
-      </div>
+            {[
+              { icon: Lock, label: 'PCI-compliant payments via Stripe' },
+              { icon: Shield, label: '30-day money-back guarantee' },
+              { icon: Clock, label: '14-day free trial on paid plans' },
+            ].map(({ icon: Ic, label }) => (
+              <motion.div
+                key={label}
+                className="flex items-center gap-2.5"
+                variants={{
+                  hidden: { opacity: 0, y: 8 },
+                  visible: { opacity: 1, y: 0 },
+                }}
+                transition={{ duration: 0.4, ease }}
+              >
+                <Ic className="w-4 h-4 text-cyan-400/50" strokeWidth={1.8} />
+                <span className="font-light">{label}</span>
+              </motion.div>
+            ))}
+          </motion.div>
+        </div>
+      </section>
+
+      {/* ─── FAQ ──────────────────────────────────────────────────────────── */}
+      <section className="relative z-10 py-16 sm:py-24">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6">
+          <motion.div
+            className="text-center mb-12"
+            initial={{ opacity: 0, y: 16 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={viewport}
+            transition={{ duration: 0.5, ease }}
+          >
+            <h2 className="text-3xl sm:text-4xl font-semibold tracking-[-0.02em]">
+              Questions?{' '}
+              <span className="text-white/40">We&apos;ve got answers.</span>
+            </h2>
+          </motion.div>
+
+          <motion.div
+            className="space-y-3"
+            initial="hidden"
+            whileInView="visible"
+            viewport={viewport}
+            variants={{
+              hidden: {},
+              visible: { transition: { staggerChildren: 0.05 } },
+            }}
+          >
+            {faqs.map((faq, i) => {
+              const isOpen = openFaq === i;
+              return (
+                <motion.div
+                  key={i}
+                  className={`
+                    rounded-xl border backdrop-blur-sm overflow-hidden transition-colors
+                    bg-white/[0.03]
+                    ${isOpen ? 'border-cyan-500/30 ring-1 ring-cyan-500/15' : 'border-white/[0.08] hover:border-white/[0.15]'}
+                  `}
+                  variants={{
+                    hidden: { opacity: 0, y: 12 },
+                    visible: { opacity: 1, y: 0 },
+                  }}
+                  transition={{ duration: 0.35, ease }}
+                >
+                  <button
+                    type="button"
+                    onClick={() => setOpenFaq(isOpen ? null : i)}
+                    className="w-full flex items-center justify-between gap-4 px-5 py-4 text-left"
+                  >
+                    <span className="font-medium text-white/90 pr-4">{faq.q}</span>
+                    <motion.span
+                      animate={{ rotate: isOpen ? 180 : 0 }}
+                      transition={{ duration: 0.2 }}
+                      className="flex-shrink-0 text-cyan-400"
+                    >
+                      <ChevronDown className="w-5 h-5" />
+                    </motion.span>
+                  </button>
+                  <AnimatePresence initial={false}>
+                    {isOpen && (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.3, ease: 'easeInOut' }}
+                        className="overflow-hidden"
+                      >
+                        <div className="px-5 pb-4 pt-0 text-white/60 text-sm leading-relaxed font-light border-t border-white/5">
+                          {faq.a}
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </motion.div>
+              );
+            })}
+          </motion.div>
+        </div>
+      </section>
+
+      {/* ─── Final CTA (hero-style centered section) ────────────────────── */}
+      <section className="relative z-10 min-h-[60vh] flex flex-col justify-center">
+        <div className="max-w-xs mx-auto mb-14 sm:mb-20">
+          <div className="h-px bg-gradient-to-r from-transparent via-white/[0.08] to-transparent" />
+        </div>
+        <div className="max-w-2xl mx-auto px-4 sm:px-6 text-center">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={viewport}
+            transition={{ duration: 0.6, ease }}
+          >
+            <h2 className="text-3xl sm:text-4xl font-semibold tracking-[-0.02em]">
+              Ready to work with your energy?
+            </h2>
+            <p className="mt-4 text-white/45 font-light text-sm sm:text-base">
+              Free to start &middot; No credit card &middot; 90-second setup
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                const proPlan = PRICING_PLANS.find(p => p.popular);
+                if (proPlan) handleCtaClick(proPlan);
+                else navigate('/signup');
+              }}
+              className="mt-8 inline-flex items-center justify-center gap-2 px-8 py-3.5 rounded-xl font-medium bg-gradient-to-r from-cyan-500 to-teal-500 hover:from-cyan-400 hover:to-teal-400 text-white shadow-lg shadow-cyan-500/20 transition-all"
+            >
+              Get Started <ArrowRight className="w-4 h-4" />
+            </button>
+            <div className="mt-4">
+              <button
+                type="button"
+                onClick={() => navigate('/features')}
+                className="text-sm text-white/35 hover:text-white/60 transition-colors"
+              >
+                or explore features
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      </section>
+
+      {/* ─── Checkout Email Modal ─────────────────────────────────────────── */}
+      <AnimatePresence>
+        {checkoutPlan && (
+          <motion.div
+            className="fixed inset-0 z-50 flex items-center justify-center px-4"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+          >
+            <div
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+              onClick={() => !checkoutLoading && setCheckoutPlan(null)}
+            />
+            <motion.div
+              className="relative w-full max-w-md rounded-2xl border border-white/10 bg-[#0f1420]/95 backdrop-blur-xl p-8 shadow-2xl shadow-cyan-500/10"
+              initial={{ opacity: 0, y: 20, scale: 0.97 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 20, scale: 0.97 }}
+              transition={{ duration: 0.25, ease }}
+            >
+              <div className="text-center mb-6">
+                <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-cyan-500/10 border border-cyan-500/20 mb-4">
+                  <Mail className="w-5 h-5 text-cyan-400" />
+                </div>
+                <h3 className="text-xl font-semibold tracking-tight">
+                  Get started with {checkoutPlan.name}
+                </h3>
+                <p className="mt-1.5 text-sm text-white/50 font-light">
+                  Enter your email to continue to secure checkout
+                </p>
+              </div>
+
+              <form onSubmit={handleCheckout} className="space-y-4">
+                <div>
+                  <input
+                    ref={emailInputRef}
+                    type="email"
+                    required
+                    placeholder="you@example.com"
+                    value={checkoutEmail}
+                    onChange={e => setCheckoutEmail(e.target.value)}
+                    disabled={checkoutLoading}
+                    className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/30 transition text-sm disabled:opacity-50"
+                  />
+                </div>
+
+                {checkoutError && (
+                  <p className="text-sm text-red-400 text-center">{checkoutError}</p>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={checkoutLoading || !checkoutEmail.trim()}
+                  className="w-full flex items-center justify-center gap-2 px-5 py-3 rounded-xl font-medium text-sm bg-gradient-to-r from-cyan-500 to-teal-500 hover:from-cyan-400 hover:to-teal-400 text-white shadow-lg shadow-cyan-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {checkoutLoading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Redirecting to Stripe…
+                    </>
+                  ) : (
+                    <>
+                      Continue to Checkout <ArrowRight className="w-4 h-4" />
+                    </>
+                  )}
+                </button>
+              </form>
+
+              <div className="mt-5 flex items-center justify-center gap-4 text-xs text-white/35">
+                <span className="flex items-center gap-1"><Lock className="w-3 h-3" /> Secure checkout</span>
+                <span className="flex items-center gap-1"><Shield className="w-3 h-3" /> 14-day free trial</span>
+              </div>
+
+              {!checkoutLoading && (
+                <button
+                  type="button"
+                  onClick={() => setCheckoutPlan(null)}
+                  className="absolute top-4 right-4 text-white/30 hover:text-white/60 transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

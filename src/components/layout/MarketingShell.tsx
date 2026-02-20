@@ -6,9 +6,7 @@ import { MagneticButton } from '../MagneticButton';
 import imgImageSyncScript from "figma:asset/32f9c29c68f7ed10b9efd8ff6ac4135b7a2a4290.png";
 import imgImageSyncScriptLogo from "figma:asset/914d5787f554946c037cbfbb2cf65fcc0de06278.png";
 
-const HeroScene = lazy(() =>
-  import('../landing/HeroScene').then((m) => ({ default: m.HeroScene })),
-);
+
 
 const FeaturesPage = lazy(() =>
   import('../pages/FeaturesPage').then((m) => ({ default: m.FeaturesPage })),
@@ -41,7 +39,6 @@ function buildPageElement(pathname: string) {
   }
 }
 
-const ORB_OFFSETS = [-1.8, 0, 1.8];
 
 type TransitionPhase = 'idle' | 'exiting' | 'entering';
 
@@ -58,8 +55,6 @@ export function MarketingShell() {
 
   const currentIndex = getPageIndex(location.pathname);
   const displayedIndex = getPageIndex(displayedPath);
-  const orbOffset = ORB_OFFSETS[currentIndex] ?? 0;
-
   const getTransformForExit = useCallback((dir: number) => {
     const toIdx = getPageIndex(targetPathRef.current);
     const fromIdx = getPageIndex(displayedPath);
@@ -126,13 +121,6 @@ export function MarketingShell() {
 
   return (
     <div className="min-h-screen bg-[#0a0e1a] text-white font-[system-ui,'Space_Grotesk',sans-serif] overflow-x-hidden relative">
-      {/* Orb Background */}
-      <div className="fixed inset-0 z-0 pointer-events-none">
-        <Suspense fallback={null}>
-          <HeroScene offsetX={orbOffset} disableScrollFade />
-        </Suspense>
-      </div>
-
       {/* Navigation */}
       <nav className="sticky top-0 z-50 bg-[#0a0e1a]/80 backdrop-blur-xl border-b border-white/10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between h-16">

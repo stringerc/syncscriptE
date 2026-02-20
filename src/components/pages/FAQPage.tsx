@@ -266,7 +266,7 @@ export function FAQPage() {
   return (
     <div className="relative min-h-screen text-white">
       {/* Hero */}
-      <section className="relative pt-16 sm:pt-24 pb-12 sm:pb-16">
+      <section className="relative min-h-[60vh] flex flex-col justify-center pb-12 sm:pb-16">
         <div className="max-w-4xl mx-auto px-4 sm:px-6">
           <motion.div
             className="text-center"
@@ -274,7 +274,7 @@ export function FAQPage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
           >
-            <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight bg-gradient-to-r from-white via-cyan-100 to-emerald-200 bg-clip-text text-transparent">
+            <h1 className="text-3xl sm:text-4xl md:text-5xl font-semibold tracking-[-0.02em] bg-gradient-to-r from-white via-cyan-100 to-emerald-200 bg-clip-text text-transparent">
               Frequently Asked Questions
             </h1>
             <p className="mt-4 text-base sm:text-lg text-white/70 max-w-2xl mx-auto">
@@ -306,7 +306,7 @@ export function FAQPage() {
                   flex-shrink-0 px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition
                   ${category === cat.id
                     ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40'
-                    : 'bg-white/5 text-white/80 border border-white/10 hover:bg-white/10 hover:text-white'
+                    : 'bg-white/5 text-white/60 border border-white/10 hover:bg-white/10 hover:text-white'
                   }
                 `}
               >
@@ -372,7 +372,7 @@ export function FAQPage() {
                             transition={{ duration: 0.3, ease: 'easeInOut' }}
                             className="overflow-hidden"
                           >
-                            <div className="px-5 pb-4 pt-0 text-white/80 text-sm leading-relaxed border-t border-white/5">
+                            <div className="px-5 pb-4 pt-0 text-white/60 text-sm leading-relaxed font-light border-t border-white/5">
                               {faq.answer}
                             </div>
                           </motion.div>
@@ -402,11 +402,11 @@ export function FAQPage() {
               border: '1px solid rgba(6, 182, 212, 0.25)',
             }}
           >
-            <h2 className="text-2xl sm:text-3xl font-bold text-white mb-2">
+            <h2 className="text-2xl sm:text-3xl font-semibold tracking-[-0.02em] text-white mb-2">
               Still have questions?
             </h2>
-            <p className="text-white/70 mb-6 max-w-xl">
-              Join our Discord community or email us—we\'re happy to help.
+            <p className="text-white/60 font-light mb-6 max-w-xl">
+              Join our Discord community or email us — we&apos;re happy to help.
             </p>
             <div className="flex flex-wrap gap-4">
               <a
@@ -434,7 +434,7 @@ export function FAQPage() {
       <section className="py-16 sm:py-24 border-t border-white/5">
         <div className="max-w-4xl mx-auto px-4 sm:px-6">
           <motion.h2
-            className="text-xl sm:text-2xl font-bold text-white mb-6 sm:mb-8"
+            className="text-xl sm:text-2xl font-semibold tracking-[-0.02em] text-white mb-6 sm:mb-8"
             initial={{ opacity: 0, y: 16 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}

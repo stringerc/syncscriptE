@@ -30,6 +30,253 @@ This is the **SINGLE SOURCE OF TRUTH** for the entire SyncScript application. Ev
 
 ## 🆕 LATEST UPDATES
 
+### 🚀 SESSION 2: STRIPE CHECKOUT, ENTERPRISE PIPELINE, SHARED ORB & UX POLISH (February 18, 2026)
+
+**Major Enhancement:** Built complete Stripe checkout integration on pricing page, full enterprise sales AI pipeline, unified the 3D orb into a single shared instance for seamless page transitions, and polished hero section spacing across all marketing pages.
+
+#### 1. STRIPE CHECKOUT INTEGRATION — PRICING PAGE
+- **File:** `src/components/pages/PricingPage.tsx`
+- **What changed:** CTA buttons for paid plans (Starter, Professional) now open a checkout email modal instead of navigating to `/signup`
+- **Flow:** User clicks CTA → email modal appears → enters email → API call to `create-checkout-session` → redirect to Stripe Checkout
+- **Free plan** ("Start Free") still navigates to `/signup`
+- **Enterprise** ("Contact Sales") navigates to `/contact`
+- Modal includes: email validation, loading spinner ("Redirecting to Stripe…"), error handling, trust signals ("Secure checkout" + "14-day free trial"), dismissible via X or backdrop click
+- **Billing toggle** also fixed: widened from `w-[52px] h-7` to `w-14 h-8`, knob enlarged to `w-6 h-6`, travel adjusted to prevent overlap with "Yearly" label
+
+#### 2. ENTERPRISE SALES AI PIPELINE — COMPLETE
+- **API Route:** `api/sales/inquiry.ts` (Vercel serverless)
+  - Receives form submissions (name, email, company, companySize, role, message)
+  - Feeds inquiry into `callAI()` from `api/lib/ai-service.ts` with comprehensive enterprise system prompt
+  - System prompt includes: full Enterprise plan details ($99/mo, $79 annual, volume discounts), security specs (SOC 2, HIPAA, SSO/SAML, data residency), integrations, deployment options, ROI data
+  - Sends AI-generated response to prospect via Resend email
+  - Notifies internal sales team (`sales@syncscript.app`) with full lead details
+  - Includes template-based fallback if all AI providers are down
+- **Frontend:** `src/components/pages/ContactSalesPage.tsx`
+  - Beautiful contact form matching marketing page visual DNA
+  - Fields: Name, Work Email, Company, Company Size (dropdown), Role, Message
+  - Left sidebar: enterprise feature highlights, "AI-Powered Response" explainer, direct email contact
+  - On submit: calls API → shows loading state → animates to inline AI response panel
+  - "Ask Another Question" button to reset; orb handled by SharedMarketingOrb (violet + cyan)
+- **Route:** Added `/contact` to `src/App.tsx`
+- **Orb Config:** `/contact` → `color1: #7c3aed, color2: #06b6d4, opacity: 0.14`
+
+#### 3. SHARED MARKETING ORB — SEAMLESS PAGE TRANSITIONS
+- **File:** `src/components/SharedMarketingOrb.tsx`
+- **What changed:** Lifted the HeroScene 3D particle orb from individual pages (LandingPage, MarketingShell, ContactSalesPage) into a single shared instance at the App level
+- **Why:** Previously, navigating between Landing → Features/Pricing/FAQ caused the orb to unmount and remount (jarring cut). Now a single instance persists and smoothly lerps between states
+- **Route-to-config mapping:**
+  - `/` → offsetX: 0, color1: #0e7490, color2: #0f766e, opacity: 1.5
+  - `/features` → offsetX: -1.8, color1: #60a5fa, color2: #67e8f9, opacity: 1.5
+  - `/pricing` → offsetX: 0, color1: #059669, color2: #0d9488, opacity: 1.5
+  - `/faq` → offsetX: 1.8, color1: #facc15, color2: #fde047, opacity: 1.5
+  - `/contact` → offsetX: 0, color1: #7c3aed, color2: #06b6d4, opacity: 0.14
+- **Removed from:** `LandingPage.tsx` (HeroScene import + fixed backdrop), `MarketingShell.tsx` (HeroScene import + ORB_OFFSETS/ORB_COLORS/orbOffset), `ContactSalesPage.tsx` (HeroScene import + fixed backdrop)
+- **Added to:** `App.tsx` — `<SharedMarketingOrb />` placed inside Router, above Routes
+- **Non-marketing routes** (dashboard, login, etc.) render no orb (component returns null)
+
+#### 4. ORB BRIGHTNESS ADJUSTMENTS
+- **Landing page opacity:** Increased from 0.25 → 0.55 → 0.7 → 0.9 → 1.5 (final)
+- **Marketing pages opacity:** Increased from 0.18 → 1.5 (matching landing page)
+- **Features orb colors softened:** Changed from deep blue+cyan (`#2563eb`/`#06b6d4`) to light blue+cyan (`#60a5fa`/`#67e8f9`) to reduce visual intensity
+
+#### 5. HERO SECTION SPACING — ALL MARKETING PAGES
+- **Features, Pricing, FAQ hero sections:** Changed from fixed `pt-` padding to `min-h-[60vh] flex flex-col justify-center` for viewport-centered titles (matching landing page hero behavior)
+- **Pricing Final CTA section:** Also converted to `min-h-[60vh] flex flex-col justify-center` hero-style centering
+- **Landing page "Explore all features" link:** Spacing increased from `mt-10` to `mt-16 sm:mt-20`
+
+#### 6. FILES CHANGED THIS SESSION
+| File | Change |
+|------|--------|
+| `src/components/SharedMarketingOrb.tsx` | NEW — shared orb component |
+| `src/components/pages/ContactSalesPage.tsx` | NEW — enterprise contact form |
+| `api/sales/inquiry.ts` | NEW — AI-powered sales API route |
+| `src/components/pages/PricingPage.tsx` | Stripe checkout modal, billing toggle fix, hero centering, final CTA centering |
+| `src/components/pages/FeaturesPage.tsx` | Hero section centering |
+| `src/components/pages/FAQPage.tsx` | Hero section centering |
+| `src/components/pages/LandingPage.tsx` | Removed inline HeroScene, "Explore all features" spacing |
+| `src/components/layout/MarketingShell.tsx` | Removed HeroScene/orb config (moved to SharedMarketingOrb) |
+| `src/App.tsx` | Added SharedMarketingOrb, ContactSalesPage route |
+
+---
+
+### 🎨 MARKETING PAGES & 3D ORB VISUAL OVERHAUL (February 18, 2026)
+
+**Major Enhancement:** Unified the visual language across the Landing Page, Features, Pricing, and FAQ pages. The 3D particle orb now supports dynamic color transitions and opacity control per-page. The Pricing page was completely rewritten as a seamless extension of the Landing Page.
+
+---
+
+#### 1. 3D PARTICLE ORB — COLOR-CHANGING + OPACITY CONTROL
+
+**File:** `src/components/landing/HeroScene.tsx`
+
+The Three.js particle ring orb now supports three new props:
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `color1` | `string` | `'#0e7490'` | Primary particle color (hex) |
+| `color2` | `string` | `'#0f766e'` | Secondary particle color (hex) |
+| `opacity` | `number` | `0.35` | Global particle opacity multiplier |
+
+**How color transitions work:**
+- Props update target ref values (`targetColor1Ref`, `targetColor2Ref`, `targetOpacityRef`)
+- Every frame in the `requestAnimationFrame` loop, the GPU uniforms lerp toward the targets:
+  - Colors: `Color.lerp(target, 0.025)` — ~40 frames (~0.7s at 60fps)
+  - Opacity: linear lerp at `0.03` factor
+- No React re-renders needed — pure animation-loop-driven transitions
+- Fragment shader uses `uniform float uOpacity` multiplied into `gl_FragColor.a`
+
+**Opacity values by context:**
+- Landing Page: `opacity={0.25}` (subtle hero backdrop)
+- Marketing Shell (Features/Pricing/FAQ): `opacity={0.18}` (lighter, background-only)
+
+---
+
+#### 2. MARKETING SHELL — PER-TAB ORB COLORS
+
+**File:** `src/components/layout/MarketingShell.tsx`
+
+The `MarketingShell` wraps Features, Pricing, and FAQ pages with shared navigation, footer, and the fixed 3D orb. The orb now shifts both position AND color per tab.
+
+**Color palette (mapped to SyncScript logo bands):**
+
+| Tab | Index | Color 1 | Color 2 | Logo Band |
+|-----|-------|---------|---------|-----------|
+| Features | 0 | `#2563eb` (blue-600) | `#06b6d4` (cyan-500) | Top of S ribbon |
+| Pricing | 1 | `#ea580c` (orange-600) | `#d97706` (amber-600) | Bottom of S ribbon |
+| FAQ | 2 | `#059669` (emerald-600) | `#0d9488` (teal-600) | Middle of S ribbon |
+
+**Configuration constant:**
+```
+const ORB_COLORS: [string, string][] = [
+  ['#2563eb', '#06b6d4'],  // Features
+  ['#ea580c', '#d97706'],  // Pricing
+  ['#059669', '#0d9488'],  // FAQ
+];
+```
+
+**Position offsets (pre-existing):**
+```
+const ORB_OFFSETS = [-1.8, 0, 1.8];
+```
+
+Usage in JSX:
+```
+<HeroScene
+  offsetX={orbOffset}
+  disableScrollFade
+  color1={ORB_COLORS[currentIndex]?.[0]}
+  color2={ORB_COLORS[currentIndex]?.[1]}
+  opacity={0.18}
+/>
+```
+
+---
+
+#### 3. PRICING PAGE — COMPLETE REWRITE
+
+**File:** `src/components/pages/PricingPage.tsx`
+
+**Problem:** The old Pricing page had its own plan definitions, heavy gradient cards, aggressive colors (purple/pink), thick borders, and used Card/Badge UI components. It felt like a different website.
+
+**Solution:** Rewritten to be a seamless extension of the Landing Page, using the exact same visual DNA.
+
+**Key changes:**
+- **Uses shared `PRICING_PLANS` from `src/config/pricing.ts`** — single source of truth for plan data (Free, Starter, Professional, Enterprise)
+- **Card styling matches Landing Page exactly:**
+  - Regular: `bg-white/5 border border-white/10 rounded-2xl p-5 sm:p-7`
+  - Popular: `bg-gradient-to-br from-cyan-900/30 to-teal-900/30 border-2 border-cyan-500 lg:scale-105 shadow-2xl shadow-cyan-500/20`
+  - "MOST POPULAR" badge: `bg-gradient-to-r from-cyan-500 to-teal-500 text-xs font-bold px-4 py-1 rounded-full`
+- **Shows ALL features per plan** (not condensed like landing page's 5-feature preview)
+  - Included features: cyan `Check` icon + `text-white/70`
+  - Highlighted features: emerald `Check` icon + `font-medium text-white/90`
+  - Excluded features: faded `X` icon + `text-white/30`
+- **Typography:** `font-semibold tracking-[-0.02em]` (never `font-bold`)
+- **Text opacities:** `text-white/40` through `text-white/70` (matching landing page)
+- **CTA button:** `from-cyan-500 to-teal-500` (popular) or `bg-white/[0.07] border border-white/[0.12]` (regular)
+- **Annual billing toggle:** Spring-animated pill with `from-cyan-400 to-teal-400` gradient
+- **Trust strip:** Lightweight text row with `Lock`, `Shield`, `Clock` icons at `text-white/50`
+- **FAQ accordion:** Same styling as dedicated FAQ page (`bg-white/[0.03]`, `border-cyan-500/30` active ring)
+- **Final CTA:** Matches landing page's closing section exactly
+- **Props:** No longer requires `userId`/`userEmail` (optional, rendered without props in `MarketingShell`)
+- **Background:** Fully transparent — the 3D orb shows through naturally
+
+**Removed dependencies:** No longer imports `Card`, `CardHeader`, `CardTitle`, `CardDescription`, `CardContent`, `CardFooter`, `Button`, `Badge` from ui components. Pure Tailwind.
+
+---
+
+#### 4. FAQ PAGE — TYPOGRAPHY ALIGNMENT
+
+**File:** `src/components/pages/FAQPage.tsx`
+
+**Changes (minor):**
+- `font-bold` → `font-semibold tracking-[-0.02em]` on all headings (h1, h2) to match landing page
+- Accordion answer text: `text-white/80` → `text-white/60 font-light` to match landing page's ghostly opacity
+- Category tab inactive state: `text-white/80` → `text-white/60`
+- Contact CTA subtitle: `text-white/70` → `text-white/60 font-light`
+- Fixed escaped apostrophe in contact CTA text
+
+---
+
+#### 5. FEATURES PAGE — NO CHANGES NEEDED
+
+**File:** `src/components/pages/FeaturesPage.tsx`
+
+The Features page already matched the landing page's visual DNA:
+- `font-semibold tracking-[-0.02em]` headings
+- `bg-white/[0.03]` to `bg-white/[0.04]` card backgrounds
+- `text-white/45` to `text-white/55` text opacities
+- Animated radial-gradient ambient glows
+- `whileInView` scroll-triggered stagger animations
+
+No modifications required.
+
+---
+
+#### 6. LANDING PAGE — ORB OPACITY ADJUSTMENT
+
+**File:** `src/components/pages/LandingPage.tsx`
+
+**Single change:** `<HeroScene />` → `<HeroScene opacity={0.25} />`
+
+The default orb opacity was `0.35`. Reduced to `0.25` on the landing page so the orb serves as a subtle ambient backdrop rather than a prominent visual element. This keeps the hero text and dashboard preview as the focal points.
+
+---
+
+#### 7. VISUAL DNA REFERENCE (SHARED ACROSS ALL PAGES)
+
+For consistency, all marketing pages follow this exact specification:
+
+**Typography:**
+- H1: `text-4xl sm:text-5xl md:text-6xl font-semibold tracking-[-0.02em]`
+- H2: `text-3xl sm:text-4xl font-semibold tracking-[-0.02em]`
+- Body: `text-white/60 font-light` or `text-white/70 font-light`
+- Subtle: `text-white/40` to `text-white/50`
+
+**Cards:**
+- Background: `bg-white/5` or `bg-white/[0.03]` to `bg-white/[0.04]`
+- Border: `border border-white/10` or `border-white/[0.08]`
+- Radius: `rounded-2xl`
+- Padding: `p-5 sm:p-7` or `p-5 sm:p-7 md:p-8`
+- Hover: `hover:bg-white/[0.06]` or `hover:bg-white/[0.07]`
+
+**Accent colors:**
+- Primary: `text-cyan-400`, `border-cyan-500`, `from-cyan-500 to-teal-500`
+- Secondary: `text-emerald-400`, `text-teal-400`
+- CTA gradient: `from-cyan-500 to-teal-500 hover:from-cyan-400 hover:to-teal-400`
+- Shadow: `shadow-lg shadow-cyan-500/20`
+
+**Animations:**
+- Easing: `[0.22, 1, 0.36, 1]`
+- Viewport: `{ once: true, amount: 0.2 }`
+- Stagger: `staggerChildren: 0.06` to `0.12`
+- Item variants: `hidden: { opacity: 0, y: 16-24 }` → `visible: { opacity: 1, y: 0 }`
+
+**Dividers:**
+- `h-px bg-gradient-to-r from-transparent via-white/[0.08] to-transparent` (subtle)
+- `h-px bg-gradient-to-r from-transparent via-cyan-500/20 to-transparent` (accent)
+
+---
+
 ### 🚀 OPENCLAW PHASE 4: AI OPTIMIZATION COMPLETE (February 10, 2026)
 
 **Major Advancement:** Implemented 8 production-grade AI optimization systems that reduce costs by 85% and improve UX by 60%.
