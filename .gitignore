@@ -53,3 +53,30 @@ src/PRODUCTION_DEPLOYMENT_COMPLETE.md
 src/DOCUMENTATION_INDEX.md
 src/components/DiscordSetupGuide.tsx
 src/vercel.json
+
+# Agent workspace files (AGENTS.md memory system)
+MEMORY.md
+memory/
+JOURNAL.md
+JOURNAL.md.*
+
+# Scratch / research / audit docs (not source code)
+CURSOR-CLARITY.md
+REASONING.md
+CALENDAR_EVENT_CLICK_AUDIT.md
+LANDING_PAGE_RESPONSIVE_AUDIT.md
+MONT-FORT-FRONTEND-RESEARCH.md
+REFERRAL_PROGRAM_SUMMARY.md
+REVENUE_SUMMARY.txt
+SYNCSCRIPT_ARCHITECTURE.md
+SYNCSCRIPT_MASTERGUIDE.md
+SYNCSCRIPT_VISUAL_ARCHITECTURE.md
+
+# Test / scratch HTML and JS files
+test-*.html
+test-*.js
+
+# Temp directories
+lib/
+social/
+scripts/

@@ -8,7 +8,7 @@
     <priority>1.0</priority>
   </url>
 
-  <!-- Marketing pages (high priority) -->
+  <!-- Marketing pages -->
   <url>
     <loc>https://syncscript.app/features</loc>
     <lastmod>2026-02-18</lastmod>
@@ -27,56 +27,10 @@
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
-
-  <!-- Company pages -->
   <url>
-    <loc>https://syncscript.app/about</loc>
+    <loc>https://syncscript.app/contact</loc>
     <lastmod>2026-02-18</lastmod>
     <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
-  </url>
-  <url>
-    <loc>https://syncscript.app/blog</loc>
-    <lastmod>2026-02-18</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://syncscript.app/careers</loc>
-    <lastmod>2026-02-18</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.6</priority>
-  </url>
-  <url>
-    <loc>https://syncscript.app/press</loc>
-    <lastmod>2026-02-18</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.5</priority>
-  </url>
-
-  <!-- Resource pages -->
-  <url>
-    <loc>https://syncscript.app/docs</loc>
-    <lastmod>2026-02-18</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://syncscript.app/help</loc>
-    <lastmod>2026-02-18</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.7</priority>
-  </url>
-  <url>
-    <loc>https://syncscript.app/api-reference</loc>
-    <lastmod>2026-02-18</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
-  </url>
-  <url>
-    <loc>https://syncscript.app/community</loc>
-    <lastmod>2026-02-18</lastmod>
-    <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
 
@@ -112,13 +66,5 @@
     <lastmod>2026-02-18</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
-  </url>
-
-  <!-- App pages (lower priority - require auth) -->
-  <url>
-    <loc>https://syncscript.app/dashboard</loc>
-    <lastmod>2026-02-18</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.5</priority>
   </url>
 </urlset>

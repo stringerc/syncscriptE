@@ -24,7 +24,6 @@ export function SignupPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // Password strength indicators
   const passwordLength = password.length >= 8;
   const hasNumber = /\d/.test(password);
   const hasSpecial = /[!@#$%^&*(),.?":{}|<>]/.test(password);
@@ -44,7 +43,10 @@ export function SignupPage() {
       const result = await signUp(email, password, name);
       
       if (result.success) {
-        // ✅ WORLD-CLASS UX: Show value immediately, skip multi-step wizard
+        if (isCheckoutSuccess) {
+          // Store email so SubscriptionContext can claim the pending subscription on first access check
+          localStorage.setItem('syncscript_checkout_email', email.toLowerCase().trim());
+        }
         navigate('/dashboard');
       } else {
         setError(result.error || 'Sign up failed');

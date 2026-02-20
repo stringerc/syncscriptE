@@ -473,6 +473,90 @@ stripeRoutes.get('/payment-methods/:userId', async (c) => {
 });
 
 /**
+ * POST /make-server-57781ad9/stripe/claim-subscription
+ * Link a pending Stripe subscription (from guest checkout) to a newly created user account.
+ * Called by the frontend after the user signs up post-checkout.
+ */
+stripeRoutes.post('/claim-subscription', async (c) => {
+  try {
+    const body = await c.req.json();
+    const { user_id, email } = body;
+
+    if (!user_id || !email) {
+      return c.json({ error: 'user_id and email are required' }, 400);
+    }
+
+    const normalizedEmail = email.toLowerCase().trim();
+    const pending = await kv.get(`pending_subscription:${normalizedEmail}`) as any;
+
+    if (!pending) {
+      return c.json({ claimed: false, reason: 'no_pending_subscription' });
+    }
+
+    // Fetch the live subscription from Stripe
+    let subscription;
+    try {
+      subscription = await stripe.subscriptions.retrieve(pending.subscriptionId);
+    } catch (err) {
+      console.error(`[Stripe] Failed to retrieve subscription ${pending.subscriptionId}:`, err);
+      return c.json({ claimed: false, reason: 'subscription_not_found' });
+    }
+
+    // Update subscription metadata with the real user ID
+    try {
+      await stripe.subscriptions.update(pending.subscriptionId, {
+        metadata: { user_id, plan_id: pending.planId },
+      });
+    } catch (err) {
+      console.error('[Stripe] Failed to update subscription metadata:', err);
+    }
+
+    // Update the Stripe customer metadata too
+    try {
+      await stripe.customers.update(pending.customerId, {
+        metadata: { user_id },
+      });
+    } catch (err) {
+      console.error('[Stripe] Failed to update customer metadata:', err);
+    }
+
+    // Store the subscription and customer mapping under the real user ID
+    await storeSubscription(user_id, subscription);
+    await kv.set(`stripe_customer:${user_id}`, pending.customerId);
+
+    // Clean up the pending record
+    await kv.del(`pending_subscription:${normalizedEmail}`);
+
+    // Also clean up the guest user's KV entries if they exist
+    const guestUserId = subscription.metadata?.user_id;
+    if (guestUserId && guestUserId !== user_id) {
+      await kv.del(`subscription:${guestUserId}`);
+      await kv.del(`stripe_customer:${guestUserId}`);
+    }
+
+    const planName = Object.values(PRICING_PLANS).find(
+      p => p.price_id === subscription.items?.data?.[0]?.price?.id
+    )?.name || pending.planId || 'Pro';
+
+    console.log(`[Stripe] Subscription ${pending.subscriptionId} claimed by user ${user_id} (${normalizedEmail}) — plan: ${planName}`);
+
+    return c.json({
+      claimed: true,
+      subscription: {
+        id: subscription.id,
+        status: subscription.status,
+        plan: planName,
+        trial_end: subscription.trial_end,
+        current_period_end: subscription.current_period_end,
+      },
+    });
+  } catch (error: any) {
+    console.error('[Stripe] Claim subscription error:', error);
+    return c.json({ error: 'Failed to claim subscription', details: error.message }, 500);
+  }
+});
+
+/**
  * POST /make-server-57781ad9/stripe/webhook
  * Handle Stripe webhook events
  */
@@ -715,15 +799,34 @@ stripeRoutes.post('/webhook', async (c) => {
         break;
       }
 
-      // ── CHECKOUT COMPLETED → Track conversion ─────────────────────
+      // ── CHECKOUT COMPLETED → Store pending subscription for account linking ──
       case 'checkout.session.completed': {
         const session = event.data.object as any;
-        console.log(`[Stripe] Checkout completed: session ${session.id}`);
+        const customerEmail = session.customer_details?.email || session.customer_email;
+        const customerId = session.customer;
+        const subscriptionId = session.subscription;
+        const planId = session.metadata?.plan_id;
+
+        console.log(`[Stripe] Checkout completed: session ${session.id}, email=${customerEmail}, subscription=${subscriptionId}`);
         
         // Track conversion in growth metrics
         const today = new Date().toISOString().split('T')[0];
         const conversions = ((await kv.get(`growth:conversions:${today}`) as number) || 0) + 1;
         await kv.set(`growth:conversions:${today}`, conversions);
+
+        // Store pending subscription keyed by email for post-signup linking
+        if (customerEmail && subscriptionId) {
+          const normalizedEmail = customerEmail.toLowerCase().trim();
+          await kv.set(`pending_subscription:${normalizedEmail}`, {
+            customerId,
+            subscriptionId,
+            planId,
+            sessionId: session.id,
+            email: normalizedEmail,
+            createdAt: new Date().toISOString(),
+          });
+          console.log(`[Stripe] Pending subscription stored for ${normalizedEmail} → ${subscriptionId}`);
+        }
         break;
       }
 

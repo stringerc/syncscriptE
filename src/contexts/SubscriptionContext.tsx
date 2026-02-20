@@ -130,6 +130,22 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
     }
 
     try {
+      // If there's a pending checkout, claim the subscription first
+      const checkoutEmail = localStorage.getItem('syncscript_checkout_email');
+      if (checkoutEmail && user.email) {
+        localStorage.removeItem('syncscript_checkout_email');
+        try {
+          await fetch(`${baseUrl}/claim-subscription`, {
+            method: 'POST',
+            headers: headers(),
+            body: JSON.stringify({ user_id: user.id, email: checkoutEmail }),
+          });
+          console.log('[Subscription] Claimed pending subscription for', checkoutEmail);
+        } catch {
+          // Non-critical — access check below will still work if subscription was already linked
+        }
+      }
+
       const response = await fetch(`${baseUrl}/access/${user.id}`, { headers: headers() });
       if (response.ok) {
         const data = await response.json();
