@@ -167,7 +167,7 @@ export function LandingPage() {
     },
     {
       question: "Is my data secure?",
-      answer: "Absolutely. We use bank-level encryption (AES-256), are SOC 2 Type II certified, and never sell your data. Your productivity insights stay private."
+      answer: "Absolutely. We use bank-level encryption (AES-256), all data is encrypted at rest and in transit, and we never sell your data. Your productivity insights stay private."
     },
     {
       question: "What integrations do you support?",
@@ -204,7 +204,7 @@ export function LandingPage() {
                 Try as Guest →
               </button>
               <span className="text-white/60 text-xs hidden lg:inline">
-                {betaSignups} testers joined
+                Open Beta
               </span>
             </div>
           </div>
@@ -360,7 +360,7 @@ export function LandingPage() {
           >
             <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between gap-3 sm:gap-4">
               <p className="text-white font-medium text-xs sm:text-sm md:text-base truncate">
-                Ready to 3x your productivity?
+                Ready to work smarter, not harder?
               </p>
               <MagneticButton
                 onClick={() => navigate('/signup')}
@@ -432,7 +432,7 @@ export function LandingPage() {
               className="inline-flex items-center gap-2 bg-cyan-500/10 border border-cyan-500/30 rounded-full px-4 sm:px-6 py-2 mb-6 sm:mb-8"
             >
               <Sparkles className="w-4 h-4 text-cyan-400" />
-              <span className="text-cyan-400 font-medium text-xs sm:text-sm">Used by 10,547+ productive professionals</span>
+              <span className="text-cyan-400 font-medium text-xs sm:text-sm">AI-Powered Energy Scheduling — Now in Open Beta</span>
             </motion.div>
 
             {/* Hero Headline - Benefit-Focused */}
@@ -469,7 +469,7 @@ export function LandingPage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.9, delay: 0.45, ease: [0.25, 0.1, 0.25, 1] }}
             >
-              Finish <span className="text-cyan-400 font-semibold">40% more tasks</span> by matching work to your natural rhythms. Not your willpower.
+              Finish <span className="text-cyan-400 font-semibold">more in less time</span> by matching work to your natural rhythms. Not your willpower.
             </motion.p>
 
             {/* Dual CTA Buttons */}
@@ -609,7 +609,7 @@ export function LandingPage() {
               </div>
             </div>
 
-            {/* Real-time Activity Feed */}
+            {/* Feature Callouts */}
             <motion.div
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
@@ -617,29 +617,29 @@ export function LandingPage() {
               className="absolute -left-4 sm:-left-8 top-[20%] bg-gray-900/90 border border-cyan-500/30 rounded-lg p-3 sm:p-4 shadow-2xl backdrop-blur-md max-w-[160px] sm:max-w-[200px] hidden md:block"
             >
               <div className="flex items-center gap-2 mb-2">
-                <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
-                <span className="text-xs sm:text-sm text-white/80">Live Activity</span>
+                <Zap className="w-3.5 h-3.5 text-cyan-400" />
+                <span className="text-xs sm:text-sm text-white/80">Energy-Aware</span>
               </div>
-              <p className="text-xs text-white/60">Sarah just completed her 50th task 🎉</p>
+              <p className="text-xs text-white/60">Tasks auto-schedule to your peak hours</p>
             </motion.div>
 
             <motion.div
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.8, delay: 1.4 }}
-              className="absolute -right-4 sm:-right-8 top-[60%] bg-gray-900/90 border border-teal-500/30 rounded-lg p-3 sm:p-4 shadow-2xl backdrop-blur-md max-w-[160px] sm:max-w-[200px] hidden md:block"
+              className="absolute -right-4 sm:-right-8 top-[60%] bg-gray-900/90 border border-indigo-500/30 rounded-lg p-3 sm:p-4 shadow-2xl backdrop-blur-md max-w-[160px] sm:max-w-[200px] hidden md:block"
             >
-              <p className="text-xs text-white/60 mb-1">Acme Corp just upgraded to Team plan</p>
-              <div className="flex items-center gap-1">
-                <Users className="w-3 h-3 text-teal-400" />
-                <span className="text-xs text-teal-400">+12 seats</span>
+              <div className="flex items-center gap-2 mb-1">
+                <Headphones className="w-3.5 h-3.5 text-indigo-400" />
+                <span className="text-xs text-indigo-400 font-medium">Voice Calls</span>
               </div>
+              <p className="text-xs text-white/60">Talk to Nexus AI to manage your schedule</p>
             </motion.div>
           </motion.div>
         </div>
       </section>
 
-      {/* Stats Section with Scroll Animation */}
+      {/* Stats Section - Real Product Facts */}
       <section ref={statsRef} className="py-12 sm:py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <StaggerContainer>
@@ -652,9 +652,9 @@ export function LandingPage() {
                   className="text-center"
                 >
                   <div className="text-3xl sm:text-4xl md:text-5xl font-bold bg-gradient-to-r from-cyan-400 to-teal-400 bg-clip-text text-transparent mb-2">
-                    {statsInView && <CountUp end={10547} duration={2} />}+
+                    {statsInView && <CountUp end={90} duration={2} />}s
                   </div>
-                  <p className="text-sm sm:text-base text-white/60">Active Users</p>
+                  <p className="text-sm sm:text-base text-white/60">Setup Time</p>
                 </motion.div>
               </StaggerItem>
 
@@ -666,9 +666,9 @@ export function LandingPage() {
                   className="text-center"
                 >
                   <div className="text-3xl sm:text-4xl md:text-5xl font-bold bg-gradient-to-r from-emerald-400 to-teal-400 bg-clip-text text-transparent mb-2">
-                    {statsInView && <CountUp end={98.4} decimals={1} duration={2} />}%
+                    {statsInView && <CountUp end={50} duration={2} />}+
                   </div>
-                  <p className="text-sm sm:text-base text-white/60">Uptime (2024)</p>
+                  <p className="text-sm sm:text-base text-white/60">Integrations</p>
                 </motion.div>
               </StaggerItem>
 
@@ -680,9 +680,9 @@ export function LandingPage() {
                   className="text-center"
                 >
                   <div className="text-3xl sm:text-4xl md:text-5xl font-bold bg-gradient-to-r from-orange-400 to-pink-400 bg-clip-text text-transparent mb-2">
-                    &lt;{statsInView && <CountUp end={2} duration={2} />}h
+                    {statsInView && <CountUp end={24} duration={2} />}/7
                   </div>
-                  <p className="text-sm sm:text-base text-white/60">Support Response</p>
+                  <p className="text-sm sm:text-base text-white/60">AI Scheduling</p>
                 </motion.div>
               </StaggerItem>
 
@@ -694,9 +694,9 @@ export function LandingPage() {
                   className="text-center"
                 >
                   <div className="text-3xl sm:text-4xl md:text-5xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent mb-2">
-                    {statsInView && <CountUp end={40} duration={2} />}%
+                    {statsInView && <CountUp end={0} duration={2} />}
                   </div>
-                  <p className="text-sm sm:text-base text-white/60">More Tasks Done</p>
+                  <p className="text-sm sm:text-base text-white/60">Credit Card Required</p>
                 </motion.div>
               </StaggerItem>
             </div>
@@ -791,19 +791,19 @@ export function LandingPage() {
                   <div className="w-12 h-12 sm:w-16 sm:h-16 bg-emerald-500/20 rounded-xl flex items-center justify-center mb-4 sm:mb-6">
                     <TrendingUp className="w-6 h-6 sm:w-8 sm:h-8 text-emerald-400" />
                   </div>
-                  <h3 className="text-xl sm:text-2xl font-bold mb-3 sm:mb-4">Your Results</h3>
+                  <h3 className="text-xl sm:text-2xl font-bold mb-3 sm:mb-4">The Goal</h3>
                   <ul className="space-y-2 sm:space-y-3 text-sm sm:text-base text-white/70">
                     <li className="flex items-start gap-2">
                       <span className="text-emerald-400 mt-1">✨</span>
-                      <span><strong className="text-white">40% more tasks</strong> completed weekly</span>
+                      <span><strong className="text-white">More deep work</strong> during peak hours</span>
                     </li>
                     <li className="flex items-start gap-2">
                       <span className="text-emerald-400 mt-1">✨</span>
-                      <span><strong className="text-white">8+ hours saved</strong> per week</span>
+                      <span><strong className="text-white">Hours reclaimed</strong> from smart scheduling</span>
                     </li>
                     <li className="flex items-start gap-2">
                       <span className="text-emerald-400 mt-1">✨</span>
-                      <span><strong className="text-white">Zero burnout</strong> from smart pacing</span>
+                      <span><strong className="text-white">Less burnout</strong> from energy-aware pacing</span>
                     </li>
                   </ul>
                 </div>
@@ -813,102 +813,203 @@ export function LandingPage() {
         </div>
       </section>
 
-      {/* Social Proof - Testimonials (MOVED UP!) */}
-      <section id="customers" className="py-16 sm:py-24">
+      {/* Voice Calling with Nexus - Feature Showcase */}
+      <section id="voice-calling" className="py-16 sm:py-24">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6">
+          <AnimatedSection>
+            <div className="grid lg:grid-cols-2 gap-8 sm:gap-12 items-center">
+              {/* Left - Copy */}
+              <div>
+                <motion.div
+                  initial={{ opacity: 0, x: -20 }}
+                  whileInView={{ opacity: 1, x: 0 }}
+                  viewport={{ once: true, amount: 0.3 }}
+                  transition={{ duration: 0.6 }}
+                >
+                  <div className="inline-flex items-center gap-2 bg-indigo-500/10 border border-indigo-500/30 rounded-full px-4 py-1.5 mb-6">
+                    <Headphones className="w-4 h-4 text-indigo-400" />
+                    <span className="text-indigo-400 font-medium text-xs sm:text-sm">Voice-First AI</span>
+                  </div>
+                  <h2 className="text-3xl sm:text-4xl lg:text-5xl font-semibold mb-4 sm:mb-6 tracking-[-0.02em]">
+                    Call Nexus.
+                    <br />
+                    <span className="bg-gradient-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent">
+                      Manage Your Day by Voice.
+                    </span>
+                  </h2>
+                  <p className="text-base sm:text-lg text-white/70 mb-8 leading-relaxed font-light">
+                    Nexus is your AI scheduling assistant you can actually talk to. Get morning briefings, 
+                    reschedule tasks, and plan your week — all through a natural voice conversation, 
+                    no screen required.
+                  </p>
+                  <div className="space-y-4 mb-8">
+                    {[
+                      { icon: <Zap className="w-5 h-5" />, title: 'Morning Briefings', desc: 'Nexus calls you with a personalized rundown of your day, energy forecast, and top priorities.' },
+                      { icon: <Calendar className="w-5 h-5" />, title: 'Voice Scheduling', desc: 'Say "Move my 2pm meeting to Thursday" and it happens. Natural language, zero friction.' },
+                      { icon: <Bot className="w-5 h-5" />, title: 'Contextual Intelligence', desc: 'Nexus remembers your patterns, preferences, and past conversations — every call gets smarter.' },
+                    ].map((item, i) => (
+                      <motion.div
+                        key={item.title}
+                        initial={{ opacity: 0, y: 10 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        viewport={{ once: true }}
+                        transition={{ delay: 0.2 + i * 0.1 }}
+                        className="flex gap-4"
+                      >
+                        <div className="w-10 h-10 bg-indigo-500/20 rounded-lg flex items-center justify-center text-indigo-400 shrink-0">
+                          {item.icon}
+                        </div>
+                        <div>
+                          <h4 className="font-semibold text-white mb-1">{item.title}</h4>
+                          <p className="text-sm text-white/60 leading-relaxed">{item.desc}</p>
+                        </div>
+                      </motion.div>
+                    ))}
+                  </div>
+                  <MagneticButton
+                    onClick={() => setShowBetaModal(true)}
+                    className="group bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white px-8 py-3 rounded-lg font-medium transition-all shadow-lg shadow-indigo-500/20 inline-flex items-center gap-3"
+                    strength={0.3}
+                  >
+                    <Headphones className="w-5 h-5" />
+                    Try Voice Calling
+                    <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                  </MagneticButton>
+                </motion.div>
+              </div>
+
+              {/* Right - Animated Phone Call Mockup */}
+              <motion.div
+                initial={{ opacity: 0, x: 20 }}
+                whileInView={{ opacity: 1, x: 0 }}
+                viewport={{ once: true, amount: 0.3 }}
+                transition={{ duration: 0.6, delay: 0.2 }}
+                className="relative"
+              >
+                <div className="bg-gradient-to-br from-indigo-900/30 to-purple-900/30 border border-indigo-500/30 rounded-2xl p-6 sm:p-8 relative overflow-hidden">
+                  <div className="absolute top-0 right-0 w-48 h-48 bg-indigo-500/10 rounded-full blur-3xl" />
+                  <div className="relative z-10">
+                    {/* Call Header */}
+                    <div className="flex items-center justify-between mb-6">
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-full flex items-center justify-center">
+                          <Bot className="w-6 h-6 text-white" />
+                        </div>
+                        <div>
+                          <h4 className="font-semibold text-white">Nexus AI</h4>
+                          <div className="flex items-center gap-1.5">
+                            <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
+                            <span className="text-xs text-green-400">Connected</span>
+                          </div>
+                        </div>
+                      </div>
+                      <span className="text-sm text-white/40 font-mono">2:47</span>
+                    </div>
+
+                    {/* Conversation Transcript */}
+                    <div className="space-y-4 mb-6">
+                      {[
+                        { speaker: 'nexus', text: "Good morning! I see you have 6 tasks today. Your peak focus window is 9-11am — I've moved your deep work there." },
+                        { speaker: 'user', text: "Can you push my 2pm meeting to Thursday?" },
+                        { speaker: 'nexus', text: "Done. I've rescheduled your 2pm with the design team to Thursday at the same time. I also freed up a 45-minute focus block in its place." },
+                      ].map((msg, i) => (
+                        <motion.div
+                          key={i}
+                          initial={{ opacity: 0, y: 10 }}
+                          whileInView={{ opacity: 1, y: 0 }}
+                          viewport={{ once: true }}
+                          transition={{ delay: 0.4 + i * 0.2 }}
+                          className={`flex ${msg.speaker === 'user' ? 'justify-end' : 'justify-start'}`}
+                        >
+                          <div className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
+                            msg.speaker === 'user'
+                              ? 'bg-indigo-500/20 border border-indigo-500/30 text-white/90'
+                              : 'bg-white/5 border border-white/10 text-white/80'
+                          }`}>
+                            {msg.text}
+                          </div>
+                        </motion.div>
+                      ))}
+                    </div>
+
+                    {/* Waveform Visualization */}
+                    <div className="flex items-center gap-1 justify-center h-10">
+                      {Array.from({ length: 24 }).map((_, i) => (
+                        <motion.div
+                          key={i}
+                          className="w-1 bg-gradient-to-t from-indigo-500 to-purple-400 rounded-full"
+                          animate={{
+                            height: [4, Math.random() * 28 + 6, 4],
+                          }}
+                          transition={{
+                            duration: 0.8 + Math.random() * 0.6,
+                            repeat: Infinity,
+                            delay: i * 0.04,
+                            ease: 'easeInOut',
+                          }}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            </div>
+          </AnimatedSection>
+        </div>
+      </section>
+
+      {/* Built on Science - Research-Backed */}
+      <section className="py-16 sm:py-24 bg-black/20 backdrop-blur-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <AnimatedSection>
             <div className="text-center mb-12 sm:mb-16">
-              <h2 className="text-4xl sm:text-5xl font-semibold mb-4 tracking-[-0.02em]">Loved by Productive Humans</h2>
-              <p className="text-lg sm:text-xl text-white/60 font-light">See what happens when you stop fighting your energy</p>
+              <h2 className="text-4xl sm:text-5xl font-semibold mb-4 tracking-[-0.02em]">Built on Real Science</h2>
+              <p className="text-lg sm:text-xl text-white/60 font-light max-w-3xl mx-auto">
+                SyncScript is grounded in decades of peer-reviewed research on human performance and cognitive rhythms.
+              </p>
             </div>
 
             <div className="grid md:grid-cols-3 gap-6 sm:gap-8">
-              {/* Testimonial 1 */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, amount: 0.3 }}
-                transition={{ duration: 0.6 }}
-                className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6 sm:p-8 hover:border-cyan-500/50 transition-all"
-              >
-                <div className="flex items-center gap-1 mb-4">
-                  {[...Array(5)].map((_, i) => (
-                    <svg key={i} className="w-5 h-5 text-yellow-400 fill-current" viewBox="0 0 20 20">
-                      <path d="M10 15l-5.878 3.09 1.123-6.545L.489 6.91l6.572-.955L10 0l2.939 5.955 6.572.955-4.756 4.635 1.123 6.545z" />
-                    </svg>
-                  ))}
-                </div>
-                <p className="text-white/80 mb-6 italic text-sm sm:text-base leading-relaxed">
-                  "After 2 weeks with SyncScript, I'm finishing <strong>40% more tasks</strong> without feeling drained. The AI actually knows when I'm at my best."
-                </p>
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 bg-gradient-to-br from-cyan-400 to-teal-400 rounded-full flex items-center justify-center font-bold text-gray-900">
-                    SM
+              {[
+                {
+                  title: 'Circadian Rhythm Science',
+                  citation: 'Nobel Prize in Physiology, 2017',
+                  desc: 'Jeffrey Hall, Michael Rosbash, and Michael Young won the Nobel Prize for discovering molecular mechanisms controlling circadian rhythm. SyncScript uses this research to align your tasks with your biological clock.',
+                  gradient: 'from-cyan-500 to-teal-500',
+                  borderColor: 'border-cyan-500/30',
+                },
+                {
+                  title: 'Ultradian Cycles',
+                  citation: 'Peretz Lavie, Technion Institute',
+                  desc: 'Research shows the brain operates in 90-minute focus cycles (BRAC — Basic Rest-Activity Cycle). SyncScript structures your work blocks around these natural peaks and troughs.',
+                  gradient: 'from-emerald-500 to-teal-500',
+                  borderColor: 'border-emerald-500/30',
+                },
+                {
+                  title: 'Decision Fatigue',
+                  citation: 'Danziger et al., PNAS 2011',
+                  desc: 'Studies show decision quality degrades predictably throughout the day. SyncScript front-loads high-stakes decisions to your sharpest hours and automates the rest.',
+                  gradient: 'from-purple-500 to-indigo-500',
+                  borderColor: 'border-purple-500/30',
+                },
+              ].map((item, i) => (
+                <motion.div
+                  key={item.title}
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true, amount: 0.3 }}
+                  transition={{ duration: 0.6, delay: i * 0.1 }}
+                  className={`bg-white/[0.03] backdrop-blur-sm border ${item.borderColor} rounded-2xl p-6 sm:p-8 hover:bg-white/[0.06] transition-all`}
+                >
+                  <div className={`inline-flex items-center gap-2 bg-gradient-to-r ${item.gradient} bg-clip-text text-transparent text-xs font-semibold uppercase tracking-wider mb-4`}>
+                    <Sparkles className="w-3.5 h-3.5 text-current" style={{ opacity: 0.7 }} />
+                    Research-Backed
                   </div>
-                  <div>
-                    <h4 className="font-semibold">Sarah Mitchell</h4>
-                    <p className="text-sm text-white/50">Product Designer @ Stripe</p>
-                  </div>
-                </div>
-              </motion.div>
-
-              {/* Testimonial 2 */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, amount: 0.3 }}
-                transition={{ duration: 0.6, delay: 0.1 }}
-                className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6 sm:p-8 hover:border-cyan-500/50 transition-all"
-              >
-                <div className="flex items-center gap-1 mb-4">
-                  {[...Array(5)].map((_, i) => (
-                    <svg key={i} className="w-5 h-5 text-yellow-400 fill-current" viewBox="0 0 20 20">
-                      <path d="M10 15l-5.878 3.09 1.123-6.545L.489 6.91l6.572-.955L10 0l2.939 5.955 6.572.955-4.756 4.635 1.123 6.545z" />
-                    </svg>
-                  ))}
-                </div>
-                <p className="text-white/80 mb-6 italic text-sm sm:text-base leading-relaxed">
-                  "Our team's productivity jumped <strong>60% in the first month</strong>. The energy tracking is a game-changer for remote work."
-                </p>
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 bg-gradient-to-br from-emerald-400 to-teal-400 rounded-full flex items-center justify-center font-bold text-gray-900">
-                    JC
-                  </div>
-                  <div>
-                    <h4 className="font-semibold">James Chen</h4>
-                    <p className="text-sm text-white/50">Engineering Lead @ Notion</p>
-                  </div>
-                </div>
-              </motion.div>
-
-              {/* Testimonial 3 */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, amount: 0.3 }}
-                transition={{ duration: 0.6, delay: 0.2 }}
-                className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6 sm:p-8 hover:border-cyan-500/50 transition-all"
-              >
-                <div className="flex items-center gap-1 mb-4">
-                  {[...Array(5)].map((_, i) => (
-                    <svg key={i} className="w-5 h-5 text-yellow-400 fill-current" viewBox="0 0 20 20">
-                      <path d="M10 15l-5.878 3.09 1.123-6.545L.489 6.91l6.572-.955L10 0l2.939 5.955 6.572.955-4.756 4.635 1.123 6.545z" />
-                    </svg>
-                  ))}
-                </div>
-                <p className="text-white/80 mb-6 italic text-sm sm:text-base leading-relaxed">
-                  "I used to crash every afternoon. Now SyncScript schedules my hard tasks for mornings. <strong>Zero burnout</strong> in 3 months."
-                </p>
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 bg-gradient-to-br from-purple-400 to-pink-400 rounded-full flex items-center justify-center font-bold text-gray-900">
-                    AP
-                  </div>
-                  <div>
-                    <h4 className="font-semibold">Aisha Patel</h4>
-                    <p className="text-sm text-white/50">Founder @ StartupLab</p>
-                  </div>
-                </div>
-              </motion.div>
+                  <h3 className="text-xl sm:text-2xl font-bold text-white mb-2">{item.title}</h3>
+                  <p className="text-xs text-white/40 mb-4 italic">{item.citation}</p>
+                  <p className="text-sm sm:text-base text-white/70 leading-relaxed">{item.desc}</p>
+                </motion.div>
+              ))}
             </div>
           </AnimatedSection>
         </div>
@@ -1053,7 +1154,7 @@ export function LandingPage() {
               </div>
               <div className="flex items-center gap-2">
                 <Shield className="w-4 h-4 text-teal-400" />
-                <span>SOC 2 Type II Certified</span>
+                <span>End-to-end encrypted</span>
               </div>
               <div className="flex items-center gap-2">
                 <Headphones className="w-4 h-4 text-emerald-400" />
@@ -1333,41 +1434,11 @@ export function LandingPage() {
             viewport={{ once: true, amount: 0.3 }}
             transition={{ duration: 0.8 }}
           >
-            {/* Mini avatars of happy users */}
-            <div className="flex justify-center mb-8">
-              <div className="flex -space-x-3">
-                {['SM', 'JC', 'AP', 'DK', 'LR'].map((initials, i) => {
-                  const gradients = ['from-cyan-400 to-teal-400', 'from-emerald-400 to-teal-400', 'from-purple-400 to-pink-400', 'from-orange-400 to-pink-400', 'from-indigo-400 to-purple-400'];
-                  return (
-                    <motion.div
-                      key={initials}
-                      initial={{ opacity: 0, scale: 0 }}
-                      whileInView={{ opacity: 1, scale: 1 }}
-                      viewport={{ once: true }}
-                      transition={{ delay: 0.1 + i * 0.05, type: 'spring', stiffness: 300 }}
-                      className={`w-10 h-10 bg-gradient-to-br ${gradients[i]} rounded-full flex items-center justify-center text-xs font-bold text-gray-900 border-2 border-[#0a0e1a]`}
-                    >
-                      {initials}
-                    </motion.div>
-                  );
-                })}
-                <motion.div
-                  initial={{ opacity: 0, scale: 0 }}
-                  whileInView={{ opacity: 1, scale: 1 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: 0.4, type: 'spring', stiffness: 300 }}
-                  className="w-10 h-10 bg-white/10 border-2 border-[#0a0e1a] rounded-full flex items-center justify-center text-xs font-medium text-white/60"
-                >
-                  +10K
-                </motion.div>
-              </div>
-            </div>
-
             <h2 className="text-4xl sm:text-5xl md:text-6xl font-semibold mb-6 tracking-[-0.02em]">
               Ready to Stop the Burnout?
             </h2>
             <p className="text-lg sm:text-xl md:text-2xl text-white/70 mb-10 sm:mb-12 font-light">
-              Join <span className="text-cyan-400 font-semibold">10,547+</span> professionals who work with their energy, not against it.
+              Work with your energy, not against it. Start your free beta today.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
               <MagneticButton

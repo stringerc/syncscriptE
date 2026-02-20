@@ -3,9 +3,10 @@ import ReactMarkdown from 'react-markdown';
 import { 
   Brain, Send, Mic, Sparkles, TrendingUp, Zap, Target,
   MessageSquare, BarChart3, Lightbulb, AlertCircle, CheckCircle2,
-  Clock, Calendar, Activity, Award, BookOpen, Settings, History
+  Clock, Calendar, Activity, Award, BookOpen, Settings, History,
+  Phone, PhoneCall, X,
 } from 'lucide-react';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import { toast } from 'sonner@2.0.3';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
@@ -19,12 +20,23 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { DashboardLayout } from '../layout/DashboardLayout';
 import { AIInsightsContent } from '../AIInsightsSection';
 import { useAI } from '../../contexts/AIContext';
-import { useOpenClaw } from '../../contexts/OpenClawContext'; // PHASE 1: OpenClaw Integration
+import { useOpenClaw } from '../../contexts/OpenClawContext';
+import { useSearchParams } from 'react-router';
+import { VoiceConversationEngine } from '../VoiceConversationEngine';
 
 export function AIAssistantPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [message, setMessage] = useState('');
   const [activeTab, setActiveTab] = useState<'chat' | 'memory' | 'insights' | 'analytics'>('chat');
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [showVoiceEngine, setShowVoiceEngine] = useState(false);
+
+  useEffect(() => {
+    if (searchParams.get('voice') === 'true') {
+      setShowVoiceEngine(true);
+      setSearchParams({}, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
   
   // PHASE 1: OpenClaw Integration
   const { 
@@ -152,6 +164,14 @@ export function AIAssistantPage() {
             <p className="text-gray-400 text-sm md:text-base">Your intelligent productivity companion with contextual insights</p>
           </div>
           <div className="flex gap-2 flex-shrink-0">
+            <Button
+              size="sm"
+              className="gap-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white hover:scale-105 transition-all shadow-lg shadow-indigo-500/20"
+              onClick={() => setShowVoiceEngine(true)}
+            >
+              <PhoneCall className="w-4 h-4" />
+              <span className="hidden sm:inline">Call Nexus</span>
+            </Button>
             <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
               <DialogTrigger asChild>
                 <Button 
@@ -401,6 +421,34 @@ export function AIAssistantPage() {
           </TabsContent>
         </Tabs>
       </motion.div>
+
+      {/* Voice Conversation Engine Overlay */}
+      <AnimatePresence>
+        {showVoiceEngine && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
+            onClick={() => setShowVoiceEngine(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 20 }}
+              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+              className="w-full max-w-4xl max-h-[90vh] overflow-hidden rounded-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <VoiceConversationEngine
+                mode="fullscreen"
+                onClose={() => setShowVoiceEngine(false)}
+                onMinimize={() => setShowVoiceEngine(false)}
+              />
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </DashboardLayout>
   );
 }
@@ -904,6 +952,25 @@ function ConversationalInterface({ message, setMessage, aiSettings }: {
 
       {/* Sidebar - Quick Actions & Context */}
       <div className="space-y-4 min-h-[400px] lg:h-full overflow-y-auto hide-scrollbar">
+        {/* Call Nexus - Voice AI */}
+        <button
+          onClick={() => setShowVoiceEngine(true)}
+          className="w-full group bg-gradient-to-r from-indigo-600/20 to-purple-600/20 hover:from-indigo-600/30 hover:to-purple-600/30 border border-indigo-500/40 hover:border-indigo-400/60 rounded-xl p-4 transition-all text-left"
+        >
+          <div className="flex items-center gap-3 mb-2">
+            <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/30 group-hover:scale-110 transition-transform">
+              <PhoneCall className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <h3 className="text-white font-semibold text-sm">Talk to Nexus</h3>
+              <p className="text-xs text-indigo-300/70">Voice call your AI assistant</p>
+            </div>
+          </div>
+          <p className="text-xs text-gray-400 leading-relaxed">
+            Manage your schedule, get briefings, and talk through tasks — hands-free via voice or phone call.
+          </p>
+        </button>
+
         {/* Quick Actions */}
         <div className="bg-[#1e2128] border border-gray-800 rounded-xl p-3 md:p-5">
           <h3 className="text-white mb-3 md:mb-4 flex items-center gap-2 text-sm md:text-base">
