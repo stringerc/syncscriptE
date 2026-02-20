@@ -220,6 +220,7 @@ export function OpenClawProvider({
     setIsProcessing(true);
     try {
       const response = await client.chat(request);
+      try { const { checklistTracking } = await import('../components/onboarding/OnboardingChecklist'); checklistTracking.completeItem('ai'); } catch {}
       return response;
     } catch (error) {
       console.error('[OpenClaw] Chat error:', error);

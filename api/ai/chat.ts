@@ -1,4 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { validateAuth } from '../lib/auth';
 
 const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
 const DEEPSEEK_URL = 'https://api.deepseek.com/v1/chat/completions';
@@ -15,13 +16,15 @@ You help users:
 Be concise, helpful, and action-oriented. Use markdown formatting for clarity. When the user asks to create a task, extract the title, priority, and due date. When asked for suggestions, provide 3-5 specific, actionable items. Always be encouraging and data-driven.`;
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  // CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
   if (req.method === 'OPTIONS') return res.status(204).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+
+  const isAuthed = await validateAuth(req, res);
+  if (!isAuthed) return;
 
   if (!DEEPSEEK_API_KEY) {
     return res.status(500).json({ success: false, error: 'DEEPSEEK_API_KEY not configured' });

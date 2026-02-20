@@ -7,6 +7,7 @@ import { GuestModeBanner } from '../guest/GuestModeBanner';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { hasContextualInsights } from '../../utils/ai-context-config';
 import { AIAssistantPanel } from '../AIAssistantPanel';
+import { OnboardingChecklist } from '../onboarding/OnboardingChecklist';
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -113,6 +114,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         <div className="flex-1 flex overflow-hidden relative">
           {/* Page Content */}
           <main
+            id="main-content"
             className="flex-1 overflow-y-auto hide-scrollbar transition-all duration-300"
             ref={mainRef}
           >
@@ -182,6 +184,9 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
       {/* Mobile Navigation */}
       <MobileNav />
+
+      {/* Onboarding Checklist (auto-hides when complete or dismissed) */}
+      <OnboardingChecklist />
     </div>
   );
 }

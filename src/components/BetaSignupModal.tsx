@@ -117,8 +117,7 @@ export function BetaSignupModal({ isOpen, onClose }: BetaSignupModalProps) {
             initial={{ opacity: 0 }}
             animate={{ opacity: 0.8 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black backdrop-blur-sm z-50"
-            onClick={onClose}
+            className="fixed inset-0 bg-black backdrop-blur-sm z-40"
           />
 
           {/* Modal */}
@@ -126,9 +125,13 @@ export function BetaSignupModal({ isOpen, onClose }: BetaSignupModalProps) {
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-lg z-50"
+            className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto py-6 sm:py-10 px-4"
+            onClick={onClose}
           >
-            <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 border border-slate-700 rounded-2xl shadow-2xl p-8 mx-4">
+            <div
+              className="relative w-full max-w-lg bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 border border-slate-700 rounded-2xl shadow-2xl p-6 sm:p-8 my-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
               {/* Close Button */}
               <button
                 onClick={onClose}

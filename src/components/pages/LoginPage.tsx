@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useNavigate, Link } from 'react-router';
+import { useState, useEffect } from 'react';
+import { useNavigate, useLocation, Link, useSearchParams } from 'react-router';
 import { motion, AnimatePresence } from 'motion/react';
 import { Mail, Lock, Eye, EyeOff, Chrome, Loader2, AlertCircle, Sparkles, ArrowLeft } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
@@ -43,13 +43,29 @@ import imgImageSyncScriptLogo from "figma:asset/914d5787f554946c037cbfbb2cf65fcc
  */
 export function LoginPage() {
   const navigate = useNavigate();
-  const { signIn, signInWithGoogle, signInWithMicrosoft, continueAsGuest } = useAuth();
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
+  const { user, loading: authLoading, signIn, signInWithGoogle, signInWithMicrosoft, continueAsGuest } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [guestLoading, setGuestLoading] = useState(false);
+
+  const redirectTo = (location.state as any)?.from || '/dashboard';
+
+  useEffect(() => {
+    if (user && !authLoading) {
+      navigate(redirectTo, { replace: true });
+    }
+  }, [user, authLoading]);
+
+  useEffect(() => {
+    if (searchParams.get('guest') === 'true') {
+      handleGuestSignIn();
+    }
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -60,8 +76,7 @@ export function LoginPage() {
       const result = await signIn(email, password);
       
       if (result.success) {
-        // ✅ WORLD-CLASS UX: Direct to dashboard for instant value
-        navigate('/dashboard');
+        navigate(redirectTo, { replace: true });
       } else {
         setError(result.error || 'Login failed');
       }
@@ -114,8 +129,7 @@ export function LoginPage() {
       const result = await continueAsGuest();
       
       if (result.success) {
-        // ✅ WORLD-CLASS UX: Guest users get instant value too!
-        navigate('/dashboard');
+        navigate(redirectTo, { replace: true });
       } else {
         setError(result.error || 'Guest sign in failed. Please try again.');
       }

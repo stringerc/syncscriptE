@@ -4,11 +4,19 @@
  * Shows upgrade options when users hit plan limits.
  */
 
-import { Check, X, Zap, Users, Building2, Sparkles } from 'lucide-react';
+import { Check, X, Zap, Users, Building2, Sparkles, Crown } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './ui/dialog';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { toast } from 'sonner@2.0.3';
+import { PLANS, formatPrice, PLAN_IDS } from '../config/pricing';
+
+const BILLING_ICONS: Record<string, typeof Zap> = {
+  [PLAN_IDS.FREE]: Zap,
+  [PLAN_IDS.STARTER]: Crown,
+  [PLAN_IDS.PROFESSIONAL]: Sparkles,
+  [PLAN_IDS.ENTERPRISE]: Building2,
+};
 
 export type LimitType = 'files' | 'links' | 'tasks' | 'goals' | 'teams' | 'integrations' | 'storage' | 'members';
 
@@ -55,79 +63,6 @@ const limitMessages: Record<LimitType, { title: string; description: string }> =
   },
 };
 
-const plans = [
-  {
-    name: 'Free',
-    price: '$0',
-    period: 'forever',
-    features: [
-      '50 tasks per month',
-      '10 goals',
-      '3 file attachments per item',
-      '2 integrations',
-      '100 MB storage',
-      'Basic energy tracking',
-    ],
-    current: true,
-    cta: 'Current Plan',
-    gradient: 'from-gray-600 to-gray-700',
-  },
-  {
-    name: 'Pro',
-    price: '$12',
-    period: 'per month',
-    features: [
-      'Unlimited tasks',
-      'Unlimited goals',
-      '10 file attachments per item',
-      '10 integrations',
-      '10 GB storage',
-      'Advanced energy & resonance',
-      'AI-powered insights',
-      'Priority support',
-    ],
-    recommended: true,
-    cta: 'Upgrade to Pro',
-    gradient: 'from-teal-600 to-blue-600',
-    icon: Zap,
-  },
-  {
-    name: 'Team',
-    price: '$29',
-    period: 'per month',
-    features: [
-      'Everything in Pro',
-      'Up to 10 team members',
-      'Unlimited file attachments',
-      'Unlimited integrations',
-      '100 GB shared storage',
-      'Team analytics',
-      'Advanced permissions',
-      'Team resonance tuning',
-    ],
-    cta: 'Upgrade to Team',
-    gradient: 'from-purple-600 to-pink-600',
-    icon: Users,
-  },
-  {
-    name: 'Enterprise',
-    price: 'Custom',
-    period: 'contact us',
-    features: [
-      'Everything in Team',
-      'Unlimited team members',
-      'Unlimited storage',
-      'Custom integrations',
-      'SSO & advanced security',
-      'Dedicated support',
-      'SLA guarantee',
-      'Custom training',
-    ],
-    cta: 'Contact Sales',
-    gradient: 'from-orange-600 to-red-600',
-    icon: Building2,
-  },
-];
 
 export function BillingModal({ 
   open, 
@@ -172,64 +107,65 @@ export function BillingModal({
 
         {/* Plans Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-6">
-          {plans.map((plan) => {
-            const Icon = plan.icon;
+          {PLANS.map((plan) => {
+            const Icon = BILLING_ICONS[plan.id] || Zap;
+            const isFree = plan.price === 0;
             
             return (
               <div
-                key={plan.name}
+                key={plan.id}
                 className={`relative p-5 rounded-xl border ${
-                  plan.recommended
+                  plan.popular
                     ? 'border-teal-600 bg-teal-600/5'
                     : 'border-gray-700 bg-[#252830]'
                 }`}
               >
-                {plan.recommended && (
+                {plan.popular && (
                   <div className="absolute -top-3 left-1/2 -translate-x-1/2">
                     <Badge className="bg-gradient-to-r from-teal-600 to-blue-600 text-white border-0">
-                      Recommended
+                      Most Popular
                     </Badge>
                   </div>
                 )}
 
                 <div className="text-center mb-4">
-                  {Icon && (
-                    <div className={`mx-auto mb-3 w-12 h-12 bg-gradient-to-br ${plan.gradient} rounded-lg flex items-center justify-center`}>
-                      <Icon className="w-6 h-6 text-white" />
-                    </div>
-                  )}
+                  <div className={`mx-auto mb-3 w-12 h-12 bg-gradient-to-br ${plan.gradient} rounded-lg flex items-center justify-center`}>
+                    <Icon className="w-6 h-6 text-white" />
+                  </div>
                   <h3 className="text-white text-xl font-semibold mb-1">
                     {plan.name}
                   </h3>
                   <div className="flex items-baseline justify-center gap-1">
                     <span className="text-2xl font-bold text-white">
-                      {plan.price}
+                      {formatPrice(plan)}
                     </span>
-                    <span className="text-sm text-gray-400">
-                      /{plan.period}
-                    </span>
+                    {!isFree && (
+                      <span className="text-sm text-gray-400">
+                        /{plan.period}
+                      </span>
+                    )}
                   </div>
                 </div>
 
                 <ul className="space-y-2 mb-5">
-                  {plan.features.map((feature, index) => (
+                  {plan.features.filter(f => f.included).map((feature, index) => (
                     <li
                       key={index}
                       className="flex items-start gap-2 text-sm text-gray-300"
                     >
                       <Check className="w-4 h-4 text-teal-400 mt-0.5 flex-shrink-0" />
-                      <span>{feature}</span>
+                      <span>{feature.text}</span>
                     </li>
                   ))}
                 </ul>
 
                 <Button
                   className={`w-full ${
-                    plan.current
+                    isFree
                       ? 'bg-gray-600 cursor-not-allowed'
                       : `bg-gradient-to-r ${plan.gradient} hover:opacity-90`
                   }`}
-                  disabled={plan.current}
+                  disabled={isFree}
                   onClick={() => handleUpgrade(plan.name)}
                 >
                   {plan.cta}

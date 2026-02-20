@@ -5,13 +5,40 @@
  * This is a convenience hook that wraps the events context/store
  */
 
-import { useMemo, useCallback, useState } from 'react';
+import { useMemo, useCallback, useState, useEffect, useRef } from 'react';
 import { sampleCalendarEvents } from '../data/sample-calendar-events';
 import { Event } from '../utils/event-task-types';
+import { checklistTracking } from '../components/onboarding/OnboardingChecklist';
+
+const STORAGE_KEY = 'syncscript_calendar_events';
+
+function loadPersistedEvents(): Event[] {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored) {
+      return JSON.parse(stored);
+    }
+  } catch {
+    // Corrupted data — fall through to defaults
+  }
+  return sampleCalendarEvents;
+}
 
 export function useCalendarEvents() {
-  // Use state to allow updates
-  const [events, setEvents] = useState<Event[]>(sampleCalendarEvents);
+  const [events, setEvents] = useState<Event[]>(loadPersistedEvents);
+  const isInitialMount = useRef(true);
+
+  useEffect(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(events));
+    } catch {
+      // Storage full or unavailable — silent fail
+    }
+  }, [events]);
   
   /**
    * Get events for a specific date
@@ -62,6 +89,7 @@ export function useCalendarEvents() {
    */
   const addEvent = useCallback((event: Event) => {
     setEvents(prevEvents => [...prevEvents, event]);
+    try { checklistTracking.completeItem('event'); } catch {}
   }, []);
   
   /**

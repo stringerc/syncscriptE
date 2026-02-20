@@ -1,38 +1,23 @@
-import { ReactNode } from 'react';
-import { Navigate } from 'react-router';
+import { Navigate, useLocation } from 'react-router';
 import { useAuth } from '../contexts/AuthContext';
-import { Loader2 } from 'lucide-react';
 
-interface ProtectedRouteProps {
-  children: ReactNode;
-  requireOnboarding?: boolean;
-}
-
-/**
- * Protected Route Wrapper
- * Redirects to login if not authenticated
- * Optionally redirects to onboarding if not completed
- */
-export function ProtectedRoute({ children, requireOnboarding = true }: ProtectedRouteProps) {
+export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
+  const location = useLocation();
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 flex items-center justify-center">
-        <div className="text-center">
-          <Loader2 className="w-12 h-12 text-indigo-400 animate-spin mx-auto mb-4" />
-          <p className="text-slate-400">Loading...</p>
+      <div className="flex items-center justify-center min-h-screen bg-background">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+          <p className="text-sm text-muted-foreground">Loading...</p>
         </div>
       </div>
     );
   }
 
   if (!user) {
-    return <Navigate to="/login" replace />;
-  }
-
-  if (requireOnboarding && !user.onboardingCompleted) {
-    return <Navigate to="/onboarding" replace />;
+    return <Navigate to="/login" state={{ from: location.pathname }} replace />;
   }
 
   return <>{children}</>;

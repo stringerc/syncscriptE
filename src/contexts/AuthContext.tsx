@@ -1,13 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { projectId, publicAnonKey } from '../utils/supabase/info';
-import { createClient } from '@supabase/supabase-js';
+import { supabase } from '../utils/supabase/client';
 import { clearAllAppData } from '../utils/session-cleanup';
-
-// Initialize Supabase client
-const supabase = createClient(
-  `https://${projectId}.supabase.co`,
-  publicAnonKey
-);
 
 interface User {
   id: string;
@@ -121,18 +115,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const userData = await response.json();
         setUser(userData);
       } else {
-        // Create default user profile if not exists
         const defaultUser: User = {
           id: userId,
           email: '',
           name: 'User',
           onboardingCompleted: false,
-          createdAt: new Date().toISOString()
+          createdAt: new Date().toISOString(),
+          isFirstTime: true,
+          hasLoggedEnergy: false,
         };
         setUser(defaultUser);
       }
     } catch (error) {
       console.error('[Auth] Failed to fetch user profile:', error);
+      setUser({
+        id: userId,
+        email: '',
+        name: 'User',
+        onboardingCompleted: false,
+        createdAt: new Date().toISOString(),
+        isFirstTime: true,
+        hasLoggedEnergy: false,
+      });
     } finally {
       setLoading(false);
     }
@@ -316,6 +320,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       const updatedUser = await response.json();
       setUser(updatedUser);
+
+      try { const { checklistTracking } = await import('../components/onboarding/OnboardingChecklist'); checklistTracking.completeItem('profile'); } catch {}
+
       return { success: true };
     } catch (error) {
       return { success: false, error: 'Profile update failed' };

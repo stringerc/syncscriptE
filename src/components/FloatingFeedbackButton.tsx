@@ -24,9 +24,8 @@
  */
 
 import { useState, useEffect } from 'react';
-import { MessageCircle, X, HelpCircle, Zap } from 'lucide-react';
+import { MessageCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 
 interface FloatingFeedbackButtonProps {
@@ -35,7 +34,7 @@ interface FloatingFeedbackButtonProps {
 }
 
 export function FloatingFeedbackButton({ 
-  discordInviteUrl = 'https://discord.gg/YOUR_INVITE_HERE',
+  discordInviteUrl = 'https://discord.gg/2rq38UJrDJ',
   className = '' 
 }: FloatingFeedbackButtonProps) {
   // Track if user has seen the welcome modal
@@ -50,26 +49,18 @@ export function FloatingFeedbackButton({
     return parseInt(localStorage.getItem('syncscript_session_count') || '0', 10);
   });
   
-  // Show/hide welcome modal
-  const [showWelcome, setShowWelcome] = useState(false);
-  
   // Show/hide tooltip
   const [showTooltip, setShowTooltip] = useState(false);
   
   // Initialize session tracking
   useEffect(() => {
-    // Increment session count
     const newCount = sessionCount + 1;
     setSessionCount(newCount);
     localStorage.setItem('syncscript_session_count', newCount.toString());
     
-    // Show welcome modal on first visit
     if (!hasSeenWelcome) {
-      // Delay by 2 seconds to let user orient
-      const timer = setTimeout(() => {
-        setShowWelcome(true);
-      }, 2000);
-      return () => clearTimeout(timer);
+      setHasSeenWelcome(true);
+      localStorage.setItem('syncscript_feedback_welcome_seen', 'true');
     }
   }, []);
   
@@ -106,138 +97,10 @@ export function FloatingFeedbackButton({
     localStorage.setItem('syncscript_feedback_clicks', (usageCount + 1).toString());
   };
   
-  const handleDismissWelcome = (openDiscord: boolean = false) => {
-    setShowWelcome(false);
-    setHasSeenWelcome(true);
-    localStorage.setItem('syncscript_feedback_welcome_seen', 'true');
-    
-    if (openDiscord) {
-      handleOpenDiscord();
-    }
-  };
-  
-  // Show pulsing animation for first 3 sessions
   const shouldPulse = sessionCount <= 3;
   
   return (
     <>
-      {/* ═══════════════════════════════════════════════════════════════
-          WELCOME MODAL - First Visit Only
-          Research: Figma (2023) - Onboarding increases engagement by 340%
-          ═══════════════════════════════════════════════════════════════ */}
-      <AnimatePresence>
-        {showWelcome && (
-          <>
-            {/* Backdrop */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 0.6 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black backdrop-blur-sm z-[9998]"
-              onClick={() => handleDismissWelcome(false)}
-            />
-            
-            {/* Welcome Modal */}
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              transition={{ type: 'spring', damping: 20, stiffness: 300 }}
-              className="fixed bottom-24 right-6 z-[9999] max-w-sm"
-            >
-              <div className="bg-gradient-to-br from-purple-900/95 to-teal-900/95 backdrop-blur-xl border border-purple-500/30 rounded-2xl p-6 shadow-2xl shadow-purple-500/20">
-                {/* Close Button */}
-                <button
-                  onClick={() => handleDismissWelcome(false)}
-                  className="absolute top-3 right-3 text-gray-400 hover:text-white transition-colors"
-                  aria-label="Close welcome message"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-                
-                {/* Content */}
-                <div className="space-y-4">
-                  {/* Header */}
-                  <div className="flex items-center gap-2">
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-teal-500 flex items-center justify-center">
-                      <Zap className="w-5 h-5 text-white" />
-                    </div>
-                    <div>
-                      <h3 className="text-lg font-bold text-white">Welcome to SyncScript Beta! 🎉</h3>
-                      <div className="text-xs text-purple-300 font-semibold px-2 py-0.5 bg-purple-500/30 rounded-full inline-block mt-1">
-                        FREE FOREVER BETA
-                      </div>
-                    </div>
-                  </div>
-                  
-                  {/* Arrow pointing to button */}
-                  <div className="flex items-center gap-2 text-sm text-gray-300">
-                    <span className="text-2xl">↓</span>
-                    <span>See this button? Click it anytime!</span>
-                  </div>
-                  
-                  {/* Features */}
-                  <div className="space-y-2 text-sm text-gray-200">
-                    <div className="flex items-start gap-2">
-                      <span className="text-lg">🐛</span>
-                      <div>
-                        <strong className="text-white">Report bugs</strong> - Found something broken? Let us know instantly!
-                      </div>
-                    </div>
-                    <div className="flex items-start gap-2">
-                      <span className="text-lg">✨</span>
-                      <div>
-                        <strong className="text-white">Suggest features</strong> - Got ideas? We want to hear them!
-                      </div>
-                    </div>
-                    <div className="flex items-start gap-2">
-                      <span className="text-lg">❓</span>
-                      <div>
-                        <strong className="text-white">Ask questions</strong> - Confused? We're here to help!
-                      </div>
-                    </div>
-                    <div className="flex items-start gap-2">
-                      <span className="text-lg">🚀</span>
-                      <div>
-                        <strong className="text-white">Get instant support</strong> - We're in Discord 24/7!
-                      </div>
-                    </div>
-                  </div>
-                  
-                  {/* Pro Tip */}
-                  <div className="bg-teal-500/20 border border-teal-500/30 rounded-lg p-3">
-                    <div className="flex items-center gap-2 text-teal-300 text-xs font-semibold mb-1">
-                      <HelpCircle className="w-3.5 h-3.5" />
-                      PRO TIP
-                    </div>
-                    <p className="text-xs text-gray-300">
-                      Click this button anytime to open Discord!
-                    </p>
-                  </div>
-                  
-                  {/* CTAs */}
-                  <div className="flex gap-2 pt-2">
-                    <Button
-                      onClick={() => handleDismissWelcome(true)}
-                      className="flex-1 bg-gradient-to-r from-purple-600 to-teal-600 hover:from-purple-700 hover:to-teal-700 text-white font-semibold shadow-lg shadow-purple-500/30"
-                    >
-                      Open Discord Now 🎮
-                    </Button>
-                    <Button
-                      onClick={() => handleDismissWelcome(false)}
-                      variant="outline"
-                      className="border-purple-500/50 text-purple-300 hover:bg-purple-500/10"
-                    >
-                      Got it!
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
-      
       {/* ═══════════════════════════════════════════════════════════════
           FLOATING ACTION BUTTON (FAB)
           Research: Nielsen Norman (2024) - 99% discovery, 76% submission

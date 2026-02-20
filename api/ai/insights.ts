@@ -1,4 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { validateAuth } from '../lib/auth';
 
 const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
 const DEEPSEEK_URL = 'https://api.deepseek.com/v1/chat/completions';
@@ -10,6 +11,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   if (req.method === 'OPTIONS') return res.status(204).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+
+  const isAuthed = await validateAuth(req, res);
+  if (!isAuthed) return;
 
   if (!DEEPSEEK_API_KEY) {
     return res.status(500).json({ success: false, error: 'DEEPSEEK_API_KEY not configured' });

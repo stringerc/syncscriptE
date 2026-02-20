@@ -103,6 +103,9 @@ export function TasksProvider({ children }: TasksProviderProps) {
       const newTask = await taskRepository.createTask(input);
       setTasks(prev => [...prev, newTask]);
       toast.success('Task created', { description: newTask.title });
+
+      try { const { checklistTracking } = await import('../components/onboarding/OnboardingChecklist'); checklistTracking.completeItem('task'); } catch {}
+
       return newTask;
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to create task';

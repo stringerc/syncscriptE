@@ -217,6 +217,9 @@ export function EnergyProvider({ children }: { children: React.ReactNode }) {
     toast.success('Health action logged!', {
       description: `+${energyGained} energy from ${actionTitles[action]}`,
     });
+
+    import('../components/onboarding/OnboardingChecklist').then(m => m.checklistTracking.completeItem('energy')).catch(() => {});
+    localStorage.setItem('syncscript_has_logged_energy', 'true');
   }, []);
 
   const toggleMode = useCallback(() => {

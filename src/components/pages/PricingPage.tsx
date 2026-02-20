@@ -156,7 +156,7 @@ export function PricingPage({ userId, userEmail }: PricingPageProps) {
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#0a0a1a] via-[#1a1a2e] to-[#0a0a1a]">
       {/* Header */}
-      <div className="container mx-auto px-4 py-16 text-center">
+      <div className="container mx-auto px-4 sm:px-6 py-10 sm:py-12 lg:py-16 text-center">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -167,11 +167,11 @@ export function PricingPage({ userId, userEmail }: PricingPageProps) {
             14-Day Free Trial
           </Badge>
           
-          <h1 className="mb-4 text-5xl font-bold text-white">
+          <h1 className="mb-4 text-3xl sm:text-4xl lg:text-5xl font-bold text-white">
             Choose Your Plan
           </h1>
           
-          <p className="mx-auto max-w-2xl text-lg text-gray-400">
+          <p className="mx-auto max-w-2xl text-base sm:text-lg text-gray-400">
             Start with a 14-day free trial. No credit card required during trial. Cancel anytime.
           </p>
         </motion.div>
@@ -181,7 +181,7 @@ export function PricingPage({ userId, userEmail }: PricingPageProps) {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="mb-12 flex items-center justify-center gap-4"
+          className="mb-8 lg:mb-12 flex flex-wrap items-center justify-center gap-3 sm:gap-4"
         >
           <span className={`text-sm ${billingInterval === 'month' ? 'text-white font-semibold' : 'text-gray-400'}`}>
             Monthly
@@ -208,8 +208,8 @@ export function PricingPage({ userId, userEmail }: PricingPageProps) {
       </div>
 
       {/* Pricing Cards */}
-      <div className="container mx-auto px-4 pb-16">
-        <div className="grid gap-8 lg:grid-cols-3">
+      <div className="container mx-auto px-4 sm:px-6 pb-10 lg:pb-16">
+        <div className="grid gap-6 sm:gap-8 md:grid-cols-2 lg:grid-cols-3">
           {plans.map((plan, index) => {
             const Icon = plan.icon;
             const price = plan.price[billingInterval];
@@ -334,9 +334,9 @@ export function PricingPage({ userId, userEmail }: PricingPageProps) {
       </div>
 
       {/* FAQ Section */}
-      <div className="container mx-auto px-4 pb-16">
+      <div className="container mx-auto px-4 sm:px-6 pb-10 lg:pb-16">
         <div className="mx-auto max-w-3xl">
-          <h2 className="mb-8 text-center text-3xl font-bold text-white">
+          <h2 className="mb-6 sm:mb-8 text-center text-2xl sm:text-3xl font-bold text-white">
             Frequently Asked Questions
           </h2>
           
@@ -366,16 +366,16 @@ export function PricingPage({ userId, userEmail }: PricingPageProps) {
       </div>
 
       {/* Final CTA */}
-      <div className="container mx-auto px-4 pb-24">
+      <div className="container mx-auto px-4 sm:px-6 pb-12 sm:pb-16 lg:pb-24">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="mx-auto max-w-3xl text-center rounded-2xl border border-purple-500/20 bg-gradient-to-br from-purple-500/10 to-pink-500/10 p-12 backdrop-blur-xl"
+          className="mx-auto max-w-3xl text-center rounded-2xl border border-purple-500/20 bg-gradient-to-br from-purple-500/10 to-pink-500/10 p-6 sm:p-8 lg:p-12 backdrop-blur-xl"
         >
-          <h2 className="mb-4 text-3xl font-bold text-white">
+          <h2 className="mb-4 text-2xl sm:text-3xl font-bold text-white">
             Ready to Transform Your Productivity?
           </h2>
-          <p className="mb-8 text-lg text-gray-300">
+          <p className="mb-6 sm:mb-8 text-base sm:text-lg text-gray-300">
             Start your 14-day free trial today. No credit card required.
           </p>
           <Button

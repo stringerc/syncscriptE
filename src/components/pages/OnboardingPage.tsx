@@ -426,20 +426,14 @@ export function OnboardingPage() {
                     <Calendar className="w-8 h-8 text-indigo-400" />
                   </div>
                   <h2 className="text-2xl font-bold text-white mb-2">Connect your tools</h2>
-                  <p className="text-slate-400">Sync your calendar and communication apps</p>
+                  <p className="text-slate-400">Supercharge SyncScript by linking your calendar</p>
                 </div>
 
                 <div className="space-y-3">
-                  {/* Google Calendar */}
+                  {/* Google Calendar — real OAuth */}
                   <button
-                    onClick={() => toggleIntegration('google')}
-                    className={`
-                      w-full p-4 rounded-lg border-2 transition-all text-left
-                      ${selectedIntegrations.includes('google')
-                        ? 'border-indigo-600 bg-indigo-500/10'
-                        : 'border-slate-700 bg-slate-800/30 hover:border-slate-600'
-                      }
-                    `}
+                    onClick={() => navigate('/integrations')}
+                    className="w-full p-4 rounded-lg border-2 border-slate-700 bg-slate-800/30 hover:border-indigo-500/50 hover:bg-indigo-500/5 transition-all text-left"
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
@@ -456,22 +450,14 @@ export function OnboardingPage() {
                           <div className="text-sm text-slate-400">Sync your events and meetings</div>
                         </div>
                       </div>
-                      {selectedIntegrations.includes('google') && (
-                        <Check className="w-5 h-5 text-indigo-400" />
-                      )}
+                      <ArrowRight className="w-4 h-4 text-slate-500" />
                     </div>
                   </button>
 
                   {/* Microsoft Outlook */}
                   <button
-                    onClick={() => toggleIntegration('outlook')}
-                    className={`
-                      w-full p-4 rounded-lg border-2 transition-all text-left
-                      ${selectedIntegrations.includes('outlook')
-                        ? 'border-indigo-600 bg-indigo-500/10'
-                        : 'border-slate-700 bg-slate-800/30 hover:border-slate-600'
-                      }
-                    `}
+                    onClick={() => navigate('/integrations')}
+                    className="w-full p-4 rounded-lg border-2 border-slate-700 bg-slate-800/30 hover:border-blue-500/50 hover:bg-blue-500/5 transition-all text-left"
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
@@ -485,45 +471,19 @@ export function OnboardingPage() {
                           <div className="text-sm text-slate-400">Connect your work calendar</div>
                         </div>
                       </div>
-                      {selectedIntegrations.includes('outlook') && (
-                        <Check className="w-5 h-5 text-indigo-400" />
-                      )}
-                    </div>
-                  </button>
-
-                  {/* Slack */}
-                  <button
-                    onClick={() => toggleIntegration('slack')}
-                    className={`
-                      w-full p-4 rounded-lg border-2 transition-all text-left
-                      ${selectedIntegrations.includes('slack')
-                        ? 'border-indigo-600 bg-indigo-500/10'
-                        : 'border-slate-700 bg-slate-800/30 hover:border-slate-600'
-                      }
-                    `}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-purple-600 rounded-lg flex items-center justify-center">
-                          <svg className="w-6 h-6" viewBox="0 0 24 24" fill="white">
-                            <path d="M6 15a2 2 0 0 1-2 2a2 2 0 0 1-2-2a2 2 0 0 1 2-2h2v2m1 0a2 2 0 0 1 2-2a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2a2 2 0 0 1-2-2v-5m2-8a2 2 0 0 1-2-2a2 2 0 0 1 2-2a2 2 0 0 1 2 2v2H9m0 1a2 2 0 0 1 2 2a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2a2 2 0 0 1 2-2h5m8 2a2 2 0 0 1 2-2a2 2 0 0 1 2 2a2 2 0 0 1-2 2h-2v-2m-1 0a2 2 0 0 1-2 2a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2a2 2 0 0 1 2 2v5m-2 8a2 2 0 0 1 2 2a2 2 0 0 1-2 2a2 2 0 0 1-2-2v-2h2m0-1a2 2 0 0 1-2-2a2 2 0 0 1 2-2h5a2 2 0 0 1 2 2a2 2 0 0 1-2 2h-5z"/>
-                          </svg>
-                        </div>
-                        <div>
-                          <div className="font-medium text-white">Slack</div>
-                          <div className="text-sm text-slate-400">Get smart notifications</div>
-                        </div>
-                      </div>
-                      {selectedIntegrations.includes('slack') && (
-                        <Check className="w-5 h-5 text-indigo-400" />
-                      )}
+                      <ArrowRight className="w-4 h-4 text-slate-500" />
                     </div>
                   </button>
                 </div>
 
-                <p className="text-sm text-slate-500 text-center">
-                  You can always connect more integrations later in Settings
-                </p>
+                <div className="bg-slate-800/40 rounded-lg p-4 text-center border border-slate-700/50">
+                  <p className="text-sm text-slate-400">
+                    You can connect calendars and other integrations anytime from{' '}
+                    <button onClick={() => navigate('/integrations')} className="text-indigo-400 hover:text-indigo-300 underline">
+                      Settings &rarr; Integrations
+                    </button>
+                  </p>
+                </div>
               </motion.div>
             )}
           </AnimatePresence>

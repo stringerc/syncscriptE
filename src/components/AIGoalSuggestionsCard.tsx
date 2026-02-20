@@ -166,7 +166,7 @@ export function AIGoalSuggestionsCard({ onGoalCreated, className = '' }: AIGoalS
   const [isLoading, setIsLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const { generateGoalSuggestions } = useOpenClaw();
-  const { goals, addGoal } = useGoals();
+  const { goals, createGoal } = useGoals();
   const { getCurrentReadiness } = useEnergy();
 
   /**
@@ -213,7 +213,7 @@ export function AIGoalSuggestionsCard({ onGoalCreated, className = '' }: AIGoalS
 
   const handleCreateGoal = async (suggestion: GoalSuggestion) => {
     try {
-      const newGoal = await addGoal({
+      const newGoal = await createGoal({
         title: suggestion.title,
         description: suggestion.description,
         category: suggestion.category,

@@ -28,8 +28,8 @@ export function DashboardPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
   
-  // First-time user detection
-  const isFirstTime = user?.isFirstTime && !user?.hasLoggedEnergy;
+  const hasLoggedEnergyLocal = localStorage.getItem('syncscript_has_logged_energy') === 'true';
+  const isFirstTime = user?.isFirstTime && !user?.hasLoggedEnergy && !hasLoggedEnergyLocal;
   
   // Sample data state (for first-time users)
   const [sampleData, setSampleData] = useState<any>(null);

@@ -139,11 +139,9 @@ export function useGoals(): UseGoalsReturn {
         ...goalData,
       };
 
-      // Optimistic update
       setGoals(prev => [newGoal, ...prev]);
       
-      // In production, this would call API
-      // await api.createGoal(newGoal);
+      try { const { checklistTracking } = await import('../components/onboarding/OnboardingChecklist'); checklistTracking.completeItem('goal'); } catch {}
       
       toast.success('Goal created successfully! 🎯');
       return newGoal;

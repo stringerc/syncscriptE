@@ -8,128 +8,28 @@ import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { useUserProfile } from '../utils/user-profile';
 import { toast } from 'sonner@2.0.3';
+import { PLANS, formatPrice } from '../config/pricing';
 
 interface BillingPlansModalProps {
   open: boolean;
   onClose: () => void;
 }
 
-interface PlanFeature {
-  text: string;
-  included: boolean;
-}
-
-interface Plan {
-  id: 'free' | 'pro' | 'team' | 'enterprise';
-  name: string;
-  subtitle: string;
-  price: string;
-  period: string;
-  icon: typeof Zap;
-  color: string;
-  popular?: boolean;
-  comingSoon?: boolean;
-  features: PlanFeature[];
-  cta: string;
-}
-
-const PLANS: Plan[] = [
-  {
-    id: 'free',
-    name: 'Personal',
-    subtitle: 'For individuals getting started',
-    price: 'Free',
-    period: 'Forever',
-    icon: Zap,
-    color: 'from-gray-600 to-gray-700',
-    cta: 'Current Plan',
-    features: [
-      { text: 'Up to 50 tasks', included: true },
-      { text: 'Basic calendar integration', included: true },
-      { text: 'Energy & focus tracking', included: true },
-      { text: 'Daily resonance insights', included: true },
-      { text: 'Mobile app access', included: true },
-      { text: 'AI assistant (limited)', included: true },
-      { text: 'Advanced analytics', included: false },
-      { text: 'Team collaboration', included: false },
-      { text: 'Custom integrations', included: false },
-    ],
-  },
-  {
-    id: 'pro',
-    name: 'Pro',
-    subtitle: 'For power users and professionals',
-    price: '$12',
-    period: 'per month',
-    icon: Crown,
-    color: 'from-purple-600 to-pink-600',
-    popular: true,
-    cta: 'Upgrade to Pro',
-    features: [
-      { text: 'Unlimited tasks & goals', included: true },
-      { text: 'Advanced calendar features', included: true },
-      { text: 'Full AI assistant access', included: true },
-      { text: 'Advanced analytics & insights', included: true },
-      { text: 'Custom resonance tuning', included: true },
-      { text: 'Priority support', included: true },
-      { text: 'Scripts & templates marketplace', included: true },
-      { text: 'Export & backup data', included: true },
-      { text: 'Team features (up to 5)', included: true },
-    ],
-  },
-  {
-    id: 'team',
-    name: 'Team',
-    subtitle: 'For small teams and growing businesses',
-    price: '$29',
-    period: 'per user/month',
-    icon: Users,
-    color: 'from-teal-600 to-cyan-600',
-    cta: 'Upgrade to Team',
-    features: [
-      { text: 'Everything in Pro', included: true },
-      { text: 'Unlimited team members', included: true },
-      { text: 'Team analytics dashboard', included: true },
-      { text: 'Shared workspaces', included: true },
-      { text: 'Team chat & collaboration', included: true },
-      { text: 'Admin controls & permissions', included: true },
-      { text: 'Advanced integrations', included: true },
-      { text: 'Custom branding', included: true },
-      { text: '24/7 priority support', included: true },
-    ],
-  },
-  {
-    id: 'enterprise',
-    name: 'Enterprise',
-    subtitle: 'For large organizations',
-    price: 'Custom',
-    period: 'Contact sales',
-    icon: Building2,
-    color: 'from-amber-600 to-orange-600',
-    comingSoon: true,
-    cta: 'Contact Sales',
-    features: [
-      { text: 'Everything in Team', included: true },
-      { text: 'Dedicated account manager', included: true },
-      { text: 'Custom integrations & API', included: true },
-      { text: 'SSO & advanced security', included: true },
-      { text: 'On-premise deployment option', included: true },
-      { text: 'SLA guarantees', included: true },
-      { text: 'Custom training & onboarding', included: true },
-      { text: 'Advanced compliance (SOC 2, HIPAA)', included: true },
-      { text: 'Unlimited everything', included: true },
-    ],
-  },
-];
+const PLAN_ICONS: Record<string, typeof Zap> = {
+  free: Zap,
+  starter: Crown,
+  professional: Crown,
+  enterprise: Building2,
+};
 
 export function BillingPlansModal({ open, onClose }: BillingPlansModalProps) {
   const { profile, updateProfile } = useUserProfile();
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('monthly');
 
-  const handleSelectPlan = (planId: typeof profile.plan) => {
+  const handleSelectPlan = (planId: string) => {
     if (planId === 'enterprise') {
       toast.info('Enterprise Plan', { 
-        description: 'Coming Soon! Contact our sales team for early access.' 
+        description: 'Contact our sales team for enterprise pricing.' 
       });
       return;
     }
@@ -139,7 +39,7 @@ export function BillingPlansModal({ open, onClose }: BillingPlansModalProps) {
       return;
     }
 
-    updateProfile({ plan: planId });
+    updateProfile({ plan: planId as typeof profile.plan });
     toast.success('Plan updated', { 
       description: `Successfully upgraded to ${planId} plan` 
     });
@@ -211,8 +111,9 @@ export function BillingPlansModal({ open, onClose }: BillingPlansModalProps) {
           {/* Plans Grid */}
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 p-6">
             {PLANS.map((plan, index) => {
-              const Icon = plan.icon;
+              const Icon = PLAN_ICONS[plan.id] || Zap;
               const isCurrentPlan = plan.id === profile.plan;
+              const displayPrice = formatPrice(plan, billingCycle === 'yearly');
               
               return (
                 <motion.div
@@ -233,32 +134,25 @@ export function BillingPlansModal({ open, onClose }: BillingPlansModalProps) {
                       </Badge>
                     </div>
                   )}
-                  
-                  {plan.comingSoon && (
-                    <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                      <Badge variant="outline" className="border-amber-500/50 text-amber-400">
-                        Coming Soon
-                      </Badge>
-                    </div>
-                  )}
 
-                  {/* Plan Header */}
                   <div className="mb-4">
-                    <div className={`w-12 h-12 rounded-lg bg-gradient-to-br ${plan.color} flex items-center justify-center mb-3`}>
+                    <div className={`w-12 h-12 rounded-lg bg-gradient-to-br ${plan.gradient} flex items-center justify-center mb-3`}>
                       <Icon className="w-6 h-6 text-white" />
                     </div>
                     <h3 className="text-xl text-white mb-1">{plan.name}</h3>
                     <p className="text-xs text-gray-400 mb-4">{plan.subtitle}</p>
                     <div className="mb-2">
-                      <span className="text-3xl font-bold text-white">{plan.price}</span>
-                      {plan.period !== 'Forever' && plan.period !== 'Contact sales' && (
+                      <span className="text-3xl font-bold text-white">{displayPrice}</span>
+                      {plan.price !== 0 && (
                         <span className="text-gray-400 text-sm ml-1">/{plan.period}</span>
                       )}
                     </div>
-                    <p className="text-xs text-gray-500">{plan.period}</p>
+                    {plan.price === 0 && <p className="text-xs text-gray-500">Free forever</p>}
+                    {billingCycle === 'yearly' && plan.priceAnnual && (
+                      <p className="text-xs text-green-400">Save ~20% with annual billing</p>
+                    )}
                   </div>
 
-                  {/* Features */}
                   <div className="flex-1 space-y-3 mb-6">
                     {plan.features.map((feature, i) => (
                       <div key={i} className="flex items-start gap-2">
@@ -274,7 +168,6 @@ export function BillingPlansModal({ open, onClose }: BillingPlansModalProps) {
                     ))}
                   </div>
 
-                  {/* CTA Button */}
                   <Button
                     onClick={() => handleSelectPlan(plan.id)}
                     disabled={isCurrentPlan}

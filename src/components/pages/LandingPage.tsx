@@ -1,16 +1,20 @@
 import { useNavigate } from 'react-router';
 import { Check, X, ChevronDown, Shield, Zap, MessageCircle, Play, ArrowRight, Clock, Lock, Headphones, TrendingUp, Users, Target, Calendar, Bot, Sparkles } from 'lucide-react';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { motion, useInView, useScroll, useTransform, AnimatePresence } from 'motion/react';
+
+const HeroScene = lazy(() => import('../landing/HeroScene').then(m => ({ default: m.HeroScene })));
 import { AnimatedSection, StaggerContainer, StaggerItem, CountUp } from '../AnimatedSection';
 import { MagneticButton } from '../MagneticButton';
 import { BentoGrid } from '../BentoGrid';
 import { InteractiveDemo } from '../InteractiveDemo';
 import { InteractiveComparison } from '../InteractiveComparison';
 import { BetaSignupModal } from '../BetaSignupModal';
+import { useParticleTransition } from '../ParticleTransition';
 import { AdminLoginModal } from '../admin/AdminLoginModal';
 import { AdminEmailDashboard } from '../admin/AdminEmailDashboardV2';
 import { getBetaCount } from '../../utils/betaApi';
+import { PLANS as PRICING_PLANS } from '../../config/pricing';
 import imgDashboardPreview from "figma:asset/10a3b698cc11b04c569092c39ce52acabd7f851f.png";
 import imgImageSyncScript from "figma:asset/32f9c29c68f7ed10b9efd8ff6ac4135b7a2a4290.png";
 import imgImageSyncScriptLogo from "figma:asset/914d5787f554946c037cbfbb2cf65fcc0de06278.png";
@@ -30,10 +34,12 @@ import imgCircuitBrain from "figma:asset/9f574c53e1c264d4351db616e8a79c11f6fef15
  */
 export function LandingPage() {
   const navigate = useNavigate();
+  const { navigateWithParticles } = useParticleTransition();
   const [email, setEmail] = useState('');
   const [expandedFaq, setExpandedFaq] = useState<number | null>(null);
   const [showFloatingCTA, setShowFloatingCTA] = useState(false);
   const [showDemoModal, setShowDemoModal] = useState(false);
+  const [demoStep, setDemoStep] = useState(0);
   const [activeHotspot, setActiveHotspot] = useState<number | null>(null);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [showBetaModal, setShowBetaModal] = useState(false);
@@ -112,9 +118,9 @@ export function LandingPage() {
   const statsRef = useRef<HTMLDivElement>(null);
   const pricingRef = useRef<HTMLDivElement>(null);
   
-  const heroInView = useInView(heroRef, { once: false, amount: 0.3 });
-  const statsInView = useInView(statsRef, { once: true, amount: 0.3 });
-  const pricingInView = useInView(pricingRef, { once: true, amount: 0.3 });
+  const heroInView = useInView(heroRef, { once: false, amount: 0.2 });
+  const statsInView = useInView(statsRef, { once: true, margin: '-60px' });
+  const pricingInView = useInView(pricingRef, { once: true, margin: '-60px' });
   
   // Scroll to section helper
   const scrollToSection = (sectionId: string) => {
@@ -174,7 +180,7 @@ export function LandingPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#0a0e1a] via-[#0f1420] to-[#0a0e1a] text-white overflow-x-hidden">
+    <div className="min-h-screen bg-gradient-to-b from-[#0a0e1a] via-[#0f1420] to-[#0a0e1a] text-white overflow-x-hidden" style={{ fontFamily: "'Space Grotesk', system-ui, sans-serif" }}>
       {/* Beta Testing Banner */}
       <div className="bg-gradient-to-r from-indigo-600 via-purple-600 to-violet-600 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3">
@@ -236,25 +242,19 @@ export function LandingPage() {
             {/* Desktop Navigation Links */}
             <div className="hidden lg:flex items-center gap-8">
               <button 
-                onClick={() => scrollToSection('features')}
+                onClick={() => navigateWithParticles('/features')}
                 className="text-white/80 hover:text-white transition-colors"
               >
                 Features
               </button>
               <button 
-                onClick={() => scrollToSection('pricing')}
+                onClick={() => navigateWithParticles('/pricing')}
                 className="text-white/80 hover:text-white transition-colors"
               >
                 Pricing
               </button>
               <button 
-                onClick={() => scrollToSection('customers')}
-                className="text-white/80 hover:text-white transition-colors"
-              >
-                Customers
-              </button>
-              <button 
-                onClick={() => scrollToSection('faq')}
+                onClick={() => navigateWithParticles('/faq')}
                 className="text-white/80 hover:text-white transition-colors"
               >
                 FAQ
@@ -308,7 +308,7 @@ export function LandingPage() {
                 <div className="py-4 space-y-2 border-t border-white/10 mt-4">
                   <button 
                     onClick={() => {
-                      scrollToSection('features');
+                      navigateWithParticles('/features');
                       setShowMobileMenu(false);
                     }}
                     className="block w-full text-left text-white/80 hover:text-white hover:bg-white/5 transition-all py-3 px-4 rounded-lg"
@@ -317,7 +317,7 @@ export function LandingPage() {
                   </button>
                   <button 
                     onClick={() => {
-                      scrollToSection('pricing');
+                      navigateWithParticles('/pricing');
                       setShowMobileMenu(false);
                     }}
                     className="block w-full text-left text-white/80 hover:text-white hover:bg-white/5 transition-all py-3 px-4 rounded-lg"
@@ -326,16 +326,7 @@ export function LandingPage() {
                   </button>
                   <button 
                     onClick={() => {
-                      scrollToSection('customers');
-                      setShowMobileMenu(false);
-                    }}
-                    className="block w-full text-left text-white/80 hover:text-white hover:bg-white/5 transition-all py-3 px-4 rounded-lg"
-                  >
-                    Customers
-                  </button>
-                  <button 
-                    onClick={() => {
-                      scrollToSection('faq');
+                      navigateWithParticles('/faq');
                       setShowMobileMenu(false);
                     }}
                     className="block w-full text-left text-white/80 hover:text-white hover:bg-white/5 transition-all py-3 px-4 rounded-lg"
@@ -367,8 +358,8 @@ export function LandingPage() {
             exit={{ y: 100, opacity: 0 }}
             className="fixed bottom-0 left-0 right-0 z-50 bg-gradient-to-r from-cyan-600 to-teal-600 shadow-2xl border-t border-cyan-400/30"
           >
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between gap-4">
-              <p className="text-white font-medium text-sm sm:text-base">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between gap-3 sm:gap-4">
+              <p className="text-white font-medium text-xs sm:text-sm md:text-base truncate">
                 Ready to 3x your productivity?
               </p>
               <MagneticButton
@@ -424,6 +415,13 @@ export function LandingPage() {
           />
         </div>
 
+        {/* 3D Particle Orb */}
+        <Suspense fallback={null}>
+          <div className="absolute inset-0 z-[1] pointer-events-none overflow-hidden">
+            <HeroScene />
+          </div>
+        </Suspense>
+
         <div className="relative z-10">
           <div className="text-center max-w-5xl mx-auto mb-12 sm:mb-16">
             {/* Trust Badge Above Headline */}
@@ -439,10 +437,10 @@ export function LandingPage() {
 
             {/* Hero Headline - Benefit-Focused */}
             <motion.h1 
-              className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold leading-tight mb-4 sm:mb-6 tracking-tight px-4"
-              initial={{ opacity: 0, y: 20 }}
+              className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-semibold leading-[1.08] mb-4 sm:mb-6 tracking-[-0.02em] px-4"
+              initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, delay: 0.2 }}
+              transition={{ duration: 1, delay: 0.2, ease: [0.25, 0.1, 0.25, 1] }}
             >
               Stop Fighting Your Energy.
               <br />
@@ -466,43 +464,45 @@ export function LandingPage() {
 
             {/* Subheadline - Outcome Focused */}
             <motion.p 
-              className="text-lg sm:text-xl md:text-2xl text-white/80 leading-relaxed mb-8 sm:mb-10 max-w-3xl mx-auto px-4"
+              className="text-lg sm:text-xl md:text-2xl text-white/70 leading-relaxed mb-8 sm:mb-10 max-w-3xl mx-auto px-4 font-light tracking-wide"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, delay: 0.4 }}
+              transition={{ duration: 0.9, delay: 0.45, ease: [0.25, 0.1, 0.25, 1] }}
             >
               Finish <span className="text-cyan-400 font-semibold">40% more tasks</span> by matching work to your natural rhythms. Not your willpower.
             </motion.p>
 
             {/* Dual CTA Buttons */}
             <motion.div 
-              className="flex flex-col sm:flex-row gap-4 justify-center items-center px-4"
+              className="flex flex-col items-center gap-4 px-4"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, delay: 0.6 }}
+              transition={{ duration: 0.9, delay: 0.65, ease: [0.25, 0.1, 0.25, 1] }}
             >
-              <MagneticButton
-                onClick={() => setShowBetaModal(true)}
-                className="group bg-gradient-to-r from-indigo-600 via-purple-600 to-violet-600 hover:from-indigo-500 hover:via-purple-500 hover:to-violet-500 text-white px-8 sm:px-10 py-3 sm:py-4 rounded-lg font-medium transition-all shadow-2xl shadow-indigo-500/30 inline-flex items-center justify-center gap-3 w-full sm:w-auto text-base sm:text-lg"
-                strength={0.4}
-              >
-                <Sparkles className="w-5 h-5" />
-                Join Beta Testing - FREE
-                <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-              </MagneticButton>
-              
-              <MagneticButton
-                onClick={() => setShowDemoModal(true)}
-                className="group border-2 border-white/30 hover:border-cyan-400 bg-white/5 hover:bg-white/10 backdrop-blur-sm text-white px-8 sm:px-10 py-3 sm:py-4 rounded-lg font-medium transition-all inline-flex items-center justify-center gap-3 w-full sm:w-auto text-base sm:text-lg"
-                strength={0.4}
-              >
-                <Play className="w-5 h-5" />
-                Watch 2-Min Demo
-              </MagneticButton>
+              <div className="flex flex-col sm:flex-row gap-4 justify-center items-center w-full">
+                <MagneticButton
+                  onClick={() => setShowBetaModal(true)}
+                  className="group bg-gradient-to-r from-indigo-600 via-purple-600 to-violet-600 hover:from-indigo-500 hover:via-purple-500 hover:to-violet-500 text-white px-8 sm:px-10 py-3 sm:py-4 rounded-lg font-medium transition-all shadow-2xl shadow-indigo-500/30 inline-flex items-center justify-center gap-3 w-full sm:w-auto text-base sm:text-lg"
+                  strength={0.4}
+                >
+                  <Sparkles className="w-5 h-5" />
+                  Join Beta Testing - FREE
+                  <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                </MagneticButton>
+                
+                <MagneticButton
+                  onClick={() => setShowDemoModal(true)}
+                  className="group border-2 border-white/30 hover:border-cyan-400 bg-white/5 hover:bg-white/10 backdrop-blur-sm text-white px-8 sm:px-10 py-3 sm:py-4 rounded-lg font-medium transition-all inline-flex items-center justify-center gap-3 w-full sm:w-auto text-base sm:text-lg"
+                  strength={0.4}
+                >
+                  <Play className="w-5 h-5" />
+                  Watch 2-Min Demo
+                </MagneticButton>
+              </div>
               
               <button
                 onClick={() => navigate('/login?guest=true')}
-                className="text-white/60 hover:text-white transition-colors text-sm sm:text-base font-medium group inline-flex items-center gap-2"
+                className="text-white/60 hover:text-white transition-colors text-sm sm:text-base font-medium group inline-flex items-center gap-2 mt-1"
               >
                 or Try as Guest
                 <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
@@ -651,7 +651,7 @@ export function LandingPage() {
                   transition={{ duration: 0.6 }}
                   className="text-center"
                 >
-                  <div className="text-4xl sm:text-5xl font-bold bg-gradient-to-r from-cyan-400 to-teal-400 bg-clip-text text-transparent mb-2">
+                  <div className="text-3xl sm:text-4xl md:text-5xl font-bold bg-gradient-to-r from-cyan-400 to-teal-400 bg-clip-text text-transparent mb-2">
                     {statsInView && <CountUp end={10547} duration={2} />}+
                   </div>
                   <p className="text-sm sm:text-base text-white/60">Active Users</p>
@@ -665,7 +665,7 @@ export function LandingPage() {
                   transition={{ duration: 0.6, delay: 0.1 }}
                   className="text-center"
                 >
-                  <div className="text-4xl sm:text-5xl font-bold bg-gradient-to-r from-emerald-400 to-teal-400 bg-clip-text text-transparent mb-2">
+                  <div className="text-3xl sm:text-4xl md:text-5xl font-bold bg-gradient-to-r from-emerald-400 to-teal-400 bg-clip-text text-transparent mb-2">
                     {statsInView && <CountUp end={98.4} decimals={1} duration={2} />}%
                   </div>
                   <p className="text-sm sm:text-base text-white/60">Uptime (2024)</p>
@@ -679,7 +679,7 @@ export function LandingPage() {
                   transition={{ duration: 0.6, delay: 0.2 }}
                   className="text-center"
                 >
-                  <div className="text-4xl sm:text-5xl font-bold bg-gradient-to-r from-orange-400 to-pink-400 bg-clip-text text-transparent mb-2">
+                  <div className="text-3xl sm:text-4xl md:text-5xl font-bold bg-gradient-to-r from-orange-400 to-pink-400 bg-clip-text text-transparent mb-2">
                     &lt;{statsInView && <CountUp end={2} duration={2} />}h
                   </div>
                   <p className="text-sm sm:text-base text-white/60">Support Response</p>
@@ -693,7 +693,7 @@ export function LandingPage() {
                   transition={{ duration: 0.6, delay: 0.3 }}
                   className="text-center"
                 >
-                  <div className="text-4xl sm:text-5xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent mb-2">
+                  <div className="text-3xl sm:text-4xl md:text-5xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent mb-2">
                     {statsInView && <CountUp end={40} duration={2} />}%
                   </div>
                   <p className="text-sm sm:text-base text-white/60">More Tasks Done</p>
@@ -709,8 +709,8 @@ export function LandingPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <AnimatedSection>
             <div className="text-center mb-12 sm:mb-16">
-              <h2 className="text-4xl sm:text-5xl font-bold mb-4">The Problem with "Productivity"</h2>
-              <p className="text-lg sm:text-xl text-white/70 max-w-3xl mx-auto">
+              <h2 className="text-4xl sm:text-5xl font-semibold mb-4 tracking-[-0.02em]">The Problem with "Productivity"</h2>
+              <p className="text-lg sm:text-xl text-white/60 max-w-3xl mx-auto font-light">
                 Generic to-do apps ignore your biology. SyncScript works with it.
               </p>
             </div>
@@ -818,8 +818,8 @@ export function LandingPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <AnimatedSection>
             <div className="text-center mb-12 sm:mb-16">
-              <h2 className="text-4xl sm:text-5xl font-bold mb-4">Loved by Productive Humans</h2>
-              <p className="text-lg sm:text-xl text-white/70">See what happens when you stop fighting your energy</p>
+              <h2 className="text-4xl sm:text-5xl font-semibold mb-4 tracking-[-0.02em]">Loved by Productive Humans</h2>
+              <p className="text-lg sm:text-xl text-white/60 font-light">See what happens when you stop fighting your energy</p>
             </div>
 
             <div className="grid md:grid-cols-3 gap-6 sm:gap-8">
@@ -919,142 +919,64 @@ export function LandingPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <AnimatedSection>
             <div className="text-center mb-12 sm:mb-16">
-              <h2 className="text-4xl sm:text-5xl font-bold mb-4">Simple, Transparent Pricing</h2>
-              <p className="text-lg sm:text-xl text-white/70">Start free. Upgrade when you're ready. Cancel anytime.</p>
+              <h2 className="text-4xl sm:text-5xl font-semibold mb-4 tracking-[-0.02em]">Simple, Transparent Pricing</h2>
+              <p className="text-lg sm:text-xl text-white/60 font-light">Start free. Upgrade when you're ready. Cancel anytime.</p>
             </div>
 
             {/* Pricing Cards */}
-            <div className="grid md:grid-cols-3 gap-6 sm:gap-8 mb-12 sm:mb-16">
-              {/* Free Plan */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={pricingInView ? { opacity: 1, y: 0 } : {}}
-                transition={{ duration: 0.6 }}
-                className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6 sm:p-8"
-              >
-                <h3 className="text-2xl font-bold mb-2">Free</h3>
-                <div className="text-4xl font-bold mb-6">
-                  $0<span className="text-lg text-white/50 font-normal">/month</span>
-                </div>
-                <ul className="space-y-3 mb-8 text-sm sm:text-base">
-                  <li className="flex items-start gap-2">
-                    <Check className="w-5 h-5 text-cyan-400 mt-0.5 shrink-0" />
-                    <span>Up to 10 tasks per day</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <Check className="w-5 h-5 text-cyan-400 mt-0.5 shrink-0" />
-                    <span>Basic energy tracking</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <Check className="w-5 h-5 text-cyan-400 mt-0.5 shrink-0" />
-                    <span>1 calendar integration</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <Check className="w-5 h-5 text-cyan-400 mt-0.5 shrink-0" />
-                    <span>Mobile app access</span>
-                  </li>
-                </ul>
-                <button
-                  onClick={() => navigate('/signup')}
-                  className="w-full bg-white/10 hover:bg-white/20 border border-white/20 text-white px-6 py-3 rounded-lg font-medium transition-all"
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-12 sm:mb-16">
+              {PRICING_PLANS.map((plan, i) => (
+                <motion.div
+                  key={plan.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={pricingInView ? { opacity: 1, y: 0 } : {}}
+                  transition={{ duration: 0.6, delay: i * 0.1 }}
+                  className={`backdrop-blur-sm rounded-2xl p-5 sm:p-7 relative ${
+                    plan.popular
+                      ? 'bg-gradient-to-br from-cyan-900/30 to-teal-900/30 border-2 border-cyan-500 transform md:scale-105 shadow-2xl shadow-cyan-500/20'
+                      : 'bg-white/5 border border-white/10'
+                  }`}
                 >
-                  Start Free
-                </button>
-              </motion.div>
+                  {plan.popular && (
+                    <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 bg-gradient-to-r from-cyan-500 to-teal-500 text-white text-xs font-bold px-4 py-1 rounded-full whitespace-nowrap">
+                      MOST POPULAR
+                    </div>
+                  )}
+                  <h3 className="text-xl font-bold mb-2">{plan.name}</h3>
+                  <div className="text-3xl sm:text-4xl font-bold mb-1">
+                    {plan.price === 0 ? '$0' : `$${plan.price}`}
+                    <span className="text-base sm:text-lg text-white/50 font-normal">/{plan.price === 0 ? 'forever' : 'mo'}</span>
+                  </div>
+                  <p className="text-xs text-white/50 mb-5">{plan.subtitle}</p>
+                  <ul className="space-y-2.5 mb-7 text-sm">
+                    {plan.features.filter(f => f.included).slice(0, 5).map((f) => (
+                      <li key={f.text} className="flex items-start gap-2">
+                        <Check className="w-4 h-4 text-cyan-400 mt-0.5 shrink-0" />
+                        <span>{f.text}</span>
+                      </li>
+                    ))}
+                  </ul>
+                  <button
+                    onClick={() => navigate(plan.ctaAction === 'contact' ? '/pricing' : '/signup')}
+                    className={`w-full px-5 py-2.5 rounded-lg font-medium transition-all text-sm ${
+                      plan.popular
+                        ? 'bg-gradient-to-r from-cyan-500 to-teal-500 hover:from-cyan-400 hover:to-teal-400 text-white shadow-lg shadow-cyan-500/30'
+                        : 'bg-white/10 hover:bg-white/20 border border-white/20 text-white'
+                    }`}
+                  >
+                    {plan.cta}
+                  </button>
+                </motion.div>
+              ))}
+            </div>
 
-              {/* Pro Plan - FEATURED */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={pricingInView ? { opacity: 1, y: 0 } : {}}
-                transition={{ duration: 0.6, delay: 0.1 }}
-                className="bg-gradient-to-br from-cyan-900/30 to-teal-900/30 backdrop-blur-sm border-2 border-cyan-500 rounded-2xl p-6 sm:p-8 relative transform md:scale-105 shadow-2xl shadow-cyan-500/20"
+            <div className="text-center mb-8">
+              <button
+                onClick={() => navigateWithParticles('/pricing')}
+                className="text-cyan-400 hover:text-cyan-300 text-sm font-medium transition-colors"
               >
-                <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 bg-gradient-to-r from-cyan-500 to-teal-500 text-white text-sm font-bold px-4 py-1 rounded-full">
-                  ⭐ MOST POPULAR
-                </div>
-                <h3 className="text-2xl font-bold mb-2">Pro</h3>
-                <div className="text-4xl font-bold mb-2">
-                  $12<span className="text-lg text-white/50 font-normal">/month</span>
-                </div>
-                <p className="text-sm text-cyan-400 mb-6">$8/month billed annually (save 33%)</p>
-                <ul className="space-y-3 mb-8 text-sm sm:text-base">
-                  <li className="flex items-start gap-2">
-                    <Check className="w-5 h-5 text-cyan-400 mt-0.5 shrink-0" />
-                    <span><strong>Unlimited</strong> tasks</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <Check className="w-5 h-5 text-cyan-400 mt-0.5 shrink-0" />
-                    <span>Advanced AI scheduling</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <Check className="w-5 h-5 text-cyan-400 mt-0.5 shrink-0" />
-                    <span>Circadian rhythm optimization</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <Check className="w-5 h-5 text-cyan-400 mt-0.5 shrink-0" />
-                    <span>All integrations (50+)</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <Check className="w-5 h-5 text-cyan-400 mt-0.5 shrink-0" />
-                    <span>Priority support</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <Check className="w-5 h-5 text-cyan-400 mt-0.5 shrink-0" />
-                    <span>Custom scripts & templates</span>
-                  </li>
-                </ul>
-                <button
-                  onClick={() => navigate('/signup')}
-                  className="w-full bg-gradient-to-r from-cyan-500 to-teal-500 hover:from-cyan-400 hover:to-teal-400 text-white px-6 py-3 rounded-lg font-medium transition-all shadow-lg shadow-cyan-500/30"
-                >
-                  Try Free for 14 Days
-                </button>
-              </motion.div>
-
-              {/* Team Plan */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={pricingInView ? { opacity: 1, y: 0 } : {}}
-                transition={{ duration: 0.6, delay: 0.2 }}
-                className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6 sm:p-8"
-              >
-                <h3 className="text-2xl font-bold mb-2">Team</h3>
-                <div className="text-4xl font-bold mb-6">
-                  $8<span className="text-lg text-white/50 font-normal">/user/month</span>
-                </div>
-                <ul className="space-y-3 mb-8 text-sm sm:text-base">
-                  <li className="flex items-start gap-2">
-                    <Check className="w-5 h-5 text-cyan-400 mt-0.5 shrink-0" />
-                    <span>Everything in Pro</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <Check className="w-5 h-5 text-cyan-400 mt-0.5 shrink-0" />
-                    <span>Team collaboration tools</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <Check className="w-5 h-5 text-cyan-400 mt-0.5 shrink-0" />
-                    <span>Shared dashboards</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <Check className="w-5 h-5 text-cyan-400 mt-0.5 shrink-0" />
-                    <span>Analytics & insights</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <Check className="w-5 h-5 text-cyan-400 mt-0.5 shrink-0" />
-                    <span>Admin controls</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <Check className="w-5 h-5 text-cyan-400 mt-0.5 shrink-0" />
-                    <span>Dedicated success manager</span>
-                  </li>
-                </ul>
-                <button
-                  onClick={() => navigate('/signup')}
-                  className="w-full bg-white/10 hover:bg-white/20 border border-white/20 text-white px-6 py-3 rounded-lg font-medium transition-all"
-                >
-                  Start Team Trial
-                </button>
-              </motion.div>
+                View full pricing comparison &rarr;
+              </button>
             </div>
 
             {/* ROI Calculator */}
@@ -1151,8 +1073,8 @@ export function LandingPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <AnimatedSection>
             <div className="text-center mb-12 sm:mb-16">
-              <h2 className="text-4xl sm:text-5xl font-bold mb-4">How It Works</h2>
-              <p className="text-lg sm:text-xl text-white/70">Get started in 3 simple steps</p>
+              <h2 className="text-4xl sm:text-5xl font-semibold mb-4 tracking-[-0.02em]">How It Works</h2>
+              <p className="text-lg sm:text-xl text-white/60 font-light">Get started in 3 simple steps</p>
             </div>
 
             <div className="grid md:grid-cols-3 gap-8 sm:gap-12">
@@ -1213,12 +1135,115 @@ export function LandingPage() {
                 </p>
               </motion.div>
             </div>
+
+            <div className="text-center mt-10">
+              <button
+                onClick={() => navigateWithParticles('/features')}
+                className="text-cyan-400 hover:text-cyan-300 text-sm font-medium transition-colors"
+              >
+                Explore all features &rarr;
+              </button>
+            </div>
+          </AnimatedSection>
+        </div>
+      </section>
+
+      {/* Integration Marquee - Trust Signal */}
+      <section className="py-10 sm:py-14 border-y border-white/5 overflow-hidden">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6">
+          <p className="text-center text-sm text-white/40 mb-6 tracking-wide uppercase font-medium">Works with the tools you already love</p>
+        </div>
+        <div className="relative">
+          <div className="absolute left-0 top-0 bottom-0 w-24 bg-gradient-to-r from-[#0a0e1a] to-transparent z-10 pointer-events-none" />
+          <div className="absolute right-0 top-0 bottom-0 w-24 bg-gradient-to-l from-[#0a0e1a] to-transparent z-10 pointer-events-none" />
+          <motion.div
+            className="flex gap-10 items-center whitespace-nowrap"
+            animate={{ x: ['0%', '-50%'] }}
+            transition={{ duration: 30, ease: 'linear', repeat: Infinity }}
+          >
+            {[...Array(2)].map((_, setIndex) => (
+              <div key={setIndex} className="flex gap-10 items-center shrink-0">
+                {[
+                  { name: 'Google Calendar', icon: <Calendar className="w-5 h-5" /> },
+                  { name: 'Slack', icon: <MessageCircle className="w-5 h-5" /> },
+                  { name: 'Notion', icon: <Target className="w-5 h-5" /> },
+                  { name: 'Asana', icon: <Check className="w-5 h-5" /> },
+                  { name: 'Trello', icon: <Target className="w-5 h-5" /> },
+                  { name: 'Outlook', icon: <Calendar className="w-5 h-5" /> },
+                  { name: 'Jira', icon: <Zap className="w-5 h-5" /> },
+                  { name: 'Todoist', icon: <Check className="w-5 h-5" /> },
+                  { name: 'Linear', icon: <TrendingUp className="w-5 h-5" /> },
+                  { name: 'GitHub', icon: <Bot className="w-5 h-5" /> },
+                  { name: 'Figma', icon: <Sparkles className="w-5 h-5" /> },
+                  { name: 'ClickUp', icon: <Target className="w-5 h-5" /> },
+                ].map((tool) => (
+                  <div key={`${setIndex}-${tool.name}`} className="flex items-center gap-2.5 text-white/30 hover:text-white/60 transition-colors shrink-0">
+                    {tool.icon}
+                    <span className="text-sm font-medium">{tool.name}</span>
+                  </div>
+                ))}
+              </div>
+            ))}
+          </motion.div>
+        </div>
+      </section>
+
+      {/* A Day With SyncScript - Animated Timeline */}
+      <section className="py-16 sm:py-24 bg-black/20 backdrop-blur-sm">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6">
+          <AnimatedSection>
+            <div className="text-center mb-12 sm:mb-16">
+              <h2 className="text-4xl sm:text-5xl font-semibold mb-4 tracking-[-0.02em]">A Day With SyncScript</h2>
+              <p className="text-lg sm:text-xl text-white/60 font-light">See how your day transforms when AI works with your energy</p>
+            </div>
+
+            <div className="relative">
+              {/* Timeline line */}
+              <div className="absolute left-6 sm:left-8 top-0 bottom-0 w-px bg-gradient-to-b from-cyan-500/50 via-teal-500/50 to-emerald-500/50 hidden sm:block" />
+
+              <div className="space-y-8">
+                {[
+                  { time: '7:00 AM', title: 'Morning Brief', desc: 'AI scans your calendar, energy forecast, and priorities — delivers a tailored plan before coffee.', icon: <Zap className="w-5 h-5" />, gradient: 'from-amber-500 to-orange-500', energy: 'Rising' },
+                  { time: '9:00 AM', title: 'Peak Focus Block', desc: 'Deep work auto-scheduled during your cognitive peak. Notifications silenced. Distractions blocked.', icon: <Target className="w-5 h-5" />, gradient: 'from-cyan-500 to-teal-500', energy: 'Peak' },
+                  { time: '12:00 PM', title: 'Smart Break', desc: 'AI detects your focus fading and suggests a break. Lighter tasks queue up for post-lunch.', icon: <Clock className="w-5 h-5" />, gradient: 'from-emerald-500 to-teal-500', energy: 'Dip' },
+                  { time: '2:00 PM', title: 'Collaborative Window', desc: 'Meetings and team tasks scheduled when your social energy peaks. No more drained afternoons.', icon: <Users className="w-5 h-5" />, gradient: 'from-purple-500 to-indigo-500', energy: 'Moderate' },
+                  { time: '4:30 PM', title: 'Wind-Down Wrap', desc: 'Quick wins and admin tasks. Tomorrow\'s plan is already drafted by AI. Leave on time, guilt-free.', icon: <TrendingUp className="w-5 h-5" />, gradient: 'from-teal-500 to-cyan-500', energy: 'Winding Down' },
+                ].map((item, i) => (
+                  <motion.div
+                    key={item.time}
+                    initial={{ opacity: 0, x: -20 }}
+                    whileInView={{ opacity: 1, x: 0 }}
+                    viewport={{ once: true, amount: 0.5 }}
+                    transition={{ duration: 0.5, delay: i * 0.08 }}
+                    className="flex gap-4 sm:gap-6 items-start relative"
+                  >
+                    {/* Timeline dot */}
+                    <div className={`w-12 h-12 sm:w-16 sm:h-16 rounded-xl bg-gradient-to-br ${item.gradient} flex items-center justify-center shrink-0 shadow-lg relative z-10`}>
+                      {item.icon}
+                    </div>
+
+                    <div className="flex-1 bg-white/[0.03] border border-white/[0.06] rounded-xl p-4 sm:p-5 hover:border-white/10 transition-all">
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-0 mb-2">
+                        <h4 className="font-semibold text-base sm:text-lg">{item.title}</h4>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-white/40 font-mono">{item.time}</span>
+                          <span className={`text-xs px-2 py-0.5 rounded-full bg-gradient-to-r ${item.gradient} bg-clip-text text-transparent font-medium border border-white/10`}>
+                            {item.energy}
+                          </span>
+                        </div>
+                      </div>
+                      <p className="text-sm text-white/60 leading-relaxed">{item.desc}</p>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+            </div>
           </AnimatedSection>
         </div>
       </section>
 
       {/* Interactive Product Demo */}
-      <section className="py-16 sm:py-24 bg-black/20 backdrop-blur-sm">
+      <section className="py-16 sm:py-24">
         <InteractiveDemo />
       </section>
 
@@ -1237,8 +1262,8 @@ export function LandingPage() {
         <div className="max-w-4xl mx-auto px-4 sm:px-6">
           <AnimatedSection>
             <div className="text-center mb-12 sm:mb-16">
-              <h2 className="text-4xl sm:text-5xl font-bold mb-4">Frequently Asked Questions</h2>
-              <p className="text-lg sm:text-xl text-white/70">Everything you need to know</p>
+              <h2 className="text-4xl sm:text-5xl font-semibold mb-4 tracking-[-0.02em]">Frequently Asked Questions</h2>
+              <p className="text-lg sm:text-xl text-white/60 font-light">Everything you need to know</p>
             </div>
 
             <div className="space-y-4">
@@ -1280,36 +1305,90 @@ export function LandingPage() {
                 </motion.div>
               ))}
             </div>
+
+            <div className="text-center mt-10">
+              <button
+                onClick={() => navigateWithParticles('/faq')}
+                className="text-cyan-400 hover:text-cyan-300 text-sm font-medium transition-colors"
+              >
+                View all FAQs &rarr;
+              </button>
+            </div>
           </AnimatedSection>
         </div>
       </section>
 
       {/* Final CTA Section */}
-      <section className="py-20 sm:py-32 bg-gradient-to-br from-cyan-900/30 to-teal-900/30 border-y border-cyan-500/20">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 text-center">
+      <section className="py-20 sm:py-32 relative overflow-hidden">
+        {/* Ambient background glow */}
+        <div className="absolute inset-0 bg-gradient-to-br from-cyan-900/20 via-transparent to-teal-900/20" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-cyan-500/[0.04] rounded-full blur-[120px] pointer-events-none" />
+        <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-cyan-500/30 to-transparent" />
+        <div className="absolute bottom-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-cyan-500/30 to-transparent" />
+
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 text-center relative z-10">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, amount: 0.3 }}
             transition={{ duration: 0.8 }}
           >
-            <h2 className="text-4xl sm:text-5xl md:text-6xl font-bold mb-6">
+            {/* Mini avatars of happy users */}
+            <div className="flex justify-center mb-8">
+              <div className="flex -space-x-3">
+                {['SM', 'JC', 'AP', 'DK', 'LR'].map((initials, i) => {
+                  const gradients = ['from-cyan-400 to-teal-400', 'from-emerald-400 to-teal-400', 'from-purple-400 to-pink-400', 'from-orange-400 to-pink-400', 'from-indigo-400 to-purple-400'];
+                  return (
+                    <motion.div
+                      key={initials}
+                      initial={{ opacity: 0, scale: 0 }}
+                      whileInView={{ opacity: 1, scale: 1 }}
+                      viewport={{ once: true }}
+                      transition={{ delay: 0.1 + i * 0.05, type: 'spring', stiffness: 300 }}
+                      className={`w-10 h-10 bg-gradient-to-br ${gradients[i]} rounded-full flex items-center justify-center text-xs font-bold text-gray-900 border-2 border-[#0a0e1a]`}
+                    >
+                      {initials}
+                    </motion.div>
+                  );
+                })}
+                <motion.div
+                  initial={{ opacity: 0, scale: 0 }}
+                  whileInView={{ opacity: 1, scale: 1 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: 0.4, type: 'spring', stiffness: 300 }}
+                  className="w-10 h-10 bg-white/10 border-2 border-[#0a0e1a] rounded-full flex items-center justify-center text-xs font-medium text-white/60"
+                >
+                  +10K
+                </motion.div>
+              </div>
+            </div>
+
+            <h2 className="text-4xl sm:text-5xl md:text-6xl font-semibold mb-6 tracking-[-0.02em]">
               Ready to Stop the Burnout?
             </h2>
-            <p className="text-lg sm:text-xl md:text-2xl text-white/80 mb-10 sm:mb-12">
+            <p className="text-lg sm:text-xl md:text-2xl text-white/70 mb-10 sm:mb-12 font-light">
               Join <span className="text-cyan-400 font-semibold">10,547+</span> professionals who work with their energy, not against it.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
               <MagneticButton
-                onClick={() => navigate('/signup')}
-                className="group bg-gradient-to-r from-cyan-500 to-teal-500 hover:from-cyan-400 hover:to-teal-400 text-white px-10 py-4 rounded-lg text-lg font-medium transition-all shadow-2xl shadow-cyan-500/30 inline-flex items-center justify-center gap-3 w-full sm:w-auto"
+                onClick={() => setShowBetaModal(true)}
+                className="group bg-gradient-to-r from-indigo-600 via-purple-600 to-violet-600 hover:from-indigo-500 hover:via-purple-500 hover:to-violet-500 text-white px-10 py-4 rounded-lg text-lg font-medium transition-all shadow-2xl shadow-indigo-500/30 inline-flex items-center justify-center gap-3 w-full sm:w-auto"
                 strength={0.4}
               >
-                Try Free for 14 Days
+                <Sparkles className="w-5 h-5" />
+                Join Beta Testing - FREE
+                <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+              </MagneticButton>
+              <MagneticButton
+                onClick={() => navigate('/login?guest=true')}
+                className="group bg-white/5 border border-white/20 hover:border-cyan-400/50 hover:bg-white/10 text-white px-10 py-4 rounded-lg text-lg font-medium transition-all inline-flex items-center justify-center gap-3 w-full sm:w-auto"
+                strength={0.4}
+              >
+                Try Live Demo
                 <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
               </MagneticButton>
             </div>
-            <p className="mt-6 text-sm text-white/50">
+            <p className="mt-6 text-sm text-white/40">
               No credit card required • Setup in 90 seconds • Cancel anytime
             </p>
           </motion.div>
@@ -1324,9 +1403,9 @@ export function LandingPage() {
             <div>
               <h4 className="font-semibold mb-4 text-sm sm:text-base">Product</h4>
               <ul className="space-y-2 text-sm text-white/60">
-                <li><button onClick={() => scrollToSection('features')} className="hover:text-white transition-colors">Features</button></li>
-                <li><button onClick={() => scrollToSection('pricing')} className="hover:text-white transition-colors">Pricing</button></li>
-                <li><button onClick={() => scrollToSection('dashboard-preview')} className="hover:text-white transition-colors">Dashboard</button></li>
+                <li><button onClick={() => navigateWithParticles('/features')} className="hover:text-white transition-colors">Features</button></li>
+                <li><button onClick={() => navigateWithParticles('/pricing')} className="hover:text-white transition-colors">Pricing</button></li>
+                <li><button onClick={() => navigateWithParticles('/faq')} className="hover:text-white transition-colors">FAQ</button></li>
                 <li><button onClick={() => setShowDemoModal(true)} className="hover:text-white transition-colors">Demo</button></li>
               </ul>
             </div>
@@ -1335,10 +1414,10 @@ export function LandingPage() {
             <div>
               <h4 className="font-semibold mb-4 text-sm sm:text-base">Company</h4>
               <ul className="space-y-2 text-sm text-white/60">
-                <li><a href="#" className="hover:text-white transition-colors">About</a></li>
-                <li><a href="#" className="hover:text-white transition-colors">Blog</a></li>
-                <li><a href="#" className="hover:text-white transition-colors">Careers</a></li>
-                <li><a href="#" className="hover:text-white transition-colors">Press Kit</a></li>
+                <li><button onClick={() => navigate('/about')} className="hover:text-white transition-colors">About</button></li>
+                <li><button onClick={() => navigate('/blog')} className="hover:text-white transition-colors">Blog</button></li>
+                <li><button onClick={() => navigate('/careers')} className="hover:text-white transition-colors">Careers</button></li>
+                <li><button onClick={() => navigate('/press')} className="hover:text-white transition-colors">Press Kit</button></li>
               </ul>
             </div>
 
@@ -1346,18 +1425,21 @@ export function LandingPage() {
             <div>
               <h4 className="font-semibold mb-4 text-sm sm:text-base">Resources</h4>
               <ul className="space-y-2 text-sm text-white/60">
-                <li><a href="#" className="hover:text-white transition-colors">Documentation</a></li>
-                <li><a href="#" className="hover:text-white transition-colors">Help Center</a></li>
-                <li><a href="#" className="hover:text-white transition-colors">API</a></li>
-                <li><a href="#" className="hover:text-white transition-colors">Community</a></li>
+                <li><button onClick={() => navigate('/docs')} className="hover:text-white transition-colors">Documentation</button></li>
+                <li><button onClick={() => navigate('/help')} className="hover:text-white transition-colors">Help Center</button></li>
+                <li><button onClick={() => navigate('/api-reference')} className="hover:text-white transition-colors">API</button></li>
+                <li><button onClick={() => navigate('/community')} className="hover:text-white transition-colors">Community</button></li>
               </ul>
             </div>
 
-            {/* Column 4: Support */}
+            {/* Column 4: Legal */}
             <div>
-              <h4 className="font-semibold mb-4 text-sm sm:text-base">Support</h4>
+              <h4 className="font-semibold mb-4 text-sm sm:text-base">Legal</h4>
               <ul className="space-y-2 text-sm text-white/60">
-                <li>
+                <li><button onClick={() => navigate('/privacy')} className="hover:text-white transition-colors">Privacy</button></li>
+                <li><button onClick={() => navigate('/terms')} className="hover:text-white transition-colors">Terms</button></li>
+                <li><button onClick={() => navigate('/security')} className="hover:text-white transition-colors">Security</button></li>
+                <li className="pt-2 border-t border-white/10 mt-3">
                   <a 
                     href="mailto:support@syncscript.app" 
                     className="hover:text-white transition-colors flex items-center gap-2"
@@ -1366,14 +1448,6 @@ export function LandingPage() {
                     support@syncscript.app
                   </a>
                 </li>
-                <li className="text-xs text-white/40 mt-3 leading-relaxed">
-                  ⚡ AI-powered support<br />
-                  ⏱️ Response in 2-4 hours<br />
-                  🤖 90% auto-resolved
-                </li>
-                <li><a href="#" className="hover:text-white transition-colors">Privacy</a></li>
-                <li><a href="#" className="hover:text-white transition-colors">Terms</a></li>
-                <li><a href="#" className="hover:text-white transition-colors">Security</a></li>
               </ul>
             </div>
           </div>
@@ -1385,22 +1459,17 @@ export function LandingPage() {
               <img src={imgImageSyncScript} alt="SyncScript" className="h-6" />
             </div>
             <p className="text-sm text-white/50 text-center sm:text-left">
-              © 2024 SyncScript. All rights reserved.
+              © 2025 SyncScript. All rights reserved.
             </p>
             <div className="flex items-center gap-4">
-              <a href="#" className="text-white/50 hover:text-white transition-colors">
+              <a href="https://x.com/SyncScriptApp" target="_blank" rel="noopener noreferrer" className="text-white/50 hover:text-white transition-colors" aria-label="Follow us on X (Twitter)">
                 <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M24 4.557c-.883.392-1.832.656-2.828.775 1.017-.609 1.798-1.574 2.165-2.724-.951.564-2.005.974-3.127 1.195-.897-.957-2.178-1.555-3.594-1.555-3.179 0-5.515 2.966-4.797 6.045-4.091-.205-7.719-2.165-10.148-5.144-1.29 2.213-.669 5.108 1.523 6.574-.806-.026-1.566-.247-2.229-.616-.054 2.281 1.581 4.415 3.949 4.89-.693.188-1.452.232-2.224.084.626 1.956 2.444 3.379 4.6 3.419-2.07 1.623-4.678 2.348-7.29 2.04 2.179 1.397 4.768 2.212 7.548 2.212 9.142 0 14.307-7.721 13.995-14.646.962-.695 1.797-1.562 2.457-2.549z"/>
+                  <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
                 </svg>
               </a>
-              <a href="#" className="text-white/50 hover:text-white transition-colors">
+              <a href="https://discord.gg/2rq38UJrDJ" target="_blank" rel="noopener noreferrer" className="text-white/50 hover:text-white transition-colors" aria-label="Join our Discord">
                 <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
-                </svg>
-              </a>
-              <a href="#" className="text-white/50 hover:text-white transition-colors">
-                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z"/>
+                  <path d="M20.317 4.3698a19.7913 19.7913 0 00-4.8851-1.5152.0741.0741 0 00-.0785.0371c-.211.3753-.4447.8648-.6083 1.2495-1.8447-.2762-3.68-.2762-5.4868 0-.1636-.3933-.4058-.8742-.6177-1.2495a.077.077 0 00-.0785-.037 19.7363 19.7363 0 00-4.8852 1.515.0699.0699 0 00-.0321.0277C.5334 9.0458-.319 13.5799.0992 18.0578a.0824.0824 0 00.0312.0561c2.0528 1.5076 4.0413 2.4228 5.9929 3.0294a.0777.0777 0 00.0842-.0276c.4616-.6304.8731-1.2952 1.226-1.9942a.076.076 0 00-.0416-.1057c-.6528-.2476-1.2743-.5495-1.8722-.8923a.077.077 0 01-.0076-.1277c.1258-.0943.2517-.1923.3718-.2914a.0743.0743 0 01.0776-.0105c3.9278 1.7933 8.18 1.7933 12.0614 0a.0739.0739 0 01.0785.0095c.1202.099.246.1981.3728.2924a.077.077 0 01-.0066.1276 12.2986 12.2986 0 01-1.873.8914.0766.0766 0 00-.0407.1067c.3604.698.7719 1.3628 1.225 1.9932a.076.076 0 00.0842.0286c1.961-.6067 3.9495-1.5219 6.0023-3.0294a.077.077 0 00.0313-.0552c.5004-5.177-.8382-9.6739-3.5485-13.6604a.061.061 0 00-.0312-.0286z"/>
                 </svg>
               </a>
             </div>
@@ -1411,97 +1480,349 @@ export function LandingPage() {
         <div className="h-20 sm:h-24" />
       </footer>
 
-      {/* Demo Modal */}
+      {/* Demo Modal - Interactive Product Walkthrough */}
       <AnimatePresence>
-        {showDemoModal && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 0.8 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black backdrop-blur-sm z-50 flex items-center justify-center p-4"
-            onClick={() => setShowDemoModal(false)}
-          >
+        {showDemoModal && (() => {
+          const demoSlides = [
+            {
+              title: 'Track Your Energy',
+              subtitle: 'Know exactly when you perform best',
+              icon: <Zap className="w-8 h-8" />,
+              color: 'from-cyan-500 to-teal-500',
+              shadowColor: 'shadow-cyan-500/30',
+              borderColor: 'border-cyan-500/40',
+              features: ['Real-time energy level tracking', 'Circadian rhythm analysis', 'Peak performance windows detected'],
+              mockup: (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between mb-4">
+                    <span className="text-sm text-white/60">Today's Energy</span>
+                    <span className="text-sm font-semibold text-cyan-400">82% Peak</span>
+                  </div>
+                  {['6am', '9am', '12pm', '3pm', '6pm', '9pm'].map((time, i) => {
+                    const heights = [30, 85, 70, 40, 55, 25];
+                    const colors = ['bg-cyan-500/40', 'bg-cyan-400', 'bg-teal-400', 'bg-amber-400/60', 'bg-teal-400/70', 'bg-cyan-500/30'];
+                    return (
+                      <div key={time} className="flex items-end gap-2">
+                        <span className="text-xs text-white/40 w-10 shrink-0">{time}</span>
+                        <motion.div
+                          initial={{ width: 0 }}
+                          animate={{ width: `${heights[i]}%` }}
+                          transition={{ duration: 0.8, delay: i * 0.12, ease: [0.25, 0.1, 0.25, 1] }}
+                          className={`h-6 rounded-md ${colors[i]}`}
+                        />
+                        {i === 1 && (
+                          <motion.span
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            transition={{ delay: 1 }}
+                            className="text-xs text-cyan-400 font-medium ml-1 whitespace-nowrap"
+                          >
+                            Peak Focus
+                          </motion.span>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              ),
+            },
+            {
+              title: 'AI-Powered Scheduling',
+              subtitle: 'Tasks auto-schedule to your peak hours',
+              icon: <Bot className="w-8 h-8" />,
+              color: 'from-purple-500 to-indigo-500',
+              shadowColor: 'shadow-purple-500/30',
+              borderColor: 'border-purple-500/40',
+              features: ['Smart task prioritization', 'Automatic calendar optimization', 'Conflict resolution AI'],
+              mockup: (
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Bot className="w-4 h-4 text-purple-400" />
+                    <span className="text-xs text-purple-400 font-medium">AI Suggestion</span>
+                  </div>
+                  {[
+                    { task: 'Code Review — API Auth', time: '9:00 AM', energy: 'High', color: 'border-purple-500/50', badge: 'bg-purple-500/20 text-purple-300' },
+                    { task: 'Design System Update', time: '10:30 AM', energy: 'High', color: 'border-indigo-500/50', badge: 'bg-indigo-500/20 text-indigo-300' },
+                    { task: 'Team Standup', time: '2:00 PM', energy: 'Med', color: 'border-amber-500/50', badge: 'bg-amber-500/20 text-amber-300' },
+                    { task: 'Reply to Emails', time: '4:00 PM', energy: 'Low', color: 'border-teal-500/50', badge: 'bg-teal-500/20 text-teal-300' },
+                  ].map((item, i) => (
+                    <motion.div
+                      key={item.task}
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: 0.3 + i * 0.15 }}
+                      className={`flex items-center justify-between bg-white/5 border ${item.color} rounded-lg p-3`}
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-2 h-2 rounded-full bg-current shrink-0" style={{ color: item.color.includes('purple') ? '#a855f7' : item.color.includes('indigo') ? '#818cf8' : item.color.includes('amber') ? '#f59e0b' : '#14b8a6' }} />
+                        <span className="text-sm text-white/90 truncate">{item.task}</span>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className={`text-xs px-2 py-0.5 rounded-full ${item.badge}`}>{item.energy}</span>
+                        <span className="text-xs text-white/40">{item.time}</span>
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+              ),
+            },
+            {
+              title: 'Real-Time Insights',
+              subtitle: 'See your productivity trends unfold',
+              icon: <TrendingUp className="w-8 h-8" />,
+              color: 'from-emerald-500 to-teal-500',
+              shadowColor: 'shadow-emerald-500/30',
+              borderColor: 'border-emerald-500/40',
+              features: ['Weekly productivity reports', 'Energy pattern recognition', 'Burnout early-warning system'],
+              mockup: (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-3 gap-3">
+                    {[
+                      { label: 'Tasks Done', value: '47', change: '+12%', color: 'text-emerald-400' },
+                      { label: 'Focus Hours', value: '6.2h', change: '+18%', color: 'text-teal-400' },
+                      { label: 'Energy Score', value: '82', change: '+9%', color: 'text-cyan-400' },
+                    ].map((stat, i) => (
+                      <motion.div
+                        key={stat.label}
+                        initial={{ opacity: 0, scale: 0.8 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ delay: 0.2 + i * 0.1 }}
+                        className="bg-white/5 rounded-lg p-3 text-center"
+                      >
+                        <p className={`text-lg font-bold ${stat.color}`}>{stat.value}</p>
+                        <p className="text-xs text-white/50">{stat.label}</p>
+                        <p className="text-xs text-emerald-400">{stat.change}</p>
+                      </motion.div>
+                    ))}
+                  </div>
+                  <div className="bg-white/5 rounded-lg p-3">
+                    <p className="text-xs text-white/50 mb-2">Weekly Trend</p>
+                    <div className="flex items-end gap-1 h-16">
+                      {[35, 42, 38, 55, 48, 62, 70].map((h, i) => (
+                        <motion.div
+                          key={i}
+                          initial={{ height: 0 }}
+                          animate={{ height: `${h}%` }}
+                          transition={{ duration: 0.6, delay: 0.4 + i * 0.08 }}
+                          className="flex-1 bg-gradient-to-t from-emerald-500/60 to-teal-400/80 rounded-sm"
+                        />
+                      ))}
+                    </div>
+                    <div className="flex justify-between mt-1">
+                      {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((d) => (
+                        <span key={d} className="text-[10px] text-white/30 flex-1 text-center">{d}</span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              ),
+            },
+            {
+              title: 'Team Collaboration',
+              subtitle: 'Stay in sync with your entire team',
+              icon: <Users className="w-8 h-8" />,
+              color: 'from-orange-500 to-pink-500',
+              shadowColor: 'shadow-orange-500/30',
+              borderColor: 'border-orange-500/40',
+              features: ['Shared team dashboards', 'Role-based task assignment', 'Cross-team energy mapping'],
+              mockup: (
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Users className="w-4 h-4 text-orange-400" />
+                    <span className="text-xs text-orange-400 font-medium">Team Overview</span>
+                  </div>
+                  {[
+                    { name: 'Sarah M.', initials: 'SM', role: 'Designer', energy: 92, gradient: 'from-cyan-400 to-teal-400' },
+                    { name: 'James C.', initials: 'JC', role: 'Engineer', energy: 74, gradient: 'from-emerald-400 to-teal-400' },
+                    { name: 'Aisha P.', initials: 'AP', role: 'PM', energy: 65, gradient: 'from-purple-400 to-pink-400' },
+                    { name: 'David K.', initials: 'DK', role: 'Data Lead', energy: 88, gradient: 'from-orange-400 to-pink-400' },
+                  ].map((person, i) => (
+                    <motion.div
+                      key={person.name}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.2 + i * 0.12 }}
+                      className="flex items-center gap-3 bg-white/5 rounded-lg p-2.5"
+                    >
+                      <div className={`w-8 h-8 bg-gradient-to-br ${person.gradient} rounded-full flex items-center justify-center text-xs font-bold text-gray-900 shrink-0`}>
+                        {person.initials}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-white/90">{person.name}</span>
+                          <span className="text-xs text-white/40">{person.role}</span>
+                        </div>
+                        <div className="flex items-center gap-2 mt-1">
+                          <div className="flex-1 h-1.5 bg-white/10 rounded-full overflow-hidden">
+                            <motion.div
+                              initial={{ width: 0 }}
+                              animate={{ width: `${person.energy}%` }}
+                              transition={{ duration: 0.8, delay: 0.5 + i * 0.1 }}
+                              className={`h-full bg-gradient-to-r ${person.gradient} rounded-full`}
+                            />
+                          </div>
+                          <span className="text-xs text-white/50">{person.energy}%</span>
+                        </div>
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+              ),
+            },
+          ];
+
+          const slide = demoSlides[demoStep];
+
+          return (
             <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-gray-900 border border-cyan-500/30 rounded-2xl p-6 sm:p-8 max-w-4xl w-full relative"
-              onClick={(e) => e.stopPropagation()}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4"
+              onClick={() => { setShowDemoModal(false); setDemoStep(0); }}
             >
-              <button
-                onClick={() => setShowDemoModal(false)}
-                className="absolute top-4 right-4 text-white/60 hover:text-white transition-colors"
+              <motion.div
+                initial={{ scale: 0.92, opacity: 0, y: 20 }}
+                animate={{ scale: 1, opacity: 1, y: 0 }}
+                exit={{ scale: 0.92, opacity: 0, y: 20 }}
+                transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+                className="bg-gradient-to-b from-gray-900 to-[#0a0e1a] border border-white/10 rounded-2xl max-w-5xl w-full relative overflow-y-auto max-h-[90vh]"
+                onClick={(e) => e.stopPropagation()}
               >
-                <X className="w-6 h-6" />
-              </button>
-              
-              <h3 className="text-2xl sm:text-3xl font-bold mb-4">Experience SyncScript</h3>
-              <p className="text-white/70 mb-6">Choose how you'd like to explore our platform</p>
-              
-              {/* Option 1: Video Tutorial (Placeholder) */}
-              <div className="aspect-video bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg flex items-center justify-center border border-white/10 mb-6 relative overflow-hidden">
-                {/* Animated Background */}
-                <div className="absolute inset-0 bg-gradient-to-br from-cyan-500 to-teal-500 opacity-5 animate-pulse" />
-                
-                {/* Content */}
-                <div className="relative text-center text-white/70 p-8">
-                  <div className="mb-4 inline-block p-4 rounded-full bg-gradient-to-br from-cyan-500/20 to-teal-500/20">
-                    <Play className="w-12 h-12 text-cyan-400" />
-                  </div>
-                  <h4 className="text-xl font-semibold mb-2 text-white">Demo Video Coming Soon</h4>
-                  <p className="text-white/60 mb-4">We're creating a professional walkthrough of SyncScript's features</p>
-                  <div className="inline-flex items-center gap-2 text-sm text-cyan-400">
-                    <Sparkles className="w-4 h-4" />
-                    <span>In the meantime, try our live interactive demo below!</span>
-                  </div>
-                </div>
-              </div>
+                {/* Ambient glow behind content */}
+                <div className={`absolute top-0 left-1/2 -translate-x-1/2 w-96 h-96 bg-gradient-to-br ${slide.color} opacity-[0.06] rounded-full blur-[100px] pointer-events-none`} />
 
-              {/* Option 2: Live Demo with Guest Mode */}
-              <div className="bg-gradient-to-br from-cyan-500/10 to-teal-500/10 border border-cyan-500/30 rounded-xl p-6 mb-4">
-                <div className="flex items-start gap-4 mb-4">
-                  <div className="p-3 rounded-lg bg-gradient-to-br from-cyan-500 to-teal-500">
-                    <Sparkles className="w-6 h-6 text-white" />
-                  </div>
-                  <div className="flex-1">
-                    <h4 className="text-lg font-semibold text-white mb-1">Try the Live Dashboard</h4>
-                    <p className="text-white/70 text-sm">Experience SyncScript's full features without signing up</p>
-                  </div>
-                </div>
-                
-                <ul className="space-y-2 mb-4 text-sm text-white/70">
-                  <li className="flex items-center gap-2">
-                    <div className="w-1.5 h-1.5 rounded-full bg-cyan-400" />
-                    No registration required
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <div className="w-1.5 h-1.5 rounded-full bg-cyan-400" />
-                    Full access to all features
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <div className="w-1.5 h-1.5 rounded-full bg-cyan-400" />
-                    Save your progress anytime
-                  </li>
-                </ul>
-
-                <MagneticButton
-                  onClick={() => navigate('/login')}
-                  className="w-full bg-gradient-to-r from-cyan-500 to-teal-500 hover:from-cyan-400 hover:to-teal-400 text-white px-8 py-3 rounded-lg font-medium transition-all shadow-lg shadow-cyan-500/30 inline-flex items-center justify-center gap-2"
-                  strength={0.3}
+                {/* Close button */}
+                <button
+                  onClick={() => { setShowDemoModal(false); setDemoStep(0); }}
+                  className="absolute top-4 right-4 z-20 text-white/40 hover:text-white transition-colors p-1"
                 >
-                  <Sparkles className="w-5 h-5" />
-                  Try Live Demo
-                  <ArrowRight className="w-5 h-5" />
-                </MagneticButton>
-              </div>
+                  <X className="w-5 h-5" />
+                </button>
 
-              {/* Alternative: Sign up */}
-              <div className="text-center text-sm text-white/50">
-                Already convinced? <button onClick={() => navigate('/signup')} className="text-cyan-400 hover:text-cyan-300 font-medium transition-colors">Create free account</button>
-              </div>
+                {/* Progress bar */}
+                <div className="flex gap-1.5 px-4 sm:px-6 pt-4 sm:pt-5">
+                  {demoSlides.map((_, i) => (
+                    <button
+                      key={i}
+                      onClick={() => setDemoStep(i)}
+                      className="flex-1 h-1 rounded-full transition-all duration-500 overflow-hidden bg-white/10"
+                    >
+                      <motion.div
+                        initial={false}
+                        animate={{ width: i <= demoStep ? '100%' : '0%' }}
+                        transition={{ duration: 0.5 }}
+                        className={`h-full rounded-full bg-gradient-to-r ${slide.color}`}
+                      />
+                    </button>
+                  ))}
+                </div>
+
+                {/* Step indicator */}
+                <div className="flex items-center justify-between px-4 sm:px-6 pt-3 sm:pt-4 pb-1 sm:pb-2">
+                  <span className="text-[10px] sm:text-xs text-white/40 font-medium tracking-wide uppercase">Step {demoStep + 1} of {demoSlides.length}</span>
+                  <div className="flex items-center gap-1 text-[10px] sm:text-xs text-white/30">
+                    <div className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
+                    Interactive Demo
+                  </div>
+                </div>
+
+                {/* Main content area */}
+                <div className="grid md:grid-cols-2 gap-0 md:gap-6 p-4 sm:p-6 pt-2">
+                  {/* Left: Info */}
+                  <AnimatePresence mode="wait">
+                    <motion.div
+                      key={`info-${demoStep}`}
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: 20 }}
+                      transition={{ duration: 0.35 }}
+                      className="flex flex-col justify-center mb-6 md:mb-0"
+                    >
+                      <div className={`inline-flex items-center justify-center w-14 h-14 rounded-xl bg-gradient-to-br ${slide.color} ${slide.shadowColor} shadow-lg mb-5`}>
+                        {slide.icon}
+                      </div>
+                      <h3 className="text-2xl sm:text-3xl font-bold mb-2 tracking-tight">{slide.title}</h3>
+                      <p className="text-white/60 mb-6 font-light">{slide.subtitle}</p>
+                      <ul className="space-y-3">
+                        {slide.features.map((feature, i) => (
+                          <motion.li
+                            key={feature}
+                            initial={{ opacity: 0, x: -10 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ delay: 0.15 + i * 0.1 }}
+                            className="flex items-center gap-3 text-sm text-white/70"
+                          >
+                            <div className={`w-5 h-5 rounded-full bg-gradient-to-br ${slide.color} flex items-center justify-center shrink-0`}>
+                              <Check className="w-3 h-3 text-white" />
+                            </div>
+                            {feature}
+                          </motion.li>
+                        ))}
+                      </ul>
+                    </motion.div>
+                  </AnimatePresence>
+
+                  {/* Right: Animated mockup */}
+                  <AnimatePresence mode="wait">
+                    <motion.div
+                      key={`mockup-${demoStep}`}
+                      initial={{ opacity: 0, y: 20, scale: 0.97 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: -20, scale: 0.97 }}
+                      transition={{ duration: 0.4, delay: 0.1 }}
+                      className={`bg-gray-900/80 border ${slide.borderColor} rounded-xl p-5 relative overflow-hidden`}
+                    >
+                      <div className={`absolute top-0 right-0 w-32 h-32 bg-gradient-to-br ${slide.color} opacity-5 rounded-full blur-2xl pointer-events-none`} />
+                      <div className="relative z-10">
+                        {slide.mockup}
+                      </div>
+                    </motion.div>
+                  </AnimatePresence>
+                </div>
+
+                {/* Navigation */}
+                <div className="flex items-center justify-between px-4 sm:px-6 pb-5 sm:pb-6 pt-2">
+                  <button
+                    onClick={() => setDemoStep(Math.max(0, demoStep - 1))}
+                    disabled={demoStep === 0}
+                    className="text-xs sm:text-sm text-white/50 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors flex items-center gap-1"
+                  >
+                    <ArrowRight className="w-3.5 h-3.5 sm:w-4 sm:h-4 rotate-180" />
+                    Back
+                  </button>
+
+                  <div className="flex items-center gap-2 sm:gap-3">
+                    <button
+                      onClick={() => { navigate('/login?guest=true'); setShowDemoModal(false); setDemoStep(0); }}
+                      className="text-xs sm:text-sm text-cyan-400 hover:text-cyan-300 transition-colors font-medium hidden sm:block"
+                    >
+                      Try Live Dashboard
+                    </button>
+
+                    {demoStep < demoSlides.length - 1 ? (
+                      <button
+                        onClick={() => setDemoStep(demoStep + 1)}
+                        className={`bg-gradient-to-r ${slide.color} text-white px-4 sm:px-6 py-2 sm:py-2.5 rounded-lg text-xs sm:text-sm font-medium transition-all hover:scale-105 active:scale-95 shadow-lg ${slide.shadowColor} inline-flex items-center gap-1.5 sm:gap-2`}
+                      >
+                        Next
+                        <ArrowRight className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => { setShowBetaModal(true); setShowDemoModal(false); setDemoStep(0); }}
+                        className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-4 sm:px-6 py-2 sm:py-2.5 rounded-lg text-xs sm:text-sm font-medium transition-all hover:scale-105 active:scale-95 shadow-lg shadow-indigo-500/30 inline-flex items-center gap-1.5 sm:gap-2"
+                      >
+                        <Sparkles className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                        Join Beta
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </motion.div>
             </motion.div>
-          </motion.div>
-        )}
+          );
+        })()}
       </AnimatePresence>
 
       {/* Beta Signup Modal */}

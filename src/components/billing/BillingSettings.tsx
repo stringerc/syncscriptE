@@ -21,6 +21,7 @@ import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '../ui/card';
 import { Progress } from '../ui/progress';
+import { getPlanDisplayName } from '../../config/pricing';
 import { useStripe, type UsageData } from '../../hooks/useStripe';
 import { toast } from 'sonner@2.0.3';
 
@@ -160,9 +161,7 @@ export function BillingSettings({ userId }: BillingSettingsProps) {
                 <div>
                   <p className="text-sm text-gray-400">Plan</p>
                   <p className="text-lg font-semibold text-white">
-                    {subscription.plan.includes('professional') ? 'Professional' :
-                     subscription.plan.includes('starter') ? 'Starter' :
-                     subscription.plan.includes('enterprise') ? 'Enterprise' : 'Unknown'}
+                    {getPlanDisplayName(subscription.plan)}
                   </p>
                 </div>
                 <div>

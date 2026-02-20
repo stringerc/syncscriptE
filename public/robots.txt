@@ -1,0 +1,88 @@
+# SyncScript Robots.txt
+# Last Updated: February 10, 2026
+
+User-agent: *
+Allow: /
+
+# Disallow admin and API endpoints
+Disallow: /admin/
+Disallow: /api/
+Disallow: /private/
+Disallow: /internal/
+
+# Allow search engines to crawl everything else
+Allow: /css/
+Allow: /js/
+Allow: /images/
+Allow: /fonts/
+
+# Sitemap location
+Sitemap: https://syncscript.app/sitemap.xml
+
+# Crawl delay (seconds between requests)
+Crawl-delay: 1
+
+# Preferred host (canonical URL)
+Host: https://syncscript.app
+
+# Additional directives for specific bots
+
+# Googlebot
+User-agent: Googlebot
+Allow: /
+Disallow: /admin/
+Disallow: /api/
+Crawl-delay: 1
+
+# Bingbot
+User-agent: Bingbot
+Allow: /
+Disallow: /admin/
+Disallow: /api/
+Crawl-delay: 1
+
+# DuckDuckBot
+User-agent: DuckDuckBot
+Allow: /
+Disallow: /admin/
+Disallow: /api/
+Crawl-delay: 2
+
+# Yandex
+User-agent: Yandex
+Allow: /
+Disallow: /admin/
+Disallow: /api/
+Crawl-delay: 2
+
+# Baidu
+User-agent: Baiduspider
+Allow: /
+Disallow: /admin/
+Disallow: /api/
+Crawl-delay: 5
+
+# Common scrapers to block
+User-agent: MJ12bot
+Disallow: /
+
+User-agent: AhrefsBot
+Disallow: /
+
+User-agent: SemrushBot
+Disallow: /
+
+User-agent: DotBot
+Disallow: /
+
+User-agent: MegaIndex
+Disallow: /
+
+# Development/Staging environments (if any)
+User-agent: *
+Disallow: /staging/
+Disallow: /dev/
+Disallow: /test/
+
+# Note: This robots.txt is optimized for production.
+# Update as needed for development environments.

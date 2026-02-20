@@ -8,10 +8,18 @@ build/
 *.log
 .vercel
 
+# Audit cleanup trash (recoverable dead code)
+.trash-audit-cleanup/
+
 # Backup folders and misc exports
 OAUTH_BACKUP_*/
+dashboard/
 figma-dashboard/
+figma-make-latest/
+landing/
 landing-page-fix/
+mission-control/
+sentinel/
 resonance-runtime-*/
 syncscript-dashboard/
 syncscript-unified/
