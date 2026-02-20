@@ -28,6 +28,78 @@ This is the **SINGLE SOURCE OF TRUTH** for the entire SyncScript application. Ev
 
 ---
 
+## 🚧 PRIORITY ROADMAP — WHAT TO BUILD NEXT
+
+*Last audited: February 18, 2026*
+
+### P0 — LAUNCH BLOCKERS (Must-fix before real traffic)
+
+#### 1. Stripe Webhook → User Account Linkage
+- **Status:** NOT WIRED
+- **Problem:** When a user completes Stripe checkout and arrives at `/signup?checkout=success`, the account they create is **not automatically linked** to their Stripe subscription. The `checkout.session.completed` webhook handler in `stripe-routes.tsx` tracks the conversion but does not tie the Stripe `customer_id` to a Supabase user row.
+- **Impact:** Paid users could sign up and never receive their premium features.
+- **Fix:** On `checkout.session.completed`, store `customer_email` + `customer_id` + `subscription_id` + `plan` in a `pending_subscriptions` table. On signup, match the email and link the Stripe subscription to the new `auth.users` row. Update `user_subscriptions` so the app gates features correctly.
+- **Files:** `supabase/functions/make-server-57781ad9/stripe-routes.tsx` (webhook handler), `src/components/pages/SignupPage.tsx` (post-create account linking), `src/contexts/SubscriptionContext.tsx` (reads subscription state)
+
+#### 2. Legal Pages — Terms of Service & Privacy Policy
+- **Status:** ROUTES EXIST, PAGES DO NOT
+- **Problem:** Both Signup and Login pages link to `/terms` and `/privacy`. Stripe requires merchants to have accessible Terms and Privacy links. Plausible Analytics is now active. There are no actual components rendered at those routes.
+- **Impact:** Legal liability, Stripe compliance risk, broken user trust (404 on legal links).
+- **Fix:** Create `src/components/pages/LegalPages.tsx` (or separate files) with real legal content. Route them in `App.tsx`. Use the marketing visual shell for consistency.
+- **Note:** A `src/components/pages/LegalPages.tsx` file exists as untracked — may already have a draft.
+
+### P1 — HIGH IMPACT (Should ship in next sprint)
+
+#### 3. Sitemap Accuracy
+- **Status:** STALE
+- **Problem:** `public/sitemap.xml` lists pages that don't exist (`/about`, `/blog`, `/careers`, `/press`, `/docs`, `/help`, `/api-reference`, `/community`) and is missing `/contact` which was just built.
+- **Impact:** Search engines crawl dead URLs → soft 404s → hurts domain authority and wastes crawl budget.
+- **Fix:** Remove phantom URLs, add `/contact`. Consider making the sitemap auto-generated from the route config at build time.
+- **File:** `public/sitemap.xml`
+
+#### 4. Mobile Responsiveness Audit — New Pages
+- **Status:** NOT VERIFIED
+- **Problem:** The post-checkout success flow (`SignupPage`), `ContactSalesPage`, pricing checkout email modal, and updated auth pages were built desktop-first. No mobile testing has been done.
+- **Impact:** Mobile visitors (often 50%+ of traffic) could hit layout breaks, overflow issues, or unclickable elements.
+- **Fix:** Test all new/modified pages at 375px, 414px, and 768px widths. Fix any issues found. Key areas to check:
+  - Pricing page checkout email modal (overlay positioning, input sizing)
+  - ContactSalesPage form fields + AI response panel on narrow screens
+  - Post-checkout success flow on SignupPage (icon + form spacing)
+
+### P2 — POLISH & HOUSEKEEPING
+
+#### 5. Repository Cleanup
+- **Status:** MESSY
+- **Problem:** 16 modified tracked files and ~30 untracked files (markdown docs, test HTML files, `cat/`, `Create/`, `lib/`, `scripts/`, `social/`) sitting in the working tree from various sessions.
+- **Impact:** Makes `git status` noisy, risks accidentally committing temp files, confusing for collaborators.
+- **Fix:** Audit each:
+  - **Commit** files that belong (e.g., `src/components/pages/LegalPages.tsx`, `src/components/CookieConsentBanner.tsx`, `src/contexts/SubscriptionContext.tsx`)
+  - **`.gitignore`** temp/generated files (`JOURNAL.md*`, `REASONING.md`, `CURSOR-CLARITY.md`, test HTML files)
+  - **Delete** dead artifacts (`cat/`, `Create/`)
+
+#### 6. GA4 Measurement ID
+- **Status:** PLACEHOLDER
+- **Problem:** Google Analytics 4 script in `index.html` is commented out with `G-XXXXXXXXXX` placeholder. Plausible is active but GA4 provides complementary data (conversion funnels, audience demographics, ad attribution).
+- **Fix:** Create a GA4 property at analytics.google.com, get the Measurement ID, and uncomment the script block.
+- **File:** `index.html` (lines 53–62)
+
+### COMPLETED (Recent)
+
+| Item | Date | Commit |
+|------|------|--------|
+| Post-checkout success UX on SignupPage | Feb 18 | `7e1a0d0` |
+| Signup/Login visual alignment (cyan/teal) | Feb 18 | `7e1a0d0` |
+| Copyright year fix (2025 → 2026) | Feb 18 | `7e1a0d0` |
+| Enterprise CTA → `/contact` | Feb 18 | `7e1a0d0` |
+| Plausible Analytics activated | Feb 18 | `7e1a0d0` |
+| Stripe checkout flow on Pricing | Feb 18 | `9c4bf34` |
+| Enterprise AI sales pipeline | Feb 18 | `9c4bf34` |
+| SharedMarketingOrb (seamless transitions) | Feb 18 | `9c4bf34` |
+| Hero section centering (60vh) | Feb 18 | `9c4bf34` |
+| Orb brightness + color tuning | Feb 18 | `9c4bf34` |
+
+---
+
 ## 🆕 LATEST UPDATES
 
 ### 🔧 UX POLISH ROUND: POST-CHECKOUT, AUTH VISUAL ALIGNMENT & QUICK FIXES (February 18, 2026)
