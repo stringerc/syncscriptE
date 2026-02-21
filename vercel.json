@@ -97,7 +97,7 @@
     },
     {
       "path": "/api/phone/scheduled-briefing",
-      "schedule": "* * * * *"
+      "schedule": "0 8 * * *"
     }
   ]
 }
