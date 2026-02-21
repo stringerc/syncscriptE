@@ -1,6 +1,13 @@
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router';
 import { motion, AnimatePresence } from 'motion/react';
+import { ScrollSection } from '../scroll/ScrollSection';
+import {
+  textSplitReveal,
+  staggerAlternate,
+  blurToSharp,
+  cardCascade,
+} from '../scroll/animations';
 import { ChevronDown, Search, MessageCircle, Mail, BookOpen, HelpCircle, Users } from 'lucide-react';
 
 type Category = 'all' | 'general' | 'features' | 'pricing' | 'security' | 'integrations' | 'account';
@@ -180,7 +187,7 @@ const FAQ_DATA: FAQItem[] = [
     category: 'integrations',
     question: 'What integrations do you support?',
     answer:
-      'We support Google Calendar, Outlook/Microsoft 365, and other calendar providers. Task and project integrations (e.g. Notion, Asana, Linear) are available on paid plans. Check the Integrations page in the app for the full list.',
+      'Google Calendar and Outlook/Microsoft 365 are fully supported today with two-way sync. Task and project integrations (Notion, Asana, Linear, and more) are on our public roadmap and shipping during the beta period. Check the Integrations page for the latest status.',
   },
   {
     id: 'i2',
@@ -194,7 +201,7 @@ const FAQ_DATA: FAQItem[] = [
     category: 'integrations',
     question: 'Do you integrate with Slack or Teams?',
     answer:
-      'Slack and Microsoft Teams integrations are available on Professional and Enterprise plans. You can get reminders, log focus time, and (on Enterprise) sync status and availability.',
+      'Slack and Microsoft Teams integrations are on our roadmap for Professional and Enterprise plans. When available, you\'ll be able to get reminders, log focus time, and sync status. Join our Discord for the latest integration updates.',
   },
   {
     id: 'i4',
@@ -265,7 +272,8 @@ export function FAQPage() {
 
   return (
     <div className="relative min-h-screen text-white">
-      {/* Hero */}
+      {/* Snap 1 — Hero */}
+      <ScrollSection id="faq-hero" animation={textSplitReveal}>
       <section className="relative min-h-[60vh] flex flex-col justify-center pb-12 sm:pb-16">
         <div className="max-w-4xl mx-auto px-4 sm:px-6">
           <motion.div
@@ -293,7 +301,10 @@ export function FAQPage() {
           </motion.div>
         </div>
       </section>
+      </ScrollSection>
 
+      {/* Snap 2 — FAQ Accordion (natural height for sticky tabs + variable content) */}
+      <ScrollSection id="faq-list" animation={staggerAlternate} fullHeight={false}>
       {/* Category tabs */}
       <section className="sticky top-16 z-10 py-4 bg-[#0a0e1a]/80 backdrop-blur-md border-y border-white/5 -mt-2">
         <div className="max-w-4xl mx-auto px-4 sm:px-6">
@@ -386,9 +397,11 @@ export function FAQPage() {
           )}
         </div>
       </section>
+      </ScrollSection>
 
-      {/* Contact CTA */}
-      <section className="py-16 sm:py-24">
+      {/* Snap 3 — Contact CTA */}
+      <ScrollSection id="faq-contact" animation={blurToSharp}>
+      <section className="py-24 sm:py-32">
         <div className="max-w-4xl mx-auto px-4 sm:px-6">
           <motion.div
             className="relative rounded-2xl overflow-hidden p-8 sm:p-10"
@@ -429,9 +442,11 @@ export function FAQPage() {
           </motion.div>
         </div>
       </section>
+      </ScrollSection>
 
-      {/* Related resources */}
-      <section className="py-16 sm:py-24 border-t border-white/5">
+      {/* Snap 4 — Related Resources */}
+      <ScrollSection id="faq-resources" animation={cardCascade}>
+      <section className="py-24 sm:py-32">
         <div className="max-w-4xl mx-auto px-4 sm:px-6">
           <motion.h2
             className="text-xl sm:text-2xl font-semibold tracking-[-0.02em] text-white mb-6 sm:mb-8"
@@ -486,6 +501,7 @@ export function FAQPage() {
           </div>
         </div>
       </section>
+      </ScrollSection>
     </div>
   );
 }

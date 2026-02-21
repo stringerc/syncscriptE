@@ -31,6 +31,15 @@ const config: Config = {
         'fluid-8': 'clamp(2rem, 1rem + 4vw, 4rem)',
         'safe-bottom': 'env(safe-area-inset-bottom, 0px)',
       },
+      keyframes: {
+        'marquee-infinite': {
+          '0%': { transform: 'translateX(0)' },
+          '100%': { transform: 'translateX(-50%)' },
+        },
+      },
+      animation: {
+        'marquee-infinite': 'marquee-infinite 60s linear infinite',
+      },
     },
   },
   plugins: [],

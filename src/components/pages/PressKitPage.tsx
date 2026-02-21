@@ -70,8 +70,8 @@ export function PressKitPage() {
             {[
               { icon: Calendar, label: 'Founded', value: '2024' },
               { icon: Building2, label: 'Headquarters', value: 'San Francisco' },
-              { icon: Users, label: 'Team', value: '15+' },
-              { icon: TrendingUp, label: 'Users', value: '10,547+' },
+              { icon: Users, label: 'Team', value: 'Small & Growing' },
+              { icon: TrendingUp, label: 'Stage', value: 'Open Beta' },
             ].map(({ icon: Icon, label, value }) => (
               <div key={label} className="rounded-xl border border-white/10 bg-white/5 p-4">
                 <Icon className="h-5 w-5 text-cyan-400" />

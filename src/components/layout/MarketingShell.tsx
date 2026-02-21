@@ -3,6 +3,9 @@ import { motion, AnimatePresence } from 'motion/react';
 import { lazy, Suspense, useRef, useState, useEffect, useCallback } from 'react';
 import { Menu, X, ArrowLeft, Headphones } from 'lucide-react';
 import { MagneticButton } from '../MagneticButton';
+import { FloatingOrbs } from '../FloatingOrbs';
+import { SmoothScrollProvider, useSmoothScroll } from '../scroll/SmoothScrollProvider';
+import { SectionIndicator } from '../scroll/SectionIndicator';
 import imgImageSyncScript from "figma:asset/32f9c29c68f7ed10b9efd8ff6ac4135b7a2a4290.png";
 import imgImageSyncScriptLogo from "figma:asset/914d5787f554946c037cbfbb2cf65fcc0de06278.png";
 
@@ -120,7 +123,10 @@ export function MarketingShell() {
   ];
 
   return (
+    <SmoothScrollProvider>
     <div className="min-h-screen bg-[#0a0e1a] text-white font-[system-ui,'Space_Grotesk',sans-serif] overflow-x-hidden relative">
+      <FloatingOrbs />
+      <SectionIndicator />
       {/* Navigation */}
       <nav className="sticky top-0 z-50 bg-[#0a0e1a]/80 backdrop-blur-xl border-b border-white/10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between h-16">
@@ -401,5 +407,6 @@ export function MarketingShell() {
         </div>
       </footer>
     </div>
+    </SmoothScrollProvider>
   );
 }

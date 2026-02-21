@@ -103,7 +103,7 @@ export function AdminEmailDashboard({ onLogout }: { onLogout: () => void }) {
   const [filter, setFilter] = useState<'all' | 'pending' | 'draft_ready' | 'sent' | 'archived'>('all');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeTab, setActiveTab] = useState<'inbox' | 'customer_intelligence' | 'proactive_support' | 'analytics' | 'templates' | 'email_automation' | 'feedback_intelligence'>('inbox');
+  const [activeTab, setActiveTab] = useState<'inbox' | 'customer_intelligence' | 'proactive_support' | 'analytics' | 'templates' | 'email_automation' | 'feedback_intelligence' | 'newsletter'>('inbox');
   const [selectedEmails, setSelectedEmails] = useState<Set<string>>(new Set());
   const [sortBy, setSortBy] = useState<'date' | 'priority' | 'health'>('priority');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
@@ -755,6 +755,10 @@ export function AdminEmailDashboard({ onLogout }: { onLogout: () => void }) {
                 <Sparkles className="w-4 h-4 mr-2" />
                 Feedback
               </TabsTrigger>
+              <TabsTrigger value="newsletter" className="data-[state=active]:bg-gray-700">
+                <Send className="w-4 h-4 mr-2" />
+                Newsletter
+              </TabsTrigger>
             </TabsList>
 
             {/* Inbox Tab */}
@@ -882,9 +886,177 @@ export function AdminEmailDashboard({ onLogout }: { onLogout: () => void }) {
             <TabsContent value="feedback_intelligence" className="space-y-6">
               <FeedbackAdminPage />
             </TabsContent>
+
+            {/* Newsletter Compose Tab */}
+            <TabsContent value="newsletter" className="space-y-6">
+              <NewsletterComposer />
+            </TabsContent>
           </Tabs>
         </div>
       </div>
+    </div>
+  );
+}
+
+// Newsletter Composer component
+function NewsletterComposer() {
+  const [subject, setSubject] = useState('');
+  const [body, setBody] = useState('');
+  const [sending, setSending] = useState(false);
+  const [result, setResult] = useState<{ sent: number; failed: number; total: number } | null>(null);
+  const [error, setError] = useState('');
+  const [showPreview, setShowPreview] = useState(false);
+
+  const previewHtml = body
+    .split('\n\n')
+    .map(p => {
+      const t = p.trim();
+      if (!t) return '';
+      if (t.startsWith('## ')) return `<h2 style="margin:20px 0 8px;font-size:18px;font-weight:700;color:#e9d5ff;">${t.slice(3)}</h2>`;
+      if (t.startsWith('### ')) return `<h3 style="margin:16px 0 8px;font-size:15px;font-weight:600;color:#e9d5ff;">${t.slice(4)}</h3>`;
+      return `<p style="margin:0 0 12px;color:#c4b5fd;font-size:14px;line-height:1.7;">${
+        t.replace(/\*\*(.+?)\*\*/g, '<strong style="color:#e9d5ff;">$1</strong>')
+         .replace(/\*(.+?)\*/g, '<em>$1</em>')
+         .replace(/\[(.+?)\]\((.+?)\)/g, '<a href="$2" style="color:#a78bfa;text-decoration:underline;">$1</a>')
+      }</p>`;
+    })
+    .join('');
+
+  const handleSend = async () => {
+    if (!subject.trim() || !body.trim()) {
+      setError('Subject and body are required.');
+      return;
+    }
+    setError('');
+    setSending(true);
+    setResult(null);
+
+    try {
+      const res = await fetch(
+        `https://${projectId}.supabase.co/functions/v1/make-server-57781ad9/email/newsletter/send`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${publicAnonKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ subject: subject.trim(), body: body.trim(), segment: 'blog_newsletter' }),
+        }
+      );
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Send failed');
+      setResult({ sent: data.sent, failed: data.failed, total: data.total_recipients });
+      toast.success(`Newsletter sent to ${data.sent} subscribers!`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to send newsletter.');
+      toast.error('Failed to send newsletter');
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <Card className="p-6 bg-gradient-to-r from-cyan-900/20 to-teal-900/20 border-cyan-500/30">
+        <div className="flex items-center gap-3 mb-1">
+          <Send className="w-5 h-5 text-cyan-400" />
+          <h3 className="text-lg font-bold text-white">Compose Newsletter</h3>
+        </div>
+        <p className="text-sm text-gray-400">
+          Send to all active subscribers in the <code className="bg-gray-800 px-1.5 py-0.5 rounded text-cyan-300 text-xs">blog_newsletter</code> segment. Supports markdown formatting.
+        </p>
+      </Card>
+
+      <Card className="p-6 border-gray-700 space-y-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-300 mb-1.5">Subject Line</label>
+          <Input
+            value={subject}
+            onChange={(e) => setSubject(e.target.value)}
+            placeholder="e.g. This Week: The Science of Energy-Based Scheduling"
+            className="bg-gray-800/50 border-gray-600 text-white"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-300 mb-1.5">
+            Body <span className="text-gray-500 font-normal">(markdown supported: **bold**, *italic*, [links](url), ## headings)</span>
+          </label>
+          <Textarea
+            value={body}
+            onChange={(e) => setBody(e.target.value)}
+            placeholder={"Happy Friday!\n\nThis week we published a deep dive into how circadian rhythms inform SyncScript's scheduling engine.\n\n## What's New\n\n**Energy-Based Scheduling** is now live for all beta users. Your calendar now knows when you're at your best.\n\nRead the full article on our blog: [The Science Behind Energy-Based Scheduling](https://syncscript.app/blog/science-behind-energy-based-scheduling)\n\nUntil next week,\nThe SyncScript Team"}
+            rows={14}
+            className="bg-gray-800/50 border-gray-600 text-white font-mono text-sm"
+          />
+        </div>
+
+        {error && (
+          <div className="flex items-center gap-2 text-red-400 text-sm">
+            <AlertCircle className="w-4 h-4" />
+            {error}
+          </div>
+        )}
+
+        {result && (
+          <div className="flex items-center gap-2 text-emerald-400 text-sm bg-emerald-500/10 border border-emerald-500/30 rounded-lg p-3">
+            <Check className="w-4 h-4" />
+            Sent to {result.sent} of {result.total} subscribers{result.failed > 0 ? ` (${result.failed} failed)` : ''}.
+          </div>
+        )}
+
+        <div className="flex items-center gap-3 pt-2">
+          <Button
+            onClick={handleSend}
+            disabled={sending || !subject.trim() || !body.trim()}
+            className="bg-cyan-600 hover:bg-cyan-700 text-white"
+          >
+            {sending ? (
+              <>
+                <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                Sending...
+              </>
+            ) : (
+              <>
+                <Send className="w-4 h-4 mr-2" />
+                Send Newsletter
+              </>
+            )}
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => setShowPreview(!showPreview)}
+            className="border-gray-600 text-gray-300 hover:bg-gray-800"
+          >
+            <Eye className="w-4 h-4 mr-2" />
+            {showPreview ? 'Hide Preview' : 'Preview'}
+          </Button>
+        </div>
+      </Card>
+
+      {showPreview && (
+        <Card className="p-0 border-gray-700 overflow-hidden">
+          <div className="px-4 py-3 bg-gray-800 border-b border-gray-700 flex items-center gap-2">
+            <Eye className="w-4 h-4 text-gray-400" />
+            <span className="text-sm font-medium text-gray-300">Email Preview</span>
+          </div>
+          <div className="p-6" style={{ background: '#0a0612' }}>
+            <div style={{ maxWidth: 600, margin: '0 auto', background: '#1e1829', borderRadius: 16, border: '1px solid rgba(139,92,246,0.2)', padding: 32 }}>
+              <div style={{ textAlign: 'center', marginBottom: 24 }}>
+                <h1 style={{ margin: 0, color: '#a78bfa', fontSize: 28, fontWeight: 700 }}>✨ SyncScript</h1>
+                <p style={{ margin: '4px 0 0', color: '#9ca3af', fontSize: 13 }}>Tune Your Day, Amplify Your Life</p>
+              </div>
+              {subject && <h2 style={{ color: '#e9d5ff', fontSize: 20, fontWeight: 700, marginBottom: 16 }}>{subject}</h2>}
+              <div dangerouslySetInnerHTML={{ __html: previewHtml }} />
+              <div style={{ marginTop: 24, paddingTop: 16, borderTop: '1px solid rgba(139,92,246,0.2)', textAlign: 'center' }}>
+                <p style={{ margin: 0, color: '#6b7280', fontSize: 11 }}>
+                  <span style={{ color: '#a78bfa' }}>Unsubscribe</span> · <span style={{ color: '#a78bfa' }}>Manage preferences</span>
+                </p>
+                <p style={{ margin: '6px 0 0', color: '#4b5563', fontSize: 10 }}>SyncScript, Inc. · San Francisco, CA 94102</p>
+              </div>
+            </div>
+          </div>
+        </Card>
+      )}
     </div>
   );
 }

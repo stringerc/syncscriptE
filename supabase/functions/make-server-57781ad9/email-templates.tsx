@@ -991,6 +991,65 @@ export function getReverseTrialFinalDayTemplate(data: EmailTemplateData): { subj
 }
 
 // =====================================================================
+// TEMPLATE: NEWSLETTER (Manual compose via admin)
+// CAN-SPAM compliant with one-click unsubscribe
+// =====================================================================
+export function getNewsletterTemplate(data: EmailTemplateData & { newsletterSubject?: string; newsletterBody?: string }): { subject: string; html: string } {
+  const bodyHtml = (data.newsletterBody || '')
+    .split('\n\n')
+    .map(paragraph => {
+      const trimmed = paragraph.trim();
+      if (!trimmed) return '';
+      if (trimmed.startsWith('### ')) {
+        return `<h3 style="margin: 24px 0 8px; color: #e9d5ff; font-size: 16px; font-weight: 600;">${trimmed.slice(4)}</h3>`;
+      }
+      if (trimmed.startsWith('## ')) {
+        return `<h2 style="margin: 28px 0 12px; color: #e9d5ff; font-size: 20px; font-weight: 700;">${trimmed.slice(3)}</h2>`;
+      }
+      const lines = trimmed.split('\n');
+      const isList = lines.every(l => l.trim().startsWith('- ') || l.trim().startsWith('* '));
+      if (isList) {
+        const items = lines.map(l => `<li style="margin: 4px 0; color: #c4b5fd; font-size: 15px; line-height: 1.6;">${l.trim().replace(/^[-*]\s+/, '')}</li>`).join('');
+        return `<ul style="margin: 12px 0; padding-left: 20px;">${items}</ul>`;
+      }
+      const formatted = trimmed
+        .replace(/\*\*(.+?)\*\*/g, '<strong style="color: #e9d5ff;">$1</strong>')
+        .replace(/\*(.+?)\*/g, '<em>$1</em>')
+        .replace(/\[(.+?)\]\((.+?)\)/g, '<a href="$2" style="color: #a78bfa; text-decoration: underline;">$1</a>');
+      return `<p style="margin: 0 0 16px; color: #c4b5fd; font-size: 15px; line-height: 1.7;">${formatted}</p>`;
+    })
+    .join('');
+
+  const content = `
+    <div style="margin-bottom: 32px;">
+      ${bodyHtml}
+    </div>
+    
+    <div style="text-align: center; margin: 32px 0;">
+      <a href="https://syncscript.app/blog" style="display: inline-block; padding: 14px 32px; background: linear-gradient(135deg, #06b6d4 0%, #14b8a6 100%); color: white; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px;">
+        Read More on Our Blog
+      </a>
+    </div>
+    
+    <div style="margin-top: 32px; padding-top: 24px; border-top: 1px solid rgba(139, 92, 246, 0.2);">
+      <p style="margin: 0; color: #6b7280; font-size: 12px; line-height: 1.6; text-align: center;">
+        You're receiving this because you subscribed to the SyncScript blog newsletter.<br/>
+        <a href="{{unsubscribeUrl}}" style="color: #a78bfa; text-decoration: underline;">Unsubscribe</a> · 
+        <a href="{{preferencesUrl}}" style="color: #a78bfa; text-decoration: underline;">Manage preferences</a>
+      </p>
+      <p style="margin: 8px 0 0; color: #4b5563; font-size: 11px; text-align: center;">
+        SyncScript, Inc. · San Francisco, CA 94102
+      </p>
+    </div>
+  `;
+
+  return {
+    subject: data.newsletterSubject || 'SyncScript Newsletter',
+    html: getBaseTemplate(content, data.newsletterSubject || 'This week from SyncScript'),
+  };
+}
+
+// =====================================================================
 // HELPER: Get template by name
 // =====================================================================
 export function getEmailTemplate(
@@ -1023,6 +1082,8 @@ export function getEmailTemplate(
       return getReverseTrialDay10Template(data);
     case 'reverse_trial_final':
       return getReverseTrialFinalDayTemplate(data);
+    case 'newsletter':
+      return getNewsletterTemplate(data as EmailTemplateData & { newsletterSubject?: string; newsletterBody?: string });
     default:
       return null;
   }

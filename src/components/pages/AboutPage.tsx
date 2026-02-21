@@ -28,9 +28,9 @@ const team = [
 ];
 
 const stats = [
-  { value: '10,547+', label: 'Users', icon: Users },
-  { value: '98.4%', label: 'Uptime', icon: Zap },
-  { value: '40%', label: 'Productivity boost', icon: TrendingUp },
+  { value: 'Open', label: 'Beta status', icon: Users },
+  { value: '2024', label: 'Founded', icon: Zap },
+  { value: 'Weekly', label: 'Feature releases', icon: TrendingUp },
 ];
 
 export function AboutPage() {

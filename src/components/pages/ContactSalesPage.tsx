@@ -19,10 +19,10 @@ const COMPANY_SIZES = [
 ] as const;
 
 const ENTERPRISE_HIGHLIGHTS = [
-  { icon: Shield, label: 'SOC 2 & HIPAA Compliant' },
+  { icon: Shield, label: 'SOC 2 alignment (certification in progress)' },
   { icon: Lock, label: 'SSO / SAML Authentication' },
   { icon: Users, label: 'Unlimited Team Members' },
-  { icon: Clock, label: '< 1 Hour Priority Support' },
+  { icon: Clock, label: 'Priority Email & Chat Support' },
   { icon: Globe, label: 'Data Residency Options' },
   { icon: HeadphonesIcon, label: 'Dedicated Account Manager' },
 ];
@@ -382,7 +382,7 @@ export function ContactSalesPage() {
             transition={{ duration: 0.6, ease }}
           >
             <p className="text-xs text-white/25 font-light">
-              Trusted by teams at companies of all sizes &middot; SOC 2 &middot; HIPAA &middot; GDPR &middot; 99.9% SLA
+              Enterprise-grade security &middot; SOC 2 alignment in progress &middot; GDPR compliant &middot; Data encrypted at rest &amp; in transit
             </p>
           </motion.div>
         </div>

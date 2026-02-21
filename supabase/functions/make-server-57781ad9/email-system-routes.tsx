@@ -321,6 +321,118 @@ app.post('/unsubscribe', async (c) => {
 });
 
 // =====================================================================
+// NEWSLETTER SEND (Admin-triggered bulk send to segment)
+// =====================================================================
+
+app.post('/newsletter/send', async (c) => {
+  try {
+    const { subject, body, segment } = await c.req.json();
+
+    if (!subject || !body) {
+      return c.json({ error: 'Subject and body are required' }, 400);
+    }
+
+    const targetSegment = segment || 'blog_newsletter';
+    const resendApiKey = Deno.env.get('RESEND_API_KEY');
+    if (!resendApiKey) {
+      return c.json({ error: 'RESEND_API_KEY not configured' }, 500);
+    }
+
+    const allSubscribers = await kv.getByPrefix('email_subscriber:') as EmailSubscriber[];
+    const recipients = allSubscribers.filter(
+      (s) => s.status === 'active' && s.segments.includes(targetSegment)
+    );
+
+    if (recipients.length === 0) {
+      return c.json({ error: `No active subscribers in segment "${targetSegment}"`, sent: 0 }, 400);
+    }
+
+    const campaignId = `newsletter_${Date.now()}`;
+    let sent = 0;
+    let failed = 0;
+    const errors: string[] = [];
+
+    for (const subscriber of recipients) {
+      try {
+        const unsubscribeUrl = `https://${c.req.header('host') || 'syncscript.app'}/functions/v1/make-server-57781ad9/email/unsubscribe/${subscriber.unsubscribe_token}`;
+        const preferencesUrl = `https://syncscript.app/preferences/${subscriber.unsubscribe_token}`;
+
+        const { getNewsletterTemplate } = await import('./email-templates.tsx');
+        const template = getNewsletterTemplate({
+          userName: subscriber.name,
+          userEmail: subscriber.email,
+          unsubscribeUrl,
+          preferencesUrl,
+          newsletterSubject: subject,
+          newsletterBody: body,
+        });
+
+        let html = template.html;
+        html = html.replace(/\{\{unsubscribeUrl\}\}/g, unsubscribeUrl);
+        html = html.replace(/\{\{preferencesUrl\}\}/g, preferencesUrl);
+
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+        const response = await fetch('https://api.resend.com/emails', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${resendApiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            from: 'SyncScript Blog <newsletter@syncscript.app>',
+            to: [subscriber.email],
+            subject: template.subject,
+            html,
+            headers: {
+              'List-Unsubscribe': `<${unsubscribeUrl}>`,
+              'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
+            },
+          }),
+          signal: controller.signal,
+        });
+
+        clearTimeout(timeoutId);
+
+        if (response.ok) {
+          sent++;
+          await trackEmailEvent({
+            id: `${campaignId}_${subscriber.email}`,
+            email: subscriber.email,
+            campaign_id: campaignId,
+            template_name: 'newsletter',
+            event_type: 'sent',
+            timestamp: new Date().toISOString(),
+          });
+        } else {
+          failed++;
+          const errBody = await response.text();
+          errors.push(`${subscriber.email}: ${errBody}`);
+        }
+      } catch (err) {
+        failed++;
+        errors.push(`${subscriber.email}: ${String(err)}`);
+      }
+    }
+
+    console.log(`[Newsletter] Sent ${sent}/${recipients.length} emails (${failed} failed)`);
+
+    return c.json({
+      success: true,
+      campaign_id: campaignId,
+      sent,
+      failed,
+      total_recipients: recipients.length,
+      errors: errors.length > 0 ? errors.slice(0, 10) : undefined,
+    });
+  } catch (error) {
+    console.error('[Email API] Error in /newsletter/send:', error);
+    return c.json({ error: 'Failed to send newsletter', details: String(error) }, 500);
+  }
+});
+
+// =====================================================================
 // BEHAVIORAL TRIGGERS
 // =====================================================================
 

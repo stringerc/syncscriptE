@@ -41,7 +41,7 @@ export function CommunityPage() {
       className="min-h-screen bg-gradient-to-b from-[#0a0e1a] via-[#0f1420] to-[#0a0e1a] text-white"
       style={{ fontFamily: "'Space Grotesk', system-ui, sans-serif" }}
     >
-      <div className="max-w-4xl mx-auto px-6 py-8">
+      <div className="max-w-4xl mx-auto px-6 pt-8 pb-20">
         <motion.a
           href="/"
           onClick={(e) => { e.preventDefault(); navigate('/'); }}
@@ -60,7 +60,7 @@ export function CommunityPage() {
           transition={{ duration: 0.4 }}
         >
           <h1 className="text-4xl font-bold tracking-tight mb-2">Community</h1>
-          <p className="text-white/70 text-lg">Connect with 10,000+ SyncScript users</p>
+          <p className="text-white/70 text-lg">Connect with other SyncScript beta testers and the team</p>
         </motion.div>
 
         <motion.div
@@ -75,7 +75,7 @@ export function CommunityPage() {
             </div>
             <div className="flex-1">
               <h2 className="text-xl font-bold mb-1">Join us on Discord</h2>
-              <p className="text-white/70 text-sm mb-3">Get help, share feedback, and meet other users. 10,000+ members.</p>
+              <p className="text-white/70 text-sm mb-3">Get help, share feedback, and meet other beta testers. Talk directly to the team building SyncScript.</p>
               <a
                 href="https://discord.gg/2rq38UJrDJ"
                 target="_blank"
@@ -167,15 +167,20 @@ export function CommunityPage() {
         </motion.section>
 
         <motion.section
-          className="rounded-2xl p-6 bg-white/5 border border-white/10 backdrop-blur-sm"
+          className="rounded-2xl p-8 bg-gradient-to-br from-cyan-500/10 to-teal-500/10 border border-white/10 backdrop-blur-sm"
           initial={{ opacity: 0, y: 10 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
         >
-          <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
-            <Calendar className="w-5 h-5 text-cyan-400" /> Upcoming events
-          </h2>
-          <p className="text-white/60 text-sm">Community calls and AMAs will be posted here and in Discord. Stay tuned.</p>
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+            <div className="w-14 h-14 rounded-xl bg-cyan-500/20 flex items-center justify-center flex-shrink-0">
+              <Calendar className="w-8 h-8 text-cyan-400" />
+            </div>
+            <div className="flex-1">
+              <h2 className="text-xl font-bold mb-1">Upcoming events</h2>
+              <p className="text-white/60 text-sm">Community calls, AMAs, and live product demos will be posted here and announced in Discord. Stay tuned.</p>
+            </div>
+          </div>
         </motion.section>
       </div>
     </div>

@@ -86,18 +86,6 @@
     {
       "path": "/api/cron/process-emails",
       "schedule": "0 9 * * *"
-    },
-    {
-      "path": "/api/cron/growth-tweet",
-      "schedule": "0 15 * * *"
-    },
-    {
-      "path": "/api/cron/weekly-report",
-      "schedule": "0 14 * * 1"
-    },
-    {
-      "path": "/api/phone/scheduled-briefing",
-      "schedule": "0 8 * * *"
     }
   ]
 }

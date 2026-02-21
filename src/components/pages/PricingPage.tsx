@@ -1,6 +1,13 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router';
 import { motion, AnimatePresence } from 'motion/react';
+import { ScrollSection } from '../scroll/ScrollSection';
+import {
+  cardElevate,
+  parallaxReveal,
+  staggerAlternate,
+  convergenceZoom,
+} from '../scroll/animations';
 import {
   Check, X, ArrowRight, Sparkles, Shield, Clock, ChevronDown,
   Zap, Lock, HelpCircle, Loader2, Mail,
@@ -84,17 +91,21 @@ export function PricingPage() {
   };
 
   const faqs = [
-    { q: 'What happens after the free trial?', a: 'After your 14-day free trial ends, you can continue on the Free plan or upgrade. No surprise charges.' },
-    { q: 'Can I change plans later?', a: 'Yes! Upgrade or downgrade at any time. Changes are prorated automatically.' },
-    { q: 'Is my payment information secure?', a: 'Absolutely. We use Stripe for payment processing — PCI DSS compliant and trusted by millions of businesses.' },
-    { q: 'Do you offer refunds?', a: 'Yes. 30-day money-back guarantee, no questions asked.' },
-    { q: 'What happens if I cancel?', a: "Your subscription stays active until the end of your billing period. After that you move to the Free plan — your data is always yours." },
+    { q: 'What happens after the free trial?', a: 'After your 14-day free trial ends, you can continue on the Free plan with core features, or upgrade to keep premium access. No surprise charges — we\'ll remind you before the trial ends.' },
+    { q: 'Can I change plans later?', a: 'Yes. Upgrade or downgrade from your account settings at any time. Upgrades take effect immediately; downgrades apply at the end of your billing period. Prorated credits or charges may apply.' },
+    { q: 'Is my payment information secure?', a: 'Absolutely. Payments are processed by Stripe, which is PCI DSS Level 1 compliant — the highest level of certification in the payments industry. We never store your card details on our servers.' },
+    { q: 'Do you offer refunds?', a: 'Yes. We offer a 14-day satisfaction guarantee on all paid plans. If you\'re not happy, email support@syncscript.app and we\'ll process a full refund. After 14 days, refunds are considered on a case-by-case basis.' },
+    { q: 'What happens if I cancel?', a: 'Your subscription stays active until the end of your billing period. After that, your account moves to the Free plan. Your data stays safe — you can export it anytime or resubscribe to pick up where you left off.' },
+    { q: 'Is there a discount for annual billing?', a: 'Yes. Annual plans save about 20% compared to monthly billing. The exact savings for each plan are shown when you toggle to "Yearly" at the top of this page.' },
+    { q: 'Do I need a credit card to start the free trial?', a: 'No. You can start any paid plan\'s free trial without entering payment information. We\'ll ask for payment only when the trial ends and you choose to continue.' },
+    { q: 'What integrations are available on each plan?', a: 'All plans include Google Calendar and Outlook sync. Paid plans add access to additional integrations as they launch (Slack, Notion, Linear, and more are on our roadmap). The Professional and Enterprise plans also include API access for custom workflows.' },
   ];
 
   return (
     <div className="relative min-h-screen text-white">
 
-      {/* ─── Hero ──────────────────────────────────────────────────────────── */}
+      {/* Snap 1 — Hero + Pricing Cards */}
+      <ScrollSection id="p-hero" animation={cardElevate}>
       <section className="relative z-10 min-h-[60vh] flex flex-col justify-center pb-10 sm:pb-14">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 text-center">
           <motion.div
@@ -223,9 +234,11 @@ export function PricingPage() {
           </motion.div>
         </div>
       </section>
+      </ScrollSection>
 
-      {/* ─── Trust strip ──────────────────────────────────────────────────── */}
-      <section className="relative z-10 py-14 sm:py-20">
+      {/* Snap 2 — Trust Strip */}
+      <ScrollSection id="p-trust" animation={parallaxReveal}>
+      <section className="relative z-10 py-24 sm:py-32">
         <div className="max-w-5xl mx-auto px-4 sm:px-6">
           <motion.div
             className="flex flex-wrap items-center justify-center gap-8 sm:gap-14 text-sm text-white/50"
@@ -239,7 +252,7 @@ export function PricingPage() {
           >
             {[
               { icon: Lock, label: 'PCI-compliant payments via Stripe' },
-              { icon: Shield, label: '30-day money-back guarantee' },
+              { icon: Shield, label: '14-day satisfaction guarantee' },
               { icon: Clock, label: '14-day free trial on paid plans' },
             ].map(({ icon: Ic, label }) => (
               <motion.div
@@ -258,9 +271,11 @@ export function PricingPage() {
           </motion.div>
         </div>
       </section>
+      </ScrollSection>
 
-      {/* ─── FAQ ──────────────────────────────────────────────────────────── */}
-      <section className="relative z-10 py-16 sm:py-24">
+      {/* Snap 3 — FAQ */}
+      <ScrollSection id="p-faq" animation={staggerAlternate}>
+      <section className="relative z-10 py-24 sm:py-32">
         <div className="max-w-3xl mx-auto px-4 sm:px-6">
           <motion.div
             className="text-center mb-12"
@@ -336,12 +351,11 @@ export function PricingPage() {
           </motion.div>
         </div>
       </section>
+      </ScrollSection>
 
-      {/* ─── Final CTA (hero-style centered section) ────────────────────── */}
-      <section className="relative z-10 min-h-[60vh] flex flex-col justify-center">
-        <div className="max-w-xs mx-auto mb-14 sm:mb-20">
-          <div className="h-px bg-gradient-to-r from-transparent via-white/[0.08] to-transparent" />
-        </div>
+      {/* Snap 4 — Final CTA */}
+      <ScrollSection id="p-cta" animation={convergenceZoom}>
+      <section className="relative z-10 py-24 sm:py-32 flex flex-col justify-center">
         <div className="max-w-2xl mx-auto px-4 sm:px-6 text-center">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -378,6 +392,7 @@ export function PricingPage() {
           </motion.div>
         </div>
       </section>
+      </ScrollSection>
 
       {/* ─── Checkout Email Modal ─────────────────────────────────────────── */}
       <AnimatePresence>

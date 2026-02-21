@@ -6,9 +6,9 @@ const HeroScene = lazy(() =>
 );
 
 const ORB_CONFIG: Record<string, { offsetX: number; color1: string; color2: string; opacity: number }> = {
-  '/':         { offsetX: 0,    color1: '#0e7490', color2: '#0f766e', opacity: 1.5 },
+  '/':         { offsetX: 0,    color1: '#22d3ee', color2: '#2dd4bf', opacity: 2.3 },
   '/features': { offsetX: -1.8, color1: '#60a5fa', color2: '#67e8f9', opacity: 1.5 },
-  '/pricing':  { offsetX: 0,    color1: '#059669', color2: '#0d9488', opacity: 1.5 },
+  '/pricing':  { offsetX: 0,    color1: '#34d399', color2: '#2dd4bf', opacity: 2.3 },
   '/faq':      { offsetX: 1.8,  color1: '#facc15', color2: '#fde047', opacity: 1.5 },
   '/contact':  { offsetX: 0,    color1: '#7c3aed', color2: '#06b6d4', opacity: 0.14 },
 };

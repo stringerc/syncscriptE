@@ -1,15 +1,31 @@
 import { useNavigate } from 'react-router';
-import { Check, X, ChevronDown, Shield, Zap, MessageCircle, Play, ArrowRight, Clock, Lock, Headphones, TrendingUp, Users, Target, Calendar, Bot, Sparkles } from 'lucide-react';
+import { Check, X, ChevronDown, Shield, Zap, MessageCircle, Play, ArrowRight, Clock, Lock, Headphones, TrendingUp, Users, Target, Calendar, Bot, Sparkles, PhoneOff, Mic } from 'lucide-react';
 import { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { motion, useInView, useScroll, useTransform, AnimatePresence } from 'motion/react';
 
 
-import { AnimatedSection, StaggerContainer, StaggerItem, CountUp } from '../AnimatedSection';
+import { FloatingOrbs } from '../FloatingOrbs';
+import { CountUp } from '../AnimatedSection';
+import { SmoothScrollProvider } from '../scroll/SmoothScrollProvider';
+import { ScrollSection } from '../scroll/ScrollSection';
+import { SectionIndicator } from '../scroll/SectionIndicator';
+import {
+  textSplitReveal,
+  cardCascade,
+  splitScreen,
+  blurToSharp,
+  cardElevate,
+  timelineProgress,
+  waveGrid,
+  staggerAlternate,
+  convergenceZoom,
+} from '../scroll/animations';
 import { MagneticButton } from '../MagneticButton';
 import { BentoGrid } from '../BentoGrid';
 import { InteractiveDemo } from '../InteractiveDemo';
 import { InteractiveComparison } from '../InteractiveComparison';
 import { BetaSignupModal } from '../BetaSignupModal';
+import { useNexusVoiceCall } from '../../contexts/NexusVoiceCallContext';
 import { useParticleTransition } from '../ParticleTransition';
 import { AdminLoginModal } from '../admin/AdminLoginModal';
 import { AdminEmailDashboard } from '../admin/AdminEmailDashboardV2';
@@ -44,6 +60,9 @@ export function LandingPage() {
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [showBetaModal, setShowBetaModal] = useState(false);
   const [betaSignups, setBetaSignups] = useState(127); // Default count
+  
+  const nexusVoice = useNexusVoiceCall();
+  const chatScrollRef = useRef<HTMLDivElement>(null);
   
   // Admin state
   const [showAdminLogin, setShowAdminLogin] = useState(false);
@@ -105,6 +124,13 @@ export function LandingPage() {
     }
     fetchBetaCount();
   }, []);
+
+  // Auto-scroll chat to bottom when new messages arrive
+  useEffect(() => {
+    if (chatScrollRef.current && nexusVoice.isCallActive) {
+      chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
+    }
+  }, [nexusVoice.messages, nexusVoice.interimText, nexusVoice.isCallActive]);
   
   // Try Demo state
   
@@ -193,7 +219,7 @@ export function LandingPage() {
     },
     {
       question: "What integrations do you support?",
-      answer: "SyncScript integrates with Google Calendar, Outlook, Slack, Notion, Asana, Trello, and 50+ other tools. New integrations added monthly."
+      answer: "SyncScript syncs with Google Calendar and Outlook today. Slack, Notion, Asana, Linear, and more are on our public roadmap — new integrations ship regularly during beta."
     },
     {
       question: "Can I cancel anytime?",
@@ -202,7 +228,10 @@ export function LandingPage() {
   ];
 
   return (
+    <SmoothScrollProvider>
     <div className="min-h-screen bg-gradient-to-b from-[#0a0e1a] via-[#0f1420] to-[#0a0e1a] text-white overflow-x-hidden" style={{ fontFamily: "'Space Grotesk', system-ui, sans-serif" }}>
+      <FloatingOrbs />
+      <SectionIndicator />
       {/* Beta Testing Banner */}
       <div className="bg-gradient-to-r from-indigo-600 via-purple-600 to-violet-600 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3">
@@ -220,7 +249,7 @@ export function LandingPage() {
                 Become a Beta Tester
               </button>
               <button
-                onClick={() => navigate('/login?guest=true')}
+                onClick={() => window.location.href = '/login?guest=true'}
                 className="hidden sm:inline-block text-white/80 hover:text-white transition-colors font-medium"
               >
                 Try as Guest →
@@ -286,13 +315,13 @@ export function LandingPage() {
             {/* CTA Buttons */}
             <div className="flex items-center gap-3">
               <button 
-                onClick={() => navigate('/login')}
+                onClick={() => window.location.href = '/login'}
                 className="hidden sm:inline-block text-white/80 hover:text-white transition-colors text-sm"
               >
                 Sign In
               </button>
               <MagneticButton
-                onClick={() => navigate('/signup')}
+                onClick={() => window.location.href = '/signup'}
                 className="bg-gradient-to-r from-cyan-500 to-teal-500 hover:from-cyan-400 hover:to-teal-400 text-white px-4 sm:px-6 py-2 sm:py-2.5 rounded-lg font-medium transition-all hover:scale-105 active:scale-95 shadow-lg shadow-cyan-500/30 text-sm sm:text-base"
                 strength={0.2}
               >
@@ -357,7 +386,7 @@ export function LandingPage() {
                   </button>
                   <button 
                     onClick={() => {
-                      navigate('/login');
+                      window.location.href = '/login';
                       setShowMobileMenu(false);
                     }}
                     className="block w-full text-left text-white hover:text-white bg-gradient-to-r from-cyan-500/10 to-teal-500/10 hover:from-cyan-500/20 hover:to-teal-500/20 border border-cyan-500/30 transition-all py-3 px-4 rounded-lg font-medium mt-4"
@@ -385,7 +414,7 @@ export function LandingPage() {
                 Ready to work smarter, not harder?
               </p>
               <MagneticButton
-                onClick={() => navigate('/signup')}
+                onClick={() => window.location.href = '/signup'}
                 className="bg-white text-cyan-600 hover:bg-cyan-50 px-4 sm:px-6 py-2 sm:py-2.5 rounded-lg font-medium transition-all hover:scale-105 shadow-lg text-sm sm:text-base whitespace-nowrap"
                 strength={0.2}
               >
@@ -396,7 +425,8 @@ export function LandingPage() {
         )}
       </AnimatePresence>
 
-      {/* Hero Section - Redesigned with Video and Trust Signals */}
+      {/* Snap 1 — Hero */}
+      <ScrollSection id="hero" snap fullHeight>
       <section ref={heroRef} className="max-w-7xl mx-auto px-4 sm:px-6 pt-12 sm:pt-20 pb-16 sm:pb-24 relative">
         {/* Animated Gradient Background */}
         <div className="absolute inset-0 pointer-events-none overflow-hidden opacity-30">
@@ -516,7 +546,7 @@ export function LandingPage() {
               </div>
               
               <button
-                onClick={() => navigate('/login?guest=true')}
+                onClick={() => window.location.href = '/login?guest=true'}
                 className="text-white/60 hover:text-white transition-colors text-sm sm:text-base font-medium group inline-flex items-center gap-2 mt-1"
               >
                 or Try as Guest
@@ -653,81 +683,45 @@ export function LandingPage() {
           </motion.div>
         </div>
       </section>
+      </ScrollSection>
 
-      {/* Stats Section - Real Product Facts */}
-      <section ref={statsRef} className="py-12 sm:py-20">
+      {/* Snap 2 — The Problem */}
+      <ScrollSection id="problem" animation={cardCascade} fullHeight>
+      <section ref={statsRef} className="py-16 sm:py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          <StaggerContainer>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-6 sm:gap-8">
-              <StaggerItem>
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={statsInView ? { opacity: 1, y: 0 } : {}}
-                  transition={{ duration: 0.6 }}
-                  className="text-center"
-                >
-                  <div className="text-3xl sm:text-4xl md:text-5xl font-bold bg-gradient-to-r from-cyan-400 to-teal-400 bg-clip-text text-transparent mb-2">
-                    {statsInView && <CountUp end={90} duration={2} />}s
-                  </div>
-                  <p className="text-sm sm:text-base text-white/60">Setup Time</p>
-                </motion.div>
-              </StaggerItem>
-
-              <StaggerItem>
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={statsInView ? { opacity: 1, y: 0 } : {}}
-                  transition={{ duration: 0.6, delay: 0.1 }}
-                  className="text-center"
-                >
-                  <div className="text-3xl sm:text-4xl md:text-5xl font-bold bg-gradient-to-r from-emerald-400 to-teal-400 bg-clip-text text-transparent mb-2">
-                    {statsInView && <CountUp end={50} duration={2} />}+
-                  </div>
-                  <p className="text-sm sm:text-base text-white/60">Integrations</p>
-                </motion.div>
-              </StaggerItem>
-
-              <StaggerItem>
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={statsInView ? { opacity: 1, y: 0 } : {}}
-                  transition={{ duration: 0.6, delay: 0.2 }}
-                  className="text-center"
-                >
-                  <div className="text-3xl sm:text-4xl md:text-5xl font-bold bg-gradient-to-r from-orange-400 to-pink-400 bg-clip-text text-transparent mb-2">
-                    {statsInView && <CountUp end={24} duration={2} />}/7
-                  </div>
-                  <p className="text-sm sm:text-base text-white/60">AI Scheduling</p>
-                </motion.div>
-              </StaggerItem>
-
-              <StaggerItem>
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={statsInView ? { opacity: 1, y: 0 } : {}}
-                  transition={{ duration: 0.6, delay: 0.3 }}
-                  className="text-center"
-                >
-                  <div className="text-3xl sm:text-4xl md:text-5xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent mb-2">
-                    {statsInView && <CountUp end={0} duration={2} />}
-                  </div>
-                  <p className="text-sm sm:text-base text-white/60">Credit Card Required</p>
-                </motion.div>
-              </StaggerItem>
-            </div>
-          </StaggerContainer>
-        </div>
-      </section>
-
-      {/* Three-Panel Value Prop - NEW! */}
-      <section className="py-16 sm:py-24 bg-black/20 backdrop-blur-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          <AnimatedSection>
-            <div className="text-center mb-12 sm:mb-16">
-              <h2 className="text-4xl sm:text-5xl font-semibold mb-4 tracking-[-0.02em]">The Problem with "Productivity"</h2>
+            <div className="text-center mb-8 sm:mb-10">
+              <h2 className="text-4xl sm:text-5xl font-semibold mb-4 tracking-[-0.02em]">The Problem with &ldquo;Productivity&rdquo;</h2>
               <p className="text-lg sm:text-xl text-white/60 max-w-3xl mx-auto font-light">
                 Generic to-do apps ignore your biology. SyncScript works with it.
               </p>
+            </div>
+
+            {/* Quick Stats */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6 mb-10 sm:mb-12">
+              <div className="text-center bg-white/[0.03] border border-white/10 rounded-xl py-4 px-3">
+                <div className="text-2xl sm:text-3xl md:text-4xl font-bold bg-gradient-to-r from-cyan-400 to-teal-400 bg-clip-text text-transparent mb-1">
+                  {statsInView && <CountUp end={90} duration={2} />}s
+                </div>
+                <p className="text-xs sm:text-sm text-white/60">Setup Time</p>
+              </div>
+              <div className="text-center bg-white/[0.03] border border-white/10 rounded-xl py-4 px-3">
+                <div className="text-2xl sm:text-3xl md:text-4xl font-bold bg-gradient-to-r from-emerald-400 to-teal-400 bg-clip-text text-transparent mb-1">
+                  {statsInView && <CountUp end={14} duration={2} />}
+                </div>
+                <p className="text-xs sm:text-sm text-white/60">Days Free Trial</p>
+              </div>
+              <div className="text-center bg-white/[0.03] border border-white/10 rounded-xl py-4 px-3">
+                <div className="text-2xl sm:text-3xl md:text-4xl font-bold bg-gradient-to-r from-orange-400 to-pink-400 bg-clip-text text-transparent mb-1">
+                  {statsInView && <CountUp end={24} duration={2} />}/7
+                </div>
+                <p className="text-xs sm:text-sm text-white/60">AI Scheduling</p>
+              </div>
+              <div className="text-center bg-white/[0.03] border border-white/10 rounded-xl py-4 px-3">
+                <div className="text-2xl sm:text-3xl md:text-4xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent mb-1">
+                  {statsInView && <CountUp end={0} duration={2} />}
+                </div>
+                <p className="text-xs sm:text-sm text-white/60">Credit Card Required</p>
+              </div>
             </div>
 
             <div className="grid md:grid-cols-3 gap-6 sm:gap-8">
@@ -824,23 +818,18 @@ export function LandingPage() {
                 </div>
               </motion.div>
             </div>
-          </AnimatedSection>
         </div>
       </section>
+      </ScrollSection>
 
-      {/* Voice Calling with Nexus - Feature Showcase */}
-      <section id="voice-calling" className="py-16 sm:py-24">
+      {/* Snap 4 — Call Nexus */}
+      <ScrollSection id="nexus" animation={splitScreen} fullHeight>
+      <section id="voice-calling" className="py-24 sm:py-32">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          <AnimatedSection>
             <div className="grid lg:grid-cols-2 gap-8 sm:gap-12 items-center">
               {/* Left - Copy */}
               <div>
-                <motion.div
-                  initial={{ opacity: 0, x: -20 }}
-                  whileInView={{ opacity: 1, x: 0 }}
-                  viewport={{ once: true, amount: 0.3 }}
-                  transition={{ duration: 0.6 }}
-                >
+                <div>
                   <div className="inline-flex items-center gap-2 bg-indigo-500/10 border border-indigo-500/30 rounded-full px-4 py-1.5 mb-6">
                     <Headphones className="w-4 h-4 text-indigo-400" />
                     <span className="text-indigo-400 font-medium text-xs sm:text-sm">Voice-First AI</span>
@@ -881,102 +870,201 @@ export function LandingPage() {
                       </motion.div>
                     ))}
                   </div>
-                  <MagneticButton
-                    onClick={() => setShowBetaModal(true)}
-                    className="group bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white px-8 py-3 rounded-lg font-medium transition-all shadow-lg shadow-indigo-500/20 inline-flex items-center gap-3"
-                    strength={0.3}
-                  >
-                    <Headphones className="w-5 h-5" />
-                    Try Voice Calling
-                    <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                  </MagneticButton>
-                </motion.div>
+                  {nexusVoice.isCallActive ? (
+                    <MagneticButton
+                      onClick={nexusVoice.endCall}
+                      className="group bg-gradient-to-r from-red-600 to-red-500 hover:from-red-500 hover:to-red-400 text-white px-8 py-3 rounded-lg font-medium transition-all shadow-lg shadow-red-500/20 inline-flex items-center gap-3"
+                      strength={0.3}
+                    >
+                      <PhoneOff className="w-5 h-5" />
+                      End Voice Chat
+                    </MagneticButton>
+                  ) : (
+                    <MagneticButton
+                      onClick={nexusVoice.startCall}
+                      className="group bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white px-8 py-3 rounded-lg font-medium transition-all shadow-lg shadow-indigo-500/20 inline-flex items-center gap-3"
+                      strength={0.3}
+                    >
+                      <Headphones className="w-5 h-5" />
+                      Try Voice Calling
+                      <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                    </MagneticButton>
+                  )}
+                </div>
               </div>
 
-              {/* Right - Animated Phone Call Mockup */}
-              <motion.div
-                initial={{ opacity: 0, x: 20 }}
-                whileInView={{ opacity: 1, x: 0 }}
-                viewport={{ once: true, amount: 0.3 }}
-                transition={{ duration: 0.6, delay: 0.2 }}
-                className="relative"
-              >
-                <div className="bg-gradient-to-br from-indigo-900/30 to-purple-900/30 border border-indigo-500/30 rounded-2xl p-6 sm:p-8 relative overflow-hidden">
-                  <div className="absolute top-0 right-0 w-48 h-48 bg-indigo-500/10 rounded-full blur-3xl" />
+              {/* Right - Live Call Panel / Static Mockup */}
+              <div className="relative">
+                <div className={`rounded-2xl p-6 sm:p-8 relative overflow-hidden border transition-all duration-500 ${
+                  nexusVoice.isCallActive
+                    ? 'bg-gradient-to-br from-emerald-900/30 to-teal-900/30 border-emerald-500/40 shadow-lg shadow-emerald-500/10'
+                    : 'bg-gradient-to-br from-indigo-900/30 to-purple-900/30 border-indigo-500/30'
+                }`}>
+                  <div className={`absolute top-0 right-0 w-48 h-48 rounded-full blur-3xl transition-colors duration-500 ${
+                    nexusVoice.isCallActive ? 'bg-emerald-500/10' : 'bg-indigo-500/10'
+                  }`} />
                   <div className="relative z-10">
                     {/* Call Header */}
                     <div className="flex items-center justify-between mb-6">
                       <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-full flex items-center justify-center">
+                        <div className={`w-12 h-12 rounded-full flex items-center justify-center transition-all duration-500 ${
+                          nexusVoice.isCallActive
+                            ? 'bg-gradient-to-br from-emerald-500 to-teal-500'
+                            : 'bg-gradient-to-br from-indigo-500 to-purple-500'
+                        }`}>
                           <Bot className="w-6 h-6 text-white" />
                         </div>
                         <div>
                           <h4 className="font-semibold text-white">Nexus AI</h4>
                           <div className="flex items-center gap-1.5">
-                            <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
-                            <span className="text-xs text-green-400">Connected</span>
+                            {nexusVoice.isCallActive ? (
+                              <>
+                                <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
+                                <span className="text-xs text-emerald-400">
+                                  {nexusVoice.isSpeaking ? 'Speaking' : nexusVoice.isListening ? 'Listening' : 'Connected'}
+                                </span>
+                              </>
+                            ) : (
+                              <>
+                                <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
+                                <span className="text-xs text-green-400">Connected</span>
+                              </>
+                            )}
                           </div>
                         </div>
                       </div>
-                      <span className="text-sm text-white/40 font-mono">2:47</span>
+                      <span className="text-sm text-white/40 font-mono tabular-nums">
+                        {nexusVoice.isCallActive
+                          ? `${Math.floor(nexusVoice.callDuration / 60)}:${(nexusVoice.callDuration % 60).toString().padStart(2, '0')}`
+                          : '2:47'
+                        }
+                      </span>
                     </div>
 
                     {/* Conversation Transcript */}
-                    <div className="space-y-4 mb-6">
-                      {[
-                        { speaker: 'nexus', text: "Good morning! I see you have 6 tasks today. Your peak focus window is 9-11am — I've moved your deep work there." },
-                        { speaker: 'user', text: "Can you push my 2pm meeting to Thursday?" },
-                        { speaker: 'nexus', text: "Done. I've rescheduled your 2pm with the design team to Thursday at the same time. I also freed up a 45-minute focus block in its place." },
-                      ].map((msg, i) => (
-                        <motion.div
-                          key={i}
-                          initial={{ opacity: 0, y: 10 }}
-                          whileInView={{ opacity: 1, y: 0 }}
-                          viewport={{ once: true }}
-                          transition={{ delay: 0.4 + i * 0.2 }}
-                          className={`flex ${msg.speaker === 'user' ? 'justify-end' : 'justify-start'}`}
-                        >
-                          <div className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
-                            msg.speaker === 'user'
-                              ? 'bg-indigo-500/20 border border-indigo-500/30 text-white/90'
-                              : 'bg-white/5 border border-white/10 text-white/80'
-                          }`}>
-                            {msg.text}
-                          </div>
-                        </motion.div>
-                      ))}
+                    <div
+                      ref={chatScrollRef}
+                      className="space-y-3 mb-6 max-h-[240px] overflow-y-auto scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent pr-1"
+                      style={{ scrollBehavior: 'smooth' }}
+                    >
+                      {nexusVoice.isCallActive ? (
+                        <>
+                          {nexusVoice.messages.map((msg) => (
+                            <div
+                              key={msg.id}
+                              className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} animate-in fade-in slide-in-from-bottom-2 duration-300`}
+                            >
+                              <div className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
+                                msg.role === 'user'
+                                  ? 'bg-emerald-500/20 border border-emerald-500/30 text-white/90'
+                                  : 'bg-white/5 border border-white/10 text-white/80'
+                              }`}>
+                                {msg.text}
+                              </div>
+                            </div>
+                          ))}
+                          {nexusVoice.interimText && (
+                            <div className="flex justify-end">
+                              <div className="max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed bg-emerald-500/10 border border-emerald-500/20 text-white/50 italic">
+                                {nexusVoice.interimText}...
+                              </div>
+                            </div>
+                          )}
+                        </>
+                      ) : (
+                        // Static mockup when not in a call
+                        [{
+                          speaker: 'nexus',
+                          text: "Good morning! I see you have 6 tasks today. Your peak focus window is 9-11am — I've moved your deep work there.",
+                        }, {
+                          speaker: 'user',
+                          text: "Can you push my 2pm meeting to Thursday?",
+                        }, {
+                          speaker: 'nexus',
+                          text: "Done. I've rescheduled your 2pm with the design team to Thursday at the same time. I also freed up a 45-minute focus block in its place.",
+                        }].map((msg, i) => (
+                          <motion.div
+                            key={i}
+                            initial={{ opacity: 0, y: 10 }}
+                            whileInView={{ opacity: 1, y: 0 }}
+                            viewport={{ once: true }}
+                            transition={{ delay: 0.4 + i * 0.2 }}
+                            className={`flex ${msg.speaker === 'user' ? 'justify-end' : 'justify-start'}`}
+                          >
+                            <div className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
+                              msg.speaker === 'user'
+                                ? 'bg-indigo-500/20 border border-indigo-500/30 text-white/90'
+                                : 'bg-white/5 border border-white/10 text-white/80'
+                            }`}>
+                              {msg.text}
+                            </div>
+                          </motion.div>
+                        ))
+                      )}
                     </div>
 
                     {/* Waveform Visualization */}
                     <div className="flex items-center gap-1 justify-center h-10">
-                      {Array.from({ length: 24 }).map((_, i) => (
-                        <motion.div
-                          key={i}
-                          className="w-1 bg-gradient-to-t from-indigo-500 to-purple-400 rounded-full"
-                          animate={{
-                            height: [4, Math.random() * 28 + 6, 4],
-                          }}
-                          transition={{
-                            duration: 0.8 + Math.random() * 0.6,
-                            repeat: Infinity,
-                            delay: i * 0.04,
-                            ease: 'easeInOut',
-                          }}
-                        />
-                      ))}
+                      {nexusVoice.isCallActive ? (
+                        // Live waveform — responsive to speaking/listening state
+                        <>
+                          {nexusVoice.isListening && (
+                            <div className="flex items-center gap-2 mr-3">
+                              <Mic className="w-3.5 h-3.5 text-emerald-400 animate-pulse" />
+                              <span className="text-[10px] text-emerald-400/70 uppercase tracking-wider">Listening</span>
+                            </div>
+                          )}
+                          {Array.from({ length: 24 }).map((_, i) => (
+                            <div
+                              key={i}
+                              className={`w-1 rounded-full transition-all ${
+                                nexusVoice.isCallActive
+                                  ? 'bg-gradient-to-t from-emerald-500 to-teal-400'
+                                  : 'bg-gradient-to-t from-indigo-500 to-purple-400'
+                              }`}
+                              style={{
+                                height: (nexusVoice.isSpeaking || nexusVoice.isListening)
+                                  ? `${Math.random() * 28 + 6}px`
+                                  : '4px',
+                                animation: (nexusVoice.isSpeaking || nexusVoice.isListening)
+                                  ? `nexusWave 0.8s ease-in-out ${i * 0.04}s infinite alternate`
+                                  : 'none',
+                                transition: 'height 0.3s ease',
+                              }}
+                            />
+                          ))}
+                        </>
+                      ) : (
+                        // Static animated waveform for mockup
+                        Array.from({ length: 24 }).map((_, i) => (
+                          <motion.div
+                            key={i}
+                            className="w-1 bg-gradient-to-t from-indigo-500 to-purple-400 rounded-full"
+                            animate={{
+                              height: [4, Math.random() * 28 + 6, 4],
+                            }}
+                            transition={{
+                              duration: 0.8 + Math.random() * 0.6,
+                              repeat: Infinity,
+                              delay: i * 0.04,
+                              ease: 'easeInOut',
+                            }}
+                          />
+                        ))
+                      )}
                     </div>
                   </div>
                 </div>
-              </motion.div>
+              </div>
             </div>
-          </AnimatedSection>
         </div>
       </section>
+      </ScrollSection>
 
-      {/* Built on Science - Research-Backed */}
-      <section className="py-16 sm:py-24 bg-black/20 backdrop-blur-sm">
+      {/* Snap 5 — Built on Real Science */}
+      <ScrollSection id="science" animation={blurToSharp} fullHeight>
+      <section className="py-24 sm:py-32">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          <AnimatedSection>
             <div className="text-center mb-12 sm:mb-16">
               <h2 className="text-4xl sm:text-5xl font-semibold mb-4 tracking-[-0.02em]">Built on Real Science</h2>
               <p className="text-lg sm:text-xl text-white/60 font-light max-w-3xl mx-auto">
@@ -1026,55 +1114,55 @@ export function LandingPage() {
                 </motion.div>
               ))}
             </div>
-          </AnimatedSection>
         </div>
       </section>
+      </ScrollSection>
 
-      {/* Pricing Section - MOVED UP & Enhanced with ROI Calculator */}
-      <section ref={pricingRef} id="pricing" className="py-16 sm:py-24 bg-black/20 backdrop-blur-sm">
+      {/* Snap 6 — Simple, Transparent Pricing */}
+      <ScrollSection id="pricing" animation={cardElevate} fullHeight>
+      <section ref={pricingRef} id="pricing-anchor" className="py-8 sm:py-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          <AnimatedSection>
-            <div className="text-center mb-12 sm:mb-16">
-              <h2 className="text-4xl sm:text-5xl font-semibold mb-4 tracking-[-0.02em]">Simple, Transparent Pricing</h2>
-              <p className="text-lg sm:text-xl text-white/60 font-light">Start free. Upgrade when you're ready. Cancel anytime.</p>
+            <div className="text-center mb-6">
+              <h2 className="text-3xl sm:text-4xl font-semibold mb-2 tracking-[-0.02em]">Simple, Transparent Pricing</h2>
+              <p className="text-sm sm:text-base text-white/60 font-light">Start free. Upgrade when you're ready. Cancel anytime.</p>
             </div>
 
             {/* Pricing Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-12 sm:mb-16">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5 mb-8 sm:mb-10">
               {PRICING_PLANS.map((plan, i) => (
                 <motion.div
                   key={plan.id}
                   initial={{ opacity: 0, y: 20 }}
                   animate={pricingInView ? { opacity: 1, y: 0 } : {}}
                   transition={{ duration: 0.6, delay: i * 0.1 }}
-                  className={`backdrop-blur-sm rounded-2xl p-5 sm:p-7 relative ${
+                  className={`backdrop-blur-sm rounded-2xl p-4 sm:p-5 relative ${
                     plan.popular
-                      ? 'bg-gradient-to-br from-cyan-900/30 to-teal-900/30 border-2 border-cyan-500 transform md:scale-105 shadow-2xl shadow-cyan-500/20'
+                      ? 'bg-gradient-to-br from-cyan-900/30 to-teal-900/30 border-2 border-cyan-500 transform md:scale-[1.03] shadow-2xl shadow-cyan-500/20'
                       : 'bg-white/5 border border-white/10'
                   }`}
                 >
                   {plan.popular && (
-                    <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 bg-gradient-to-r from-cyan-500 to-teal-500 text-white text-xs font-bold px-4 py-1 rounded-full whitespace-nowrap">
+                    <div className="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-gradient-to-r from-cyan-500 to-teal-500 text-white text-[10px] font-bold px-3 py-0.5 rounded-full whitespace-nowrap">
                       MOST POPULAR
                     </div>
                   )}
-                  <h3 className="text-xl font-bold mb-2">{plan.name}</h3>
-                  <div className="text-3xl sm:text-4xl font-bold mb-1">
+                  <h3 className="text-lg font-bold mb-1">{plan.name}</h3>
+                  <div className="text-2xl sm:text-3xl font-bold mb-0.5">
                     {plan.price === 0 ? '$0' : `$${plan.price}`}
-                    <span className="text-base sm:text-lg text-white/50 font-normal">/{plan.price === 0 ? 'forever' : 'mo'}</span>
+                    <span className="text-sm text-white/50 font-normal">/{plan.price === 0 ? 'forever' : 'mo'}</span>
                   </div>
-                  <p className="text-xs text-white/50 mb-5">{plan.subtitle}</p>
-                  <ul className="space-y-2.5 mb-10 text-sm">
-                    {plan.features.filter(f => f.included).slice(0, 5).map((f) => (
-                      <li key={f.text} className="flex items-start gap-2">
-                        <Check className="w-4 h-4 text-cyan-400 mt-0.5 shrink-0" />
+                  <p className="text-[10px] text-white/50 mb-3">{plan.subtitle}</p>
+                  <ul className="space-y-1.5 mb-4 text-xs">
+                    {plan.features.filter(f => f.included).slice(0, 4).map((f) => (
+                      <li key={f.text} className="flex items-start gap-1.5">
+                        <Check className="w-3.5 h-3.5 text-cyan-400 mt-0.5 shrink-0" />
                         <span>{f.text}</span>
                       </li>
                     ))}
                   </ul>
                   <button
                     onClick={() => navigate(plan.ctaAction === 'contact' ? '/contact' : '/signup')}
-                    className={`w-full px-5 py-2.5 rounded-lg font-medium transition-all text-sm ${
+                    className={`w-full px-4 py-2 rounded-lg font-medium transition-all text-xs ${
                       plan.popular
                         ? 'bg-gradient-to-r from-cyan-500 to-teal-500 hover:from-cyan-400 hover:to-teal-400 text-white shadow-lg shadow-cyan-500/30'
                         : 'bg-white/10 hover:bg-white/20 border border-white/20 text-white'
@@ -1086,83 +1174,41 @@ export function LandingPage() {
               ))}
             </div>
 
-            <div className="text-center mb-8">
-              <button
-                onClick={() => navigateWithParticles('/pricing')}
-                className="text-cyan-400 hover:text-cyan-300 text-sm font-medium transition-colors"
-              >
-                View full pricing comparison &rarr;
-              </button>
+            {/* Compact ROI Calculator */}
+            <div className="bg-gradient-to-r from-teal-900/20 to-emerald-900/20 border border-teal-500/30 rounded-xl p-4 sm:p-5 max-w-5xl mx-auto mb-6">
+              <div className="flex flex-col md:flex-row items-center gap-4 md:gap-6">
+                <h3 className="text-sm font-semibold text-white/90 whitespace-nowrap shrink-0">Calculate Your Savings</h3>
+                <div className="flex items-center gap-2 flex-1 min-w-0">
+                  <span className="text-xs text-white/60 whitespace-nowrap">Tasks/day: <span className="text-teal-400 font-bold">{tasksPerDay}</span></span>
+                  <input
+                    type="range" min="5" max="50" value={tasksPerDay}
+                    onChange={(e) => setTasksPerDay(Number(e.target.value))}
+                    className="flex-1 h-1.5 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-teal-500 min-w-[80px]"
+                  />
+                </div>
+                <div className="flex items-center gap-2 flex-1 min-w-0">
+                  <span className="text-xs text-white/60 whitespace-nowrap">Hours/day: <span className="text-teal-400 font-bold">{hoursPerDay}</span></span>
+                  <input
+                    type="range" min="4" max="12" value={hoursPerDay}
+                    onChange={(e) => setHoursPerDay(Number(e.target.value))}
+                    className="flex-1 h-1.5 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-teal-500 min-w-[80px]"
+                  />
+                </div>
+                <div className="flex items-center gap-4 shrink-0">
+                  <div className="text-center">
+                    <p className="text-xl font-bold text-teal-400">{timesSavedPerWeek}h</p>
+                    <p className="text-[10px] text-white/50">saved/week</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-xl font-bold text-emerald-400">${moneySavedPerMonth.toLocaleString()}</p>
+                    <p className="text-[10px] text-white/50">value/month</p>
+                  </div>
+                </div>
+              </div>
             </div>
 
-            {/* ROI Calculator */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, amount: 0.3 }}
-              transition={{ duration: 0.6 }}
-              className="bg-gradient-to-br from-teal-900/20 to-emerald-900/20 border border-teal-500/30 rounded-2xl p-6 sm:p-8 max-w-4xl mx-auto"
-            >
-              <div className="text-center mb-8">
-                <h3 className="text-2xl sm:text-3xl font-bold mb-2">Calculate Your Time Savings</h3>
-                <p className="text-white/70">See how much SyncScript is worth to you</p>
-              </div>
-
-              <div className="grid md:grid-cols-2 gap-8">
-                {/* Input Controls */}
-                <div className="space-y-6">
-                  <div>
-                    <label className="block text-sm font-medium mb-3 text-white/80">
-                      Tasks per day: <span className="text-teal-400 font-bold">{tasksPerDay}</span>
-                    </label>
-                    <input
-                      type="range"
-                      min="5"
-                      max="50"
-                      value={tasksPerDay}
-                      onChange={(e) => setTasksPerDay(Number(e.target.value))}
-                      className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-teal-500"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium mb-3 text-white/80">
-                      Work hours per day: <span className="text-teal-400 font-bold">{hoursPerDay}</span>
-                    </label>
-                    <input
-                      type="range"
-                      min="4"
-                      max="12"
-                      value={hoursPerDay}
-                      onChange={(e) => setHoursPerDay(Number(e.target.value))}
-                      className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-teal-500"
-                    />
-                  </div>
-                </div>
-
-                {/* Results */}
-                <div className="flex flex-col justify-center">
-                  <div className="bg-gray-900/50 rounded-xl p-6 space-y-4">
-                    <div>
-                      <p className="text-sm text-white/60 mb-1">Time saved per week:</p>
-                      <p className="text-3xl font-bold text-teal-400">{timesSavedPerWeek} hours</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-white/60 mb-1">Value per month (@ $50/hr):</p>
-                      <p className="text-3xl font-bold text-emerald-400">${moneySavedPerMonth.toLocaleString()}</p>
-                    </div>
-                    <div className="pt-4 border-t border-white/10">
-                      <p className="text-xs text-white/50">
-                        Based on 20% efficiency gain from AI scheduling
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-
             {/* Trust Badges */}
-            <div className="mt-12 flex flex-wrap items-center justify-center gap-6 sm:gap-8 text-xs sm:text-sm text-white/60">
+            <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-6 text-xs text-white/60">
               <div className="flex items-center gap-2">
                 <Lock className="w-4 h-4 text-cyan-400" />
                 <span>Bank-level encryption</span>
@@ -1173,21 +1219,21 @@ export function LandingPage() {
               </div>
               <div className="flex items-center gap-2">
                 <Headphones className="w-4 h-4 text-emerald-400" />
-                <span>24/7 Support</span>
+                <span>Email & Discord support</span>
               </div>
               <div className="flex items-center gap-2">
                 <Check className="w-4 h-4 text-green-400" />
                 <span>Cancel anytime</span>
               </div>
             </div>
-          </AnimatedSection>
         </div>
       </section>
+      </ScrollSection>
 
-      {/* How It Works - 3 Simple Steps */}
-      <section id="features" className="py-16 sm:py-24">
+      {/* Snap 7 — How It Works */}
+      <ScrollSection id="how-it-works" animation={timelineProgress} fullHeight>
+      <section id="features" className="py-24 sm:py-32">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          <AnimatedSection>
             <div className="text-center mb-12 sm:mb-16">
               <h2 className="text-4xl sm:text-5xl font-semibold mb-4 tracking-[-0.02em]">How It Works</h2>
               <p className="text-lg sm:text-xl text-white/60 font-light">Get started in 3 simple steps</p>
@@ -1195,13 +1241,7 @@ export function LandingPage() {
 
             <div className="grid md:grid-cols-3 gap-8 sm:gap-12">
               {/* Step 1 */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, amount: 0.3 }}
-                transition={{ duration: 0.6 }}
-                className="text-center relative"
-              >
+              <div className="text-center relative">
                 <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-cyan-500 to-teal-500 rounded-2xl flex items-center justify-center text-2xl sm:text-3xl font-bold mx-auto mb-6 shadow-lg shadow-cyan-500/30">
                   1
                 </div>
@@ -1212,16 +1252,10 @@ export function LandingPage() {
                 <div className="absolute -right-4 top-8 hidden md:block">
                   <ArrowRight className="w-8 h-8 text-cyan-500/30" />
                 </div>
-              </motion.div>
+              </div>
 
               {/* Step 2 */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, amount: 0.3 }}
-                transition={{ duration: 0.6, delay: 0.1 }}
-                className="text-center relative"
-              >
+              <div className="text-center relative">
                 <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-teal-500 to-emerald-500 rounded-2xl flex items-center justify-center text-2xl sm:text-3xl font-bold mx-auto mb-6 shadow-lg shadow-teal-500/30">
                   2
                 </div>
@@ -1232,16 +1266,10 @@ export function LandingPage() {
                 <div className="absolute -right-4 top-8 hidden md:block">
                   <ArrowRight className="w-8 h-8 text-teal-500/30" />
                 </div>
-              </motion.div>
+              </div>
 
               {/* Step 3 */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, amount: 0.3 }}
-                transition={{ duration: 0.6, delay: 0.2 }}
-                className="text-center"
-              >
+              <div className="text-center">
                 <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-emerald-500 to-cyan-500 rounded-2xl flex items-center justify-center text-2xl sm:text-3xl font-bold mx-auto mb-6 shadow-lg shadow-emerald-500/30">
                   3
                 </div>
@@ -1249,35 +1277,38 @@ export function LandingPage() {
                 <p className="text-white/70 text-sm sm:text-base">
                   Tasks auto-schedule to your <strong>peak energy hours</strong>. Zero effort.
                 </p>
-              </motion.div>
+              </div>
             </div>
 
-            <div className="text-center mt-16 sm:mt-20">
-              <button
-                onClick={() => navigateWithParticles('/features')}
-                className="text-cyan-400 hover:text-cyan-300 text-sm font-medium transition-colors"
-              >
-                Explore all features &rarr;
-              </button>
-            </div>
-          </AnimatedSection>
         </div>
       </section>
 
-      {/* Integration Marquee - Trust Signal */}
-      <section className="py-10 sm:py-14 border-y border-white/5 overflow-hidden">
+      {/* Explore Features — mini-hero CTA between steps and marquee */}
+      <section className="py-10 sm:py-14">
+        <div className="max-w-md mx-auto px-4 text-center">
+          <p className="text-xs text-white/40 uppercase tracking-widest mb-4">Ready to dive deeper?</p>
+          <button
+            onClick={() => navigateWithParticles('/features')}
+            className="inline-flex items-center gap-2 bg-white/5 border border-white/20 hover:border-cyan-400/50 hover:bg-white/10 text-white px-8 py-3.5 rounded-xl font-medium transition-all text-sm"
+          >
+            Explore All Features
+            <ArrowRight className="w-4 h-4" />
+          </button>
+        </div>
+      </section>
+
+      {/* Integration Marquee — Infinite Scroll */}
+      <section className="pt-2 sm:pt-4 pb-12 sm:pb-16 overflow-hidden">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          <p className="text-center text-sm text-white/40 mb-6 tracking-wide uppercase font-medium">Works with the tools you already love</p>
+          <p className="text-center text-sm text-white/40 mb-8 tracking-wide uppercase font-medium">Calendar sync live — more integrations shipping regularly</p>
         </div>
         <div className="relative">
-          <div className="absolute left-0 top-0 bottom-0 w-24 bg-gradient-to-r from-[#0a0e1a] to-transparent z-10 pointer-events-none" />
-          <div className="absolute right-0 top-0 bottom-0 w-24 bg-gradient-to-l from-[#0a0e1a] to-transparent z-10 pointer-events-none" />
-          <motion.div
-            className="flex gap-10 items-center whitespace-nowrap"
-            animate={{ x: ['0%', '-50%'] }}
-            transition={{ duration: 30, ease: 'linear', repeat: Infinity }}
+          <div className="absolute left-0 top-0 bottom-0 w-32 bg-gradient-to-r from-[#0a0e1a] to-transparent z-10 pointer-events-none" />
+          <div className="absolute right-0 top-0 bottom-0 w-32 bg-gradient-to-l from-[#0a0e1a] to-transparent z-10 pointer-events-none" />
+          <div
+            className="flex gap-10 items-center whitespace-nowrap animate-marquee-infinite"
           >
-            {[...Array(2)].map((_, setIndex) => (
+            {[...Array(4)].map((_, setIndex) => (
               <div key={setIndex} className="flex gap-10 items-center shrink-0">
                 {[
                   { name: 'Google Calendar', icon: <Calendar className="w-5 h-5" /> },
@@ -1292,6 +1323,10 @@ export function LandingPage() {
                   { name: 'GitHub', icon: <Bot className="w-5 h-5" /> },
                   { name: 'Figma', icon: <Sparkles className="w-5 h-5" /> },
                   { name: 'ClickUp', icon: <Target className="w-5 h-5" /> },
+                  { name: 'Monday.com', icon: <Calendar className="w-5 h-5" /> },
+                  { name: 'Basecamp', icon: <Users className="w-5 h-5" /> },
+                  { name: 'Zapier', icon: <Zap className="w-5 h-5" /> },
+                  { name: 'Make', icon: <Sparkles className="w-5 h-5" /> },
                 ].map((tool) => (
                   <div key={`${setIndex}-${tool.name}`} className="flex items-center gap-2.5 text-white/30 hover:text-white/60 transition-colors shrink-0">
                     {tool.icon}
@@ -1300,14 +1335,16 @@ export function LandingPage() {
                 ))}
               </div>
             ))}
-          </motion.div>
+          </div>
         </div>
       </section>
 
-      {/* A Day With SyncScript - Animated Timeline */}
-      <section className="py-16 sm:py-24 bg-black/20 backdrop-blur-sm">
+      </ScrollSection>
+
+      {/* Snap 8 — A Day With SyncScript */}
+      <ScrollSection id="day-timeline" animation={staggerAlternate} fullHeight>
+      <section className="py-24 sm:py-32">
         <div className="max-w-5xl mx-auto px-4 sm:px-6">
-          <AnimatedSection>
             <div className="text-center mb-12 sm:mb-16">
               <h2 className="text-4xl sm:text-5xl font-semibold mb-4 tracking-[-0.02em]">A Day With SyncScript</h2>
               <p className="text-lg sm:text-xl text-white/60 font-light">See how your day transforms when AI works with your energy</p>
@@ -1354,29 +1391,35 @@ export function LandingPage() {
                 ))}
               </div>
             </div>
-          </AnimatedSection>
         </div>
       </section>
+      </ScrollSection>
 
-      {/* Interactive Product Demo */}
-      <section className="py-16 sm:py-24">
+      {/* Snap 9 — See It In Action */}
+      <ScrollSection id="demo" animation={waveGrid} fullHeight>
+      <section className="py-24 sm:py-32">
         <InteractiveDemo />
       </section>
+      </ScrollSection>
 
-      {/* Bento Grid - Feature Deep Dive */}
-      <section className="py-16 sm:py-24">
+      {/* Snap 10 — Everything You Need */}
+      <ScrollSection id="bento" animation={convergenceZoom} fullHeight>
+      <section className="py-6 sm:py-8">
         <BentoGrid />
       </section>
+      </ScrollSection>
 
-      {/* Interactive Comparison Tool */}
-      <section className="py-16 sm:py-24 bg-black/20 backdrop-blur-sm">
+      {/* Snap 11 — See the Difference */}
+      <ScrollSection id="comparison" animation={cardElevate} fullHeight>
+      <section className="py-8 sm:py-10">
         <InteractiveComparison />
       </section>
+      </ScrollSection>
 
-      {/* FAQ Section */}
-      <section id="faq" className="py-16 sm:py-24">
+      {/* Snap 12 — Frequently Asked Questions */}
+      <ScrollSection id="faq-section" animation={textSplitReveal} fullHeight>
+      <section id="faq" className="py-24 sm:py-32">
         <div className="max-w-4xl mx-auto px-4 sm:px-6">
-          <AnimatedSection>
             <div className="text-center mb-12 sm:mb-16">
               <h2 className="text-4xl sm:text-5xl font-semibold mb-4 tracking-[-0.02em]">Frequently Asked Questions</h2>
               <p className="text-lg sm:text-xl text-white/60 font-light">Everything you need to know</p>
@@ -1430,19 +1473,18 @@ export function LandingPage() {
                 View all FAQs &rarr;
               </button>
             </div>
-          </AnimatedSection>
         </div>
       </section>
+      </ScrollSection>
 
-      {/* Final CTA Section */}
-      <section className="pt-20 sm:pt-32 pb-28 sm:pb-32 relative overflow-hidden">
+      {/* Snap 13 — Ready to Stop the Burnout */}
+      <ScrollSection id="cta" animation={convergenceZoom} fullHeight>
+      <section className="relative overflow-hidden">
         {/* Ambient background glow */}
         <div className="absolute inset-0 bg-gradient-to-br from-cyan-900/20 via-transparent to-teal-900/20" />
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-cyan-500/[0.04] rounded-full blur-[120px] pointer-events-none" />
-        <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-cyan-500/30 to-transparent" />
-        <div className="absolute bottom-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-cyan-500/30 to-transparent" />
 
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 text-center relative z-10">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 text-center relative z-10 py-24 sm:py-32">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -1466,7 +1508,7 @@ export function LandingPage() {
                 <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
               </MagneticButton>
               <MagneticButton
-                onClick={() => navigate('/login?guest=true')}
+                onClick={() => window.location.href = '/login?guest=true'}
                 className="group bg-white/5 border border-white/20 hover:border-cyan-400/50 hover:bg-white/10 text-white px-10 py-4 rounded-lg text-lg font-medium transition-all inline-flex items-center justify-center gap-3 w-full sm:w-auto"
                 strength={0.4}
               >
@@ -1480,8 +1522,9 @@ export function LandingPage() {
           </motion.div>
         </div>
       </section>
+      </ScrollSection>
 
-      {/* Footer */}
+      {/* Footer — outside snap flow */}
       <footer className="bg-black/40 border-t border-white/10 py-12 sm:py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 sm:gap-12 mb-12">
@@ -1502,8 +1545,6 @@ export function LandingPage() {
               <ul className="space-y-2 text-sm text-white/60">
                 <li><button onClick={() => navigate('/about')} className="hover:text-white transition-colors">About</button></li>
                 <li><button onClick={() => navigate('/blog')} className="hover:text-white transition-colors">Blog</button></li>
-                <li><button onClick={() => navigate('/careers')} className="hover:text-white transition-colors">Careers</button></li>
-                <li><button onClick={() => navigate('/press')} className="hover:text-white transition-colors">Press Kit</button></li>
               </ul>
             </div>
 
@@ -1917,7 +1958,7 @@ export function LandingPage() {
                       </button>
                       <div className="flex items-center gap-2 sm:gap-3">
                         <button
-                          onClick={() => { navigate('/login?guest=true'); setShowDemoModal(false); setDemoStep(0); }}
+                          onClick={() => { window.location.href = '/login?guest=true'; setShowDemoModal(false); setDemoStep(0); }}
                           className="text-xs sm:text-sm text-cyan-400 hover:text-cyan-300 transition-colors font-medium hidden sm:block"
                         >
                           Try Live Dashboard
@@ -1949,7 +1990,7 @@ export function LandingPage() {
                           Back
                         </button>
                         <button
-                          onClick={() => { navigate('/login?guest=true'); setShowDemoModal(false); setDemoStep(0); }}
+                          onClick={() => { window.location.href = '/login?guest=true'; setShowDemoModal(false); setDemoStep(0); }}
                           className="text-xs sm:text-sm text-cyan-400 hover:text-cyan-300 transition-colors font-medium"
                         >
                           Try Live Dashboard →
@@ -1994,5 +2035,6 @@ export function LandingPage() {
         </div>
       )}
     </div>
+    </SmoothScrollProvider>
   );
 }

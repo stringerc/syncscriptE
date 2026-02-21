@@ -1,5 +1,13 @@
 import { useNavigate } from 'react-router';
 import { motion } from 'motion/react';
+import { ScrollSection } from '../scroll/ScrollSection';
+import {
+  cardCascade,
+  waveGrid,
+  timelineProgress,
+  splitScreen,
+  convergenceZoom,
+} from '../scroll/animations';
 import {
   Zap,
   Bot,
@@ -132,9 +140,9 @@ const BENTO_FEATURES: BentoFeature[] = [
   },
   {
     icon: Plug,
-    title: '50+ Integrations',
+    title: 'Calendar & App Integrations',
     description:
-      'Google Calendar, Outlook, Slack, Notion, Linear, and more. Two-way sync, unified search, webhooks, and API.',
+      'Google Calendar and Outlook sync today, with Slack, Notion, Linear, and more on the roadmap. API access on paid plans.',
     span: 2,
     accent: 'from-indigo-500/20 to-purple-500/20',
     iconBg: 'bg-indigo-500/15 text-indigo-400',
@@ -142,10 +150,10 @@ const BENTO_FEATURES: BentoFeature[] = [
 ];
 
 const STATS = [
-  { value: '40%', label: 'More tasks completed', icon: TrendingUp },
-  { value: '8 hrs', label: 'Saved per week', icon: Clock },
-  { value: '10,547+', label: 'Active users', icon: Users },
-  { value: '99.9%', label: 'Uptime SLA', icon: Shield },
+  { value: '90s', label: 'Average setup time', icon: Clock },
+  { value: '3', label: 'Steps to get started', icon: TrendingUp },
+  { value: '24/7', label: 'AI scheduling engine', icon: Shield },
+  { value: '$0', label: 'To start — free plan forever', icon: Users },
 ];
 
 const HOW_IT_WORKS = [
@@ -172,43 +180,55 @@ const HOW_IT_WORKS = [
   },
 ];
 
-const TESTIMONIALS = [
+const BETA_PRINCIPLES = [
   {
-    quote: 'After 2 weeks with SyncScript, I\'m finishing 40% more tasks without feeling drained. The AI actually knows when I\'m at my best.',
-    name: 'Sarah Mitchell',
-    role: 'Product Designer @ Stripe',
+    icon: Sparkles,
+    title: 'Built in the Open',
+    description: 'SyncScript is in open beta. Every feature is shaped by real feedback from real users — not focus groups or guesswork.',
+    accent: 'text-cyan-400',
+    bg: 'bg-cyan-500/15',
   },
   {
-    quote: 'Our team\'s productivity jumped 60% in the first month. The energy tracking is a game-changer for remote work.',
-    name: 'James Chen',
-    role: 'Engineering Lead @ Notion',
+    icon: Users,
+    title: 'Community-Driven Roadmap',
+    description: 'Our Discord community votes on what gets built next. Bug reports become fixes within days, not quarters.',
+    accent: 'text-teal-400',
+    bg: 'bg-teal-500/15',
   },
   {
-    quote: 'I used to crash every afternoon. Now SyncScript schedules my hard tasks for mornings. Zero burnout in 3 months.',
-    name: 'Aisha Patel',
-    role: 'Founder @ StartupLab',
+    icon: Shield,
+    title: 'Transparent Progress',
+    description: 'We publish a public changelog and roadmap. You can see exactly what shipped, what\'s in progress, and what\'s planned.',
+    accent: 'text-emerald-400',
+    bg: 'bg-emerald-500/15',
   },
   {
-    quote: 'The Resonance Engine is unlike anything else. It doesn\'t just organize my day — it understands my day.',
-    name: 'Marcus Rivera',
-    role: 'VP Operations @ Acme Corp',
+    icon: TrendingUp,
+    title: 'Improving Weekly',
+    description: 'New features, refinements, and AI model improvements ship every week. Early adopters get free access and a lifetime discount.',
+    accent: 'text-amber-400',
+    bg: 'bg-amber-500/15',
   },
 ];
 
-const MARQUEE_ITEMS: { name: string; Icon: LucideIcon }[] = [
+const LIVE_INTEGRATIONS: { name: string; Icon: LucideIcon }[] = [
   { name: 'Google Calendar', Icon: Calendar },
+  { name: 'Outlook', Icon: CalendarDays },
+];
+
+const COMING_SOON_INTEGRATIONS: { name: string; Icon: LucideIcon }[] = [
   { name: 'Slack', Icon: MessageCircle },
   { name: 'Notion', Icon: Target },
   { name: 'Asana', Icon: Check },
   { name: 'Trello', Icon: Zap },
-  { name: 'Outlook', Icon: CalendarDays },
   { name: 'Jira', Icon: TrendingUp },
   { name: 'Todoist', Icon: Check },
   { name: 'Linear', Icon: Target },
   { name: 'GitHub', Icon: Sparkles },
-  { name: 'Figma', Icon: Target },
   { name: 'ClickUp', Icon: Bot },
 ];
+
+const ALL_MARQUEE_ITEMS = [...LIVE_INTEGRATIONS, ...COMING_SOON_INTEGRATIONS];
 
 export function FeaturesPage() {
   const navigate = useNavigate();
@@ -216,7 +236,8 @@ export function FeaturesPage() {
   return (
     <div className="relative min-h-screen text-white">
 
-      {/* ─── Hero ──────────────────────────────────────────────────────────── */}
+      {/* Snap 1 — Hero */}
+      <ScrollSection id="f-hero" snap>
       <section className="relative z-10 min-h-[60vh] flex flex-col justify-center pb-28 sm:pb-44">
         {/* Ambient gradient glows */}
         <div className="absolute inset-0 pointer-events-none overflow-hidden opacity-30">
@@ -311,9 +332,11 @@ export function FeaturesPage() {
           </div>
         </div>
       </section>
+      </ScrollSection>
 
-      {/* ─── Core Pillars ─────────────────────────────────────────────────── */}
-      <section className="relative z-10 py-20 sm:py-28">
+      {/* Snap 2 — Core Pillars */}
+      <ScrollSection id="f-pillars" animation={cardCascade}>
+      <section className="relative z-10 py-24 sm:py-32">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <motion.div
             className="text-center mb-16 sm:mb-24"
@@ -365,13 +388,11 @@ export function FeaturesPage() {
           </motion.div>
         </div>
       </section>
+      </ScrollSection>
 
-      {/* ─── Bento Feature Grid ───────────────────────────────────────────── */}
-      <section className="relative z-10 pt-8 sm:pt-12 pb-16 sm:pb-24">
-        {/* Section divider */}
-        <div className="max-w-xs mx-auto mb-16 sm:mb-24">
-          <div className="h-px bg-gradient-to-r from-transparent via-white/[0.08] to-transparent" />
-        </div>
+      {/* Snap 3 — Bento Feature Grid */}
+      <ScrollSection id="f-bento" animation={waveGrid}>
+      <section className="relative z-10 py-24 sm:py-32">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <motion.div
             className="text-center mb-16 sm:mb-24"
@@ -435,9 +456,11 @@ export function FeaturesPage() {
           </motion.div>
         </div>
       </section>
+      </ScrollSection>
 
-      {/* ─── Stats Strip ──────────────────────────────────────────────────── */}
-      <section className="relative z-10 py-16 sm:py-20 border-y border-white/[0.06]">
+      {/* Snap 4 — Stats */}
+      <ScrollSection id="f-stats" animation={timelineProgress}>
+      <section className="relative z-10 py-24 sm:py-32">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <motion.div
             className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-8 md:gap-12"
@@ -470,28 +493,11 @@ export function FeaturesPage() {
         </div>
       </section>
 
-      {/* ─── Mid-page nudge ──────────────────────────────────────────────── */}
-      <section className="relative z-10 py-10 sm:py-14">
-        <motion.div
-          className="text-center"
-          initial={{ opacity: 0 }}
-          whileInView={{ opacity: 1 }}
-          viewport={viewport}
-          transition={{ duration: 0.5, ease }}
-        >
-          <button
-            type="button"
-            onClick={() => navigate('/signup')}
-            className="inline-flex items-center gap-2 text-sm text-white/40 hover:text-cyan-400 transition-colors group"
-          >
-            Ready to see it in action?
-            <ArrowRight className="w-3.5 h-3.5 opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all" />
-          </button>
-        </motion.div>
-      </section>
+      </ScrollSection>
 
-      {/* ─── How It Works ─────────────────────────────────────────────────── */}
-      <section className="relative z-10 py-20 sm:py-32">
+      {/* Snap 5 — How It Works */}
+      <ScrollSection id="f-how" animation={splitScreen}>
+      <section className="relative z-10 py-24 sm:py-32">
         {/* Ambient glow */}
         <div className="absolute inset-0 pointer-events-none overflow-hidden opacity-20">
           <motion.div
@@ -557,30 +563,58 @@ export function FeaturesPage() {
           </motion.div>
         </div>
       </section>
+      </ScrollSection>
 
-      {/* ─── Integration Marquee ───────────────────────────────────────────── */}
-      <section className="relative z-10 py-16 sm:py-24 overflow-hidden border-y border-white/[0.06]">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 mb-10">
+      {/* Snap 6 — Integrations */}
+      <ScrollSection id="f-integrations" animation={cardCascade}>
+      <section className="relative z-10 py-24 sm:py-32 overflow-hidden">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 mb-4">
           <motion.h2
             className="text-2xl sm:text-3xl font-semibold tracking-[-0.02em] text-center"
             initial={{ opacity: 0, y: 16 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={viewport}
           >
-            Works with the tools you already use
+            Connects with your calendar — more integrations coming
           </motion.h2>
+          <motion.p
+            className="mt-3 text-center text-sm text-white/45 font-light max-w-lg mx-auto"
+            initial={{ opacity: 0 }}
+            whileInView={{ opacity: 1 }}
+            viewport={viewport}
+            transition={{ delay: 0.1 }}
+          >
+            Google Calendar and Outlook sync live today. Slack, Notion, Linear, and more are on the roadmap.
+          </motion.p>
         </div>
-        <div className="relative">
+
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 mb-8">
+          <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-4">
+            {LIVE_INTEGRATIONS.map(({ name, Icon }) => (
+              <div
+                key={name}
+                className="flex items-center gap-2.5 px-4 py-2.5 rounded-xl bg-cyan-500/10 border border-cyan-500/25 shrink-0"
+              >
+                <Icon className="w-5 h-5 text-cyan-400" strokeWidth={1.8} />
+                <span className="text-white/80 font-medium text-sm">{name}</span>
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-emerald-400 bg-emerald-400/10 px-1.5 py-0.5 rounded">Live</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="relative mt-4">
           <div className="absolute left-0 top-0 bottom-0 w-8 sm:w-16 md:w-24 bg-gradient-to-r from-[#0a0e1a] to-transparent z-10 pointer-events-none" />
           <div className="absolute right-0 top-0 bottom-0 w-8 sm:w-16 md:w-24 bg-gradient-to-l from-[#0a0e1a] to-transparent z-10 pointer-events-none" />
+          <p className="text-center text-xs text-white/30 mb-4 tracking-wide uppercase font-medium">Coming soon</p>
           <div className="flex gap-10 sm:gap-14 animate-marquee whitespace-nowrap w-max">
-            {[...MARQUEE_ITEMS, ...MARQUEE_ITEMS].map(({ name, Icon }, i) => (
+            {[...COMING_SOON_INTEGRATIONS, ...COMING_SOON_INTEGRATIONS].map(({ name, Icon }, i) => (
               <div
                 key={`${name}-${i}`}
-                className="flex items-center gap-3 px-5 py-3 rounded-xl bg-white/[0.04] border border-white/[0.07] shrink-0"
+                className="flex items-center gap-3 px-5 py-3 rounded-xl bg-white/[0.04] border border-white/[0.07] shrink-0 opacity-60"
               >
-                <Icon className="w-5 h-5 text-cyan-400/70" strokeWidth={1.8} />
-                <span className="text-white/70 font-medium text-sm">{name}</span>
+                <Icon className="w-5 h-5 text-white/40" strokeWidth={1.8} />
+                <span className="text-white/50 font-medium text-sm">{name}</span>
               </div>
             ))}
           </div>
@@ -596,8 +630,11 @@ export function FeaturesPage() {
         `}</style>
       </section>
 
-      {/* ─── Social Proof ─────────────────────────────────────────────────── */}
-      <section className="relative z-10 py-20 sm:py-32">
+      </ScrollSection>
+
+      {/* Snap 7 — Built in the Open */}
+      <ScrollSection id="f-open" animation={convergenceZoom}>
+      <section className="relative z-10 py-24 sm:py-32">
         {/* Ambient glow */}
         <div className="absolute inset-0 pointer-events-none overflow-hidden opacity-15">
           <motion.div
@@ -616,8 +653,12 @@ export function FeaturesPage() {
             transition={{ duration: 0.5, ease }}
           >
             <h2 className="text-3xl sm:text-4xl font-semibold tracking-[-0.02em]">
-              Trusted by productive humans
+              Built in the open.{' '}
+              <span className="text-white/40">Shaped by you.</span>
             </h2>
+            <p className="mt-4 text-white/50 font-light max-w-xl mx-auto">
+              SyncScript is in open beta — every feature is tested, refined, and shipped with real user input.
+            </p>
           </motion.div>
 
           <motion.div
@@ -630,39 +671,56 @@ export function FeaturesPage() {
               visible: { transition: { staggerChildren: 0.1 } },
             }}
           >
-            {TESTIMONIALS.map((t) => (
-              <motion.blockquote
-                key={t.name}
-                className="bg-white/[0.03] border border-white/[0.07] rounded-2xl p-5 sm:p-7 md:p-8 flex flex-col"
-                variants={{
-                  hidden: { opacity: 0, y: 16 },
-                  visible: { opacity: 1, y: 0 },
-                }}
-                transition={{ duration: 0.4, ease }}
-              >
-                <p className="text-white/75 font-light leading-relaxed text-sm flex-1">
-                  &ldquo;{t.quote}&rdquo;
-                </p>
-                <div className="mt-5 flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-full bg-gradient-to-br from-cyan-500/30 to-teal-500/30 flex items-center justify-center text-white/60 text-xs font-semibold">
-                    {t.name.split(' ').map(n => n[0]).join('')}
+            {BETA_PRINCIPLES.map((item) => {
+              const Icon = item.icon;
+              return (
+                <motion.div
+                  key={item.title}
+                  className="bg-white/[0.03] border border-white/[0.07] rounded-2xl p-5 sm:p-7 md:p-8 flex flex-col hover:bg-white/[0.06] hover:border-white/[0.12] transition-all duration-300"
+                  variants={{
+                    hidden: { opacity: 0, y: 16 },
+                    visible: { opacity: 1, y: 0 },
+                  }}
+                  transition={{ duration: 0.4, ease }}
+                >
+                  <div className={`w-10 h-10 rounded-xl ${item.bg} flex items-center justify-center ${item.accent} mb-4`}>
+                    <Icon className="w-5 h-5" strokeWidth={1.8} />
                   </div>
-                  <div>
-                    <div className="text-sm font-medium text-white">{t.name}</div>
-                    <div className="text-xs text-white/40">{t.role}</div>
-                  </div>
-                </div>
-              </motion.blockquote>
-            ))}
+                  <h3 className="text-lg font-semibold tracking-tight text-white mb-2">
+                    {item.title}
+                  </h3>
+                  <p className="text-sm text-white/55 font-light leading-relaxed flex-1">
+                    {item.description}
+                  </p>
+                </motion.div>
+              );
+            })}
+          </motion.div>
+
+          <motion.div
+            className="mt-10 text-center"
+            initial={{ opacity: 0, y: 12 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={viewport}
+            transition={{ duration: 0.5, delay: 0.3, ease }}
+          >
+            <button
+              type="button"
+              onClick={() => navigate('/signup')}
+              className="inline-flex items-center gap-2 px-6 py-3 rounded-xl font-medium bg-gradient-to-r from-cyan-500 to-teal-500 hover:from-cyan-400 hover:to-teal-400 text-white shadow-lg shadow-cyan-500/20 transition-all text-sm"
+            >
+              <Sparkles className="w-4 h-4" />
+              Join the Beta
+              <ArrowRight className="w-4 h-4" />
+            </button>
           </motion.div>
         </div>
       </section>
+      </ScrollSection>
 
-      {/* ─── Final CTA ──────────────────────────────────────────────────── */}
-      <section className="relative z-10 pt-12 sm:pt-16 pb-48 sm:pb-64 mb-16 sm:mb-24">
-        <div className="max-w-xs mx-auto mb-16 sm:mb-20">
-          <div className="h-px bg-gradient-to-r from-transparent via-white/[0.08] to-transparent" />
-        </div>
+      {/* Snap 8 — Final CTA */}
+      <ScrollSection id="f-cta" animation={waveGrid}>
+      <section className="relative z-10 py-24 sm:py-32">
         <div className="max-w-2xl mx-auto px-4 sm:px-6 text-center">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -695,6 +753,7 @@ export function FeaturesPage() {
           </motion.div>
         </div>
       </section>
+      </ScrollSection>
     </div>
   );
 }
