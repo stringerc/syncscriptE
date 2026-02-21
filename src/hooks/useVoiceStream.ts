@@ -311,14 +311,13 @@ export function useVoiceStream(options: UseVoiceStreamOptions = {}) {
   }, [onStatusChange]);
 
   // ==========================================================================
-  // TTS CONTROLS — Kokoro local TTS (primary) → Supabase Gemini → browser fallback
+  // TTS CONTROLS — Server proxy (primary) → Kokoro direct → browser fallback
   // ==========================================================================
 
   const activeAudioRef = useRef<HTMLAudioElement | null>(null);
   const activeUrlRef = useRef<string | null>(null);
 
   const KOKORO_TTS_URL = import.meta.env.VITE_KOKORO_TTS_URL || '';
-  const SUPABASE_TTS_URL = `${import.meta.env.VITE_SUPABASE_URL || 'https://kwhnrlzibgfedtxpkbgb.supabase.co'}/functions/v1/make-server-57781ad9/openclaw/tts`;
 
   const selectVoice = useCallback((voiceName?: string): SpeechSynthesisVoice | null => {
     if (!availableVoices.length) return null;
@@ -328,9 +327,11 @@ export function useVoiceStream(options: UseVoiceStreamOptions = {}) {
       if (match) return match;
     }
 
+    // Prioritize the most natural-sounding voices per platform
     const preferred = [
-      'Samantha', 'Karen', 'Daniel', 'Google US English',
-      'Microsoft Aria', 'Microsoft Jenny', 'Google UK English Female',
+      'Microsoft Jenny', 'Microsoft Aria',          // Windows neural voices
+      'Samantha', 'Karen',                           // macOS
+      'Google UK English Female', 'Google US English', // Chrome
     ];
 
     for (const name of preferred) {
@@ -341,7 +342,69 @@ export function useVoiceStream(options: UseVoiceStreamOptions = {}) {
     return availableVoices.find(v => v.lang.startsWith('en')) || availableVoices[0];
   }, [availableVoices]);
 
-  /** Try neural TTS server first, fall back to browser SpeechSynthesis */
+  /** Play an audio blob, resolving when playback completes */
+  const playAudioBlob = useCallback((blob: Blob): Promise<void> => {
+    const url = URL.createObjectURL(blob);
+    activeUrlRef.current = url;
+
+    return new Promise<void>((resolve) => {
+      const audio = new Audio(url);
+      activeAudioRef.current = audio;
+
+      const cleanup = () => {
+        URL.revokeObjectURL(url);
+        activeAudioRef.current = null;
+        activeUrlRef.current = null;
+        setIsSpeaking(false);
+        setState(prev => ({ ...prev, status: 'idle' }));
+        onStatusChange?.('idle');
+        resolve();
+      };
+
+      audio.onended = cleanup;
+      audio.onerror = cleanup;
+      audio.play().catch(cleanup);
+    });
+  }, [onStatusChange]);
+
+  /** Speak using browser SpeechSynthesis as a last resort */
+  const speakBrowserFallback = useCallback((request: TTSRequest): Promise<void> => {
+    if (!synthRef.current) {
+      setIsSpeaking(false);
+      setState(prev => ({ ...prev, status: 'idle' }));
+      onStatusChange?.('idle');
+      return Promise.resolve();
+    }
+
+    console.warn('[TTS] Using browser speechSynthesis fallback — voice will sound robotic');
+
+    return new Promise<void>((resolve) => {
+      const utterance = new SpeechSynthesisUtterance(request.text);
+      const voice = selectVoice(request.config?.voice || ttsVoice);
+      if (voice) {
+        utterance.voice = voice;
+        console.info(`[TTS] Browser voice: ${voice.name}`);
+      }
+      utterance.rate = request.config?.speed || ttsRate;
+      utterance.pitch = request.config?.pitch || ttsPitch;
+      utterance.volume = 1.0;
+
+      const done = () => {
+        setIsSpeaking(false);
+        currentUtteranceRef.current = null;
+        setState(prev => ({ ...prev, status: 'idle' }));
+        onStatusChange?.('idle');
+        resolve();
+      };
+
+      utterance.onend = done;
+      utterance.onerror = done;
+      currentUtteranceRef.current = utterance;
+      synthRef.current!.speak(utterance);
+    });
+  }, [selectVoice, ttsVoice, ttsRate, ttsPitch, onStatusChange]);
+
+  /** Try neural TTS via server proxy, then direct Kokoro */
   const speak = useCallback(async (request: TTSRequest): Promise<void> => {
     // Cancel any ongoing speech
     if (activeAudioRef.current) {
@@ -360,130 +423,82 @@ export function useVoiceStream(options: UseVoiceStreamOptions = {}) {
     setState(prev => ({ ...prev, status: 'speaking' }));
     onStatusChange?.('speaking');
 
-    // Choose voice preset based on emotion
-    let voicePreset = 'cortana';
-    if (request.emotion?.primary === 'stressed' || request.emotion?.primary === 'sad') {
-      voicePreset = 'gentle';
-    } else if (request.emotion?.primary === 'excited' || request.emotion?.primary === 'happy') {
-      voicePreset = 'playful';
-    }
-
-    // Map presets → Kokoro voice blends
-    const kokoroVoiceMap: Record<string, string> = {
-      cortana: 'af_kore+af_bella',
-      gentle: 'af_heart',
-      playful: 'af_bella+af_nova',
-      commander: 'af_kore+af_nova',
+    // Resolve voice name: explicit config > emotion-based > default
+    const resolveVoice = (): string => {
+      if (request.config?.voice) return request.config.voice;
+      const emotion = request.emotion?.primary;
+      if (emotion === 'stressed' || emotion === 'sad' || emotion === 'calm') return 'gentle';
+      if (emotion === 'excited' || emotion === 'happy') return 'playful';
+      return 'nexus';
     };
 
-    // Try neural TTS: Kokoro (local/AWS) first, then Supabase Gemini
-    const tryNeuralTTS = async (): Promise<Blob | null> => {
-      // 1. Kokoro TTS (local or AWS — unlimited, free)
-      if (KOKORO_TTS_URL) {
-        try {
-          const kokoroVoice = kokoroVoiceMap[voicePreset] || 'af_kore+af_bella';
-          const res = await fetch(`${KOKORO_TTS_URL}/v1/audio/speech`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              model: 'kokoro',
-              input: request.text,
-              voice: kokoroVoice,
-              response_format: 'mp3',
-            }),
-          });
-          if (res.ok) return await res.blob();
-        } catch { /* Kokoro unavailable, try next */ }
+    const voicePreset = resolveVoice();
+
+    // --- Attempt 1: Server-side TTS proxy (Vercel → Kokoro, no CORS) ---
+    try {
+      const res = await fetch('/api/ai/tts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text: request.text,
+          voice: voicePreset,
+          speed: request.config?.speed || 1.0,
+        }),
+      });
+
+      if (res.ok) {
+        const blob = await res.blob();
+        if (blob.size > 0) {
+          console.info(`[TTS] Server proxy succeeded (${blob.size} bytes, voice: ${voicePreset})`);
+          return playAudioBlob(blob);
+        }
       }
 
-      // 2. Supabase Gemini TTS (cloud fallback)
+      const errData = await res.json().catch(() => ({ code: 'UNKNOWN' }));
+      console.warn(`[TTS] Server proxy failed: ${res.status} — ${errData.code || errData.error}`);
+    } catch (err: any) {
+      console.warn(`[TTS] Server proxy unreachable: ${err.message}`);
+    }
+
+    // --- Attempt 2: Direct Kokoro (if VITE_KOKORO_TTS_URL is set) ---
+    if (KOKORO_TTS_URL) {
       try {
-        const res = await fetch(SUPABASE_TTS_URL, {
+        const kokoroVoiceMap: Record<string, string> = {
+          nexus: 'af_nicole',
+          cortana: 'af_kore+af_bella',
+          gentle: 'af_heart',
+          playful: 'af_bella+af_nova',
+          commander: 'af_kore+af_nova',
+        };
+        const kokoroVoice = kokoroVoiceMap[voicePreset] || voicePreset;
+
+        const res = await fetch(`${KOKORO_TTS_URL}/v1/audio/speech`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ text: request.text, voice: voicePreset }),
+          body: JSON.stringify({
+            model: 'kokoro',
+            input: request.text,
+            voice: kokoroVoice,
+            response_format: 'mp3',
+          }),
         });
-        if (res.ok) return await res.blob();
-      } catch { /* Supabase unavailable too */ }
 
-      return null;
-    };
-
-    try {
-      const blob = await tryNeuralTTS();
-      if (!blob) throw new Error('All neural TTS unavailable');
-
-      const url = URL.createObjectURL(blob);
-      activeUrlRef.current = url;
-
-      return new Promise<void>((resolve) => {
-        const audio = new Audio(url);
-        activeAudioRef.current = audio;
-
-        audio.onended = () => {
-          URL.revokeObjectURL(url);
-          activeAudioRef.current = null;
-          activeUrlRef.current = null;
-          setIsSpeaking(false);
-          setState(prev => ({ ...prev, status: 'idle' }));
-          onStatusChange?.('idle');
-          resolve();
-        };
-
-        audio.onerror = () => {
-          URL.revokeObjectURL(url);
-          activeAudioRef.current = null;
-          activeUrlRef.current = null;
-          setIsSpeaking(false);
-          setState(prev => ({ ...prev, status: 'idle' }));
-          onStatusChange?.('idle');
-          resolve();
-        };
-
-        audio.play().catch(() => {
-          setIsSpeaking(false);
-          setState(prev => ({ ...prev, status: 'idle' }));
-          onStatusChange?.('idle');
-          resolve();
-        });
-      });
-    } catch {
-      // Neural TTS failed — fall back to browser SpeechSynthesis
-      if (!synthRef.current) {
-        setIsSpeaking(false);
-        setState(prev => ({ ...prev, status: 'idle' }));
-        onStatusChange?.('idle');
-        return;
+        if (res.ok) {
+          const blob = await res.blob();
+          if (blob.size > 0) {
+            console.info(`[TTS] Direct Kokoro succeeded (${blob.size} bytes, voice: ${kokoroVoice})`);
+            return playAudioBlob(blob);
+          }
+        }
+        console.warn(`[TTS] Direct Kokoro failed: ${res.status}`);
+      } catch (err: any) {
+        console.warn(`[TTS] Direct Kokoro unreachable: ${err.message}`);
       }
-
-      return new Promise<void>((resolve) => {
-        const utterance = new SpeechSynthesisUtterance(request.text);
-        const voice = selectVoice(request.config?.voice || ttsVoice);
-        if (voice) utterance.voice = voice;
-        utterance.rate = request.config?.speed || ttsRate;
-        utterance.pitch = request.config?.pitch || ttsPitch;
-        utterance.volume = 1.0;
-
-        utterance.onend = () => {
-          setIsSpeaking(false);
-          currentUtteranceRef.current = null;
-          setState(prev => ({ ...prev, status: 'idle' }));
-          onStatusChange?.('idle');
-          resolve();
-        };
-
-        utterance.onerror = () => {
-          setIsSpeaking(false);
-          currentUtteranceRef.current = null;
-          setState(prev => ({ ...prev, status: 'idle' }));
-          resolve();
-        };
-
-        currentUtteranceRef.current = utterance;
-        synthRef.current!.speak(utterance);
-      });
     }
-  }, [selectVoice, ttsVoice, ttsRate, ttsPitch, onStatusChange, onError]);
+
+    // --- Attempt 3: Browser SpeechSynthesis (last resort) ---
+    return speakBrowserFallback(request);
+  }, [playAudioBlob, speakBrowserFallback, onStatusChange]);
 
   const stopSpeaking = useCallback(() => {
     if (activeAudioRef.current) {

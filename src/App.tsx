@@ -18,6 +18,8 @@ import { EmailQueueProcessor } from './components/EmailQueueProcessor';
 import { FloatingFeedbackButton } from './components/FloatingFeedbackButton';
 import { ParticleTransitionProvider } from './components/ParticleTransition';
 import { SharedMarketingOrb } from './components/SharedMarketingOrb';
+import { NexusVoiceCallProvider } from './contexts/NexusVoiceCallContext';
+import { NexusVoiceOverlay } from './components/NexusVoiceOverlay';
 import { DashboardLayout } from './components/layout/DashboardLayout';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { TasksContextDiagnostic } from './components/TasksContextDiagnostic';
@@ -63,6 +65,7 @@ const PermissionTestingDashboard = lazy(() => import('./components/PermissionTes
 const AboutPage = lazy(() => import('./components/pages/AboutPage').then(m => ({ default: m.AboutPage })));
 const CareersPage = lazy(() => import('./components/pages/CareersPage').then(m => ({ default: m.CareersPage })));
 const BlogPage = lazy(() => import('./components/pages/BlogPage').then(m => ({ default: m.BlogPage })));
+const BlogPostPage = lazy(() => import('./components/pages/BlogPostPage').then(m => ({ default: m.BlogPostPage })));
 const PressKitPage = lazy(() => import('./components/pages/PressKitPage').then(m => ({ default: m.PressKitPage })));
 const DocsPage = lazy(() => import('./components/pages/DocsPage').then(m => ({ default: m.DocsPage })));
 const HelpCenterPage = lazy(() => import('./components/pages/HelpCenterPage').then(m => ({ default: m.HelpCenterPage })));
@@ -77,6 +80,18 @@ const PricingPage = lazy(() => import('./components/pages/PricingPage').then(m =
 const FAQPage = lazy(() => import('./components/pages/FAQPage').then(m => ({ default: m.FAQPage })));
 const ContactSalesPage = lazy(() => import('./components/pages/ContactSalesPage').then(m => ({ default: m.ContactSalesPage })));
 import { MarketingShell } from './components/layout/MarketingShell';
+
+// App dashboard pages (ported from gh-pages — uses Railway API backend)
+import { AppLayout } from './components/app/AppLayout';
+import { AppToaster } from './components/ui/app-toaster';
+const AppAuthPage = lazy(() => import('./components/app/pages/AppAuthPage').then(m => ({ default: m.AppAuthPage })));
+const AppDashboardPage = lazy(() => import('./components/app/pages/AppDashboardPage').then(m => ({ default: m.AppDashboardPage })));
+const AppTasksPage = lazy(() => import('./components/app/pages/AppTasksPage').then(m => ({ default: m.AppTasksPage })));
+const AppCalendarPage = lazy(() => import('./components/app/pages/AppCalendarPage').then(m => ({ default: m.AppCalendarPage })));
+const AppAIPage = lazy(() => import('./components/app/pages/AppAIPage').then(m => ({ default: m.AppAIPage })));
+const AppFinancialPage = lazy(() => import('./components/app/pages/AppFinancialPage').then(m => ({ default: m.AppFinancialPage })));
+const AppSettingsPage = lazy(() => import('./components/app/pages/AppSettingsPage').then(m => ({ default: m.AppSettingsPage })));
+const AppProfilePage = lazy(() => import('./components/app/pages/AppProfilePage').then(m => ({ default: m.AppProfilePage })));
 
 function AppContent() {
   return (
@@ -108,6 +123,9 @@ function AppContent() {
                               <FloatingFeedbackButton discordInviteUrl="https://discord.gg/2rq38UJrDJ" />
                               
                               <Toaster position="top-right" richColors />
+                              <AppToaster />
+                            <NexusVoiceCallProvider>
+                            <NexusVoiceOverlay />
                             <ParticleTransitionProvider>
                             <SharedMarketingOrb />
                             <Suspense fallback={<PageLoading />}>
@@ -128,6 +146,7 @@ function AppContent() {
                               {/* Marketing / Info (no layout) */}
                               <Route path="/about" element={<AboutPage />} />
                               <Route path="/blog" element={<BlogPage />} />
+                              <Route path="/blog/:slug" element={<BlogPostPage />} />
                               <Route path="/careers" element={<CareersPage />} />
                               <Route path="/press" element={<PressKitPage />} />
                               <Route path="/docs" element={<DocsPage />} />
@@ -191,16 +210,24 @@ function AppContent() {
                                 </ProtectedRoute>
                               } />
 
-                              {/* Authentication Routes */}
-                              <Route path="/login" element={<LoginPage />} />
-                              <Route path="/signup" element={<SignupPage />} />
+                              {/* Authentication Routes — uses Railway backend auth */}
+                              <Route path="/login" element={<AppAuthPage />} />
+                              <Route path="/signup" element={<AppAuthPage />} />
+                              <Route path="/auth" element={<AppAuthPage />} />
                               <Route path="/forgot-password" element={<ForgotPasswordPage />} />
                               <Route path="/onboarding" element={<ProtectedRoute><OnboardingPage /></ProtectedRoute>} />
                               <Route path="/auth/callback" element={<AuthCallbackPage />} />
-                              
-                              {/* OAuth Integration Callback */}
                               <Route path="/oauth-callback" element={<OAuthCallbackPage />} />
-                              {/* OAuth test page removed for security */}
+
+                              {/* App Dashboard Routes — uses Railway API backend */}
+                              <Route path="/app" element={<AppLayout><AppDashboardPage /></AppLayout>} />
+                              <Route path="/app/tasks" element={<AppLayout><AppTasksPage /></AppLayout>} />
+                              <Route path="/app/calendar" element={<AppLayout><AppCalendarPage /></AppLayout>} />
+                              <Route path="/app/ai-assistant" element={<AppLayout><AppAIPage /></AppLayout>} />
+                              <Route path="/app/financial" element={<AppLayout><AppFinancialPage /></AppLayout>} />
+                              <Route path="/app/settings" element={<AppLayout><AppSettingsPage /></AppLayout>} />
+                              <Route path="/app/profile" element={<AppLayout><AppProfilePage /></AppLayout>} />
+                              <Route path="/app/google-calendar" element={<AppLayout><AppCalendarPage /></AppLayout>} />
 
                               {/* Legal & policy pages */}
                               <Route path="/privacy" element={<PrivacyPage />} />
@@ -212,6 +239,7 @@ function AppContent() {
                             </Routes>
                             </Suspense>
                             </ParticleTransitionProvider>
+                            </NexusVoiceCallProvider>
                           </PermissionProvider>
                         </CalendarNavigationProvider>
                       </UserPreferencesProvider>
