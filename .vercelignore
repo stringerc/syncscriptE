@@ -1,5 +1,8 @@
-mission-control/src-tauri/target
+mission-control/
 sentinel/
 dashboard/
 figma-make-latest/
 landing/
+.trash-audit-cleanup/
+scripts/
+memory/
