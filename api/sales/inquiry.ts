@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { callAI, isAIConfigured } from '../lib/ai-service';
+import { callAI, isAIConfigured } from '../_lib/ai-service';
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
 

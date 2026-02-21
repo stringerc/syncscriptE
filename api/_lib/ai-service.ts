@@ -14,7 +14,7 @@
  *   groq       — Groq (Llama 3, ultra-fast)
  *
  * Usage:
- *   import { callAI } from '../lib/ai-service';
+ *   import { callAI } from '../_lib/ai-service';
  *   const result = await callAI(messages, { maxTokens: 1024 });
  */
 

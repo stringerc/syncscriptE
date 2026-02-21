@@ -8,8 +8,8 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { readFileSync, writeFileSync, existsSync, mkdirSync, unlinkSync } from 'fs';
 import { createHmac } from 'crypto';
-import { callAI, isAIConfigured } from '../lib/ai-service';
-import type { AIMessage } from '../lib/ai-service';
+import { callAI, isAIConfigured } from '../_lib/ai-service';
+import type { AIMessage } from '../_lib/ai-service';
 
 // ============================================================================
 // ENVIRONMENT

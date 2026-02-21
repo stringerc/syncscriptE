@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { callAI, isAIConfigured, type AIMessage } from '../lib/ai-service';
+import { callAI, isAIConfigured, type AIMessage } from '../_lib/ai-service';
 
 const MAX_SESSIONS_PER_IP_PER_HOUR = 5;
 const MAX_MESSAGES_PER_SESSION = 15;
