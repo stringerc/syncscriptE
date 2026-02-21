@@ -17,7 +17,7 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { EmailQueueProcessor } from './components/EmailQueueProcessor';
 import { FloatingFeedbackButton } from './components/FloatingFeedbackButton';
 import { ParticleTransitionProvider } from './components/ParticleTransition';
-import { SharedMarketingOrb } from './components/SharedMarketingOrb';
+
 import { NexusVoiceCallProvider } from './contexts/NexusVoiceCallContext';
 import { NexusVoiceOverlay } from './components/NexusVoiceOverlay';
 import { DashboardLayout } from './components/layout/DashboardLayout';
@@ -127,7 +127,6 @@ function AppContent() {
                             <NexusVoiceCallProvider>
                             <NexusVoiceOverlay />
                             <ParticleTransitionProvider>
-                            <SharedMarketingOrb />
                             <Suspense fallback={<PageLoading />}>
                             <Routes>
                               {/* Landing Page (no layout) */}
