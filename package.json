@@ -64,7 +64,7 @@
             "sonner": "^2.0.3",
             "stripe": "^14.11.0",
             "tailwind-merge": "*",
-            "three": "^0.183.0",
+            "three": "^0.183.1",
             "vaul": "^1.1.2",
             "vite": "*",
             "zustand": "^5.0.11"

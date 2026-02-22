@@ -22,6 +22,7 @@ import {
   getAchievementEnergyValue,
   getHealthEnergyValue,
 } from '../utils/energy-system';
+import { useRevenueUpsell, useEnergyRevenue } from '../hooks/useRevenueUpsell';
 import { Task, Priority } from '../types/task';
 import { toast } from 'sonner@2.0.3';
 

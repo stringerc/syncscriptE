@@ -234,7 +234,7 @@ export function FeaturesPage() {
   const navigate = useNavigate();
 
   return (
-    <div className="relative min-h-screen text-white">
+    <div data-marketing-root className="relative min-h-screen text-white">
 
       {/* Snap 1 — Hero */}
       <ScrollSection id="f-hero" snap>

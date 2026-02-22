@@ -1939,27 +1939,27 @@ function TaskManagementSection({
           Google Material Design (2024): "Visible tabs increase feature usage by 73%" */}
       <Tabs defaultValue="list" className="w-full">
         <TabsList className="bg-[#1e2128] border border-gray-800 mb-6">
-          <TabsTrigger value="list" className="gap-2 data-[state=active]:text-black">
+          <TabsTrigger value="list" className="gap-2 data-[state=active]:text-white">
             <ListChecks className="w-4 h-4" />
             Task List
           </TabsTrigger>
-          <TabsTrigger value="timeline" className="gap-2 data-[state=active]:text-black">
+          <TabsTrigger value="timeline" className="gap-2 data-[state=active]:text-white">
             <Calendar className="w-4 h-4" />
             Timeline
           </TabsTrigger>
-          <TabsTrigger value="analytics" className="gap-2 data-[state=active]:text-black">
+          <TabsTrigger value="analytics" className="gap-2 data-[state=active]:text-white">
             <BarChart3 className="w-4 h-4" />
             Analytics
           </TabsTrigger>
-          <TabsTrigger value="templates" className="gap-2 data-[state=active]:text-black">
+          <TabsTrigger value="templates" className="gap-2 data-[state=active]:text-white">
             <Target className="w-4 h-4" />
             Templates
           </TabsTrigger>
-          <TabsTrigger value="automation" className="gap-2 data-[state=active]:text-black">
+          <TabsTrigger value="automation" className="gap-2 data-[state=active]:text-white">
             <Zap className="w-4 h-4" />
             Automation
           </TabsTrigger>
-          <TabsTrigger value="recurring" className="gap-2 data-[state=active]:text-black">
+          <TabsTrigger value="recurring" className="gap-2 data-[state=active]:text-white">
             <Repeat className="w-4 h-4" />
             Recurring
           </TabsTrigger>

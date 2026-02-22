@@ -1,3 +1,15 @@
+/**
+ * ScrollSection — cinematic entrance animation container.
+ *
+ * Mont-fort-inspired philosophy:
+ *   - NO snap, NO forced viewport heights, NO zoom hacks
+ *   - Content breathes at its natural size
+ *   - GSAP ScrollTrigger fires a one-shot entrance animation
+ *   - Registers with SmoothScrollProvider for dots nav
+ *
+ * The whitespace comes from generous padding in the content,
+ * not from forcing sections to fill the viewport.
+ */
 import { useEffect, useLayoutEffect, useRef, type ReactNode } from 'react';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
@@ -25,8 +37,6 @@ export function ScrollSection({
   children,
   className = '',
   animation,
-  snap = true,
-  fullHeight = false,
 }: ScrollSectionProps) {
   const ref = useRef<HTMLDivElement>(null);
   const { registerSection } = useSmoothScroll();
@@ -40,12 +50,10 @@ export function ScrollSection({
     if (!el || !animRef.current || REDUCED_MOTION()) return;
 
     tlRef.current = animRef.current(el);
-
     tlRef.current.eventCallback('onComplete', () => {
       revealedRef.current = true;
       el.setAttribute('data-revealed', 'true');
     });
-
     tlRef.current.pause();
 
     return () => {
@@ -58,36 +66,50 @@ export function ScrollSection({
     const el = ref.current;
     if (!el) return;
 
-    let unregister: (() => void) | undefined;
-    if (snap) {
-      unregister = registerSection(id, el);
-    }
+    const unregister = registerSection(id, el);
 
     let st: ScrollTrigger | undefined;
     if (tlRef.current && !revealedRef.current) {
       st = ScrollTrigger.create({
         trigger: el,
-        start: 'top 80%',
+        start: 'top 85%',
         once: true,
-        animation: tlRef.current,
+        onEnter: () => {
+          tlRef.current?.play();
+        },
       });
+
+      // Ensure ScrollTrigger recalculates positions after layout settles
+      requestAnimationFrame(() => ScrollTrigger.refresh());
+
+      // Safety fallback: if the animation hasn't played after 3s, force reveal.
+      // Prevents content from being permanently hidden if ScrollTrigger glitches.
+      const fallback = setTimeout(() => {
+        if (!revealedRef.current && tlRef.current) {
+          tlRef.current.progress(1);
+          revealedRef.current = true;
+          el.setAttribute('data-revealed', 'true');
+        }
+      }, 3000);
+
+      return () => {
+        clearTimeout(fallback);
+        unregister();
+        st?.kill();
+      };
     }
 
     return () => {
-      unregister?.();
+      unregister();
       st?.kill();
     };
-  }, [id, snap, registerSection]);
-
-  const heightClass = fullHeight
-    ? 'min-h-screen flex flex-col justify-center pb-20'
-    : '';
+  }, [id, registerSection]);
 
   return (
     <div
       ref={ref}
       data-section={id}
-      className={`relative ${heightClass} ${className}`}
+      className={`relative ${className}`}
     >
       {children}
     </div>

@@ -404,9 +404,11 @@ export function useVoiceStream(options: UseVoiceStreamOptions = {}) {
     });
   }, [selectVoice, ttsVoice, ttsRate, ttsPitch, onStatusChange]);
 
-  /** Try neural TTS via server proxy, then direct Kokoro */
+  /**
+   * Speak text using the best available TTS engine.
+   * Chain: /api/ai/tts proxy (works in both dev + prod) → direct Kokoro → browser fallback.
+   */
   const speak = useCallback(async (request: TTSRequest): Promise<void> => {
-    // Cancel any ongoing speech
     if (activeAudioRef.current) {
       activeAudioRef.current.pause();
       activeAudioRef.current = null;
@@ -423,80 +425,74 @@ export function useVoiceStream(options: UseVoiceStreamOptions = {}) {
     setState(prev => ({ ...prev, status: 'speaking' }));
     onStatusChange?.('speaking');
 
-    // Resolve voice name: explicit config > emotion-based > default
     const resolveVoice = (): string => {
       if (request.config?.voice) return request.config.voice;
       const emotion = request.emotion?.primary;
-      if (emotion === 'stressed' || emotion === 'sad' || emotion === 'calm') return 'gentle';
+      if (emotion === 'stressed' || emotion === 'sad') return 'gentle';
       if (emotion === 'excited' || emotion === 'happy') return 'playful';
       return 'nexus';
     };
 
     const voicePreset = resolveVoice();
+    const speed = request.config?.speed || 1.0;
 
-    // --- Attempt 1: Server-side TTS proxy (Vercel → Kokoro, no CORS) ---
+    // --- Attempt 1: /api/ai/tts proxy (dev: Vite middleware, prod: Vercel function) ---
     try {
+      console.info(`[TTS] Trying /api/ai/tts proxy (voice: ${voicePreset}, speed: ${speed})…`);
       const res = await fetch('/api/ai/tts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          text: request.text,
-          voice: voicePreset,
-          speed: request.config?.speed || 1.0,
-        }),
+        body: JSON.stringify({ text: request.text, voice: voicePreset, speed }),
       });
 
       if (res.ok) {
-        const blob = await res.blob();
-        if (blob.size > 0) {
-          console.info(`[TTS] Server proxy succeeded (${blob.size} bytes, voice: ${voicePreset})`);
-          return playAudioBlob(blob);
+        const ct = res.headers.get('content-type') || '';
+        if (ct.startsWith('audio/')) {
+          const blob = await res.blob();
+          if (blob.size > 100) {
+            console.info(`[TTS] ✅ Kokoro via proxy — ${blob.size} bytes, ${ct}`);
+            return playAudioBlob(blob);
+          }
         }
+        console.warn(`[TTS] Proxy returned OK but content-type="${ct}" — not audio`);
+      } else {
+        const errData = await res.json().catch(() => ({ code: 'UNKNOWN' }));
+        console.warn(`[TTS] Proxy failed: HTTP ${res.status} — ${errData.code || errData.error || ''}`);
       }
-
-      const errData = await res.json().catch(() => ({ code: 'UNKNOWN' }));
-      console.warn(`[TTS] Server proxy failed: ${res.status} — ${errData.code || errData.error}`);
     } catch (err: any) {
-      console.warn(`[TTS] Server proxy unreachable: ${err.message}`);
+      console.warn(`[TTS] Proxy unreachable: ${err.message}`);
     }
 
-    // --- Attempt 2: Direct Kokoro (if VITE_KOKORO_TTS_URL is set) ---
+    // --- Attempt 2: Direct Kokoro (if VITE_KOKORO_TTS_URL is set, may face CORS) ---
     if (KOKORO_TTS_URL) {
       try {
-        const kokoroVoiceMap: Record<string, string> = {
-          nexus: 'af_nicole',
-          cortana: 'af_kore+af_bella',
-          gentle: 'af_heart',
-          playful: 'af_bella+af_nova',
-          commander: 'af_kore+af_nova',
-        };
-        const kokoroVoice = kokoroVoiceMap[voicePreset] || voicePreset;
-
+        console.info(`[TTS] Trying direct Kokoro at ${KOKORO_TTS_URL} (voice: ${voicePreset})…`);
         const res = await fetch(`${KOKORO_TTS_URL}/v1/audio/speech`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             model: 'kokoro',
             input: request.text,
-            voice: kokoroVoice,
-            response_format: 'mp3',
+            voice: voicePreset,
+            speed,
           }),
         });
 
         if (res.ok) {
           const blob = await res.blob();
-          if (blob.size > 0) {
-            console.info(`[TTS] Direct Kokoro succeeded (${blob.size} bytes, voice: ${kokoroVoice})`);
+          if (blob.size > 100) {
+            console.info(`[TTS] ✅ Direct Kokoro — ${blob.size} bytes`);
             return playAudioBlob(blob);
           }
         }
-        console.warn(`[TTS] Direct Kokoro failed: ${res.status}`);
+        console.warn(`[TTS] Direct Kokoro failed: HTTP ${res.status}`);
       } catch (err: any) {
-        console.warn(`[TTS] Direct Kokoro unreachable: ${err.message}`);
+        console.warn(`[TTS] Direct Kokoro blocked (likely CORS): ${err.message}`);
       }
     }
 
-    // --- Attempt 3: Browser SpeechSynthesis (last resort) ---
+    // --- Attempt 3: Browser SpeechSynthesis (robotic, last resort) ---
+    console.warn('[TTS] ⚠️ All Kokoro attempts failed — falling back to browser SpeechSynthesis');
     return speakBrowserFallback(request);
   }, [playAudioBlob, speakBrowserFallback, onStatusChange]);
 

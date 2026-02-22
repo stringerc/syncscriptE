@@ -677,3 +677,35 @@ select:focus-visible,
     width 200ms ease;
   will-change: auto;
 }
+
+/*
+ * ═══════════════════════════════════════════════════════════════
+ *  CINEMATIC FLOW — Marketing Pages
+ *
+ *  Mont-fort-inspired architecture:
+ *    - Natural scroll (no snap, no zoom hacks)
+ *    - GSAP ScrollTrigger for entrance animations only
+ *    - Generous whitespace does the heavy lifting
+ *    - Content at natural scale — no zoom distortion
+ *
+ *  The page breathes. Each section earns its screen time.
+ * ═══════════════════════════════════════════════════════════════
+ */
+
+[data-marketing-root] {
+  scroll-behavior: smooth;
+}
+
+.section-divider {
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(6, 182, 212, 0.15) 20%,
+    rgba(20, 184, 166, 0.2) 50%,
+    rgba(6, 182, 212, 0.15) 80%,
+    transparent 100%
+  );
+  max-width: 80%;
+  margin: 0 auto;
+}

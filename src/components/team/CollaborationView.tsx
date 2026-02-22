@@ -392,12 +392,13 @@ export function CollaborationView({ currentUserId }: CollaborationViewProps) {
                 >
                   <div className="flex items-start gap-3">
                     {/* Energy-Aware Avatar */}
-                    <div className="relative flex-shrink-0">
+                    <div className="relative flex-shrink-0" style={{ minWidth: 56, minHeight: 56 }}>
                       <AnimatedAvatar
                         name={friend.name}
                         image={friend.avatar}
                         animationType={friend.animation}
                         size={48}
+                        className="w-12 h-12"
                       />
                       {/* Presence Indicator */}
                       <div className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-[#1e2128] ${

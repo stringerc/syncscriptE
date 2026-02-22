@@ -271,7 +271,7 @@ export function FAQPage() {
   }, [category, search]);
 
   return (
-    <div className="relative min-h-screen text-white">
+    <div data-marketing-root className="relative min-h-screen text-white">
       {/* Snap 1 — Hero */}
       <ScrollSection id="faq-hero" animation={textSplitReveal}>
       <section className="relative min-h-[60vh] flex flex-col justify-center pb-12 sm:pb-16">

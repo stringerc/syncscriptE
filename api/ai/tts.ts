@@ -12,12 +12,15 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 const KOKORO_URL = process.env.KOKORO_TTS_URL || '';
 
 const VOICE_PRESETS: Record<string, string> = {
-  nexus: 'af_nicole',
-  cortana: 'af_nicole',
+  nexus: 'nexus',
+  nexus_emphatic: 'nexus_emphatic',
+  nexus_query: 'nexus_query',
+  cortana: 'cortana',
+  commander: 'commander',
+  professional: 'professional',
   gentle: 'af_heart',
   playful: 'af_bella',
-  commander: 'af_kore',
-  natural: 'af_nicole',
+  natural: 'af_sky',
 };
 
 const MAX_TEXT_LENGTH = 2000;

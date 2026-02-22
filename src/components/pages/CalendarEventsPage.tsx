@@ -2306,7 +2306,7 @@ export function CalendarEventsPage() {
               <Button
                 onClick={() => setShowIntegrationMarketplace(true)}
                 variant="outline"
-                className="relative gap-2 border-gray-200 text-black hover:bg-gray-50"
+                className="relative gap-2 border-gray-600 text-white hover:bg-gray-800"
               >
                 <Plus className="w-4 h-4" />
                 Add Integration
@@ -2402,10 +2402,10 @@ export function CalendarEventsPage() {
             }}
           >
             <TabsList>
-              <TabsTrigger value="day" className="data-[state=active]:text-black">Day</TabsTrigger>
-              <TabsTrigger value="week" className="data-[state=active]:text-black">Week</TabsTrigger>
-              <TabsTrigger value="month" className="data-[state=active]:text-black">Month</TabsTrigger>
-              <TabsTrigger value="timeline" className="data-[state=active]:text-black">Timeline</TabsTrigger>
+              <TabsTrigger value="day" className="data-[state=active]:text-white">Day</TabsTrigger>
+              <TabsTrigger value="week" className="data-[state=active]:text-white">Week</TabsTrigger>
+              <TabsTrigger value="month" className="data-[state=active]:text-white">Month</TabsTrigger>
+              <TabsTrigger value="timeline" className="data-[state=active]:text-white">Timeline</TabsTrigger>
             </TabsList>
           </Tabs>
           

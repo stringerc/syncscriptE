@@ -20,11 +20,16 @@ import { ParticleTransitionProvider } from './components/ParticleTransition';
 
 import { NexusVoiceCallProvider } from './contexts/NexusVoiceCallContext';
 import { NexusVoiceOverlay } from './components/NexusVoiceOverlay';
+import { SharedMarketingOrb } from './components/SharedMarketingOrb';
 import { DashboardLayout } from './components/layout/DashboardLayout';
 import { ProtectedRoute } from './components/ProtectedRoute';
-import { TasksContextDiagnostic } from './components/TasksContextDiagnostic';
 import { AnalyticsTracker } from './components/analytics/AnalyticsTracker';
 import { CookieConsentBanner } from './components/CookieConsentBanner';
+
+import { MarketingShell } from './components/layout/MarketingShell';
+import { AppLayout } from './components/app/AppLayout';
+import { AppToaster } from './components/ui/app-toaster';
+import type { ReactNode } from 'react';
 
 const PageLoading = () => (
   <div className="flex items-center justify-center min-h-screen bg-background">
@@ -35,7 +40,10 @@ const PageLoading = () => (
   </div>
 );
 
-// Lazy-loaded pages — each becomes its own chunk, loaded only when the route is visited
+// ============================================================================
+// LAZY PAGE IMPORTS
+// ============================================================================
+
 const LandingPage = lazy(() => import('./components/pages/LandingPage').then(m => ({ default: m.LandingPage })));
 const DashboardPage = lazy(() => import('./components/pages/DashboardPage').then(m => ({ default: m.DashboardPage })));
 const TasksGoalsPage = lazy(() => import('./components/pages/TasksGoalsPage').then(m => ({ default: m.TasksGoalsPage })));
@@ -52,8 +60,6 @@ const EnterpriseToolsPage = lazy(() => import('./components/pages/EnterpriseTool
 const ScriptsTemplatesPage = lazy(() => import('./components/pages/ScriptsTemplatesPage').then(m => ({ default: m.ScriptsTemplatesPage })));
 const TeamScriptsPage = lazy(() => import('./components/pages/TeamScriptsPage').then(m => ({ default: m.TeamScriptsPage })));
 const SettingsPage = lazy(() => import('./components/pages/SettingsPage').then(m => ({ default: m.SettingsPage })));
-const LoginPage = lazy(() => import('./components/pages/LoginPage').then(m => ({ default: m.LoginPage })));
-const SignupPage = lazy(() => import('./components/pages/SignupPage').then(m => ({ default: m.SignupPage })));
 const OnboardingPage = lazy(() => import('./components/pages/OnboardingPage').then(m => ({ default: m.OnboardingPage })));
 const AuthCallbackPage = lazy(() => import('./components/pages/AuthCallbackPage').then(m => ({ default: m.AuthCallbackPage })));
 const OAuthCallbackPage = lazy(() => import('./components/pages/OAuthCallbackPage').then(m => ({ default: m.OAuthCallbackPage })));
@@ -79,11 +85,6 @@ const FeaturesPage = lazy(() => import('./components/pages/FeaturesPage').then(m
 const PricingPage = lazy(() => import('./components/pages/PricingPage').then(m => ({ default: m.PricingPage })));
 const FAQPage = lazy(() => import('./components/pages/FAQPage').then(m => ({ default: m.FAQPage })));
 const ContactSalesPage = lazy(() => import('./components/pages/ContactSalesPage').then(m => ({ default: m.ContactSalesPage })));
-import { MarketingShell } from './components/layout/MarketingShell';
-
-// App dashboard pages (ported from gh-pages — uses Railway API backend)
-import { AppLayout } from './components/app/AppLayout';
-import { AppToaster } from './components/ui/app-toaster';
 const AppAuthPage = lazy(() => import('./components/app/pages/AppAuthPage').then(m => ({ default: m.AppAuthPage })));
 const AppDashboardPage = lazy(() => import('./components/app/pages/AppDashboardPage').then(m => ({ default: m.AppDashboardPage })));
 const AppTasksPage = lazy(() => import('./components/app/pages/AppTasksPage').then(m => ({ default: m.AppTasksPage })));
@@ -93,164 +94,157 @@ const AppFinancialPage = lazy(() => import('./components/app/pages/AppFinancialP
 const AppSettingsPage = lazy(() => import('./components/app/pages/AppSettingsPage').then(m => ({ default: m.AppSettingsPage })));
 const AppProfilePage = lazy(() => import('./components/app/pages/AppProfilePage').then(m => ({ default: m.AppProfilePage })));
 
+// ============================================================================
+// DASHBOARD PROVIDERS — only mount on authenticated/dashboard routes
+// ============================================================================
+
+function DashboardProviders({ children }: { children: ReactNode }) {
+  return (
+    <EnergyProvider>
+      <TasksProvider>
+        <TeamProvider>
+          <AIProvider>
+            <OpenClawProvider autoConnect={false}>
+              <GamificationPreferencesProvider>
+                <GamificationProvider>
+                  <UserProfileProvider>
+                    <UserPreferencesProvider>
+                      <CalendarNavigationProvider>
+                        <PermissionProvider>
+                          <EmailQueueProcessor />
+                          <NexusVoiceOverlay />
+                          <AppToaster />
+                          {children}
+                        </PermissionProvider>
+                      </CalendarNavigationProvider>
+                    </UserPreferencesProvider>
+                  </UserProfileProvider>
+                </GamificationProvider>
+              </GamificationPreferencesProvider>
+            </OpenClawProvider>
+          </AIProvider>
+        </TeamProvider>
+      </TasksProvider>
+    </EnergyProvider>
+  );
+}
+
+// ============================================================================
+// DASHBOARD ROUTES — wrapped in DashboardProviders
+// ============================================================================
+
+function DashboardRoutes() {
+  return (
+    <DashboardProviders>
+      <Routes>
+        <Route path="/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
+        <Route path="/tasks" element={<ProtectedRoute><TasksGoalsPage /></ProtectedRoute>} />
+        <Route path="/calendar" element={
+          <ProtectedRoute><ErrorBoundary><CalendarEventsPage /></ErrorBoundary></ProtectedRoute>
+        } />
+        <Route path="/ai" element={<ProtectedRoute><AIAssistantPage /></ProtectedRoute>} />
+        <Route path="/energy" element={<ProtectedRoute><EnergyFocusPage /></ProtectedRoute>} />
+        <Route path="/resonance-engine" element={<ProtectedRoute><ResonanceEnginePage /></ProtectedRoute>} />
+        <Route path="/team" element={
+          <ProtectedRoute><ErrorBoundary><TeamCollaborationPage /></ErrorBoundary></ProtectedRoute>
+        } />
+        <Route path="/analytics" element={
+          <ProtectedRoute><ErrorBoundary><AnalyticsInsightsPage /></ErrorBoundary></ProtectedRoute>
+        } />
+        <Route path="/gaming" element={<ProtectedRoute><GamificationHubPage /></ProtectedRoute>} />
+        <Route path="/gaming-v2" element={<ProtectedRoute><GamificationHubPageV2 /></ProtectedRoute>} />
+        <Route path="/integrations" element={
+          <ProtectedRoute><ErrorBoundary><IntegrationsPage /></ErrorBoundary></ProtectedRoute>
+        } />
+        <Route path="/enterprise" element={<ProtectedRoute><EnterpriseToolsPage /></ProtectedRoute>} />
+        <Route path="/scripts-templates" element={<ProtectedRoute><ScriptsTemplatesPage /></ProtectedRoute>} />
+        <Route path="/team-scripts" element={<ProtectedRoute><TeamScriptsPage /></ProtectedRoute>} />
+        <Route path="/settings" element={
+          <ProtectedRoute><DashboardLayout><SettingsPage /></DashboardLayout></ProtectedRoute>
+        } />
+        <Route path="/onboarding" element={<ProtectedRoute><OnboardingPage /></ProtectedRoute>} />
+        <Route path="/permission-testing" element={<PermissionTestingDashboard />} />
+        <Route path="/design-system" element={<DesignSystemShowcase />} />
+        <Route path="/showcase/progress" element={<ProgressAnimationShowcase />} />
+        <Route path="/showcase/profile-menu" element={<ProfileMenuExample />} />
+        <Route path="/showcase/event-task-system" element={<EventTaskSystemDemo />} />
+
+        {/* App Dashboard Routes — Railway API backend */}
+        <Route path="/app" element={<AppLayout><AppDashboardPage /></AppLayout>} />
+        <Route path="/app/tasks" element={<AppLayout><AppTasksPage /></AppLayout>} />
+        <Route path="/app/calendar" element={<AppLayout><AppCalendarPage /></AppLayout>} />
+        <Route path="/app/ai-assistant" element={<AppLayout><AppAIPage /></AppLayout>} />
+        <Route path="/app/financial" element={<AppLayout><AppFinancialPage /></AppLayout>} />
+        <Route path="/app/settings" element={<AppLayout><AppSettingsPage /></AppLayout>} />
+        <Route path="/app/profile" element={<AppLayout><AppProfilePage /></AppLayout>} />
+        <Route path="/app/google-calendar" element={<AppLayout><AppCalendarPage /></AppLayout>} />
+
+        {/* Catch-all for unmatched dashboard paths */}
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </DashboardProviders>
+  );
+}
+
+// ============================================================================
+// APP — Two-branch architecture
+//
+// Marketing path: AuthProvider → Router → NexusVoice + ParticleTransition → page
+//   (2 providers, instant render)
+//
+// Dashboard path: AuthProvider → Router → 12 additional providers → page
+//   (full stack, only when needed)
+// ============================================================================
+
 function AppContent() {
   return (
     <AuthProvider>
-      <EnergyProvider>
-        <TasksProvider>
-          {/* Diagnostic Component - Remove after debugging */}
-          <TasksContextDiagnostic />
-          
-          <TeamProvider>
-            <Router future={{ v7_startTransition: true }}>
-              <AIProvider>
-                {/* PHASE 1: OpenClaw Integration - Wraps entire app for AI capabilities */}
-                <OpenClawProvider autoConnect={true}>
-                  <GamificationPreferencesProvider>
-                    <GamificationProvider>
-                      <UserProfileProvider>
-                        <UserPreferencesProvider>
-                          <CalendarNavigationProvider>
-                            <PermissionProvider>
-                              {/* Analytics + Cookie Consent */}
-                              <AnalyticsTracker />
-                              <CookieConsentBanner />
-                              
-                              {/* Email Queue Processor - runs in background */}
-                              <EmailQueueProcessor />
-                              
-                              {/* Floating Feedback Button - Always visible on all pages */}
-                              <FloatingFeedbackButton discordInviteUrl="https://discord.gg/2rq38UJrDJ" />
-                              
-                              <Toaster position="top-right" richColors />
-                              <AppToaster />
-                            <NexusVoiceCallProvider>
-                            <NexusVoiceOverlay />
-                            <ParticleTransitionProvider>
-                            <Suspense fallback={<PageLoading />}>
-                            <Routes>
-                              {/* Landing Page (no layout) */}
-                              <Route path="/" element={<LandingPage />} />
+      <Router future={{ v7_startTransition: true }}>
+        <AnalyticsTracker />
+        <CookieConsentBanner />
+        <FloatingFeedbackButton discordInviteUrl="https://discord.gg/2rq38UJrDJ" />
+        <Toaster position="top-right" richColors />
+        <SharedMarketingOrb />
+        <NexusVoiceCallProvider>
+          <ParticleTransitionProvider>
+            <Suspense fallback={<PageLoading />}>
+              <Routes>
+                {/* ── Marketing routes — lightweight, no dashboard providers ── */}
+                <Route path="/" element={<LandingPage />} />
+                <Route element={<MarketingShell />}>
+                  <Route path="/features" element={null} />
+                  <Route path="/pricing" element={null} />
+                  <Route path="/faq" element={null} />
+                </Route>
+                <Route path="/contact" element={<ContactSalesPage />} />
+                <Route path="/about" element={<AboutPage />} />
+                <Route path="/blog" element={<BlogPage />} />
+                <Route path="/blog/:slug" element={<BlogPostPage />} />
+                <Route path="/careers" element={<CareersPage />} />
+                <Route path="/press" element={<PressKitPage />} />
+                <Route path="/docs" element={<DocsPage />} />
+                <Route path="/help" element={<HelpCenterPage />} />
+                <Route path="/api-reference" element={<ApiPage />} />
+                <Route path="/community" element={<CommunityPage />} />
+                <Route path="/privacy" element={<PrivacyPage />} />
+                <Route path="/terms" element={<TermsPage />} />
+                <Route path="/security" element={<SecurityPage />} />
 
-                              {/* Marketing Pages (shared MarketingShell layout with transitions) */}
-                              <Route element={<MarketingShell />}>
-                                <Route path="/features" element={null} />
-                                <Route path="/pricing" element={null} />
-                                <Route path="/faq" element={null} />
-                              </Route>
+                {/* Auth routes — lightweight */}
+                <Route path="/login" element={<AppAuthPage />} />
+                <Route path="/signup" element={<AppAuthPage />} />
+                <Route path="/auth" element={<AppAuthPage />} />
+                <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+                <Route path="/auth/callback" element={<AuthCallbackPage />} />
+                <Route path="/oauth-callback" element={<OAuthCallbackPage />} />
 
-                              {/* Enterprise Contact / Sales */}
-                              <Route path="/contact" element={<ContactSalesPage />} />
-
-                              {/* Marketing / Info (no layout) */}
-                              <Route path="/about" element={<AboutPage />} />
-                              <Route path="/blog" element={<BlogPage />} />
-                              <Route path="/blog/:slug" element={<BlogPostPage />} />
-                              <Route path="/careers" element={<CareersPage />} />
-                              <Route path="/press" element={<PressKitPage />} />
-                              <Route path="/docs" element={<DocsPage />} />
-                              <Route path="/help" element={<HelpCenterPage />} />
-                              <Route path="/api-reference" element={<ApiPage />} />
-                              <Route path="/community" element={<CommunityPage />} />
-
-                              {/* Design System Examples (no layout) */}
-                              <Route path="/design-system" element={<DesignSystemShowcase />} />
-                              <Route path="/showcase/progress" element={<ProgressAnimationShowcase />} />
-                              <Route path="/showcase/profile-menu" element={<ProfileMenuExample />} />
-                              <Route path="/showcase/event-task-system" element={<EventTaskSystemDemo />} />
-                              
-                              {/* PHASE 4: Permission Testing Dashboard */}
-                              <Route path="/permission-testing" element={<PermissionTestingDashboard />} />
-
-                              {/* Protected app routes - require auth */}
-                              <Route path="/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
-                              <Route path="/tasks" element={<ProtectedRoute><TasksGoalsPage /></ProtectedRoute>} />
-                              <Route path="/calendar" element={
-                                <ProtectedRoute>
-                                  <ErrorBoundary>
-                                    <CalendarEventsPage />
-                                  </ErrorBoundary>
-                                </ProtectedRoute>
-                              } />
-                              <Route path="/ai" element={<ProtectedRoute><AIAssistantPage /></ProtectedRoute>} />
-                              <Route path="/energy" element={<ProtectedRoute><EnergyFocusPage /></ProtectedRoute>} />
-                              <Route path="/resonance-engine" element={<ProtectedRoute><ResonanceEnginePage /></ProtectedRoute>} />
-                              <Route path="/team" element={
-                                <ProtectedRoute>
-                                  <ErrorBoundary>
-                                    <TeamCollaborationPage />
-                                  </ErrorBoundary>
-                                </ProtectedRoute>
-                              } />
-                              <Route path="/analytics" element={
-                                <ProtectedRoute>
-                                  <ErrorBoundary>
-                                    <AnalyticsInsightsPage />
-                                  </ErrorBoundary>
-                                </ProtectedRoute>
-                              } />
-                              <Route path="/gaming" element={<ProtectedRoute><GamificationHubPage /></ProtectedRoute>} />
-                              <Route path="/gaming-v2" element={<ProtectedRoute><GamificationHubPageV2 /></ProtectedRoute>} />
-                              <Route path="/integrations" element={
-                                <ProtectedRoute>
-                                  <ErrorBoundary>
-                                    <IntegrationsPage />
-                                  </ErrorBoundary>
-                                </ProtectedRoute>
-                              } />
-                              <Route path="/enterprise" element={<ProtectedRoute><EnterpriseToolsPage /></ProtectedRoute>} />
-                              <Route path="/scripts-templates" element={<ProtectedRoute><ScriptsTemplatesPage /></ProtectedRoute>} />
-                              <Route path="/team-scripts" element={<ProtectedRoute><TeamScriptsPage /></ProtectedRoute>} />
-                              <Route path="/settings" element={
-                                <ProtectedRoute>
-                                  <DashboardLayout>
-                                    <SettingsPage />
-                                  </DashboardLayout>
-                                </ProtectedRoute>
-                              } />
-
-                              {/* Authentication Routes — uses Railway backend auth */}
-                              <Route path="/login" element={<AppAuthPage />} />
-                              <Route path="/signup" element={<AppAuthPage />} />
-                              <Route path="/auth" element={<AppAuthPage />} />
-                              <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-                              <Route path="/onboarding" element={<ProtectedRoute><OnboardingPage /></ProtectedRoute>} />
-                              <Route path="/auth/callback" element={<AuthCallbackPage />} />
-                              <Route path="/oauth-callback" element={<OAuthCallbackPage />} />
-
-                              {/* App Dashboard Routes — uses Railway API backend */}
-                              <Route path="/app" element={<AppLayout><AppDashboardPage /></AppLayout>} />
-                              <Route path="/app/tasks" element={<AppLayout><AppTasksPage /></AppLayout>} />
-                              <Route path="/app/calendar" element={<AppLayout><AppCalendarPage /></AppLayout>} />
-                              <Route path="/app/ai-assistant" element={<AppLayout><AppAIPage /></AppLayout>} />
-                              <Route path="/app/financial" element={<AppLayout><AppFinancialPage /></AppLayout>} />
-                              <Route path="/app/settings" element={<AppLayout><AppSettingsPage /></AppLayout>} />
-                              <Route path="/app/profile" element={<AppLayout><AppProfilePage /></AppLayout>} />
-                              <Route path="/app/google-calendar" element={<AppLayout><AppCalendarPage /></AppLayout>} />
-
-                              {/* Legal & policy pages */}
-                              <Route path="/privacy" element={<PrivacyPage />} />
-                              <Route path="/terms" element={<TermsPage />} />
-                              <Route path="/security" element={<SecurityPage />} />
-
-                              {/* Catch all - redirect to landing */}
-                              <Route path="*" element={<Navigate to="/" replace />} />
-                            </Routes>
-                            </Suspense>
-                            </ParticleTransitionProvider>
-                            </NexusVoiceCallProvider>
-                          </PermissionProvider>
-                        </CalendarNavigationProvider>
-                      </UserPreferencesProvider>
-                    </UserProfileProvider>
-                  </GamificationProvider>
-                </GamificationPreferencesProvider>
-                </OpenClawProvider>
-              </AIProvider>
-            </Router>
-          </TeamProvider>
-        </TasksProvider>
-      </EnergyProvider>
+                {/* ── Dashboard routes — full provider stack ── */}
+                <Route path="/*" element={<DashboardRoutes />} />
+              </Routes>
+            </Suspense>
+          </ParticleTransitionProvider>
+        </NexusVoiceCallProvider>
+      </Router>
     </AuthProvider>
   );
 }

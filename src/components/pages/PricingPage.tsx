@@ -102,7 +102,7 @@ export function PricingPage() {
   ];
 
   return (
-    <div className="relative min-h-screen text-white">
+    <div data-marketing-root className="relative min-h-screen text-white">
 
       {/* Snap 1 — Hero + Pricing Cards */}
       <ScrollSection id="p-hero" animation={cardElevate}>

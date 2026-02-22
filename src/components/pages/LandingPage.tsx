@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router';
 import { Check, X, ChevronDown, Shield, Zap, MessageCircle, Play, ArrowRight, Clock, Lock, Headphones, TrendingUp, Users, Target, Calendar, Bot, Sparkles, PhoneOff, Mic } from 'lucide-react';
 import { useState, useEffect, useRef, lazy, Suspense } from 'react';
-import { motion, useInView, useScroll, useTransform, AnimatePresence } from 'motion/react';
+import { motion, useInView, AnimatePresence } from 'motion/react';
 
 
 import { FloatingOrbs } from '../FloatingOrbs';
@@ -21,20 +21,20 @@ import {
   convergenceZoom,
 } from '../scroll/animations';
 import { MagneticButton } from '../MagneticButton';
-import { BentoGrid } from '../BentoGrid';
-import { InteractiveDemo } from '../InteractiveDemo';
-import { InteractiveComparison } from '../InteractiveComparison';
 import { BetaSignupModal } from '../BetaSignupModal';
 import { useNexusVoiceCall } from '../../contexts/NexusVoiceCallContext';
 import { useParticleTransition } from '../ParticleTransition';
-import { AdminLoginModal } from '../admin/AdminLoginModal';
-import { AdminEmailDashboard } from '../admin/AdminEmailDashboardV2';
+
+const BentoGrid = lazy(() => import('../BentoGrid').then(m => ({ default: m.BentoGrid })));
+const InteractiveDemo = lazy(() => import('../InteractiveDemo').then(m => ({ default: m.InteractiveDemo })));
+const InteractiveComparison = lazy(() => import('../InteractiveComparison').then(m => ({ default: m.InteractiveComparison })));
+const AdminLoginModal = lazy(() => import('../admin/AdminLoginModal').then(m => ({ default: m.AdminLoginModal })));
+const AdminEmailDashboard = lazy(() => import('../admin/AdminEmailDashboardV2').then(m => ({ default: m.AdminEmailDashboard })));
 import { getBetaCount } from '../../utils/betaApi';
 import { PLANS as PRICING_PLANS } from '../../config/pricing';
 import imgDashboardPreview from "figma:asset/10a3b698cc11b04c569092c39ce52acabd7f851f.png";
 import imgImageSyncScript from "figma:asset/32f9c29c68f7ed10b9efd8ff6ac4135b7a2a4290.png";
 import imgImageSyncScriptLogo from "figma:asset/914d5787f554946c037cbfbb2cf65fcc0de06278.png";
-import imgCircuitBrain from "figma:asset/9f574c53e1c264d4351db616e8a79c11f6fef154.png";
 
 /**
  * SyncScript Landing Page - 2025+ Optimized
@@ -138,8 +138,6 @@ export function LandingPage() {
   const [tasksPerDay, setTasksPerDay] = useState(20);
   const [hoursPerDay, setHoursPerDay] = useState(8);
   
-  // Parallax scroll hooks
-  const { scrollY } = useScroll();
   const heroRef = useRef<HTMLDivElement>(null);
   const statsRef = useRef<HTMLDivElement>(null);
   const pricingRef = useRef<HTMLDivElement>(null);
@@ -155,11 +153,7 @@ export function LandingPage() {
       const offset = 100;
       const elementPosition = element.getBoundingClientRect().top;
       const offsetPosition = elementPosition + window.pageYOffset - offset;
-      
-      window.scrollTo({
-        top: offsetPosition,
-        behavior: 'smooth'
-      });
+      window.scrollTo({ top: offsetPosition });
     }
     setShowMobileMenu(false);
   };
@@ -229,7 +223,7 @@ export function LandingPage() {
 
   return (
     <SmoothScrollProvider>
-    <div className="min-h-screen bg-gradient-to-b from-[#0a0e1a] via-[#0f1420] to-[#0a0e1a] text-white overflow-x-hidden" style={{ fontFamily: "'Space Grotesk', system-ui, sans-serif" }}>
+    <div data-marketing-root className="min-h-screen bg-gradient-to-b from-[#0a0e1a] via-[#0f1420] to-[#0a0e1a] text-white overflow-x-hidden" style={{ fontFamily: "'Space Grotesk', system-ui, sans-serif" }}>
       <FloatingOrbs />
       <SectionIndicator />
       {/* Beta Testing Banner */}
@@ -267,7 +261,7 @@ export function LandingPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4">
           <div className="flex items-center justify-between">
             {/* Logo - Triple-click for admin access */}
-            <div className="flex items-center gap-3 cursor-pointer" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
+            <div className="flex items-center gap-3 cursor-pointer" onClick={() => window.scrollTo({ top: 0 })}>
               <div 
                 className="relative shrink-0 w-8 sm:w-10 h-8 sm:h-10"
                 onClick={(e) => {
@@ -425,9 +419,9 @@ export function LandingPage() {
         )}
       </AnimatePresence>
 
-      {/* Snap 1 — Hero */}
-      <ScrollSection id="hero" snap fullHeight>
-      <section ref={heroRef} className="max-w-7xl mx-auto px-4 sm:px-6 pt-12 sm:pt-20 pb-16 sm:pb-24 relative">
+      {/* Hero — cinematic opening scene */}
+      <ScrollSection id="hero">
+      <section ref={heroRef} className="max-w-7xl mx-auto px-4 sm:px-6 pt-12 sm:pt-16 lg:pt-20 pb-16 sm:pb-24 lg:pb-32 relative">
         {/* Animated Gradient Background */}
         <div className="absolute inset-0 pointer-events-none overflow-hidden opacity-30">
           <motion.div
@@ -468,7 +462,7 @@ export function LandingPage() {
         </div>
 
         <div className="relative z-10">
-          <div className="text-center max-w-5xl mx-auto mb-12 sm:mb-16">
+          <div className="text-center max-w-5xl mx-auto mb-12 sm:mb-16 lg:mb-20">
             {/* Trust Badge Above Headline */}
             <motion.div
               initial={{ opacity: 0, y: -20 }}
@@ -482,7 +476,7 @@ export function LandingPage() {
 
             {/* Hero Headline - Benefit-Focused */}
             <motion.h1 
-              className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-semibold leading-[1.08] mb-4 sm:mb-6 tracking-[-0.02em] px-4"
+              className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-semibold leading-[1.08] mb-5 sm:mb-6 tracking-[-0.02em] px-4"
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 1, delay: 0.2, ease: [0.25, 0.1, 0.25, 1] }}
@@ -590,7 +584,7 @@ export function LandingPage() {
                 src={imgDashboardPreview} 
                 alt="SyncScript Dashboard" 
                 className="w-full h-auto"
-                loading="eager"
+                loading="lazy"
               />
               
               {/* Interactive Hotspots */}
@@ -685,9 +679,11 @@ export function LandingPage() {
       </section>
       </ScrollSection>
 
-      {/* Snap 2 — The Problem */}
-      <ScrollSection id="problem" animation={cardCascade} fullHeight>
-      <section ref={statsRef} className="py-16 sm:py-20">
+      <div className="section-divider" />
+
+      {/* The Problem */}
+      <ScrollSection id="problem" animation={cardCascade}>
+      <section ref={statsRef} className="py-20 sm:py-28 lg:py-32">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
             <div className="text-center mb-8 sm:mb-10">
               <h2 className="text-4xl sm:text-5xl font-semibold mb-4 tracking-[-0.02em]">The Problem with &ldquo;Productivity&rdquo;</h2>
@@ -822,9 +818,11 @@ export function LandingPage() {
       </section>
       </ScrollSection>
 
-      {/* Snap 4 — Call Nexus */}
-      <ScrollSection id="nexus" animation={splitScreen} fullHeight>
-      <section id="voice-calling" className="py-24 sm:py-32">
+      <div className="section-divider" />
+
+      {/* Call Nexus */}
+      <ScrollSection id="nexus" animation={splitScreen}>
+      <section id="voice-calling" className="py-20 sm:py-28 lg:py-32">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
             <div className="grid lg:grid-cols-2 gap-8 sm:gap-12 items-center">
               {/* Left - Copy */}
@@ -941,18 +939,18 @@ export function LandingPage() {
                       </span>
                     </div>
 
-                    {/* Conversation Transcript */}
+                    {/* Conversation Transcript — strictly fixed height, never grows */}
                     <div
                       ref={chatScrollRef}
-                      className="space-y-3 mb-6 max-h-[240px] overflow-y-auto scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent pr-1"
-                      style={{ scrollBehavior: 'smooth' }}
+                      className="space-y-3 overflow-y-auto scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent pr-1"
+                      style={{ height: '240px', minHeight: '240px', maxHeight: '240px', scrollBehavior: 'smooth' }}
                     >
                       {nexusVoice.isCallActive ? (
                         <>
                           {nexusVoice.messages.map((msg) => (
                             <div
                               key={msg.id}
-                              className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} animate-in fade-in slide-in-from-bottom-2 duration-300`}
+                              className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
                             >
                               <div className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
                                 msg.role === 'user'
@@ -967,6 +965,15 @@ export function LandingPage() {
                             <div className="flex justify-end">
                               <div className="max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed bg-emerald-500/10 border border-emerald-500/20 text-white/50 italic">
                                 {nexusVoice.interimText}...
+                              </div>
+                            </div>
+                          )}
+                          {nexusVoice.isProcessing && (
+                            <div className="flex justify-start">
+                              <div className="bg-white/5 border border-white/10 rounded-2xl px-4 py-3 flex items-center gap-1.5">
+                                <span className="w-2 h-2 bg-emerald-400/80 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                                <span className="w-2 h-2 bg-emerald-400/60 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                                <span className="w-2 h-2 bg-emerald-400/40 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
                               </div>
                             </div>
                           )}
@@ -1002,6 +1009,21 @@ export function LandingPage() {
                         ))
                       )}
                     </div>
+
+                    {/* Suggestion chips — outside scroll container so they don't affect its height */}
+                    {nexusVoice.isCallActive && nexusVoice.callStatus === 'active' && !nexusVoice.isProcessing && nexusVoice.messages.filter(m => m.role === 'user').length < 2 && (
+                      <div className="flex flex-wrap gap-2 py-2">
+                        {['How does AI scheduling work?', "What's the pricing?", 'How is this different from Notion?'].map((chip) => (
+                          <button
+                            key={chip}
+                            onClick={() => nexusVoice.sendTextMessage(chip)}
+                            className="text-xs bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 hover:border-emerald-400/50 text-emerald-300 rounded-full px-3 py-1.5 transition-all hover:scale-[1.03] active:scale-95"
+                          >
+                            {chip}
+                          </button>
+                        ))}
+                      </div>
+                    )}
 
                     {/* Waveform Visualization */}
                     <div className="flex items-center gap-1 justify-center h-10">
@@ -1061,9 +1083,11 @@ export function LandingPage() {
       </section>
       </ScrollSection>
 
-      {/* Snap 5 — Built on Real Science */}
-      <ScrollSection id="science" animation={blurToSharp} fullHeight>
-      <section className="py-24 sm:py-32">
+      <div className="section-divider" />
+
+      {/* Built on Real Science */}
+      <ScrollSection id="science" animation={blurToSharp}>
+      <section className="py-20 sm:py-28 lg:py-32">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
             <div className="text-center mb-12 sm:mb-16">
               <h2 className="text-4xl sm:text-5xl font-semibold mb-4 tracking-[-0.02em]">Built on Real Science</h2>
@@ -1118,12 +1142,14 @@ export function LandingPage() {
       </section>
       </ScrollSection>
 
-      {/* Snap 6 — Simple, Transparent Pricing */}
-      <ScrollSection id="pricing" animation={cardElevate} fullHeight>
-      <section ref={pricingRef} id="pricing-anchor" className="py-8 sm:py-10">
+      <div className="section-divider" />
+
+      {/* Simple, Transparent Pricing */}
+      <ScrollSection id="pricing" animation={cardElevate}>
+      <section ref={pricingRef} id="pricing-anchor" className="py-20 sm:py-28 lg:py-32">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
-            <div className="text-center mb-6">
-              <h2 className="text-3xl sm:text-4xl font-semibold mb-2 tracking-[-0.02em]">Simple, Transparent Pricing</h2>
+            <div className="text-center mb-10 sm:mb-14">
+              <h2 className="text-3xl sm:text-4xl font-semibold mb-3 tracking-[-0.02em]">Simple, Transparent Pricing</h2>
               <p className="text-sm sm:text-base text-white/60 font-light">Start free. Upgrade when you're ready. Cancel anytime.</p>
             </div>
 
@@ -1230,9 +1256,11 @@ export function LandingPage() {
       </section>
       </ScrollSection>
 
-      {/* Snap 7 — How It Works */}
-      <ScrollSection id="how-it-works" animation={timelineProgress} fullHeight>
-      <section id="features" className="py-24 sm:py-32">
+      <div className="section-divider" />
+
+      {/* How It Works */}
+      <ScrollSection id="how-it-works" animation={timelineProgress}>
+      <section id="features" className="py-20 sm:py-28 lg:py-32">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
             <div className="text-center mb-12 sm:mb-16">
               <h2 className="text-4xl sm:text-5xl font-semibold mb-4 tracking-[-0.02em]">How It Works</h2>
@@ -1284,7 +1312,7 @@ export function LandingPage() {
       </section>
 
       {/* Explore Features — mini-hero CTA between steps and marquee */}
-      <section className="py-10 sm:py-14">
+      <section className="py-12 sm:py-16">
         <div className="max-w-md mx-auto px-4 text-center">
           <p className="text-xs text-white/40 uppercase tracking-widest mb-4">Ready to dive deeper?</p>
           <button
@@ -1341,9 +1369,11 @@ export function LandingPage() {
 
       </ScrollSection>
 
-      {/* Snap 8 — A Day With SyncScript */}
-      <ScrollSection id="day-timeline" animation={staggerAlternate} fullHeight>
-      <section className="py-24 sm:py-32">
+      <div className="section-divider" />
+
+      {/* A Day With SyncScript */}
+      <ScrollSection id="day-timeline" animation={staggerAlternate}>
+      <section className="py-20 sm:py-28 lg:py-32">
         <div className="max-w-5xl mx-auto px-4 sm:px-6">
             <div className="text-center mb-12 sm:mb-16">
               <h2 className="text-4xl sm:text-5xl font-semibold mb-4 tracking-[-0.02em]">A Day With SyncScript</h2>
@@ -1395,30 +1425,38 @@ export function LandingPage() {
       </section>
       </ScrollSection>
 
-      {/* Snap 9 — See It In Action */}
-      <ScrollSection id="demo" animation={waveGrid} fullHeight>
-      <section className="py-24 sm:py-32">
+      <div className="section-divider" />
+
+      {/* See It In Action */}
+      <ScrollSection id="demo" animation={waveGrid}>
+      <section className="py-16 sm:py-24 lg:py-28">
         <InteractiveDemo />
       </section>
       </ScrollSection>
 
-      {/* Snap 10 — Everything You Need */}
-      <ScrollSection id="bento" animation={convergenceZoom} fullHeight>
-      <section className="py-6 sm:py-8">
+      <div className="section-divider" />
+
+      {/* Everything You Need */}
+      <ScrollSection id="bento" animation={convergenceZoom}>
+      <section className="py-16 sm:py-24 lg:py-28">
         <BentoGrid />
       </section>
       </ScrollSection>
 
-      {/* Snap 11 — See the Difference */}
-      <ScrollSection id="comparison" animation={cardElevate} fullHeight>
-      <section className="py-8 sm:py-10">
+      <div className="section-divider" />
+
+      {/* See the Difference */}
+      <ScrollSection id="comparison" animation={cardElevate}>
+      <section className="py-16 sm:py-24 lg:py-28">
         <InteractiveComparison />
       </section>
       </ScrollSection>
 
-      {/* Snap 12 — Frequently Asked Questions */}
-      <ScrollSection id="faq-section" animation={textSplitReveal} fullHeight>
-      <section id="faq" className="py-24 sm:py-32">
+      <div className="section-divider" />
+
+      {/* Frequently Asked Questions */}
+      <ScrollSection id="faq-section" animation={textSplitReveal}>
+      <section id="faq" className="py-20 sm:py-28 lg:py-32">
         <div className="max-w-4xl mx-auto px-4 sm:px-6">
             <div className="text-center mb-12 sm:mb-16">
               <h2 className="text-4xl sm:text-5xl font-semibold mb-4 tracking-[-0.02em]">Frequently Asked Questions</h2>
@@ -1477,14 +1515,16 @@ export function LandingPage() {
       </section>
       </ScrollSection>
 
-      {/* Snap 13 — Ready to Stop the Burnout */}
-      <ScrollSection id="cta" animation={convergenceZoom} fullHeight>
-      <section className="relative overflow-hidden">
+      <div className="section-divider" />
+
+      {/* Ready to Stop the Burnout — closing scene */}
+      <ScrollSection id="cta" animation={convergenceZoom}>
+      <section className="py-24 sm:py-32 lg:py-40 relative overflow-hidden">
         {/* Ambient background glow */}
         <div className="absolute inset-0 bg-gradient-to-br from-cyan-900/20 via-transparent to-teal-900/20" />
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-cyan-500/[0.04] rounded-full blur-[120px] pointer-events-none" />
 
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 text-center relative z-10 py-24 sm:py-32">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 text-center relative z-10 py-14 sm:py-20">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -1524,7 +1564,7 @@ export function LandingPage() {
       </section>
       </ScrollSection>
 
-      {/* Footer — outside snap flow */}
+      {/* Footer */}
       <footer className="bg-black/40 border-t border-white/10 py-12 sm:py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 sm:gap-12 mb-12">
@@ -1582,8 +1622,8 @@ export function LandingPage() {
           {/* Bottom Bar */}
           <div className="pt-8 border-t border-white/10 flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-3">
-              <img src={imgImageSyncScriptLogo} alt="SyncScript" className="w-8 h-8" />
-              <img src={imgImageSyncScript} alt="SyncScript" className="h-6" />
+              <img src={imgImageSyncScriptLogo} alt="SyncScript" className="w-8 h-8" loading="lazy" />
+              <img src={imgImageSyncScript} alt="SyncScript" className="h-6" loading="lazy" />
             </div>
             <p className="text-sm text-white/50 text-center sm:text-left">
               © 2026 SyncScript. All rights reserved.

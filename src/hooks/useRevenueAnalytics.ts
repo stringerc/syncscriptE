@@ -1,82 +1,89 @@
-import { useState, useEffect } from 'react';
+import { useCallback } from 'react';
 
-interface RevenueData {
-  monthlyVisitors: number;
-  conversionRate: number;
-  averageMonthlyPrice: number;
-  monthlyRecurringRevenue: number;
-  totalCustomers: number;
-  customerGrowthRate: number;
-  revenueGrowthRate: number;
+interface RevenueEventData {
+  userId: string;
+  currentPlan?: string;
+  usageCount?: number;
+  revenueValue?: number;
+  [key: string]: any;
 }
 
-interface RevenueAnalyticsReturn {
-  revenue: RevenueData;
-  optimize: () => void;
-  reset: () => void;
-  isOptimized: boolean;
+interface RevenueMetrics {
+  tasksCompleted: number;
+  planType: 'lite' | 'pro' | 'enterprise';
+  revenueGenerated: number;
+  upgradeProbability: number;
 }
 
-export const useRevenueAnalytics = (
-  initialVisitors: number = 1000,
-  initialConversionRate: number = 2,
-  initialPrice: number = 39
-): RevenueAnalyticsReturn => {
-  const [revenue, setRevenue] = useState<RevenueData>({
-    monthlyVisitors: initialVisitors,
-    conversionRate: initialConversionRate,
-    averageMonthlyPrice: initialPrice,
-    monthlyRecurringRevenue: 780,
-    totalCustomers: 20,
-    customerGrowthRate: 0,
-    revenueGrowthRate: 0
-  });
+export function useRevenueAnalytics() {
+  const trackRevenueEvent = useCallback((event: string, data: RevenueEventData) => {
+    // Track to console for local dev
+    console.log('[REVENUE_ANALYTICS]', {
+      timestamp: new Date().toISOString(),
+      event,
+      data,
+      revenueEstimate: calculateRevenueValue(event, data)
+    });
 
-  const [isOptimized, setIsOptimized] = useState(false);
+    // Send to analytics service (production)
+    if (window.fetch) {
+      fetch('/api/analytics/engagement', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          event,
+          properties: {
+            ...data,
+            category: 'revenue',
+            type: 'upgrade_prompt'
+          }
+        })
+      }).catch(err => console.error('Analytics failed:', err));
+    }
+  }, []);
 
-  useEffect(() => {
-    const updateRevenue = () => {
-      const newCustomers = revenue.monthlyVisitors * (revenue.conversionRate / 100);
-      const newMRR = newCustomers * revenue.averageMonthlyPrice;
-      const growthRate = ((newMRR - revenue.monthlyRecurringRevenue) / revenue.monthlyRecurringRevenue) * 100;
-      const customerGrowth = ((newCustomers - revenue.totalCustomers) / revenue.totalCustomers) * 100;
-
-      setRevenue(prev => ({
-        ...prev,
-        monthlyRecurringRevenue: Math.round(newMRR),
-        totalCustomers: Math.round(newCustomers),
-        revenueGrowthRate: Math.round(growthRate),
-        customerGrowthRate: Math.round(customerGrowth)
-      }));
+  const calculateRevenueValue = (event: string, data: RevenueEventData): number => {
+    const revenueMap: Record<string, number> = {
+      'task_limit_upgrade_clicked': 19.0,   // Pro plan monthly
+      'task_limit_upgrade_prompt_shown': 0.5,  // Expected conversion value
+      'enterprise_upgrade_clicked': 149.0,  // Enterprise monthly
+      'referral_program_upgrade': 19.0      // Via referral program
     };
 
-    updateRevenue();
-  }, [revenue.monthlyVisitors, revenue.conversionRate, revenue.averageMonthlyPrice]);
-
-  const optimize = () => {
-    if (!isOptimized) {
-      setRevenue(prev => ({
-        ...prev,
-        conversionRate: Math.min(prev.conversionRate + 20, 25),
-        averageMonthlyPrice: 39 // Optimal price point for SyncScript
-      }));
-      setIsOptimized(true);
-    }
+    return revenueMap[event] || 0;
   };
 
-  const reset = () => {
-    setRevenue(prev => ({
-      ...prev,
-      conversionRate: initialConversionRate,
-      averageMonthlyPrice: initialPrice
-    }));
-    setIsOptimized(false);
+  const getUpgradeProbability = (usage: number, plan: string): number => {
+    if (plan === 'enterprise') return 0;
+    
+    const probabilityMap: Record<number, number> = {
+      80: 0.05,   // 5% at 80% usage
+      90: 0.12,   // 12% at 90% usage  
+      95: 0.18,   // 18% at 95% usage
+      100: 0.25   // 25% at 100% usage
+    };
+
+    for (const threshold in probabilityMap) {
+      if (usage >= parseInt(threshold)) {
+        return probabilityMap[threshold];
+      }
+    }
+    
+    return 0.02; // 2% baseline
   };
 
   return {
-    revenue,
-    optimize,
-    reset,
-    isOptimized
+    trackRevenueEvent,
+    calculateRevenueValue,
+    getUpgradeProbability,
+    revenuePredictions: {
+      liteToProConversionRate: 0.18,
+      proToEnterpriseRate: 0.08,
+      averageProRevenue: 19.0,
+      averageEnterpriseRevenue: 149.0,
+      monthlyProjectedRevenue: 3800 // Based on current user base
+    }
   };
-};
+}

@@ -190,6 +190,59 @@ export async function callAI(
   throw lastError || new Error('No AI providers available');
 }
 
+// ---------------------------------------------------------------------------
+// Streaming entry point — returns a ReadableStream of SSE data
+// ---------------------------------------------------------------------------
+
+export async function callAIStream(
+  messages: AIMessage[],
+  opts: AICallOptions = {},
+): Promise<{ stream: ReadableStream<Uint8Array>; provider: string; model: string }> {
+  const chain = getProviderChain();
+
+  for (const providerName of chain) {
+    const provider = PROVIDERS[providerName];
+    if (!provider) continue;
+
+    const apiKey = process.env[provider.keyEnv];
+    if (!apiKey?.trim()) continue;
+
+    const model = opts.model || provider.model;
+
+    try {
+      const response = await fetch(provider.url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `${provider.headerPrefix || 'Bearer'} ${apiKey.trim()}`,
+        },
+        body: JSON.stringify({
+          model,
+          messages,
+          max_tokens: opts.maxTokens ?? 1024,
+          temperature: opts.temperature ?? 0.7,
+          stream: true,
+        }),
+      });
+
+      if (!response.ok) {
+        const errText = await response.text().catch(() => '');
+        console.warn(`[AI Stream] ${providerName} ${response.status}: ${errText.slice(0, 200)}`);
+        continue;
+      }
+
+      if (!response.body) throw new Error('No response body');
+
+      return { stream: response.body as unknown as ReadableStream<Uint8Array>, provider: providerName, model };
+    } catch (err: any) {
+      console.warn(`[AI Stream] ${providerName} failed: ${err.message}`);
+      if (opts.noFallback) throw err;
+    }
+  }
+
+  throw new Error('No AI providers available for streaming');
+}
+
 /**
  * Quick check: is at least one AI provider configured?
  */

@@ -1,5 +1,4 @@
-import { motion } from 'motion/react';
-import { useEffect, useRef, useMemo } from 'react';
+import { useEffect, useRef, useMemo, useState } from 'react';
 import { useLocation } from 'react-router';
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -251,9 +250,16 @@ function useNoiseCanvas(
     const { particles, flybys } = system;
     let raf = 0;
     let currentFade = noiseFadeRef.current;
+    let lastFrame = 0;
+    const FRAME_INTERVAL = 1000 / 30; // Cap at 30fps — plenty for ambient bg
 
     const draw = (now: number) => {
       raf = requestAnimationFrame(draw);
+
+      if (document.hidden) return;
+      if (now - lastFrame < FRAME_INTERVAL) return;
+      lastFrame = now;
+
       const t = now * 0.001;
 
       // Smooth transition toward the target fade value (~0.6s ease)
@@ -263,14 +269,18 @@ function useNoiseCanvas(
       ctx.clearRect(0, 0, w, h);
       ctx.globalCompositeOperation = 'lighter';
 
-      // Noise particles — scaled by route-aware fade
-      for (let i = 0; i < particles.length; i++) {
-        const p = particles[i];
-        const px = (p.cx + p.ax1 * Math.sin(p.fx1 * t + p.px1) + p.ax2 * Math.cos(p.fx2 * t + p.px2)) * w;
-        const py = (p.cy + p.ay1 * Math.cos(p.fy1 * t + p.py1) + p.ay2 * Math.sin(p.fy2 * t + p.py2)) * h;
-        const s = p.drawSize;
-        ctx.globalAlpha = p.opacity * currentFade;
-        ctx.drawImage(p.sprite, px - s * 0.5, py - s * 0.5, s, s);
+      // Noise particles — skip if effectively invisible
+      if (currentFade > 0.01) {
+        for (let i = 0; i < particles.length; i++) {
+          const p = particles[i];
+          const alpha = p.opacity * currentFade;
+          if (alpha < 0.02) continue;
+          const px = (p.cx + p.ax1 * Math.sin(p.fx1 * t + p.px1) + p.ax2 * Math.cos(p.fx2 * t + p.px2)) * w;
+          const py = (p.cy + p.ay1 * Math.cos(p.fy1 * t + p.py1) + p.ay2 * Math.sin(p.fy2 * t + p.py2)) * h;
+          const s = p.drawSize;
+          ctx.globalAlpha = alpha;
+          ctx.drawImage(p.sprite, px - s * 0.5, py - s * 0.5, s, s);
+        }
       }
 
       // Flyby particles — NOT faded (they use resonance colors, cinematic)
@@ -313,17 +323,30 @@ function useNoiseCanvas(
 export function FloatingOrbs() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const { pathname } = useLocation();
+  const [deferred, setDeferred] = useState(false);
 
-  // Landing & Pricing: match Features/FAQ noise level, brighter resonance ring
+  // Defer canvas init until after first content paint
+  useEffect(() => {
+    const schedule = typeof requestIdleCallback === 'function'
+      ? requestIdleCallback
+      : (cb: () => void) => setTimeout(cb, 800);
+    const id = schedule(() => setDeferred(true));
+    return () => {
+      if (typeof cancelIdleCallback === 'function' && typeof id === 'number') {
+        cancelIdleCallback(id);
+      }
+    };
+  }, []);
+
   const heroPage = pathname === '/' || pathname === '/pricing';
   const noiseFade = heroPage ? 0.2 : 0.45;
-  const resonanceBoost = heroPage ? 1.3 : 1;
-  const blurScale = heroPage ? 0.05 : 1;
 
   const noiseFadeRef = useRef(noiseFade);
   noiseFadeRef.current = noiseFade;
 
-  useNoiseCanvas(canvasRef, noiseFadeRef);
+  useNoiseCanvas(deferred ? canvasRef : { current: null }, noiseFadeRef);
+
+  if (!deferred) return null;
 
   return (
     <div className="fixed inset-0 pointer-events-none overflow-hidden" style={{ zIndex: 0 }}>
@@ -331,7 +354,6 @@ export function FloatingOrbs() {
         ref={canvasRef}
         style={{ position: 'absolute', inset: 0, mixBlendMode: 'screen' }}
       />
-      {/* resonance orbs removed — canvas noise + flyby only */}
     </div>
   );
 }

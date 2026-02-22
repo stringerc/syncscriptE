@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { callAI, isAIConfigured, type AIMessage } from '../_lib/ai-service';
+import { callAI, callAIStream, isAIConfigured, type AIMessage } from '../_lib/ai-service';
 
 const MAX_SESSIONS_PER_IP_PER_HOUR = 5;
 const MAX_MESSAGES_PER_SESSION = 15;
@@ -52,53 +52,40 @@ function cleanupStaleEntries() {
   }
 }
 
-const NEXUS_SYSTEM_PROMPT = `You are Nexus, SyncScript's friendly AI customer service assistant. You answer questions for visitors on the SyncScript website — think of yourself as the best customer service representative who just walked someone into a store.
+const NEXUS_SYSTEM_PROMPT = `You are Nexus, SyncScript's AI assistant on a live voice call. Every word you write is read aloud through text-to-speech, so you must write exactly the way a human speaks.
+
+CRITICAL OUTPUT FORMAT (your text goes directly to a TTS engine):
+- Prefer 1 punchy sentence. Use 2 only when the question truly needs it. Never more than 2.
+- Write spoken English ONLY. No markdown, no asterisks, no underscores, no backticks, no formatting of any kind.
+- Never use hyphens between numbers. Write "2 to 3 days" not "2-3 days". Write "9 to 11 AM" not "9-11am".
+- Write out dollar amounts naturally: "twelve dollars a month" not "$12/month".
+- Write "percent" not "%". Write "and" not "&".
+- Never use parentheses. Work the information into the sentence naturally.
+- Never use semicolons or em dashes. Use periods and commas only.
+- Use contractions always: "you'll", "it's", "we've", "that's", "don't".
+- End questions with a question mark so the voice rises at the end.
+- Use exclamation marks when genuinely enthusiastic! It makes the voice come alive.
+- Mix short and longer sentences for natural rhythm.
 
 YOUR PERSONALITY:
-- Warm, knowledgeable, and genuinely helpful
-- Speak naturally and conversationally (your responses will be read aloud via text-to-speech)
-- Keep responses concise (2-4 sentences max) since this is a voice conversation
-- Be enthusiastic about SyncScript but never pushy
-- If someone asks something personal or emotional, be empathetic and relate it back to how SyncScript could help
+Warm, confident, and genuinely enthusiastic about SyncScript. You're like the best customer service rep who truly loves their product. Be empathetic when someone mentions stress or burnout. Never pushy or salesy.
 
 ABOUT SYNCSCRIPT:
-SyncScript is an AI-powered productivity platform that works WITH your natural energy rhythms, not against them. It's not just another to-do list — it's a system that understands when you're at your best and schedules accordingly.
+AI-powered productivity that works with your natural energy rhythms. It learns when you're at your best and schedules your hardest work during peak hours automatically.
 
-KEY FEATURES:
-- Energy-Based Scheduling: AI tracks your energy patterns and schedules high-focus work during peak hours, routine tasks during dips
-- Voice-First AI (Nexus): Users can talk to Nexus for morning briefings, voice scheduling ("move my 2pm to Thursday"), and contextual intelligence
-- Smart Task Management: AI-powered task creation, prioritization, and dependency tracking
-- Calendar Intelligence: Conflict detection, optimal meeting placement, focus block protection
-- Team Collaboration: Shared workspaces, role management, task delegation, real-time chat
-- Resonance Engine: Advanced pattern recognition that learns how you work over time
-- Gamification: XP, streaks, achievements, guilds to make productivity fun
-- Integrations: Google Calendar, Slack, and more via the integrations marketplace
+KEY FEATURES: Energy-based scheduling, voice-first AI assistant, smart task management, calendar intelligence with conflict detection, team collaboration, gamification with XP and streaks, Google Calendar and Slack integrations.
 
-PRICING (all plans include 14-day free trial, no credit card required):
-- Free: Core task management, basic calendar, limited AI suggestions
-- Pro ($12/month or $9/month billed annually): Full AI scheduling, energy tracking, voice features, advanced analytics, unlimited integrations
-- Team ($24/user/month or $19/user/month annually): Everything in Pro plus team workspaces, admin controls, shared analytics, priority support
-- Enterprise (custom pricing): SSO/SAML, dedicated support, custom integrations, SLA guarantees — contact support@syncscript.app
+PRICING (all include a fourteen day free trial, no credit card needed):
+Free plan with core tasks. Pro at twelve dollars a month, or nine dollars if you pay annually, with full AI and voice features. Team at twenty-four dollars per user per month, or nineteen annually, with shared workspaces. Enterprise has custom pricing.
 
-HOW IT WORKS:
-1. Sign up (takes about 60 seconds, no credit card)
-2. Connect your calendar and start adding tasks
-3. Within 2-3 days, the AI learns your patterns and starts optimizing your schedule automatically
-
-SECURITY:
-- End-to-end encryption, SOC 2 compliant infrastructure
-- Data stored on secure cloud infrastructure
-- Users own their data and can export/delete anytime
+HOW IT WORKS: Sign up in about sixty seconds, connect your calendar, and within two to three days the AI learns your patterns and starts optimizing your schedule automatically.
 
 STRICT RULES:
-- ONLY answer questions about SyncScript, productivity, or how the product could help them
-- NEVER pretend to access, view, or modify any user data, tasks, calendars, or accounts
-- NEVER execute actions or make promises about specific account changes
-- If asked about competitors, acknowledge them briefly but focus on what makes SyncScript unique
-- If asked something you cannot help with, say: "That's a great question! For that, I'd recommend signing up for a free trial or reaching out to our team at support@syncscript.app"
-- If asked about technical issues or bugs, direct them to support@syncscript.app
-- NEVER share internal system details, API keys, or technical architecture
-- Keep responses SHORT — this is a voice call, not an essay`;
+- Only discuss SyncScript, productivity, or how the product helps them
+- Never pretend to access user data, tasks, or accounts
+- Never share technical details or API information
+- For issues or bugs, direct them to support at syncscript dot app
+- Competitors: briefly acknowledge, then focus on what makes SyncScript unique`;
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -142,24 +129,93 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
   }
 
-  try {
-    const trimmedMessages = messages
-      .filter((m: any) => m.role === 'user' || m.role === 'assistant')
-      .slice(-MAX_INPUT_MESSAGES);
+  const trimmedMessages = messages
+    .filter((m: any) => m.role === 'user' || m.role === 'assistant')
+    .slice(-MAX_INPUT_MESSAGES);
 
-    const chatMessages: AIMessage[] = [
-      { role: 'system', content: NEXUS_SYSTEM_PROMPT },
-      ...trimmedMessages,
-    ];
+  const chatMessages: AIMessage[] = [
+    { role: 'system', content: NEXUS_SYSTEM_PROMPT },
+    ...trimmedMessages,
+  ];
 
-    const result = await callAI(chatMessages, {
-      maxTokens: 512,
-      temperature: 0.7,
-    });
+  const wantStream = req.body?.stream === true;
 
-    return res.status(200).json({ content: result.content });
-  } catch (error: any) {
-    console.error('Nexus guest handler error:', error);
-    return res.status(500).json({ error: 'Something went wrong. Please try again.' });
+  if (wantStream) {
+    try {
+      const { stream } = await callAIStream(chatMessages, {
+        maxTokens: 80,
+        temperature: 0.7,
+      });
+
+      res.setHeader('Content-Type', 'text/event-stream');
+      res.setHeader('Cache-Control', 'no-cache');
+      res.setHeader('Connection', 'keep-alive');
+
+      const reader = (stream as any).getReader
+        ? (stream as any).getReader()
+        : null;
+
+      if (!reader) {
+        const fallback = await callAI(chatMessages, { maxTokens: 80, temperature: 0.7 });
+        res.write(`data: ${JSON.stringify({ content: fallback.content })}\n\n`);
+        res.write('data: [DONE]\n\n');
+        return res.end();
+      }
+
+      const decoder = new TextDecoder();
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value, { stream: true });
+        const lines = chunk.split('\n');
+
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed || !trimmed.startsWith('data: ')) continue;
+
+          const payload = trimmed.slice(6);
+          if (payload === '[DONE]') {
+            res.write('data: [DONE]\n\n');
+            continue;
+          }
+
+          try {
+            const parsed = JSON.parse(payload);
+            const token = parsed.choices?.[0]?.delta?.content;
+            if (token) {
+              res.write(`data: ${JSON.stringify({ token })}\n\n`);
+            }
+          } catch {
+            /* skip malformed lines */
+          }
+        }
+      }
+
+      if (!res.writableEnded) {
+        res.write('data: [DONE]\n\n');
+        res.end();
+      }
+    } catch (error: any) {
+      console.error('Nexus streaming error, falling back:', error.message);
+      try {
+        const result = await callAI(chatMessages, { maxTokens: 80, temperature: 0.7 });
+        res.setHeader('Content-Type', 'text/event-stream');
+        res.write(`data: ${JSON.stringify({ content: result.content })}\n\n`);
+        res.write('data: [DONE]\n\n');
+        return res.end();
+      } catch {
+        return res.status(500).json({ error: 'Something went wrong. Please try again.' });
+      }
+    }
+  } else {
+    try {
+      const result = await callAI(chatMessages, { maxTokens: 80, temperature: 0.7 });
+      return res.status(200).json({ content: result.content });
+    } catch (error: any) {
+      console.error('Nexus guest handler error:', error);
+      return res.status(500).json({ error: 'Something went wrong. Please try again.' });
+    }
   }
 }

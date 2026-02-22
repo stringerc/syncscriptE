@@ -19,6 +19,7 @@ import { Badge } from './ui/badge';
 import { ScrollArea } from './ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { toast } from 'sonner@2.0.3';
+import { useUserProfile } from '../utils/user-profile';
 
 interface ChatMessage {
   id: string;
@@ -46,6 +47,10 @@ export function TeamChat({
   recipientActivity,
   onClose 
 }: TeamChatProps) {
+  const { profile } = useUserProfile();
+  const myAvatar = profile.avatar;
+  const myName = profile.name;
+
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: '1',
@@ -57,8 +62,8 @@ export function TeamChat({
     },
     {
       id: '2',
-      sender: 'You',
-      senderAvatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=You',
+      sender: myName,
+      senderAvatar: myAvatar,
       content: 'Great! Just working on the project.',
       timestamp: new Date(Date.now() - 3000000),
       isCurrentUser: true,
@@ -80,8 +85,8 @@ export function TeamChat({
 
     const message: ChatMessage = {
       id: Date.now().toString(),
-      sender: 'You',
-      senderAvatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=You',
+      sender: myName,
+      senderAvatar: myAvatar,
       content: newMessage,
       timestamp: new Date(),
       isCurrentUser: true,
@@ -121,9 +126,9 @@ export function TeamChat({
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b border-gray-800 bg-[#1e2128]">
         <div className="flex items-center gap-3">
-          <div className="relative">
-            <Avatar className="w-10 h-10">
-              <AvatarImage src={recipientAvatar} alt={recipientName} />
+          <div className="relative flex-shrink-0">
+            <Avatar className="w-10 h-10 min-w-[2.5rem] min-h-[2.5rem]">
+              <AvatarImage src={recipientAvatar} alt={recipientName} className="object-cover" />
               <AvatarFallback>{recipientName.substring(0, 2).toUpperCase()}</AvatarFallback>
             </Avatar>
             <div className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-[#1e2128] ${
@@ -199,8 +204,8 @@ export function TeamChat({
               key={message.id}
               className={`flex gap-3 ${message.isCurrentUser ? 'flex-row-reverse' : ''}`}
             >
-              <Avatar className="w-8 h-8">
-                <AvatarImage src={message.senderAvatar} alt={message.sender} />
+              <Avatar className="w-8 h-8 min-w-[2rem] min-h-[2rem] flex-shrink-0">
+                <AvatarImage src={message.senderAvatar} alt={message.sender} className="object-cover" />
                 <AvatarFallback>{message.sender.substring(0, 2).toUpperCase()}</AvatarFallback>
               </Avatar>
               <div className={`flex flex-col ${message.isCurrentUser ? 'items-end' : ''}`}>
