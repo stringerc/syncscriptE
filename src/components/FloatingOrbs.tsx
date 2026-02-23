@@ -31,60 +31,6 @@ function prng(seed: number) {
 
 function lerp(a: number, b: number, t: number) { return a + (b - a) * t; }
 
-/* ── Layer 1: Resonance (DOM / framer-motion) ───────────────────────────── */
-
-interface ResonanceOrb {
-  color: string; size: number; blur: number; opacity: number;
-  x: number; y: number;
-  driftX: number[]; driftY: number[]; scale: number[];
-  duration: number; delay: number;
-}
-
-function figure8(rx: number, ry: number, tilt: number, points = 12) {
-  const driftX: number[] = [];
-  const driftY: number[] = [];
-  const scale: number[] = [];
-  const cosT = Math.cos(tilt);
-  const sinT = Math.sin(tilt);
-  for (let i = 0; i <= points; i++) {
-    const t = (i / points) * Math.PI * 2;
-    const rawX = rx * Math.sin(t);
-    const rawY = ry * Math.sin(2 * t) * 0.5;
-    driftX.push(Math.round(rawX * cosT - rawY * sinT));
-    driftY.push(Math.round(rawX * sinT + rawY * cosT));
-    scale.push(1 + 0.1 * Math.sin(t * 2));
-  }
-  return { driftX, driftY, scale };
-}
-
-const RESONANCE: ResonanceOrb[] = [
-  { color: 'rgba(56,228,248,0.82)', size: 480, blur: 70, opacity: 0.40, x: 40, y: 36, ...figure8(150, 100, 0), duration: 24, delay: 0 },
-  { color: 'rgba(72,232,210,0.78)', size: 420, blur: 72, opacity: 0.36, x: 44, y: 40, ...figure8(130, 110, Math.PI / 3), duration: 28, delay: 2 },
-  { color: 'rgba(145,155,252,0.70)', size: 380, blur: 74, opacity: 0.30, x: 42, y: 38, ...figure8(160, 90, (2 * Math.PI) / 3), duration: 22, delay: 4 },
-  { color: 'rgba(183,158,255,0.66)', size: 340, blur: 70, opacity: 0.27, x: 46, y: 42, ...figure8(120, 120, Math.PI / 6), duration: 30, delay: 1 },
-  { color: 'rgba(80,235,175,0.72)', size: 300, blur: 65, opacity: 0.28, x: 43, y: 37, ...figure8(140, 100, (5 * Math.PI) / 6), duration: 26, delay: 3 },
-  { color: 'rgba(82,210,255,0.72)', size: 260, blur: 55, opacity: 0.24, x: 45, y: 41, ...figure8(110, 130, Math.PI / 2), duration: 32, delay: 5 },
-];
-
-function ResonanceEl({ o, boost, blurScale }: { o: ResonanceOrb; boost: number; blurScale: number }) {
-  return (
-    <motion.div
-      className="absolute rounded-full"
-      style={{
-        width: o.size, height: o.size,
-        left: `${o.x}%`, top: `${o.y}%`,
-        background: `radial-gradient(circle, ${o.color} 0%, transparent 70%)`,
-        filter: `blur(${Math.round(o.blur * blurScale)}px)`,
-        opacity: Math.min(o.opacity * boost, 1),
-        mixBlendMode: 'screen', willChange: 'transform',
-        transition: 'opacity 0.8s ease, filter 0.8s ease',
-      }}
-      animate={{ x: o.driftX, y: o.driftY, scale: o.scale }}
-      transition={{ duration: o.duration, repeat: Infinity, ease: 'linear', delay: o.delay }}
-    />
-  );
-}
-
 /* ── Canvas particle system ─────────────────────────────────────────────── */
 
 const NOISE_RGB: [number, number, number][] = [
@@ -223,6 +169,9 @@ function buildSystem() {
 function useNoiseCanvas(
   canvasRef: React.RefObject<HTMLCanvasElement | null>,
   noiseFadeRef: React.RefObject<number>,
+  frameInterval: number,
+  dprCap: number,
+  includeFlybys: boolean,
 ) {
   const system = useMemo(() => buildSystem(), []);
 
@@ -235,7 +184,7 @@ function useNoiseCanvas(
     let w = 0, h = 0, dpr = 1;
 
     const resize = () => {
-      dpr = Math.min(window.devicePixelRatio || 1, 2);
+      dpr = Math.min(window.devicePixelRatio || 1, dprCap);
       w = window.innerWidth;
       h = window.innerHeight;
       canvas.width = w * dpr;
@@ -251,7 +200,7 @@ function useNoiseCanvas(
     let raf = 0;
     let currentFade = noiseFadeRef.current;
     let lastFrame = 0;
-    const FRAME_INTERVAL = 1000 / 30; // Cap at 30fps — plenty for ambient bg
+    const FRAME_INTERVAL = frameInterval;
 
     const draw = (now: number) => {
       raf = requestAnimationFrame(draw);
@@ -283,29 +232,31 @@ function useNoiseCanvas(
         }
       }
 
-      // Flyby particles — NOT faded (they use resonance colors, cinematic)
-      for (let i = 0; i < flybys.length; i++) {
-        const f = flybys[i];
-        const cycle = f.duration + f.pause;
-        const elapsed = t - f.delay;
-        if (elapsed < 0) continue;
-        const local = elapsed % cycle;
-        if (local > f.duration) continue;
-        const progress = local / f.duration;
+      // Flyby particles — cinematic accents (skip on low-end)
+      if (includeFlybys) {
+        for (let i = 0; i < flybys.length; i++) {
+          const f = flybys[i];
+          const cycle = f.duration + f.pause;
+          const elapsed = t - f.delay;
+          if (elapsed < 0) continue;
+          const local = elapsed % cycle;
+          if (local > f.duration) continue;
+          const progress = local / f.duration;
 
-        const fx = lerp(f.x0, f.x1, progress) * w;
-        const fy = lerp(f.y0, f.y1, progress) * h;
+          const fx = lerp(f.x0, f.x1, progress) * w;
+          const fy = lerp(f.y0, f.y1, progress) * h;
 
-        const size = progress < 0.45
-          ? lerp(f.sizeStart, f.sizePeak, progress / 0.45)
-          : lerp(f.sizePeak, f.sizeEnd, (progress - 0.45) / 0.55);
+          const size = progress < 0.45
+            ? lerp(f.sizeStart, f.sizePeak, progress / 0.45)
+            : lerp(f.sizePeak, f.sizeEnd, (progress - 0.45) / 0.55);
 
-        const opacity = progress < 0.35
-          ? lerp(0, f.opacityPeak, progress / 0.35)
-          : lerp(f.opacityPeak, 0, (progress - 0.35) / 0.65);
+          const opacity = progress < 0.35
+            ? lerp(0, f.opacityPeak, progress / 0.35)
+            : lerp(f.opacityPeak, 0, (progress - 0.35) / 0.65);
 
-        ctx.globalAlpha = opacity;
-        ctx.drawImage(f.sprite, fx - size * 0.5, fy - size * 0.5, size, size);
+          ctx.globalAlpha = opacity;
+          ctx.drawImage(f.sprite, fx - size * 0.5, fy - size * 0.5, size, size);
+        }
       }
     };
 
@@ -315,7 +266,7 @@ function useNoiseCanvas(
       cancelAnimationFrame(raf);
       window.removeEventListener('resize', resize);
     };
-  }, [canvasRef, noiseFadeRef, system]);
+  }, [canvasRef, dprCap, frameInterval, includeFlybys, noiseFadeRef, system]);
 }
 
 /* ── Main export ────────────────────────────────────────────────────────── */
@@ -324,19 +275,36 @@ export function FloatingOrbs() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const { pathname } = useLocation();
   const [deferred, setDeferred] = useState(false);
+  const [reducedMotion, setReducedMotion] = useState(false);
+
+  const deviceMemory =
+    typeof navigator !== 'undefined' && 'deviceMemory' in navigator
+      ? Number((navigator as Navigator & { deviceMemory?: number }).deviceMemory ?? 8)
+      : 8;
+  const lowEnd =
+    typeof navigator !== 'undefined' &&
+    ((navigator.hardwareConcurrency ?? 4) <= 6 || deviceMemory <= 4);
 
   // Defer canvas init until after first content paint
   useEffect(() => {
+    const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const update = () => setReducedMotion(mq.matches);
+    update();
+    mq.addEventListener('change', update);
+    return () => mq.removeEventListener('change', update);
+  }, []);
+
+  useEffect(() => {
     const schedule = typeof requestIdleCallback === 'function'
       ? requestIdleCallback
-      : (cb: () => void) => setTimeout(cb, 800);
+      : (cb: () => void) => setTimeout(cb, lowEnd ? 1200 : 800);
     const id = schedule(() => setDeferred(true));
     return () => {
       if (typeof cancelIdleCallback === 'function' && typeof id === 'number') {
         cancelIdleCallback(id);
       }
     };
-  }, []);
+  }, [lowEnd]);
 
   const heroPage = pathname === '/' || pathname === '/pricing';
   const noiseFade = heroPage ? 0.2 : 0.45;
@@ -344,9 +312,15 @@ export function FloatingOrbs() {
   const noiseFadeRef = useRef(noiseFade);
   noiseFadeRef.current = noiseFade;
 
-  useNoiseCanvas(deferred ? canvasRef : { current: null }, noiseFadeRef);
+  useNoiseCanvas(
+    deferred ? canvasRef : { current: null },
+    noiseFadeRef,
+    lowEnd ? 1000 / 20 : 1000 / 30,
+    lowEnd ? 1 : 1.25,
+    !lowEnd,
+  );
 
-  if (!deferred) return null;
+  if (!deferred || reducedMotion) return null;
 
   return (
     <div className="fixed inset-0 pointer-events-none overflow-hidden" style={{ zIndex: 0 }}>

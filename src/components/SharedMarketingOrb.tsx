@@ -1,6 +1,7 @@
 import { lazy, Suspense, useState, useEffect } from 'react';
 import { useLocation } from 'react-router';
 import type { OrbKeyframe } from './landing/HeroScene';
+import { FloatingOrbs } from './FloatingOrbs';
 
 const HeroScene = lazy(() =>
   import('./landing/HeroScene').then((m) => ({ default: m.HeroScene })),
@@ -97,13 +98,16 @@ export function SharedMarketingOrb() {
   const keyframes = PAGE_KEYFRAMES[pathname] ?? LANDING_KEYFRAMES;
 
   return (
-    <div className="fixed inset-0 z-0 pointer-events-none">
-      <Suspense fallback={null}>
-        <HeroScene
-          disableScrollFade
-          keyframes={keyframes}
-        />
-      </Suspense>
-    </div>
+    <>
+      <FloatingOrbs />
+      <div className="fixed inset-0 z-0 pointer-events-none">
+        <Suspense fallback={null}>
+          <HeroScene
+            disableScrollFade
+            keyframes={keyframes}
+          />
+        </Suspense>
+      </div>
+    </>
   );
 }
