@@ -820,7 +820,22 @@ export function NexusVoiceCallProvider({ children }: { children: ReactNode }) {
           }
         }
 
-        if (textBuffer.trim()) feedSentence(textBuffer.trim());
+        // Safety: only speak the trailing buffer if it looks like a complete thought.
+        // If the AI was cut off mid-sentence (no terminal punctuation), trim back
+        // to the last complete sentence so TTS never speaks a fragment.
+        const trailing = textBuffer.trim();
+        if (trailing) {
+          const endsComplete = /[.!?]$/.test(trailing);
+          if (endsComplete) {
+            feedSentence(trailing);
+          } else {
+            const lastPunct = trailing.search(/[.!?][^.!?]*$/);
+            if (lastPunct >= 0) {
+              feedSentence(trailing.slice(0, lastPunct + 1).trim());
+              fullText = fullText.slice(0, fullText.length - trailing.length + lastPunct + 1).trim();
+            }
+          }
+        }
         if (fullText) showNexusText(fullText);
 
         clearProcessingOnce();

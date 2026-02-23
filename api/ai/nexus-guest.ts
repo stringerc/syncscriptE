@@ -149,7 +149,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     try {
       const { stream } = await callAIStream(chatMessages, {
         maxTokens: 150,
-        temperature: 0.7,
+        temperature: 0.5,
       });
 
       res.setHeader('Content-Type', 'text/event-stream');
@@ -161,7 +161,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         : null;
 
       if (!reader) {
-        const fallback = await callAI(chatMessages, { maxTokens: 150, temperature: 0.7 });
+        const fallback = await callAI(chatMessages, { maxTokens: 150, temperature: 0.5 });
         res.write(`data: ${JSON.stringify({ content: fallback.content })}\n\n`);
         res.write('data: [DONE]\n\n');
         return res.end();
@@ -191,6 +191,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             const token = parsed.choices?.[0]?.delta?.content;
             if (token) {
               res.write(`data: ${JSON.stringify({ token })}\n\n`);
+              if (typeof (res as any).flush === 'function') (res as any).flush();
             }
           } catch {
             /* skip malformed lines */
@@ -205,7 +206,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     } catch (error: any) {
       console.error('Nexus streaming error, falling back:', error.message);
       try {
-        const result = await callAI(chatMessages, { maxTokens: 150, temperature: 0.7 });
+        const result = await callAI(chatMessages, { maxTokens: 150, temperature: 0.5 });
         res.setHeader('Content-Type', 'text/event-stream');
         res.write(`data: ${JSON.stringify({ content: result.content })}\n\n`);
         res.write('data: [DONE]\n\n');
@@ -216,7 +217,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
   } else {
     try {
-      const result = await callAI(chatMessages, { maxTokens: 150, temperature: 0.7 });
+      const result = await callAI(chatMessages, { maxTokens: 150, temperature: 0.5 });
       return res.status(200).json({ content: result.content });
     } catch (error: any) {
       console.error('Nexus guest handler error:', error);

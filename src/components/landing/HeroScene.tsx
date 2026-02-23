@@ -352,7 +352,28 @@ export function HeroScene({
     targetColor2Ref.current.set(color2);
   }, [color1, color2]);
   useEffect(() => { targetOpacityRef.current = opacity; }, [opacity]);
-  useEffect(() => { keyframesRef.current = keyframes; }, [keyframes]);
+  useEffect(() => {
+    keyframesRef.current = keyframes;
+    if (keyframes && keyframes.length > 0) {
+      const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
+      const progress = maxScroll > 0 ? window.scrollY / maxScroll : 0;
+      scrollProgressRef.current = progress;
+      const state = resolveKeyframe(keyframes, progress);
+      targetExpandRef.current = state.expand;
+      targetSpreadRef.current = state.spread;
+      targetNoiseAmpRef.current = state.noiseAmp;
+      targetSpeedRef.current = state.speed;
+      targetTiltXRef.current = state.tiltX;
+      targetRotSpeedRef.current = state.rotSpeed;
+      targetBrightnessRef.current = state.brightness;
+      targetColor1Ref.current.set(state.color1);
+      targetColor2Ref.current.set(state.color2);
+      targetOpacityRef.current = state.opacity;
+      targetOffsetRef.current = state.posX;
+      targetPosYRef.current = state.posY;
+      targetScaleRef.current = state.scale;
+    }
+  }, [keyframes]);
 
   useEffect(() => {
     const container = containerRef.current;
