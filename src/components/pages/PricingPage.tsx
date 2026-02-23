@@ -171,7 +171,11 @@ export function PricingPage() {
   ];
 
   return (
-    <div data-marketing-root className="relative min-h-screen text-white">
+    <div
+      data-marketing-root
+      className="relative min-h-screen text-white"
+      style={{ ['--marketing-top-offset' as any]: '64px' }}
+    >
 
       {/* Snap 1 — Hero + Pricing Cards */}
       <ScrollSection id="p-hero" animation={cardElevate}>

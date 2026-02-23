@@ -35,10 +35,7 @@ export function SmoothScrollProvider({ children }: { children: ReactNode }) {
   const sectionsRef = useRef(new Map<string, HTMLElement>());
 
   useEffect(() => {
-    const onScroll = () => ScrollTrigger.update();
-    window.addEventListener('scroll', onScroll, { passive: true });
     return () => {
-      window.removeEventListener('scroll', onScroll);
       ScrollTrigger.getAll().forEach((t) => t.kill());
     };
   }, []);

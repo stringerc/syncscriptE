@@ -462,7 +462,11 @@ export function FeaturesPage() {
   const MockupComponent = MOCKUP_MAP[currentFeature.mockup];
 
   return (
-    <div data-marketing-root className="relative min-h-screen text-white">
+    <div
+      data-marketing-root
+      className="relative min-h-screen text-white"
+      style={{ ['--marketing-top-offset' as any]: '64px' }}
+    >
 
       {/* ── Hero ─────────────────────────────────────────────────── */}
       <ScrollSection id="f-hero" snap>

@@ -37,6 +37,8 @@ export function ScrollSection({
   children,
   className = '',
   animation,
+  snap = true,
+  fullHeight = true,
 }: ScrollSectionProps) {
   const ref = useRef<HTMLDivElement>(null);
   const { registerSection } = useSmoothScroll();
@@ -109,7 +111,7 @@ export function ScrollSection({
     <div
       ref={ref}
       data-section={id}
-      className={`relative ${className}`}
+      className={`relative ${fullHeight ? 'marketing-snap-section' : ''} ${snap ? 'marketing-snap-align' : ''} ${className}`}
     >
       {children}
     </div>

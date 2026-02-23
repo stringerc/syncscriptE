@@ -1,8 +1,15 @@
 import { useRef, useEffect } from 'react';
 import * as THREE from 'three';
 
-const IS_LOW_END = typeof navigator !== 'undefined' && (navigator.hardwareConcurrency ?? 4) <= 4;
-const PARTICLE_COUNT = IS_LOW_END ? 1200 : 2000;
+const DEVICE_MEMORY =
+  typeof navigator !== 'undefined' && 'deviceMemory' in navigator
+    ? Number((navigator as Navigator & { deviceMemory?: number }).deviceMemory ?? 8)
+    : 8;
+const IS_LOW_END =
+  typeof navigator !== 'undefined' &&
+  ((navigator.hardwareConcurrency ?? 4) <= 6 || DEVICE_MEMORY <= 4);
+const PARTICLE_COUNT = IS_LOW_END ? 900 : 1400;
+const PIXEL_RATIO_CAP = IS_LOW_END ? 1 : 1.25;
 const RING_RADIUS = 4.2;
 const TUBE_RADIUS = 0.85;
 
@@ -388,7 +395,7 @@ export function HeroScene({
       powerPreference: 'high-performance',
     });
     renderer.setSize(width, height);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, IS_LOW_END ? 1 : 1.5));
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, PIXEL_RATIO_CAP));
     renderer.setClearColor(0x000000, 0);
     container.appendChild(renderer.domElement);
 
@@ -426,8 +433,9 @@ export function HeroScene({
     const ro = new ResizeObserver(onResize);
     ro.observe(container);
 
-    // Scroll tracking
-    const onScroll = () => {
+    // Scroll tracking (rAF-throttled to avoid per-event layout churn)
+    let scrollRaf = 0;
+    const applyScrollState = () => {
       const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
       scrollProgressRef.current = maxScroll > 0 ? window.scrollY / maxScroll : 0;
 
@@ -458,8 +466,15 @@ export function HeroScene({
         if (wasPaused && !pausedRef.current) startLoop();
       }
     };
+    const onScroll = () => {
+      if (scrollRaf) return;
+      scrollRaf = requestAnimationFrame(() => {
+        scrollRaf = 0;
+        applyScrollState();
+      });
+    };
     window.addEventListener('scroll', onScroll, { passive: true });
-    onScroll();
+    applyScrollState();
 
     let animId = 0;
     let isRunning = false;
@@ -536,6 +551,7 @@ export function HeroScene({
       document.removeEventListener('visibilitychange', onVisibility);
       window.removeEventListener('mousemove', onMouseMove);
       window.removeEventListener('scroll', onScroll);
+      if (scrollRaf) cancelAnimationFrame(scrollRaf);
       ro.disconnect();
       renderer.dispose();
       (particles.material as THREE.ShaderMaterial).dispose();

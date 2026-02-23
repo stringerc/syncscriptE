@@ -4,7 +4,6 @@ import { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { motion, useInView, AnimatePresence } from 'motion/react';
 
 
-import { FloatingOrbs } from '../FloatingOrbs';
 import { CountUp } from '../AnimatedSection';
 import { SmoothScrollProvider } from '../scroll/SmoothScrollProvider';
 import { ScrollSection } from '../scroll/ScrollSection';
@@ -223,8 +222,14 @@ export function LandingPage() {
 
   return (
     <SmoothScrollProvider>
-    <div data-marketing-root className="min-h-screen bg-gradient-to-b from-[#0a0e1a] via-[#0f1420] to-[#0a0e1a] text-white overflow-x-hidden" style={{ fontFamily: "'Space Grotesk', system-ui, sans-serif" }}>
-      <FloatingOrbs />
+    <div
+      data-marketing-root
+      className="min-h-screen bg-gradient-to-b from-[#0a0e1a] via-[#0f1420] to-[#0a0e1a] text-white overflow-x-hidden"
+      style={{
+        fontFamily: "'Space Grotesk', system-ui, sans-serif",
+        ['--marketing-top-offset' as any]: '52px',
+      }}
+    >
       <SectionIndicator />
       {/* Beta Testing Banner */}
       <div className="bg-gradient-to-r from-indigo-600 via-purple-600 to-violet-600 sticky top-0 z-50">

@@ -693,7 +693,37 @@ select:focus-visible,
  */
 
 [data-marketing-root] {
+  --marketing-top-offset: 0px;
+  --marketing-bottom-offset: 0px;
+  --marketing-usable-vh: calc(100dvh - var(--marketing-top-offset) - var(--marketing-bottom-offset));
   scroll-behavior: smooth;
+  scroll-snap-type: y mandatory;
+  scroll-padding-top: var(--marketing-top-offset);
+}
+
+/* Desktop-first full-screen section system (MacBook Pro optimized) */
+[data-marketing-root] .marketing-snap-section {
+  min-height: clamp(700px, var(--marketing-usable-vh), 1200px);
+  height: var(--marketing-usable-vh);
+  scroll-snap-stop: always;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+[data-marketing-root] .marketing-snap-align {
+  scroll-snap-align: start;
+}
+
+@media (max-width: 1023px) {
+  [data-marketing-root] {
+    scroll-snap-type: y proximity;
+  }
+
+  [data-marketing-root] .marketing-snap-section {
+    min-height: auto;
+    height: auto;
+  }
 }
 
 .section-divider {

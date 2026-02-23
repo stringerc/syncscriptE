@@ -168,8 +168,8 @@ export const blurToSharp: AnimationFactory = (container) => {
   }
   if (targets.length) {
     tl.fromTo(targets,
-      { opacity: 0, scale: 0.9, filter: 'blur(12px)' },
-      { opacity: 1, scale: 1, filter: 'blur(0px)', stagger: 0.08, duration: 1, ease: 'power2.out' },
+      { opacity: 0, scale: 0.94, y: 20 },
+      { opacity: 1, scale: 1, y: 0, stagger: 0.08, duration: 0.9, ease: 'power2.out' },
     0.25);
   }
 
