@@ -20,7 +20,7 @@ const LANDING_KEYFRAMES: OrbKeyframe[] = [
   // Transition: chaos calming down
   { at: 0.17, expand: 1.1,  spread: 0.15, noiseAmp: 1.5, speed: 1.4, tiltX: 0.5,  rotSpeed: 1.5, brightness: 1.1, color1: '#22d3ee', color2: '#10b981', opacity: 1.5, posX: 0,    posY: -0.3, scale: 1.0  },
   // Call Nexus — subtle glow, readable but visible
-  { at: 0.22, expand: 0.45, spread: 0,    noiseAmp: 0.6, speed: 0.7, tiltX: 0.3,  rotSpeed: 0.6, brightness: 0.3,  color1: '#10b981', color2: '#34d399', opacity: 0.25, posX: 0.5,  posY: 0,    scale: 0.9  },
+  { at: 0.22, expand: 0.45, spread: 0,    noiseAmp: 0.6, speed: 0.7, tiltX: 0.3,  rotSpeed: 0.6, brightness: 0.5,  color1: '#10b981', color2: '#34d399', opacity: 0.5,  posX: 0.5,  posY: 0,    scale: 0.9  },
   // Built on Science — elegant tilted ring, slow, precise
   { at: 0.30, expand: 1.0,  spread: 0,    noiseAmp: 0.7, speed: 0.5, tiltX: 0.9,  rotSpeed: 0.4, brightness: 1.0, color1: '#3b82f6', color2: '#06b6d4', opacity: 1.4, posX: -0.4, posY: 0.2,  scale: 1.0  },
   // Pricing — stable, open, inviting
@@ -38,7 +38,7 @@ const LANDING_KEYFRAMES: OrbKeyframe[] = [
   // FAQ — peaceful, warm resolution
   { at: 0.84, expand: 0.9,  spread: 0,    noiseAmp: 0.5, speed: 0.35,tiltX: 0.35, rotSpeed: 0.3, brightness: 0.9, color1: '#f59e0b', color2: '#fbbf24', opacity: 1.2, posX: 0,    posY: 0.2,  scale: 0.95 },
   // CTA (Ready to Stop the Burnout) — subtle glow, readable but visible
-  { at: 0.95, expand: 0.5,  spread: 0,    noiseAmp: 2.0, speed: 2.5, tiltX: 0.2,  rotSpeed: 2.0, brightness: 0.3,  color1: '#fbbf24', color2: '#ffffff', opacity: 0.25, posX: 0,    posY: 0,    scale: 1.0  },
+  { at: 0.95, expand: 0.5,  spread: 0,    noiseAmp: 2.0, speed: 2.5, tiltX: 0.2,  rotSpeed: 2.0, brightness: 0.5,  color1: '#fbbf24', color2: '#ffffff', opacity: 0.5,  posX: 0,    posY: 0,    scale: 1.0  },
 ];
 
 const FEATURES_KEYFRAMES: OrbKeyframe[] = [
