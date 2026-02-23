@@ -282,7 +282,7 @@ export function FAQPage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
           >
-            <h1 className="text-3xl sm:text-4xl md:text-5xl font-semibold tracking-[-0.02em] bg-gradient-to-r from-white via-cyan-100 to-emerald-200 bg-clip-text text-transparent">
+            <h1 className="text-3xl sm:text-4xl md:text-5xl font-semibold tracking-[-0.02em] text-white">
               Frequently Asked Questions
             </h1>
             <p className="mt-4 text-base sm:text-lg text-white/70 max-w-2xl mx-auto">
@@ -308,7 +308,7 @@ export function FAQPage() {
       {/* Category tabs */}
       <section className="sticky top-16 z-10 py-4 bg-[#0a0e1a]/80 backdrop-blur-md border-y border-white/5 -mt-2">
         <div className="max-w-4xl mx-auto px-4 sm:px-6">
-          <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide scroll-smooth">
+          <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide scroll-smooth justify-center">
             {CATEGORIES.map((cat) => (
               <button
                 key={cat.id}
