@@ -57,6 +57,20 @@ const MAX_CALL_DURATION = 300;
 const GOODBYE_LINGER_MS = 1800;
 const NEXUS_GUEST_API = '/api/ai/nexus-guest';
 
+// Direct Kokoro TTS URL (skips Vercel proxy hop for ~200ms faster TTS)
+const DIRECT_TTS_URL = import.meta.env.VITE_KOKORO_TTS_URL as string | undefined;
+
+let _warmedUp = false;
+function prewarmEndpoints() {
+  if (_warmedUp) return;
+  _warmedUp = true;
+  fetch(NEXUS_GUEST_API, { method: 'OPTIONS' }).catch(() => {});
+  const ttsUrl = DIRECT_TTS_URL
+    ? `${DIRECT_TTS_URL}/v1/audio/speech`
+    : '/api/ai/tts';
+  fetch(ttsUrl, { method: 'OPTIONS' }).catch(() => {});
+}
+
 const GREETING =
   "Hi! I'm Nexus, SyncScript's AI assistant. What would you like to know about how SyncScript can help you?";
 const GOODBYE =
@@ -420,6 +434,27 @@ async function checkMicPermission(): Promise<{ ok: boolean; reason?: string }> {
 }
 
 function fetchTTSBuffer(seg: ProsodySegment, signal?: AbortSignal): Promise<ArrayBuffer | null> {
+  // Try direct Kokoro URL first (skips Vercel serverless hop)
+  if (DIRECT_TTS_URL) {
+    return fetch(`${DIRECT_TTS_URL}/v1/audio/speech`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model: 'kokoro', input: seg.text, voice: seg.voice, speed: seg.speed }),
+      signal,
+    })
+      .then((r) => (r.ok ? r.arrayBuffer() : null))
+      .catch(() =>
+        // Fallback to Vercel proxy if direct call fails (CORS, tunnel down, etc.)
+        fetch('/api/ai/tts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: seg.text, voice: seg.voice, speed: seg.speed }),
+          signal,
+        })
+          .then((r) => (r.ok ? r.arrayBuffer() : null))
+          .catch(() => null),
+      );
+  }
   return fetch('/api/ai/tts', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -462,6 +497,9 @@ export function NexusVoiceCallProvider({ children }: { children: ReactNode }) {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isSpeakingLocal, setIsSpeakingLocal] = useState(false);
+
+  // Pre-warm serverless functions on mount so they're ready when user clicks
+  useEffect(() => { prewarmEndpoints(); }, []);
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const processingRef = useRef(false);
@@ -897,6 +935,10 @@ export function NexusVoiceCallProvider({ children }: { children: ReactNode }) {
     if (activeRef.current) return;
     const mic = await checkMicPermission();
     if (!mic.ok) { alert(mic.reason); return; }
+
+    // Re-warm functions in case they went cold since page load
+    _warmedUp = false;
+    prewarmEndpoints();
 
     setCallStatus('connecting');
     const sid = generateSessionId();
