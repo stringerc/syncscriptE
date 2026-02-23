@@ -19,8 +19,8 @@ const LANDING_KEYFRAMES: OrbKeyframe[] = [
   { at: 0.12, expand: 1.35, spread: 0.5,  noiseAmp: 2.8, speed: 2.2, tiltX: 0.7,  rotSpeed: 2.5, brightness: 1.4, color1: '#f97316', color2: '#ef4444', opacity: 1.6, posX: -0.5, posY: -0.4, scale: 1.1  },
   // Transition: chaos calming down
   { at: 0.17, expand: 1.1,  spread: 0.15, noiseAmp: 1.5, speed: 1.4, tiltX: 0.5,  rotSpeed: 1.5, brightness: 1.1, color1: '#22d3ee', color2: '#10b981', opacity: 1.5, posX: 0,    posY: -0.3, scale: 1.0  },
-  // Call Nexus — focused sphere, green AI energy (dimmed so chat UI stays readable)
-  { at: 0.22, expand: 0.45, spread: 0,    noiseAmp: 0.6, speed: 0.7, tiltX: 0.3,  rotSpeed: 0.6, brightness: 0.55, color1: '#10b981', color2: '#34d399', opacity: 0.45, posX: 0.5,  posY: 0,    scale: 0.9  },
+  // Call Nexus — orb fades out so chat UI is fully readable
+  { at: 0.22, expand: 0.45, spread: 0,    noiseAmp: 0.6, speed: 0.7, tiltX: 0.3,  rotSpeed: 0.6, brightness: 0,    color1: '#10b981', color2: '#34d399', opacity: 0,    posX: 0.5,  posY: 0,    scale: 0.9  },
   // Built on Science — elegant tilted ring, slow, precise
   { at: 0.30, expand: 1.0,  spread: 0,    noiseAmp: 0.7, speed: 0.5, tiltX: 0.9,  rotSpeed: 0.4, brightness: 1.0, color1: '#3b82f6', color2: '#06b6d4', opacity: 1.4, posX: -0.4, posY: 0.2,  scale: 1.0  },
   // Pricing — stable, open, inviting
@@ -37,8 +37,8 @@ const LANDING_KEYFRAMES: OrbKeyframe[] = [
   { at: 0.74, expand: 1.05, spread: 0.2,  noiseAmp: 1.3, speed: 1.2, tiltX: 0.6,  rotSpeed: 1.0, brightness: 1.2, color1: '#0ea5e9', color2: '#f59e0b', opacity: 1.4, posX: -0.2, posY: 0,    scale: 1.0  },
   // FAQ — peaceful, warm resolution
   { at: 0.84, expand: 0.9,  spread: 0,    noiseAmp: 0.5, speed: 0.35,tiltX: 0.35, rotSpeed: 0.3, brightness: 0.9, color1: '#f59e0b', color2: '#fbbf24', opacity: 1.2, posX: 0,    posY: 0.2,  scale: 0.95 },
-  // CTA — supernova convergence: tight, bright, powerful
-  { at: 0.95, expand: 0.5,  spread: 0,    noiseAmp: 2.0, speed: 2.5, tiltX: 0.2,  rotSpeed: 2.0, brightness: 2.0, color1: '#fbbf24', color2: '#ffffff', opacity: 2.0, posX: 0,    posY: 0,    scale: 1.0  },
+  // CTA (Ready to Stop the Burnout) — orb fades out so CTA text is fully readable
+  { at: 0.95, expand: 0.5,  spread: 0,    noiseAmp: 2.0, speed: 2.5, tiltX: 0.2,  rotSpeed: 2.0, brightness: 0,    color1: '#fbbf24', color2: '#ffffff', opacity: 0,    posX: 0,    posY: 0,    scale: 1.0  },
 ];
 
 const FEATURES_KEYFRAMES: OrbKeyframe[] = [
