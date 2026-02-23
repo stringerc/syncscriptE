@@ -810,6 +810,39 @@ export function NexusVoiceCallProvider({ children }: { children: ReactNode }) {
     [voiceStream, addMessage, updateLastNexusMessage, startTypewriter, stopTypewriter],
   );
 
+  // ── End call ───────────────────────────────────────────────────────────
+  // Declared before processUserMessage so the const is initialized when
+  // processUserMessage's dependency array is evaluated during render.
+
+  const endCallInternal = useCallback(async () => {
+    if (!activeRef.current) return;
+    activeRef.current = false;
+    setCallStatus('ending');
+    setIsProcessing(false);
+    processingRef.current = false;
+
+    voiceStream.stopListening();
+    voiceStream.stopSpeaking();
+    abortRef.current?.abort();
+
+    if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
+
+    addMessage('nexus', GOODBYE);
+    await speakPhrase(GOODBYE, goodbyeCacheRef.current);
+
+    playChime('disconnect');
+    await new Promise((r) => setTimeout(r, GOODBYE_LINGER_MS));
+
+    setCallStatus('idle');
+    setMessages([]);
+    setCallDuration(0);
+    setSessionId(null);
+
+    // Re-preload for next call
+    greetingCacheRef.current = preloadPhrase(GREETING);
+    goodbyeCacheRef.current = preloadPhrase(GOODBYE);
+  }, [voiceStream, addMessage, speakPhrase]);
+
   // ── Process user message ───────────────────────────────────────────────
 
   const processUserMessage = useCallback(
@@ -857,37 +890,6 @@ export function NexusVoiceCallProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     processUserMessageRef.current = processUserMessage;
   }, [processUserMessage]);
-
-  // ── End call ───────────────────────────────────────────────────────────
-
-  const endCallInternal = useCallback(async () => {
-    if (!activeRef.current) return;
-    activeRef.current = false;
-    setCallStatus('ending');
-    setIsProcessing(false);
-    processingRef.current = false;
-
-    voiceStream.stopListening();
-    voiceStream.stopSpeaking();
-    abortRef.current?.abort();
-
-    if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
-
-    addMessage('nexus', GOODBYE);
-    await speakPhrase(GOODBYE, goodbyeCacheRef.current);
-
-    playChime('disconnect');
-    await new Promise((r) => setTimeout(r, GOODBYE_LINGER_MS));
-
-    setCallStatus('idle');
-    setMessages([]);
-    setCallDuration(0);
-    setSessionId(null);
-
-    // Re-preload for next call
-    greetingCacheRef.current = preloadPhrase(GREETING);
-    goodbyeCacheRef.current = preloadPhrase(GOODBYE);
-  }, [voiceStream, addMessage, speakPhrase]);
 
   // ── Start call ─────────────────────────────────────────────────────────
 
