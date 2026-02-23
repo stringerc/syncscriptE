@@ -924,7 +924,13 @@ export function LandingPage() {
                               <>
                                 <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
                                 <span className="text-xs text-emerald-400">
-                                  {nexusVoice.isSpeaking ? 'Speaking' : nexusVoice.isListening ? 'Listening' : 'Connected'}
+                                  {nexusVoice.isVoiceLoading
+                                    ? 'Preparing voice...'
+                                    : nexusVoice.isSpeaking
+                                      ? 'Speaking'
+                                      : nexusVoice.isListening
+                                        ? 'Listening'
+                                        : 'Connected'}
                                 </span>
                               </>
                             ) : (
@@ -952,20 +958,37 @@ export function LandingPage() {
                     >
                       {nexusVoice.isCallActive ? (
                         <>
-                          {nexusVoice.messages.map((msg) => (
-                            <div
-                              key={msg.id}
-                              className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
-                            >
-                              <div className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
-                                msg.role === 'user'
-                                  ? 'bg-emerald-500/20 border border-emerald-500/30 text-white/90'
-                                  : 'bg-white/5 border border-white/10 text-white/80'
-                              }`}>
-                                {msg.text}
-                              </div>
-                            </div>
-                          ))}
+                          {(() => {
+                            const latestNexusId =
+                              [...nexusVoice.messages]
+                                .reverse()
+                                .find((m) => m.role === 'nexus')?.id ?? null;
+
+                            return nexusVoice.messages.map((msg) => {
+                              const hideUntilVoiceStarts =
+                                msg.role === 'nexus' &&
+                                nexusVoice.isVoiceLoading &&
+                                msg.id === latestNexusId &&
+                                !nexusVoice.isSpeaking;
+
+                              if (hideUntilVoiceStarts) return null;
+
+                              return (
+                                <div
+                                  key={msg.id}
+                                  className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                                >
+                                  <div className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
+                                    msg.role === 'user'
+                                      ? 'bg-emerald-500/20 border border-emerald-500/30 text-white/90'
+                                      : 'bg-white/5 border border-white/10 text-white/80'
+                                  }`}>
+                                    {msg.text}
+                                  </div>
+                                </div>
+                              );
+                            });
+                          })()}
                           {nexusVoice.interimText && (
                             <div className="flex justify-end">
                               <div className="max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed bg-emerald-500/10 border border-emerald-500/20 text-white/50 italic">
@@ -973,7 +996,20 @@ export function LandingPage() {
                               </div>
                             </div>
                           )}
-                          {nexusVoice.isProcessing && (
+                          {nexusVoice.isVoiceLoading && (
+                            <div className="flex justify-start">
+                              <div className="bg-white/5 border border-emerald-500/25 rounded-2xl px-4 py-3 min-w-[190px]">
+                                <div className="flex items-center gap-2">
+                                  <span className="w-2 h-2 bg-emerald-400/90 rounded-full animate-pulse" />
+                                  <span className="text-xs text-emerald-300/90">Nexus is connecting voice...</span>
+                                </div>
+                                <div className="mt-2 h-1.5 rounded-full bg-emerald-500/10 overflow-hidden">
+                                  <div className="h-full w-1/3 bg-gradient-to-r from-emerald-500/40 to-teal-400/40 animate-[pulse_1s_ease-in-out_infinite]" />
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                          {nexusVoice.isProcessing && !nexusVoice.isVoiceLoading && (
                             <div className="flex justify-start">
                               <div className="bg-white/5 border border-white/10 rounded-2xl px-4 py-3 flex items-center gap-1.5">
                                 <span className="w-2 h-2 bg-emerald-400/80 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />

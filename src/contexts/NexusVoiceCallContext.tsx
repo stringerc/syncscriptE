@@ -33,6 +33,7 @@ interface NexusVoiceCallState {
   isSpeaking: boolean;
   isListening: boolean;
   isProcessing: boolean;
+  isVoiceLoading: boolean;
 }
 
 interface NexusVoiceCallContextValue extends NexusVoiceCallState {
@@ -497,6 +498,7 @@ export function NexusVoiceCallProvider({ children }: { children: ReactNode }) {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isSpeakingLocal, setIsSpeakingLocal] = useState(false);
+  const [isVoiceLoading, setIsVoiceLoading] = useState(false);
 
   // Pre-warm serverless functions on mount so they're ready when user clicks
   useEffect(() => { prewarmEndpoints(); }, []);
@@ -661,6 +663,9 @@ export function NexusVoiceCallProvider({ children }: { children: ReactNode }) {
       let textBuffer = '';
       let nexusMsgAdded = false;
       let processingCleared = false;
+      let revealOpen = false;
+      let revealMode: 'typewriter' | 'stream' = 'stream';
+      let pendingDisplay = '';
 
       const showNexusText = (text: string) => {
         const display = cleanForDisplay(text);
@@ -679,9 +684,31 @@ export function NexusVoiceCallProvider({ children }: { children: ReactNode }) {
         }
       };
 
+      const openRevealGate = () => {
+        if (revealOpen) return;
+        revealOpen = true;
+        setIsVoiceLoading(false);
+        clearProcessingOnce();
+
+        if (revealMode === 'typewriter') {
+          const display = pendingDisplay || cleanForDisplay(fullText);
+          if (!nexusMsgAdded) {
+            addMessage('nexus', '');
+            nexusMsgAdded = true;
+          }
+          startTypewriter(display, 3);
+        } else if (fullText) {
+          showNexusText(fullText);
+        }
+      };
+
       const feedSentence = (sentence: string) => {
         const seg = toProsodySegment(sentence);
         player.feed(fetchTTSBuffer(seg, ac.signal));
+      };
+
+      player.onFirstPlay = () => {
+        openRevealGate();
       };
 
       try {
@@ -695,8 +722,8 @@ export function NexusVoiceCallProvider({ children }: { children: ReactNode }) {
         if (!res.ok) {
           const data = await res.json().catch(() => ({}));
           fullText = data.content || "I'm sorry, could you ask again?";
+          openRevealGate();
           showNexusText(fullText);
-          clearProcessingOnce();
           for (const s of splitToSentences(fullText)) feedSentence(s);
           player.seal();
           await player.waitUntilDone();
@@ -705,8 +732,8 @@ export function NexusVoiceCallProvider({ children }: { children: ReactNode }) {
 
         if (!res.body) {
           fullText = "I'm sorry, could you ask again?";
+          openRevealGate();
           showNexusText(fullText);
-          clearProcessingOnce();
           feedSentence(fullText);
           player.seal();
           await player.waitUntilDone();
@@ -721,8 +748,8 @@ export function NexusVoiceCallProvider({ children }: { children: ReactNode }) {
 
         if (firstRead.done) {
           fullText = "I'm sorry, could you ask again?";
+          openRevealGate();
           showNexusText(fullText);
-          clearProcessingOnce();
           feedSentence(fullText);
           player.seal();
           await player.waitUntilDone();
@@ -751,14 +778,8 @@ export function NexusVoiceCallProvider({ children }: { children: ReactNode }) {
           } catch { /* not valid JSON */ }
 
           if (!fullText) fullText = "I'm sorry, could you ask again?";
-
-          const display = cleanForDisplay(fullText);
-
-          // Show text immediately — user gets visual feedback now
-          addMessage('nexus', '');
-          nexusMsgAdded = true;
-          clearProcessingOnce();
-          startTypewriter(display, 3);
+          revealMode = 'typewriter';
+          pendingDisplay = cleanForDisplay(fullText);
 
           // Fire TTS in parallel — audio starts while text is still typing
           const sentences = splitToSentences(fullText);
@@ -766,7 +787,8 @@ export function NexusVoiceCallProvider({ children }: { children: ReactNode }) {
           player.seal();
 
           await player.waitUntilDone();
-          stopTypewriter(display);
+          if (!revealOpen) openRevealGate();
+          stopTypewriter(pendingDisplay);
           return fullText;
         }
 
@@ -786,8 +808,7 @@ export function NexusVoiceCallProvider({ children }: { children: ReactNode }) {
               if (parsed.content && !parsed.token) {
                 fullText = parsed.content;
                 textBuffer = '';
-                showNexusText(fullText);
-                clearProcessingOnce();
+                if (revealOpen) showNexusText(fullText);
                 for (const s of splitToSentences(fullText)) feedSentence(s);
                 return true;
               }
@@ -797,8 +818,7 @@ export function NexusVoiceCallProvider({ children }: { children: ReactNode }) {
 
               fullText += token;
               textBuffer += token;
-              showNexusText(fullText);
-              clearProcessingOnce();
+              if (revealOpen) showNexusText(fullText);
 
               const { sentences, remainder } = extractCompleteSentences(textBuffer);
               for (const sent of sentences) feedSentence(sent);
@@ -836,6 +856,7 @@ export function NexusVoiceCallProvider({ children }: { children: ReactNode }) {
             }
           }
         }
+        if (!revealOpen && fullText) openRevealGate();
         if (fullText) showNexusText(fullText);
 
         clearProcessingOnce();
@@ -845,8 +866,8 @@ export function NexusVoiceCallProvider({ children }: { children: ReactNode }) {
         if (err?.name === 'AbortError') { /* normal cancellation */ }
         else if (!fullText) {
           fullText = "I'm having a little trouble right now. You can reach us at support@syncscript.app!";
+          openRevealGate();
           showNexusText(fullText);
-          clearProcessingOnce();
           feedSentence(fullText);
           player.seal();
           await player.waitUntilDone();
@@ -854,6 +875,7 @@ export function NexusVoiceCallProvider({ children }: { children: ReactNode }) {
       } finally {
         speakingRef.current = false;
         setIsSpeakingLocal(false);
+        setIsVoiceLoading(false);
         stopTypewriter(cleanForDisplay(fullText));
         if (abortRef.current === ac) abortRef.current = null;
       }
@@ -872,6 +894,7 @@ export function NexusVoiceCallProvider({ children }: { children: ReactNode }) {
     activeRef.current = false;
     setCallStatus('ending');
     setIsProcessing(false);
+    setIsVoiceLoading(false);
     processingRef.current = false;
 
     voiceStream.stopListening();
@@ -890,6 +913,7 @@ export function NexusVoiceCallProvider({ children }: { children: ReactNode }) {
     setMessages([]);
     setCallDuration(0);
     setSessionId(null);
+    setIsVoiceLoading(false);
 
     // Re-preload for next call
     greetingCacheRef.current = preloadPhrase(GREETING);
@@ -912,6 +936,7 @@ export function NexusVoiceCallProvider({ children }: { children: ReactNode }) {
 
       processingRef.current = true;
       setIsProcessing(true);
+      setIsVoiceLoading(true);
 
       voiceStream.stopSpeaking();
       voiceStream.stopListening();
@@ -928,6 +953,7 @@ export function NexusVoiceCallProvider({ children }: { children: ReactNode }) {
         console.error('[Nexus] processUserMessage error:', err);
       } finally {
         setIsProcessing(false);
+        setIsVoiceLoading(false);
         processingRef.current = false;
 
         if (activeRef.current) {
@@ -961,6 +987,7 @@ export function NexusVoiceCallProvider({ children }: { children: ReactNode }) {
     setMessages([]);
     setCallDuration(0);
     setIsProcessing(false);
+    setIsVoiceLoading(false);
     processingRef.current = false;
 
     playChime('connect');
@@ -1032,6 +1059,7 @@ export function NexusVoiceCallProvider({ children }: { children: ReactNode }) {
     isSpeaking: voiceStream.isSpeaking || isSpeakingLocal,
     isListening: voiceStream.isListening,
     isProcessing,
+    isVoiceLoading,
     startCall,
     endCall,
     sendTextMessage,
