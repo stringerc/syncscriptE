@@ -8,7 +8,11 @@ import {
   blurToSharp,
   cardCascade,
 } from '../scroll/animations';
-import { ChevronDown, Search, MessageCircle, Mail, BookOpen, HelpCircle, Users } from 'lucide-react';
+import {
+  ChevronDown, Search, MessageCircle, Mail, BookOpen, HelpCircle, Users,
+  Sparkles, ArrowRight, Clock, Shield, Zap, Star, Check, Phone,
+} from 'lucide-react';
+import { convergenceZoom } from '../scroll/animations';
 
 type Category = 'all' | 'general' | 'features' | 'pricing' | 'security' | 'integrations' | 'account';
 
@@ -303,7 +307,49 @@ export function FAQPage() {
       </section>
       </ScrollSection>
 
-      {/* Snap 2 — FAQ Accordion (natural height for sticky tabs + variable content) */}
+      {/* Snap 2 — Popular Questions */}
+      <ScrollSection id="faq-popular" animation={cardCascade}>
+      <section className="relative z-10 py-16 sm:py-24">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6">
+          <motion.div className="text-center mb-10"
+            initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }} transition={{ duration: 0.5 }}>
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-cyan-500/10 border border-cyan-500/20 text-xs text-cyan-300 font-medium mb-4">
+              <Star className="w-3 h-3" /> Most asked
+            </div>
+            <h2 className="text-2xl sm:text-3xl font-semibold tracking-[-0.02em]">Quick answers to common questions</h2>
+          </motion.div>
+
+          <motion.div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"
+            initial="hidden" whileInView="visible" viewport={{ once: true }}
+            variants={{ hidden: {}, visible: { transition: { staggerChildren: 0.06 } } }}>
+            {[
+              { icon: Zap, q: 'What is SyncScript?', a: 'An energy-aware AI productivity app that schedules your tasks based on when you\'re at your best.' },
+              { icon: Shield, q: 'Is it free to start?', a: 'Yes. The Free plan is free forever with core features. Paid plans include a 14-day free trial with no credit card required.' },
+              { icon: Clock, q: 'How long does setup take?', a: 'Under 2 minutes. Connect your calendar, do a quick energy check-in, and you\'re live.' },
+              { icon: Users, q: 'Does it work for teams?', a: 'Yes. Professional and Enterprise plans include shared workspaces, team analytics, and meeting optimization.' },
+              { icon: Sparkles, q: 'What makes it different?', a: 'SyncScript is the only tool that schedules around your energy, not just your availability. AI that understands when you work best.' },
+              { icon: Check, q: 'Can I cancel anytime?', a: 'Absolutely. Cancel from your account settings. You keep access until your billing period ends, then move to the Free plan.' },
+            ].map(({ icon: Icon, q, a }) => (
+              <motion.div key={q}
+                className="bg-white/[0.04] border border-white/[0.08] rounded-xl p-5 hover:bg-white/[0.07] hover:border-white/[0.15] transition-all duration-300"
+                variants={{ hidden: { opacity: 0, y: 12 }, visible: { opacity: 1, y: 0 } }}
+                transition={{ duration: 0.4 }}>
+                <div className="flex items-center gap-2.5 mb-3">
+                  <div className="w-8 h-8 rounded-lg bg-cyan-500/10 flex items-center justify-center text-cyan-400 shrink-0">
+                    <Icon className="w-4 h-4" />
+                  </div>
+                  <h3 className="text-sm font-semibold text-white">{q}</h3>
+                </div>
+                <p className="text-xs text-white/50 font-light leading-relaxed">{a}</p>
+              </motion.div>
+            ))}
+          </motion.div>
+        </div>
+      </section>
+      </ScrollSection>
+
+      {/* Snap 3 — FAQ Accordion (natural height for sticky tabs + variable content) */}
       <ScrollSection id="faq-list" animation={staggerAlternate} fullHeight={false}>
       {/* Category tabs */}
       <section className="sticky top-16 z-10 py-4 bg-[#0a0e1a]/80 backdrop-blur-md border-y border-white/5 -mt-2">
@@ -399,106 +445,138 @@ export function FAQPage() {
       </section>
       </ScrollSection>
 
-      {/* Snap 3 — Contact CTA */}
+      {/* Contact CTA — Enhanced */}
       <ScrollSection id="faq-contact" animation={blurToSharp}>
       <section className="py-24 sm:py-32">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6">
-          <motion.div
-            className="relative rounded-2xl overflow-hidden p-8 sm:p-10"
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.5 }}
-            style={{
-              background:
-                'linear-gradient(135deg, rgba(6, 182, 212, 0.15) 0%, rgba(16, 185, 129, 0.1) 50%, rgba(6, 182, 212, 0.08) 100%)',
-              border: '1px solid rgba(6, 182, 212, 0.25)',
-            }}
-          >
-            <h2 className="text-2xl sm:text-3xl font-semibold tracking-[-0.02em] text-white mb-2">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6">
+          <motion.div className="text-center mb-10"
+            initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }} transition={{ duration: 0.5 }}>
+            <h2 className="text-2xl sm:text-3xl font-semibold tracking-[-0.02em] text-white">
               Still have questions?
             </h2>
-            <p className="text-white/60 font-light mb-6 max-w-xl">
-              Join our Discord community or email us — we&apos;re happy to help.
+            <p className="mt-3 text-white/50 font-light max-w-lg mx-auto">
+              Our team is here to help. Pick the channel that works best for you.
             </p>
-            <div className="flex flex-wrap gap-4">
-              <a
-                href="https://discord.gg/2rq38UJrDJ"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 hover:bg-cyan-500/30 transition"
-              >
-                <MessageCircle className="w-5 h-5" />
-                Join Discord
-              </a>
-              <a
-                href="mailto:support@syncscript.app"
-                className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-white/5 text-white border border-white/10 hover:bg-white/10 transition"
-              >
-                <Mail className="w-5 h-5" />
-                support@syncscript.app
-              </a>
-            </div>
+          </motion.div>
+
+          <motion.div className="grid grid-cols-1 sm:grid-cols-3 gap-5"
+            initial="hidden" whileInView="visible" viewport={{ once: true }}
+            variants={{ hidden: {}, visible: { transition: { staggerChildren: 0.08 } } }}>
+            {[
+              {
+                icon: MessageCircle,
+                title: 'Discord Community',
+                desc: 'Get answers from the team and other users. Feature requests, bug reports, and beta chat.',
+                response: 'Usually within minutes',
+                link: 'https://discord.gg/2rq38UJrDJ',
+                label: 'Join Discord',
+                external: true,
+                accent: 'bg-cyan-500/10 border-cyan-500/20 text-cyan-400',
+              },
+              {
+                icon: Mail,
+                title: 'Email Support',
+                desc: 'For account issues, billing, or anything private. We read every email personally.',
+                response: 'Within 24 hours',
+                link: 'mailto:support@syncscript.app',
+                label: 'support@syncscript.app',
+                external: false,
+                accent: 'bg-teal-500/10 border-teal-500/20 text-teal-400',
+              },
+              {
+                icon: Phone,
+                title: 'Talk to Nexus',
+                desc: 'Our AI assistant can answer most questions instantly. Try the voice chat on our landing page.',
+                response: 'Instant',
+                link: '/',
+                label: 'Try Voice Chat',
+                external: false,
+                accent: 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400',
+              },
+            ].map(({ icon: Icon, title, desc, response, link, label, external, accent }) => (
+              <motion.div key={title}
+                className="bg-white/[0.03] border border-white/[0.07] rounded-2xl p-5 sm:p-6 flex flex-col"
+                variants={{ hidden: { opacity: 0, y: 12 }, visible: { opacity: 1, y: 0 } }}
+                transition={{ duration: 0.4 }}>
+                <div className={`w-11 h-11 rounded-xl ${accent.split(' ').slice(0, 2).join(' ')} flex items-center justify-center ${accent.split(' ').pop()} mb-4`}>
+                  <Icon className="w-5 h-5" strokeWidth={1.8} />
+                </div>
+                <h3 className="text-base font-semibold text-white mb-1">{title}</h3>
+                <p className="text-xs text-white/50 font-light leading-relaxed flex-1 mb-3">{desc}</p>
+                <div className="flex items-center gap-1.5 text-[10px] text-emerald-400/70 font-medium mb-4">
+                  <Clock className="w-3 h-3" /> {response}
+                </div>
+                <a href={link} {...(external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
+                  className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-white/[0.06] border border-white/[0.1] hover:bg-white/[0.1] text-white/70 hover:text-white transition-all">
+                  {label} <ArrowRight className="w-3.5 h-3.5" />
+                </a>
+              </motion.div>
+            ))}
           </motion.div>
         </div>
       </section>
       </ScrollSection>
 
-      {/* Snap 4 — Related Resources */}
-      <ScrollSection id="faq-resources" animation={cardCascade}>
+      {/* Resources + CTA */}
+      <ScrollSection id="faq-resources" animation={convergenceZoom}>
       <section className="py-24 sm:py-32">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6">
-          <motion.h2
-            className="text-xl sm:text-2xl font-semibold tracking-[-0.02em] text-white mb-6 sm:mb-8"
-            initial={{ opacity: 0, y: 16 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-          >
-            Related resources
-          </motion.h2>
-          <div className="grid sm:grid-cols-3 gap-4">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6">
+          <motion.div className="text-center mb-10"
+            initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }} transition={{ duration: 0.5 }}>
+            <h2 className="text-2xl sm:text-3xl font-semibold tracking-[-0.02em]">Explore more</h2>
+            <p className="mt-3 text-white/45 font-light text-sm">Dive deeper into how SyncScript works.</p>
+          </motion.div>
+
+          <motion.div className="grid sm:grid-cols-3 gap-5"
+            initial="hidden" whileInView="visible" viewport={{ once: true }}
+            variants={{ hidden: {}, visible: { transition: { staggerChildren: 0.08 } } }}>
             {[
               {
-                icon: BookOpen,
-                title: 'Documentation',
-                description: 'API reference, guides, and examples.',
-                path: '/docs',
+                icon: BookOpen, title: 'Documentation',
+                description: 'API reference, quickstart guides, webhooks, and code examples for developers and power users.',
+                path: '/docs', color: 'text-cyan-400', bg: 'bg-cyan-500/10',
               },
               {
-                icon: HelpCircle,
-                title: 'Help Center',
-                description: 'Step-by-step guides and troubleshooting.',
-                path: '/help',
+                icon: HelpCircle, title: 'Help Center',
+                description: 'Step-by-step walkthroughs for every feature, troubleshooting, and account management.',
+                path: '/help', color: 'text-teal-400', bg: 'bg-teal-500/10',
               },
               {
-                icon: Users,
-                title: 'Community',
-                description: 'Connect with other SyncScript users.',
-                path: '/community',
+                icon: Users, title: 'Community',
+                description: 'Join thousands of users on Discord. Share workflows, vote on features, and get real-time help.',
+                path: '/community', color: 'text-emerald-400', bg: 'bg-emerald-500/10',
               },
-            ].map((item, i) => (
-              <motion.div
-                key={item.path}
-                initial={{ opacity: 0, y: 16 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.4, delay: i * 0.1 }}
-                className="group rounded-xl bg-white/5 border border-white/10 p-5 hover:border-cyan-500/30 hover:bg-white/[0.07] transition"
-              >
-                <item.icon className="w-8 h-8 text-cyan-400 mb-3" />
-                <h3 className="font-semibold text-white mb-1">{item.title}</h3>
-                <p className="text-sm text-white/60 mb-4">{item.description}</p>
-                <button
-                  type="button"
-                  onClick={() => navigate(item.path)}
-                  className="text-sm font-medium text-cyan-400 hover:text-cyan-300 transition flex items-center gap-1"
-                >
-                  Learn more
-                  <ChevronDown className="w-4 h-4 rotate-[-90deg]" />
+            ].map((item) => (
+              <motion.div key={item.path}
+                className="group rounded-2xl bg-white/[0.03] border border-white/[0.07] p-5 sm:p-6 hover:border-white/[0.15] hover:bg-white/[0.06] transition-all duration-300 flex flex-col"
+                variants={{ hidden: { opacity: 0, y: 12 }, visible: { opacity: 1, y: 0 } }}
+                transition={{ duration: 0.4 }}>
+                <div className={`w-10 h-10 rounded-xl ${item.bg} flex items-center justify-center ${item.color} mb-4`}>
+                  <item.icon className="w-5 h-5" strokeWidth={1.8} />
+                </div>
+                <h3 className="font-semibold text-white mb-1.5">{item.title}</h3>
+                <p className="text-xs text-white/50 font-light leading-relaxed flex-1 mb-4">{item.description}</p>
+                <button type="button" onClick={() => navigate(item.path)}
+                  className="text-sm font-medium text-cyan-400 hover:text-cyan-300 transition flex items-center gap-1.5 group-hover:gap-2.5">
+                  Learn more <ArrowRight className="w-3.5 h-3.5" />
                 </button>
               </motion.div>
             ))}
-          </div>
+          </motion.div>
+
+          {/* Final CTA */}
+          <motion.div className="mt-16 text-center"
+            initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }} transition={{ duration: 0.5, delay: 0.2 }}>
+            <h3 className="text-xl sm:text-2xl font-semibold text-white mb-3">Ready to work with your energy?</h3>
+            <p className="text-sm text-white/45 font-light mb-6">Free to start. No credit card. 90-second setup.</p>
+            <button type="button" onClick={() => navigate('/signup')}
+              className="inline-flex items-center justify-center gap-2 px-8 py-3.5 rounded-xl font-medium bg-gradient-to-r from-cyan-500 to-teal-500 hover:from-cyan-400 hover:to-teal-400 text-white shadow-lg shadow-cyan-500/20 transition-all">
+              <Sparkles className="w-4 h-4" /> Get Started Free <ArrowRight className="w-4 h-4" />
+            </button>
+          </motion.div>
         </div>
       </section>
       </ScrollSection>

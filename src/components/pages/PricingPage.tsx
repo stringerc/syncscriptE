@@ -7,10 +7,14 @@ import {
   parallaxReveal,
   staggerAlternate,
   convergenceZoom,
+  blurToSharp,
+  splitScreen,
+  waveGrid,
 } from '../scroll/animations';
 import {
   Check, X, ArrowRight, Sparkles, Shield, Clock, ChevronDown,
-  Zap, Lock, HelpCircle, Loader2, Mail,
+  Zap, Lock, HelpCircle, Loader2, Mail, TrendingUp, Gauge,
+  Calculator, DollarSign, Users, Activity,
 } from 'lucide-react';
 import { PLANS as PRICING_PLANS, formatPrice, type PricingPlan } from '../../config/pricing';
 import { projectId, publicAnonKey } from '../../utils/supabase/info';
@@ -18,6 +22,71 @@ import { projectId, publicAnonKey } from '../../utils/supabase/info';
 const viewport = { once: true, amount: 0.2 };
 const ease = [0.22, 1, 0.36, 1] as const;
 const STRIPE_BASE = `https://${projectId}.supabase.co/functions/v1/make-server-57781ad9/stripe`;
+
+function ROICalculator() {
+  const [tasks, setTasks] = useState(8);
+  const [hours, setHours] = useState(8);
+
+  const savedMinutesPerTask = 12;
+  const savedWeekly = Math.round((tasks * savedMinutesPerTask * 5) / 60 * 10) / 10;
+  const savedMonthly = Math.round(savedWeekly * 4.3);
+  const hourlyRate = 50;
+  const valuePerMonth = savedMonthly * hourlyRate;
+
+  return (
+    <motion.div className="bg-white/[0.03] border border-white/[0.07] rounded-2xl p-6 sm:p-8"
+      initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }}
+      viewport={viewport} transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <div className="space-y-6">
+          <div>
+            <label className="flex items-center justify-between text-sm text-white/60 mb-2">
+              <span>Tasks per day</span>
+              <span className="text-cyan-400 font-semibold">{tasks}</span>
+            </label>
+            <input type="range" min={1} max={30} value={tasks} onChange={e => setTasks(+e.target.value)}
+              className="w-full h-1.5 bg-white/10 rounded-full appearance-none cursor-pointer accent-cyan-500"
+            />
+          </div>
+          <div>
+            <label className="flex items-center justify-between text-sm text-white/60 mb-2">
+              <span>Work hours per day</span>
+              <span className="text-cyan-400 font-semibold">{hours}h</span>
+            </label>
+            <input type="range" min={4} max={14} value={hours} onChange={e => setHours(+e.target.value)}
+              className="w-full h-1.5 bg-white/10 rounded-full appearance-none cursor-pointer accent-cyan-500"
+            />
+          </div>
+          <p className="text-xs text-white/30 font-light">
+            Based on 12 min saved per task through AI scheduling, energy optimization, and reduced context switching.
+          </p>
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          <div className="bg-white/[0.04] border border-white/[0.06] rounded-xl p-4 text-center">
+            <Clock className="w-5 h-5 text-cyan-400/60 mx-auto mb-2" />
+            <div className="text-2xl font-semibold text-white">{savedWeekly}h</div>
+            <div className="text-xs text-white/40 mt-1">Saved per week</div>
+          </div>
+          <div className="bg-white/[0.04] border border-white/[0.06] rounded-xl p-4 text-center">
+            <TrendingUp className="w-5 h-5 text-emerald-400/60 mx-auto mb-2" />
+            <div className="text-2xl font-semibold text-white">{savedMonthly}h</div>
+            <div className="text-xs text-white/40 mt-1">Saved per month</div>
+          </div>
+          <div className="bg-white/[0.04] border border-white/[0.06] rounded-xl p-4 text-center">
+            <Gauge className="w-5 h-5 text-teal-400/60 mx-auto mb-2" />
+            <div className="text-2xl font-semibold text-emerald-400">+{Math.round(savedWeekly / (hours * 5) * 100)}%</div>
+            <div className="text-xs text-white/40 mt-1">More productive</div>
+          </div>
+          <div className="bg-gradient-to-br from-cyan-500/10 to-teal-500/10 border border-cyan-500/20 rounded-xl p-4 text-center">
+            <DollarSign className="w-5 h-5 text-cyan-400/60 mx-auto mb-2" />
+            <div className="text-2xl font-semibold text-cyan-300">${valuePerMonth}</div>
+            <div className="text-xs text-white/40 mt-1">Value per month</div>
+          </div>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
 
 export function PricingPage() {
   const navigate = useNavigate();
@@ -236,36 +305,35 @@ export function PricingPage() {
       </section>
       </ScrollSection>
 
-      {/* Snap 2 — Trust Strip */}
+      {/* Snap 2 — Trust & Guarantee */}
       <ScrollSection id="p-trust" animation={parallaxReveal}>
       <section className="relative z-10 py-24 sm:py-32">
         <div className="max-w-5xl mx-auto px-4 sm:px-6">
-          <motion.div
-            className="flex flex-wrap items-center justify-center gap-8 sm:gap-14 text-sm text-white/50"
-            initial="hidden"
-            whileInView="visible"
-            viewport={viewport}
-            variants={{
-              hidden: {},
-              visible: { transition: { staggerChildren: 0.08 } },
-            }}
-          >
+          <motion.div className="text-center mb-12"
+            initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }}
+            viewport={viewport} transition={{ duration: 0.5, ease }}>
+            <h2 className="text-2xl sm:text-3xl font-semibold tracking-[-0.02em]">
+              Your trust matters
+            </h2>
+          </motion.div>
+
+          <motion.div className="grid grid-cols-1 sm:grid-cols-3 gap-5 sm:gap-6"
+            initial="hidden" whileInView="visible" viewport={viewport}
+            variants={{ hidden: {}, visible: { transition: { staggerChildren: 0.08 } } }}>
             {[
-              { icon: Lock, label: 'PCI-compliant payments via Stripe' },
-              { icon: Shield, label: '14-day satisfaction guarantee' },
-              { icon: Clock, label: '14-day free trial on paid plans' },
-            ].map(({ icon: Ic, label }) => (
-              <motion.div
-                key={label}
-                className="flex items-center gap-2.5"
-                variants={{
-                  hidden: { opacity: 0, y: 8 },
-                  visible: { opacity: 1, y: 0 },
-                }}
-                transition={{ duration: 0.4, ease }}
-              >
-                <Ic className="w-4 h-4 text-cyan-400/50" strokeWidth={1.8} />
-                <span className="font-light">{label}</span>
+              { icon: Lock, title: 'Secure Payments', desc: 'PCI DSS Level 1 compliant via Stripe. We never store your card details on our servers.', color: 'text-cyan-400', bg: 'bg-cyan-500/10' },
+              { icon: Shield, title: '14-Day Guarantee', desc: 'Not happy? Full refund within 14 days, no questions asked. Email support@syncscript.app.', color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
+              { icon: Clock, title: 'Free Trial, No Card', desc: 'Start any paid plan without payment info. We only ask for payment when your trial ends.', color: 'text-teal-400', bg: 'bg-teal-500/10' },
+            ].map(({ icon: Ic, title, desc, color, bg }) => (
+              <motion.div key={title}
+                className="bg-white/[0.03] border border-white/[0.07] rounded-2xl p-5 sm:p-6 text-center"
+                variants={{ hidden: { opacity: 0, y: 12 }, visible: { opacity: 1, y: 0 } }}
+                transition={{ duration: 0.4, ease }}>
+                <div className={`w-12 h-12 rounded-xl ${bg} flex items-center justify-center ${color} mx-auto mb-4`}>
+                  <Ic className="w-5 h-5" strokeWidth={1.8} />
+                </div>
+                <h3 className="text-base font-semibold text-white mb-2">{title}</h3>
+                <p className="text-xs text-white/45 font-light leading-relaxed">{desc}</p>
               </motion.div>
             ))}
           </motion.div>
@@ -273,7 +341,89 @@ export function PricingPage() {
       </section>
       </ScrollSection>
 
-      {/* Snap 3 — FAQ */}
+      {/* Snap 3 — Feature Comparison Table */}
+      <ScrollSection id="p-compare" animation={blurToSharp}>
+      <section className="relative z-10 py-24 sm:py-32">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6">
+          <motion.div className="text-center mb-12"
+            initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }}
+            viewport={viewport} transition={{ duration: 0.5, ease }}>
+            <h2 className="text-2xl sm:text-3xl font-semibold tracking-[-0.02em]">
+              Compare plans at a glance
+            </h2>
+            <p className="mt-3 text-white/45 font-light text-sm max-w-lg mx-auto">
+              Every plan includes a 14-day free trial. Upgrade or downgrade anytime.
+            </p>
+          </motion.div>
+
+          <motion.div className="overflow-x-auto -mx-4 px-4"
+            initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }}
+            viewport={viewport} transition={{ duration: 0.5, ease }}>
+            <table className="w-full text-sm border-collapse min-w-[600px]">
+              <thead>
+                <tr className="border-b border-white/[0.08]">
+                  <th className="text-left py-3 px-3 text-white/40 font-medium text-xs uppercase tracking-wider w-1/3">Feature</th>
+                  <th className="text-center py-3 px-2 text-white/60 font-semibold">Free</th>
+                  <th className="text-center py-3 px-2 text-white/60 font-semibold">Starter</th>
+                  <th className="text-center py-3 px-2 font-semibold text-cyan-400">Pro</th>
+                  <th className="text-center py-3 px-2 text-white/60 font-semibold">Enterprise</th>
+                </tr>
+              </thead>
+              <tbody>
+                {[
+                  { feature: 'Tasks', values: ['10/day', '50/month', 'Unlimited', 'Unlimited'] },
+                  { feature: 'Calendar integrations', values: ['1', 'Basic', 'Advanced', 'Custom'] },
+                  { feature: 'Energy tracking', values: ['Basic', 'Full', 'Full', 'Full'] },
+                  { feature: 'AI assistant', values: ['Limited', 'Standard', 'Advanced', 'Advanced'] },
+                  { feature: 'Voice AI (Nexus)', values: [false, false, true, true] },
+                  { feature: 'Team members', values: ['—', '2', '10', 'Unlimited'] },
+                  { feature: 'Analytics', values: [false, 'Basic', 'Advanced', 'Advanced'] },
+                  { feature: 'Scripts & templates', values: [false, true, true, true] },
+                  { feature: 'API access', values: [false, false, true, true] },
+                  { feature: 'Custom workflows', values: [false, false, true, true] },
+                  { feature: 'SSO / SAML', values: [false, false, false, true] },
+                  { feature: 'Priority support', values: [false, false, true, true] },
+                  { feature: 'SLA guarantee', values: [false, false, false, true] },
+                ].map((row, i) => (
+                  <tr key={row.feature} className={`border-b border-white/[0.05] ${i % 2 === 0 ? 'bg-white/[0.01]' : ''}`}>
+                    <td className="py-2.5 px-3 text-white/60 font-light">{row.feature}</td>
+                    {row.values.map((val, j) => (
+                      <td key={j} className={`py-2.5 px-2 text-center ${j === 2 ? 'bg-cyan-500/[0.03]' : ''}`}>
+                        {val === true ? <Check className="w-4 h-4 text-emerald-400 mx-auto" /> :
+                         val === false ? <X className="w-4 h-4 text-white/15 mx-auto" /> :
+                         <span className={`text-xs font-light ${j === 2 ? 'text-cyan-300' : 'text-white/50'}`}>{val}</span>}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </motion.div>
+        </div>
+      </section>
+      </ScrollSection>
+
+      {/* Snap 4 — ROI Calculator */}
+      <ScrollSection id="p-roi" animation={splitScreen}>
+      <section className="relative z-10 py-24 sm:py-32">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6">
+          <motion.div className="text-center mb-12"
+            initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }}
+            viewport={viewport} transition={{ duration: 0.5, ease }}>
+            <h2 className="text-2xl sm:text-3xl font-semibold tracking-[-0.02em]">
+              Calculate your time savings
+            </h2>
+            <p className="mt-3 text-white/45 font-light text-sm max-w-lg mx-auto">
+              See how much time SyncScript could save you each week.
+            </p>
+          </motion.div>
+
+          <ROICalculator />
+        </div>
+      </section>
+      </ScrollSection>
+
+      {/* Snap 5 — FAQ */}
       <ScrollSection id="p-faq" animation={staggerAlternate}>
       <section className="relative z-10 py-24 sm:py-32">
         <div className="max-w-3xl mx-auto px-4 sm:px-6">
