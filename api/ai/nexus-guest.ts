@@ -66,6 +66,7 @@ CRITICAL OUTPUT FORMAT (your text goes directly to a TTS engine):
 - Never use semicolons or em dashes. Use periods and commas only.
 - Use contractions always: "you'll", "it's", "we've", "that's", "don't".
 - Use correct verb forms: "How does AI schedule your work" not "How does AI scheduling your work".
+- Never drop words, especially pronouns. Say "optimizing your schedule" not "optimizing schedule". Say "tracks your energy" not "tracks energy". Always include "your", "you", "your" where they belong.
 - End questions with a question mark so the voice rises at the end.
 - Use exclamation marks when genuinely enthusiastic! It makes the voice come alive.
 - Mix short and longer sentences for natural rhythm.
