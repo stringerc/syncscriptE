@@ -46,21 +46,21 @@ const FEATURES_KEYFRAMES: OrbKeyframe[] = [
   { at: 0.2,  expand: 1.15, spread: 0.05, noiseAmp: 1.3, speed: 1.2, tiltX: 0.6,  rotSpeed: 1.2, brightness: 1.2, color1: '#3b82f6', color2: '#06b6d4', opacity: 1.5, posX: -0.5, posY: -0.2, scale: 1.05 },
   { at: 0.5,  expand: 1.1,  spread: 0.1,  noiseAmp: 1.5, speed: 1.5, tiltX: 0.8,  rotSpeed: 1.5, brightness: 1.4, color1: '#8b5cf6', color2: '#60a5fa', opacity: 1.5, posX: 0.3,  posY: 0,    scale: 1.1  },
   { at: 0.8,  expand: 0.9,  spread: 0,    noiseAmp: 0.7, speed: 0.5, tiltX: 0.4,  rotSpeed: 0.4, brightness: 1.0, color1: '#06b6d4', color2: '#22d3ee', opacity: 1.3, posX: -0.8, posY: 0.2,  scale: 1.0  },
-  { at: 1.0,  expand: 0.6,  spread: 0,    noiseAmp: 1.5, speed: 2.0, tiltX: 0.3,  rotSpeed: 1.5, brightness: 1.8, color1: '#67e8f9', color2: '#ffffff', opacity: 1.8, posX: 0,    posY: 0,    scale: 1.0  },
+  { at: 1.0,  expand: 0.6,  spread: 0,    noiseAmp: 1.5, speed: 2.0, tiltX: 0.3,  rotSpeed: 1.5, brightness: 0.5,  color1: '#67e8f9', color2: '#ffffff', opacity: 0.5,  posX: 0,    posY: 0,    scale: 1.0  },
 ];
 
 const PRICING_KEYFRAMES: OrbKeyframe[] = [
   { at: 0.0,  expand: 1.2,  spread: 0,    noiseAmp: 0.7, speed: 0.6, tiltX: 0.45, rotSpeed: 0.6, brightness: 1.0, color1: '#059669', color2: '#0d9488', opacity: 1.5, posX: 0,    posY: 0,    scale: 1.0  },
   { at: 0.3,  expand: 1.0,  spread: 0,    noiseAmp: 0.8, speed: 0.7, tiltX: 0.55, rotSpeed: 0.7, brightness: 1.2, color1: '#10b981', color2: '#14b8a6', opacity: 1.5, posX: 0.3,  posY: -0.1, scale: 1.05 },
   { at: 0.6,  expand: 1.15, spread: 0.05, noiseAmp: 1.0, speed: 1.0, tiltX: 0.5,  rotSpeed: 1.0, brightness: 1.3, color1: '#059669', color2: '#0ea5e9', opacity: 1.5, posX: -0.2, posY: 0,    scale: 1.1  },
-  { at: 1.0,  expand: 0.5,  spread: 0,    noiseAmp: 1.5, speed: 2.0, tiltX: 0.3,  rotSpeed: 1.5, brightness: 1.8, color1: '#10b981', color2: '#ffffff', opacity: 1.8, posX: 0,    posY: 0,    scale: 1.0  },
+  { at: 1.0,  expand: 0.5,  spread: 0,    noiseAmp: 1.5, speed: 2.0, tiltX: 0.3,  rotSpeed: 1.5, brightness: 0.5,  color1: '#10b981', color2: '#ffffff', opacity: 0.5,  posX: 0,    posY: 0,    scale: 1.0  },
 ];
 
 const FAQ_KEYFRAMES: OrbKeyframe[] = [
   { at: 0.0,  expand: 0.95, spread: 0,    noiseAmp: 0.6, speed: 0.4, tiltX: 0.4,  rotSpeed: 0.4, brightness: 1.0, color1: '#facc15', color2: '#fde047', opacity: 1.5, posX: 0.8,  posY: 0,    scale: 1.0  },
   { at: 0.3,  expand: 1.0,  spread: 0,    noiseAmp: 0.8, speed: 0.5, tiltX: 0.5,  rotSpeed: 0.5, brightness: 1.1, color1: '#f59e0b', color2: '#fbbf24', opacity: 1.5, posX: 0.4,  posY: -0.1, scale: 1.0  },
   { at: 0.7,  expand: 1.05, spread: 0,    noiseAmp: 0.7, speed: 0.4, tiltX: 0.45, rotSpeed: 0.4, brightness: 1.0, color1: '#fbbf24', color2: '#fde047', opacity: 1.4, posX: 0.6,  posY: 0.1,  scale: 1.0  },
-  { at: 1.0,  expand: 0.6,  spread: 0,    noiseAmp: 1.2, speed: 1.5, tiltX: 0.3,  rotSpeed: 1.2, brightness: 1.6, color1: '#fde047', color2: '#ffffff', opacity: 1.7, posX: 0,    posY: 0,    scale: 1.0  },
+  { at: 1.0,  expand: 0.6,  spread: 0,    noiseAmp: 1.2, speed: 1.5, tiltX: 0.3,  rotSpeed: 1.2, brightness: 0.5,  color1: '#fde047', color2: '#ffffff', opacity: 0.5,  posX: 0,    posY: 0,    scale: 1.0  },
 ];
 
 const PAGE_KEYFRAMES: Record<string, OrbKeyframe[]> = {
