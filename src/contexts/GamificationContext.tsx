@@ -104,6 +104,8 @@ interface GamificationContextType {
 // ============================================================================
 
 const GamificationContext = createContext<GamificationContextType | null>(null);
+const GAMIFICATION_STORAGE_KEY = 'syncscript_gamification_profile_v1';
+const GAMIFICATION_MIGRATION_KEY = 'syncscript_gamification_seed_migration_v1';
 
 // ============================================================================
 // DEFAULT DATA & CONSTANTS
@@ -232,12 +234,93 @@ const DEFAULT_PROFILE: UserGamificationProfile = {
   },
 };
 
+function isLegacySeedGamificationProfile(profile: UserGamificationProfile): boolean {
+  return (
+    profile.userId === 'jordan.smith@syncscript.com' &&
+    profile.level === 24 &&
+    profile.xp === 7850 &&
+    profile.nextLevelXp === 10000 &&
+    profile.stats.currentStreak === 28 &&
+    profile.stats.longestStreak === 42
+  );
+}
+
+function buildBaselineProfile(): UserGamificationProfile {
+  return {
+    ...DEFAULT_PROFILE,
+    level: 1,
+    xp: 0,
+    nextLevelXp: 100,
+    stats: {
+      ...DEFAULT_PROFILE.stats,
+      currentStreak: 0,
+      longestStreak: 0,
+    },
+  };
+}
+
+function loadInitialGamificationProfile(): UserGamificationProfile {
+  const stored = localStorage.getItem(GAMIFICATION_STORAGE_KEY);
+  const migrationApplied = localStorage.getItem(GAMIFICATION_MIGRATION_KEY) === 'true';
+
+  if (!stored) {
+    const baseline = buildBaselineProfile();
+    localStorage.setItem(GAMIFICATION_MIGRATION_KEY, 'true');
+    localStorage.setItem(GAMIFICATION_STORAGE_KEY, JSON.stringify(baseline));
+    return baseline;
+  }
+
+  try {
+    const parsed = JSON.parse(stored) as UserGamificationProfile;
+    const merged: UserGamificationProfile = {
+      ...DEFAULT_PROFILE,
+      ...parsed,
+      stats: {
+        ...DEFAULT_PROFILE.stats,
+        ...(parsed?.stats || {}),
+      },
+      preferences: {
+        ...DEFAULT_PROFILE.preferences,
+        ...(parsed?.preferences || {}),
+      },
+      masteryLevels: {
+        ...DEFAULT_PROFILE.masteryLevels,
+        ...(parsed?.masteryLevels || {}),
+      },
+      masteryXp: {
+        ...DEFAULT_PROFILE.masteryXp,
+        ...(parsed?.masteryXp || {}),
+      },
+      inventory: {
+        ...DEFAULT_PROFILE.inventory,
+        ...(parsed?.inventory || {}),
+      },
+    };
+
+    if (!migrationApplied && isLegacySeedGamificationProfile(merged)) {
+      const baseline = buildBaselineProfile();
+      localStorage.setItem(GAMIFICATION_MIGRATION_KEY, 'true');
+      localStorage.setItem(GAMIFICATION_STORAGE_KEY, JSON.stringify(baseline));
+      return baseline;
+    }
+
+    localStorage.setItem(GAMIFICATION_MIGRATION_KEY, 'true');
+    localStorage.setItem(GAMIFICATION_STORAGE_KEY, JSON.stringify(merged));
+    return merged;
+  } catch {
+    const baseline = buildBaselineProfile();
+    localStorage.setItem(GAMIFICATION_MIGRATION_KEY, 'true');
+    localStorage.setItem(GAMIFICATION_STORAGE_KEY, JSON.stringify(baseline));
+    return baseline;
+  }
+}
+
 // ============================================================================
 // PROVIDER COMPONENT
 // ============================================================================
 
 export function GamificationProvider({ children }: { children: ReactNode }) {
-  const [profile, setProfile] = useState<UserGamificationProfile>(DEFAULT_PROFILE);
+  const [profile, setProfile] = useState<UserGamificationProfile>(() => loadInitialGamificationProfile());
   const [activeQuests, setActiveQuests] = useState<Quest[]>([]);
   const [currentLeague, setCurrentLeague] = useState<League | null>(null);
   const [seasonPass, setSeasonPass] = useState<SeasonPass | null>(null);
@@ -249,6 +332,10 @@ export function GamificationProvider({ children }: { children: ReactNode }) {
   const [masteryTrees, setMasteryTrees] = useState<MasteryTree[]>([]);
   const [friends, setFriends] = useState<Friend[]>([]);
   const [celebrations, setCelebrations] = useState<CelebrationState[]>([]);
+
+  useEffect(() => {
+    localStorage.setItem(GAMIFICATION_STORAGE_KEY, JSON.stringify(profile));
+  }, [profile]);
   
   // ============================================================================
   // XP & LEVELING
