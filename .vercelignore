@@ -6,3 +6,4 @@ figma-make-latest/
 .trash-audit-cleanup/
 scripts/
 memory/
+api/phone/**
