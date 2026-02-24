@@ -5,6 +5,7 @@ import { AIFocusSection } from '../AIFocusSection';
 import { TodaySection } from '../TodaySection';
 import { ResourceHubSection } from '../ResourceHubSection';
 import { DashboardLayout } from '../layout/DashboardLayout';
+import { DashboardBriefing } from '../DashboardBriefing';
 import { WelcomeModal } from '../WelcomeModal';
 import { InteractiveHotspot, ONBOARDING_HOTSPOTS } from '../InteractiveHotspot';
 import { useAuth } from '../../contexts/AuthContext';
@@ -122,6 +123,8 @@ export function DashboardPage() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3 }}
       >
+        <DashboardBriefing />
+
         {/* Sample Data Indicator for first-time users */}
         {isFirstTime && sampleData && (
           <motion.div
