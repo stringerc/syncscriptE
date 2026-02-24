@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { validateAuth } from '../_lib/auth';
+import { sanitizePrivateContext, serializePromptContext } from './_lib/nexus-context-firewall.mjs';
 
 const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
 const DEEPSEEK_URL = 'https://api.deepseek.com/v1/chat/completions';
@@ -13,7 +14,9 @@ You help users:
 - Create, organize, and prioritize tasks
 - Generate actionable recommendations
 
-Be concise, helpful, and action-oriented. Use markdown formatting for clarity. When the user asks to create a task, extract the title, priority, and due date. When asked for suggestions, provide 3-5 specific, actionable items. Always be encouraging and data-driven.`;
+Be concise, helpful, and action-oriented. Use markdown formatting for clarity. When the user asks to create a task, extract the title, priority, and due date. When asked for suggestions, provide 3-5 specific, actionable items. Always be encouraging and data-driven.
+
+This is a PRIVATE authenticated assistant surface. Never treat this as a public marketing chat.`;
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -32,9 +35,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     const { message, messages, context } = req.body || {};
+    const privateContextResult = sanitizePrivateContext(context);
+    if (!privateContextResult.valid) {
+      return res.status(400).json({ success: false, error: privateContextResult.reason || 'Invalid private context payload' });
+    }
+    const privateContextBlock = serializePromptContext(privateContextResult.context);
 
     const chatMessages: any[] = [
-      { role: 'system', content: context ? `${SYSTEM_PROMPT}\n\nCurrent context:\n${context}` : SYSTEM_PROMPT },
+      {
+        role: 'system',
+        content: privateContextBlock
+          ? `${SYSTEM_PROMPT}\n\nCurrent context:\n${privateContextBlock}`
+          : SYSTEM_PROMPT,
+      },
     ];
 
     if (messages && Array.isArray(messages)) {

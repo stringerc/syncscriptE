@@ -15,107 +15,22 @@
  */
 
 import { useMemo } from 'react';
-import { Flame, Zap, Clock, TrendingUp, Brain, Target } from 'lucide-react';
+import { Flame, Zap, TrendingUp, Brain, Target } from 'lucide-react';
 import { motion } from 'motion/react';
-import { useTasks } from '../hooks/useTasks';
-import { useEnergy } from '../contexts/EnergyContext';
-import { getPersonalizedCircadianCurve } from '../utils/resonance-calculus';
-import { getCalibrationInsights, getCalibrationProfile } from '../utils/resonance-calibration';
-import { useGamification } from '../contexts/GamificationContext';
+import { useDashboardMetrics } from '../hooks/useDashboardMetrics';
 
 export function DashboardBriefing() {
-  const { tasks } = useTasks();
-  const { energy } = useEnergy();
-  
-  let gamification: ReturnType<typeof useGamification> | null = null;
-  try { gamification = useGamification(); } catch { /* not wrapped */ }
-
-  const now = new Date();
-  const currentHour = now.getHours();
-
-  // ── Peak Window Calculation ──────────────────────────────────────────
-  const peakWindow = useMemo(() => {
-    let bestHour = 10;
-    let bestValue = 0;
-    let windowStart = 9;
-    let windowEnd = 11;
-    
-    // Find peak from circadian curve
-    for (let h = 6; h <= 22; h++) {
-      const value = getPersonalizedCircadianCurve(h, 'neutral');
-      if (value > bestValue) {
-        bestValue = value;
-        bestHour = h;
-      }
-    }
-    
-    // Find window (hours above 75% of peak)
-    const threshold = bestValue * 0.85;
-    for (let h = 6; h <= 22; h++) {
-      if (getPersonalizedCircadianCurve(h, 'neutral') >= threshold) {
-        windowStart = h;
-        break;
-      }
-    }
-    for (let h = 22; h >= 6; h--) {
-      if (getPersonalizedCircadianCurve(h, 'neutral') >= threshold) {
-        windowEnd = h;
-        break;
-      }
-    }
-
-    const isInPeak = currentHour >= windowStart && currentHour <= windowEnd;
-    
-    return { bestHour, windowStart, windowEnd, isInPeak, peakValue: bestValue };
-  }, [currentHour]);
-
-  // ── Task Summary ─────────────────────────────────────────────────────
-  const taskSummary = useMemo(() => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-
-    const activeTasks = tasks.filter(t => !t.completed);
-    const completedToday = tasks.filter(t => {
-      if (!t.completed || !t.completedAt) return false;
-      const completedDate = new Date(t.completedAt);
-      return completedDate >= today && completedDate < tomorrow;
-    }).length;
-    
-    const highPriority = activeTasks.filter(t => t.priority === 'high' || t.priority === 'urgent').length;
-    const scheduledToday = tasks.filter(t => {
-      if (!t.scheduledTime) return false;
-      const scheduled = new Date(t.scheduledTime);
-      return scheduled >= today && scheduled < tomorrow && !t.completed;
-    }).length;
-
-    return { total: activeTasks.length, completedToday, highPriority, scheduledToday };
-  }, [tasks]);
-
-  // ── Streak ───────────────────────────────────────────────────────────
-  const streak = gamification?.profile.stats.currentStreak || 0;
-  const longestStreak = gamification?.profile.stats.longestStreak || 0;
-  const level = gamification?.profile.level || 1;
-  const xp = gamification?.profile.xp || 0;
-  const nextLevelXp = gamification?.profile.nextLevelXp || 100;
-  const xpPercent = Math.min(100, Math.round((xp / nextLevelXp) * 100));
-
-  // ── Energy Sparkline Data ────────────────────────────────────────────
-  const sparklineData = useMemo(() => {
-    const points: number[] = [];
-    for (let h = 6; h <= 22; h++) {
-      points.push(Math.round(getPersonalizedCircadianCurve(h, 'neutral') * 100));
-    }
-    return points;
-  }, []);
-
-  // ── Calibration Insights ─────────────────────────────────────────────
-  const calibration = useMemo(() => {
-    const profile = getCalibrationProfile();
-    const insights = getCalibrationInsights();
-    return { profile, insights, hasData: profile.dataPointCount >= 10 };
-  }, []);
+  const {
+    currentHour,
+    peakWindow,
+    taskSummary,
+    streak,
+    longestStreak,
+    level,
+    xpPercent,
+    sparklineData,
+    calibration,
+  } = useDashboardMetrics();
 
   // ── Time formatting helpers ──────────────────────────────────────────
   const formatHour = (h: number) => {

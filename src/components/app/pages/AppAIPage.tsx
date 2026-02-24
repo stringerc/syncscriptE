@@ -17,6 +17,8 @@ import {
 import { api } from '@/lib/railway-api'
 import { useToast } from '@/hooks/use-app-toast'
 import { cn } from '@/lib/utils'
+import { useAuth } from '../../../contexts/AuthContext'
+import { useNexusPrivateContext } from '../../../hooks/useNexusPrivateContext'
 import {
   Send,
   Plus,
@@ -141,6 +143,8 @@ function saveChats(chats: Chat[]) {
 export function AppAIPage() {
   const queryClient = useQueryClient()
   const { toast } = useToast()
+  const { accessToken } = useAuth()
+  const privateContext = useNexusPrivateContext()
   const [chats, setChats] = useState<Chat[]>(loadChats)
   const [activeChatId, setActiveChatId] = useState<string | null>(chats[0]?.id ?? null)
   const [input, setInput] = useState('')
@@ -162,12 +166,41 @@ export function AppAIPage() {
 
   const chatMutation = useMutation({
     mutationFn: async (message: string) => {
-      const res = await api.post('/ai/chat', { message })
-      return res.data
+      if (!accessToken) throw new Error('Please sign in to use Nexus.')
+
+      const history = (activeChat?.messages || [])
+        .slice(-10)
+        .map((m) => ({
+          role: m.role === 'assistant' ? 'assistant' : 'user',
+          content: m.content,
+        }))
+
+      const res = await fetch('/api/ai/nexus-user', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({
+          messages: [...history, { role: 'user', content: message }],
+          privateContext,
+        }),
+      })
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error(err?.error || 'Nexus request failed')
+      }
+
+      return res.json()
     },
     onSuccess: (data: unknown, message) => {
-      const payload = (data as { data?: { reply?: string } })?.data ?? data
-      const reply = (payload as { reply?: string })?.reply ?? (typeof payload === 'string' ? payload : '')
+      const payload = data as any
+      const reply =
+        payload?.content ||
+        payload?.reply ||
+        payload?.data?.reply ||
+        (typeof payload === 'string' ? payload : '')
       const { displayText, createEventData } = parseAIResponse(reply)
 
       if (activeChatId) {
@@ -221,13 +254,15 @@ export function AppAIPage() {
           startTime: start,
           endTime: end,
           isAllDay: false,
-        }).then(() => {
-          queryClient.invalidateQueries({ queryKey: ['events'] })
-          queryClient.invalidateQueries({ queryKey: ['dashboard'] })
-          toast({ title: 'Event created', description: createEventData!.title })
-        }).catch(() => {
-          toast({ title: 'Failed to create event', variant: 'destructive' })
         })
+          .then(() => {
+            queryClient.invalidateQueries({ queryKey: ['events'] })
+            queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+            toast({ title: 'Event created', description: createEventData.title })
+          })
+          .catch(() => {
+            toast({ title: 'Failed to create event', variant: 'destructive' })
+          })
       }
     },
     onError: () => {

@@ -299,6 +299,7 @@ export class MockTaskRepository implements ITaskRepository {
       completed: !task.completed,
       status: !task.completed ? 'completed' : 'todo',
       progress: !task.completed ? 100 : task.progress,
+      completedAt: !task.completed ? new Date().toISOString() : null,
     };
     
     console.log('[MockTaskRepository] Updating task with:', updates);

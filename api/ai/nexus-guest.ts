@@ -1,5 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { callAI, callAIStream, isAIConfigured, type AIMessage } from '../_lib/ai-service';
+import { PLANS } from '../../src/config/pricing';
+import { sanitizePublicContext, serializePromptContext } from './_lib/nexus-context-firewall.mjs';
 
 const MAX_SESSIONS_PER_IP_PER_HOUR = 5;
 const MAX_MESSAGES_PER_SESSION = 15;
@@ -52,7 +54,51 @@ function cleanupStaleEntries() {
   }
 }
 
-const NEXUS_SYSTEM_PROMPT = `You are Nexus, SyncScript's AI assistant on a live voice call. Every word you write is read aloud through text-to-speech, so you must write exactly the way a human speaks.
+const PRICING_INTENT_RE =
+  /\b(price|pricing|plan|plans|cost|how much|monthly|annual|annually|billing|subscription|starter|professional|enterprise|free|pro|team)\b/i;
+
+function buildPricingKnowledge(): string {
+  const free = PLANS.find((p) => p.name.toLowerCase() === 'free');
+  const starter = PLANS.find((p) => p.name.toLowerCase() === 'starter');
+  const professional = PLANS.find((p) => p.name.toLowerCase() === 'professional');
+  const enterprise = PLANS.find((p) => p.name.toLowerCase() === 'enterprise');
+
+  return `PRICING (single source of truth from the live pricing config):
+Free is ${free?.price ?? 0} dollars.
+Starter is ${starter?.price ?? 19} dollars per month, or ${starter?.priceAnnual ?? 15} dollars per month billed annually.
+Professional is ${professional?.price ?? 49} dollars per month, or ${professional?.priceAnnual ?? 39} dollars per month billed annually.
+Enterprise is ${enterprise?.price ?? 99} dollars per month, or ${enterprise?.priceAnnual ?? 79} dollars per month billed annually.
+All paid plans include a fourteen day free trial, no credit card needed.`;
+}
+
+function buildPricingReply(userText: string): string {
+  const q = userText.toLowerCase();
+  if (/\bstarter\b/.test(q)) {
+    const starter = PLANS.find((p) => p.name.toLowerCase() === 'starter');
+    return `Starter is ${starter?.price ?? 19} dollars per month, or ${starter?.priceAnnual ?? 15} dollars per month billed annually. All paid plans include a fourteen day free trial with no credit card needed.`;
+  }
+  if (/\bprofessional\b|\bpro\b/.test(q)) {
+    const professional = PLANS.find((p) => p.name.toLowerCase() === 'professional');
+    return `Professional is ${professional?.price ?? 49} dollars per month, or ${professional?.priceAnnual ?? 39} dollars per month billed annually. All paid plans include a fourteen day free trial with no credit card needed.`;
+  }
+  if (/\benterprise\b/.test(q)) {
+    const enterprise = PLANS.find((p) => p.name.toLowerCase() === 'enterprise');
+    return `Enterprise is ${enterprise?.price ?? 99} dollars per month, or ${enterprise?.priceAnnual ?? 79} dollars per month billed annually. All paid plans include a fourteen day free trial with no credit card needed.`;
+  }
+  if (/\bteam\b/.test(q)) {
+    const enterprise = PLANS.find((p) => p.name.toLowerCase() === 'enterprise');
+    return `We no longer list a separate Team tier. The current top tier is Enterprise at ${enterprise?.price ?? 99} dollars per month, or ${enterprise?.priceAnnual ?? 79} dollars per month billed annually.`;
+  }
+
+  const free = PLANS.find((p) => p.name.toLowerCase() === 'free');
+  const starter = PLANS.find((p) => p.name.toLowerCase() === 'starter');
+  const professional = PLANS.find((p) => p.name.toLowerCase() === 'professional');
+  const enterprise = PLANS.find((p) => p.name.toLowerCase() === 'enterprise');
+  return `Current pricing is: Free is ${free?.price ?? 0} dollars. Starter is ${starter?.price ?? 19} dollars per month, or ${starter?.priceAnnual ?? 15} dollars per month billed annually. Professional is ${professional?.price ?? 49} dollars per month, or ${professional?.priceAnnual ?? 39} dollars per month billed annually. Enterprise is ${enterprise?.price ?? 99} dollars per month, or ${enterprise?.priceAnnual ?? 79} dollars per month billed annually. All paid plans include a fourteen day free trial with no credit card needed.`;
+}
+
+function buildNexusSystemPrompt(publicContextBlock: string): string {
+  return `You are Nexus, SyncScript's AI assistant on a live voice call. Every word you write is read aloud through text-to-speech, so you must write exactly the way a human speaks.
 
 CRITICAL OUTPUT FORMAT (your text goes directly to a TTS engine):
 - Keep answers to 1 or 2 complete sentences. Never more than 3 sentences total.
@@ -81,8 +127,7 @@ SyncScript is AI-powered productivity that works with your natural energy rhythm
 
 KEY FEATURES: Energy-based AI scheduling, voice-first AI assistant, smart task management, calendar intelligence with conflict detection, team collaboration, gamification with XP and streaks, Google Calendar and Slack integrations.
 
-PRICING (all plans include a fourteen day free trial, no credit card needed):
-Free plan with core tasks. Pro at twelve dollars a month, or nine dollars a month if you pay annually, with full AI and voice features. Team at twenty-four dollars per user per month, or nineteen dollars per user per month if paid annually, with shared workspaces. Enterprise has custom pricing.
+${buildPricingKnowledge()}
 
 HOW IT WORKS: Sign up in about sixty seconds, connect your calendar, and within two to three days the AI learns your patterns and starts optimizing your schedule automatically.
 
@@ -91,7 +136,16 @@ STRICT RULES:
 - Never pretend to access user data, tasks, or accounts
 - Never share technical details or API information
 - For issues or bugs, direct them to support at syncscript dot app
-- Competitors: briefly acknowledge, then focus on what makes SyncScript unique`;
+- Competitors: briefly acknowledge, then focus on what makes SyncScript unique
+
+CONTEXT BOUNDARY:
+- You are the public landing-page Nexus.
+- You only have access to marketing/product context.
+- If asked for personal account data, say you cannot access account-specific information on this page.
+
+PUBLIC CONTEXT:
+${publicContextBlock || 'No additional public context provided.'}`;
+}
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -108,7 +162,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   const ip = getRateLimitKey(req);
-  const { messages, sessionId } = req.body || {};
+  const { messages, sessionId, context } = req.body || {};
 
   if (!sessionId || typeof sessionId !== 'string') {
     return res.status(400).json({ error: 'sessionId is required' });
@@ -117,6 +171,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (!messages || !Array.isArray(messages) || messages.length === 0) {
     return res.status(400).json({ error: 'messages array is required' });
   }
+
+  const publicContextResult = sanitizePublicContext(context);
+  if (!publicContextResult.valid) {
+    return res.status(400).json({ error: publicContextResult.reason || 'Invalid public context payload' });
+  }
+
+  const publicContext = {
+    surface: 'landing',
+    page: 'landing',
+    pricing: PLANS.map((plan) => ({
+      name: plan.name,
+      monthly: plan.price,
+      annual: plan.priceAnnual ?? null,
+      trialDays: 14,
+    })),
+    ...publicContextResult.context,
+  };
 
   if (messages.length <= 1) {
     const { allowed, remaining } = checkRateLimit(ip);
@@ -139,12 +210,28 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     .filter((m: any) => m.role === 'user' || m.role === 'assistant')
     .slice(-MAX_INPUT_MESSAGES);
 
+  const wantStream = req.body?.stream === true;
+  const latestUserMessage =
+    [...trimmedMessages].reverse().find((m: any) => m.role === 'user')?.content || '';
+
+  if (typeof latestUserMessage === 'string' && PRICING_INTENT_RE.test(latestUserMessage)) {
+    const content = buildPricingReply(latestUserMessage);
+    if (wantStream) {
+      res.setHeader('Content-Type', 'text/event-stream');
+      res.setHeader('Cache-Control', 'no-cache');
+      res.setHeader('Connection', 'keep-alive');
+      res.write(`data: ${JSON.stringify({ content })}\n\n`);
+      res.write(`data: ${JSON.stringify({ finalContent: content })}\n\n`);
+      res.write('data: [DONE]\n\n');
+      return res.end();
+    }
+    return res.status(200).json({ content });
+  }
+
   const chatMessages: AIMessage[] = [
-    { role: 'system', content: NEXUS_SYSTEM_PROMPT },
+    { role: 'system', content: buildNexusSystemPrompt(serializePromptContext(publicContext)) },
     ...trimmedMessages,
   ];
-
-  const wantStream = req.body?.stream === true;
 
   if (wantStream) {
     try {
