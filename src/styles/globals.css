@@ -697,7 +697,7 @@ select:focus-visible,
   --marketing-bottom-offset: 0px;
   --marketing-usable-vh: calc(100dvh - var(--marketing-top-offset) - var(--marketing-bottom-offset));
   scroll-behavior: smooth;
-  scroll-snap-type: y mandatory;
+  scroll-snap-type: y proximity;
   scroll-padding-top: var(--marketing-top-offset);
 }
 

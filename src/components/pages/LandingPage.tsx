@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router';
 import { Check, X, ChevronDown, Shield, Zap, MessageCircle, Play, ArrowRight, Clock, Lock, Headphones, TrendingUp, Users, Target, Calendar, Bot, Sparkles, PhoneOff, Mic } from 'lucide-react';
-import { useState, useEffect, useRef, lazy, Suspense } from 'react';
+import { useState, useEffect, useRef, useMemo, lazy, Suspense } from 'react';
 import { motion, useInView, AnimatePresence } from 'motion/react';
 
 
@@ -136,6 +136,20 @@ export function LandingPage() {
   // ROI Calculator state
   const [tasksPerDay, setTasksPerDay] = useState(20);
   const [hoursPerDay, setHoursPerDay] = useState(8);
+
+  // Keep waveform randomness stable across re-renders to avoid style churn.
+  const liveWaveHeights = useMemo(
+    () => Array.from({ length: 24 }, () => Math.floor(Math.random() * 28 + 6)),
+    [],
+  );
+  const mockWaveHeights = useMemo(
+    () => Array.from({ length: 24 }, () => Math.floor(Math.random() * 28 + 6)),
+    [],
+  );
+  const mockWaveDurations = useMemo(
+    () => Array.from({ length: 24 }, () => 0.8 + Math.random() * 0.6),
+    [],
+  );
   
   const heroRef = useRef<HTMLDivElement>(null);
   const statsRef = useRef<HTMLDivElement>(null);
@@ -1091,7 +1105,7 @@ export function LandingPage() {
                               }`}
                               style={{
                                 height: (nexusVoice.isSpeaking || nexusVoice.isListening)
-                                  ? `${Math.random() * 28 + 6}px`
+                                  ? `${liveWaveHeights[i]}px`
                                   : '4px',
                                 animation: (nexusVoice.isSpeaking || nexusVoice.isListening)
                                   ? `nexusWave 0.8s ease-in-out ${i * 0.04}s infinite alternate`
@@ -1108,10 +1122,10 @@ export function LandingPage() {
                             key={i}
                             className="w-1 bg-gradient-to-t from-indigo-500 to-purple-400 rounded-full"
                             animate={{
-                              height: [4, Math.random() * 28 + 6, 4],
+                              height: [4, mockWaveHeights[i], 4],
                             }}
                             transition={{
-                              duration: 0.8 + Math.random() * 0.6,
+                              duration: mockWaveDurations[i],
                               repeat: Infinity,
                               delay: i * 0.04,
                               ease: 'easeInOut',

@@ -321,6 +321,8 @@ function createRingParticles(): THREE.Points {
 interface HeroSceneProps {
   offsetX?: number;
   disableScrollFade?: boolean;
+  scrollReactive?: boolean;
+  interactive?: boolean;
   color1?: string;
   color2?: string;
   opacity?: number;
@@ -330,6 +332,8 @@ interface HeroSceneProps {
 export function HeroScene({
   offsetX = 0,
   disableScrollFade = false,
+  scrollReactive = true,
+  interactive = true,
   color1 = '#0e7490',
   color2 = '#0f766e',
   opacity = 0.35,
@@ -364,10 +368,17 @@ export function HeroScene({
   useEffect(() => {
     keyframesRef.current = keyframes;
     if (keyframes && keyframes.length > 0) {
-      const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
-      const progress = maxScroll > 0 ? window.scrollY / maxScroll : 0;
-      scrollProgressRef.current = progress;
-      const state = resolveKeyframe(keyframes, progress);
+      const state = scrollReactive
+        ? resolveKeyframe(
+            keyframes,
+            (() => {
+              const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
+              const progress = maxScroll > 0 ? window.scrollY / maxScroll : 0;
+              scrollProgressRef.current = progress;
+              return progress;
+            })(),
+          )
+        : keyframes[0];
       targetExpandRef.current = state.expand;
       targetSpreadRef.current = state.spread;
       targetNoiseAmpRef.current = state.noiseAmp;
@@ -423,7 +434,9 @@ export function HeroScene({
         -(e.clientY / window.innerHeight) * 2 + 1,
       );
     };
-    window.addEventListener('mousemove', onMouseMove);
+    if (interactive) {
+      window.addEventListener('mousemove', onMouseMove);
+    }
 
     const onResize = () => {
       const { width: w, height: h } = container.getBoundingClientRect();
@@ -438,11 +451,10 @@ export function HeroScene({
     // Scroll tracking (rAF-throttled to avoid per-event layout churn)
     let scrollRaf = 0;
     const applyScrollState = () => {
-      const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
-      scrollProgressRef.current = maxScroll > 0 ? window.scrollY / maxScroll : 0;
-
       const kfs = keyframesRef.current;
-      if (kfs && kfs.length > 0) {
+      if (scrollReactive && kfs && kfs.length > 0) {
+        const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
+        scrollProgressRef.current = maxScroll > 0 ? window.scrollY / maxScroll : 0;
         const state = resolveKeyframe(kfs, scrollProgressRef.current);
         targetExpandRef.current = state.expand;
         targetSpreadRef.current = state.spread;
@@ -475,12 +487,16 @@ export function HeroScene({
         applyScrollState();
       });
     };
-    window.addEventListener('scroll', onScroll, { passive: true });
+    if (scrollReactive || !disableScrollFade) {
+      window.addEventListener('scroll', onScroll, { passive: true });
+    }
     applyScrollState();
 
     let animId = 0;
     let isRunning = false;
     let lastFrameMs = 0;
+    let dynamicFrameIntervalMs = FRAME_INTERVAL_MS;
+    let renderCostEmaMs = FRAME_INTERVAL_MS;
 
     const LERP_SPEED = 0.035;
 
@@ -491,7 +507,7 @@ export function HeroScene({
       isRunning = true;
 
       const nowMs = performance.now();
-      if (nowMs - lastFrameMs < FRAME_INTERVAL_MS) return;
+      if (nowMs - lastFrameMs < dynamicFrameIntervalMs) return;
       lastFrameMs = nowMs;
 
       clock.update();
@@ -538,7 +554,17 @@ export function HeroScene({
       particles.position.x = currentOrbX;
       particles.position.y = currentOrbY;
 
+      const renderStart = performance.now();
       renderer.render(scene, camera);
+      const renderCost = performance.now() - renderStart;
+
+      // Adaptive quality governor: gently lower frame cadence if rendering gets expensive.
+      renderCostEmaMs = renderCostEmaMs * 0.9 + renderCost * 0.1;
+      if (renderCostEmaMs > 14) {
+        dynamicFrameIntervalMs = Math.min(dynamicFrameIntervalMs + 1, 1000 / 16);
+      } else if (renderCostEmaMs < 8) {
+        dynamicFrameIntervalMs = Math.max(dynamicFrameIntervalMs - 0.5, FRAME_INTERVAL_MS);
+      }
     };
 
     const startLoop = () => {
@@ -556,8 +582,12 @@ export function HeroScene({
     return () => {
       cancelAnimationFrame(animId);
       document.removeEventListener('visibilitychange', onVisibility);
-      window.removeEventListener('mousemove', onMouseMove);
-      window.removeEventListener('scroll', onScroll);
+      if (interactive) {
+        window.removeEventListener('mousemove', onMouseMove);
+      }
+      if (scrollReactive || !disableScrollFade) {
+        window.removeEventListener('scroll', onScroll);
+      }
       if (scrollRaf) cancelAnimationFrame(scrollRaf);
       ro.disconnect();
       renderer.dispose();
@@ -567,7 +597,7 @@ export function HeroScene({
         container.removeChild(renderer.domElement);
       }
     };
-  }, [disableScrollFade]);
+  }, [disableScrollFade, interactive, scrollReactive]);
 
   return (
     <div

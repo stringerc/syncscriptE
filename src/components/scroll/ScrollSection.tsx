@@ -81,9 +81,6 @@ export function ScrollSection({
         },
       });
 
-      // Ensure ScrollTrigger recalculates positions after layout settles
-      requestAnimationFrame(() => ScrollTrigger.refresh());
-
       // Safety fallback: if the animation hasn't played after 3s, force reveal.
       // Prevents content from being permanently hidden if ScrollTrigger glitches.
       const fallback = setTimeout(() => {
