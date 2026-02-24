@@ -1,7 +1,20 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { callAI, callAIStream, isAIConfigured, type AIMessage } from '../_lib/ai-service';
-import { PLANS } from '../../src/config/pricing';
 import { sanitizePublicContext, serializePromptContext } from './_lib/nexus-context-firewall.mjs';
+
+type PublicPlan = {
+  name: string;
+  price: number;
+  priceAnnual?: number;
+};
+
+// Keep API-side pricing in CJS-compatible runtime code to avoid ESM/CJS boundary issues.
+const PLANS: PublicPlan[] = [
+  { name: 'Free', price: 0 },
+  { name: 'Starter', price: 19, priceAnnual: 15 },
+  { name: 'Professional', price: 49, priceAnnual: 39 },
+  { name: 'Enterprise', price: 99, priceAnnual: 79 },
+];
 
 const MAX_SESSIONS_PER_IP_PER_HOUR = 5;
 const MAX_MESSAGES_PER_SESSION = 15;

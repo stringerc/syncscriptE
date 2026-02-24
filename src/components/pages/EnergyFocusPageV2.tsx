@@ -59,7 +59,7 @@ import {
   Zap, Battery, Activity, TrendingUp, Clock, 
   Target, Sparkles, Info, AlertCircle, Award,
   TrendingDown, Minus, ChevronRight, Play, Flame,
-  Wind, Waves, Mountain, Crown, Star, CircleDot, BarChart3
+  Wind, Waves, Mountain, Crown, Star, CircleDot, BarChart3, Lightbulb
 } from 'lucide-react';
 import { 
   Tooltip, TooltipContent, TooltipProvider, TooltipTrigger 

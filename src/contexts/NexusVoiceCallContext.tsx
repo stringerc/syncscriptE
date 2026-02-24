@@ -58,15 +58,16 @@ const MAX_CALL_DURATION = 300;
 const GOODBYE_LINGER_MS = 1800;
 const NEXUS_GUEST_API = '/api/ai/nexus-guest';
 
-// Direct Kokoro TTS URL (skips Vercel proxy hop for ~200ms faster TTS)
+// Direct Kokoro TTS URL (dev-only fast path; production must stay same-origin for CSP safety)
 const DIRECT_TTS_URL = import.meta.env.VITE_KOKORO_TTS_URL as string | undefined;
+const USE_DIRECT_TTS = Boolean(import.meta.env.DEV && DIRECT_TTS_URL);
 
 let _warmedUp = false;
 function prewarmEndpoints() {
   if (_warmedUp) return;
   _warmedUp = true;
   fetch(NEXUS_GUEST_API, { method: 'OPTIONS' }).catch(() => {});
-  const ttsUrl = DIRECT_TTS_URL
+  const ttsUrl = USE_DIRECT_TTS
     ? `${DIRECT_TTS_URL}/v1/audio/speech`
     : '/api/ai/tts';
   fetch(ttsUrl, { method: 'OPTIONS' }).catch(() => {});
@@ -443,7 +444,7 @@ async function checkMicPermission(): Promise<{ ok: boolean; reason?: string }> {
 
 function fetchTTSBuffer(seg: ProsodySegment, signal?: AbortSignal): Promise<ArrayBuffer | null> {
   // Try direct Kokoro URL first (skips Vercel serverless hop)
-  if (DIRECT_TTS_URL) {
+  if (USE_DIRECT_TTS) {
     return fetch(`${DIRECT_TTS_URL}/v1/audio/speech`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
