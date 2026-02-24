@@ -997,28 +997,28 @@ export function LandingPage() {
                           )}
                           {nexusVoice.isVoiceLoading && (
                             <div className="flex justify-start">
-                              <div className="bg-white/5 border border-emerald-500/20 rounded-2xl px-4 py-3 flex items-center gap-1.5">
-                                <span
-                                  className="w-2 h-2 bg-emerald-400/85 rounded-full animate-bounce"
+                              <div className="bg-white/5 border border-emerald-500/30 rounded-2xl px-4 py-3 flex items-center gap-1.5">
+                                <div
+                                  className="nexus-ios-dot w-2.5 h-2.5 bg-emerald-400 rounded-full shadow-[0_0_10px_rgba(16,185,129,0.75)]"
                                   style={{ animationDelay: '0ms' }}
                                 />
-                                <span
-                                  className="w-2 h-2 bg-emerald-400/65 rounded-full animate-bounce"
-                                  style={{ animationDelay: '140ms' }}
+                                <div
+                                  className="nexus-ios-dot w-2.5 h-2.5 bg-emerald-400 rounded-full shadow-[0_0_10px_rgba(16,185,129,0.75)]"
+                                  style={{ animationDelay: '180ms' }}
                                 />
-                                <span
-                                  className="w-2 h-2 bg-emerald-400/45 rounded-full animate-bounce"
-                                  style={{ animationDelay: '280ms' }}
+                                <div
+                                  className="nexus-ios-dot w-2.5 h-2.5 bg-emerald-400 rounded-full shadow-[0_0_10px_rgba(16,185,129,0.75)]"
+                                  style={{ animationDelay: '360ms' }}
                                 />
                               </div>
                             </div>
                           )}
                           {nexusVoice.isProcessing && !nexusVoice.isVoiceLoading && (
                             <div className="flex justify-start">
-                              <div className="bg-white/5 border border-white/10 rounded-2xl px-4 py-3 flex items-center gap-1.5">
-                                <span className="w-2 h-2 bg-emerald-400/80 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                                <span className="w-2 h-2 bg-emerald-400/60 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                                <span className="w-2 h-2 bg-emerald-400/40 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                              <div className="bg-white/5 border border-emerald-500/30 rounded-2xl px-4 py-3 flex items-center gap-1.5">
+                                <div className="nexus-ios-dot w-2.5 h-2.5 bg-emerald-400 rounded-full shadow-[0_0_10px_rgba(16,185,129,0.75)]" style={{ animationDelay: '0ms' }} />
+                                <div className="nexus-ios-dot w-2.5 h-2.5 bg-emerald-400 rounded-full shadow-[0_0_10px_rgba(16,185,129,0.75)]" style={{ animationDelay: '180ms' }} />
+                                <div className="nexus-ios-dot w-2.5 h-2.5 bg-emerald-400 rounded-full shadow-[0_0_10px_rgba(16,185,129,0.75)]" style={{ animationDelay: '360ms' }} />
                               </div>
                             </div>
                           )}

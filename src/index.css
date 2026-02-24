@@ -17701,3 +17701,28 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
     transform: translate3d(var(--tw-exit-translate-x, 0), var(--tw-exit-translate-y, 0), 0) scale3d(var(--tw-exit-scale, 1), var(--tw-exit-scale, 1), var(--tw-exit-scale, 1)) rotate(var(--tw-exit-rotate, 0));
   }
 }
+
+/* iOS-style Nexus typing dots (teal/purple themed) */
+@keyframes nexus-ios-dot {
+  0%,
+  60%,
+  100% {
+    transform: translateY(0) scale(0.9);
+    opacity: 0.72;
+  }
+  30% {
+    transform: translateY(-2px) scale(1);
+    opacity: 1;
+  }
+}
+
+.nexus-ios-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 9999px;
+  background-color: rgb(52, 211, 153);
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.65);
+  animation: nexus-ios-dot 1.2s ease-in-out infinite;
+  will-change: transform, opacity;
+}
