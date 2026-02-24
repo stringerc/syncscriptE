@@ -9,7 +9,7 @@ import { DashboardBriefing } from '../DashboardBriefing';
 import { WelcomeModal } from '../WelcomeModal';
 import { InteractiveHotspot, ONBOARDING_HOTSPOTS } from '../InteractiveHotspot';
 import { useAuth } from '../../contexts/AuthContext';
-import { generateFirstTimeUserData, firstTimeUserState } from '../../utils/first-time-user-data';
+import { generateFirstTimeUserData } from '../../utils/first-time-user-data';
 
 /**
  * DASHBOARD PAGE - First-Time User Experience Integration
@@ -28,9 +28,18 @@ import { generateFirstTimeUserData, firstTimeUserState } from '../../utils/first
 export function DashboardPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  
-  const hasLoggedEnergyLocal = localStorage.getItem('syncscript_has_logged_energy') === 'true';
-  const isFirstTime = user?.isFirstTime && !user?.hasLoggedEnergy && !hasLoggedEnergyLocal;
+  const userScope = user?.id || 'anonymous';
+  const sampleSeenKey = `ss_onboarding_sample_seen_${userScope}`;
+  const welcomeSeenKey = `ss_onboarding_welcome_seen_${userScope}`;
+
+  const hasSeenSampleDataForUser = () => localStorage.getItem(sampleSeenKey) === 'true';
+  const hasSeenWelcomeForUser = () => localStorage.getItem(welcomeSeenKey) === 'true';
+  const markSampleSeenForUser = () => localStorage.setItem(sampleSeenKey, 'true');
+  const markWelcomeSeenForUser = () => localStorage.setItem(welcomeSeenKey, 'true');
+
+  // First-time experience should be per-user and shown once.
+  const isEligibleFirstTime = Boolean(user?.isFirstTime && !user?.hasLoggedEnergy);
+  const isFirstTime = isEligibleFirstTime && !hasSeenSampleDataForUser();
   
   // Sample data state (for first-time users)
   const [sampleData, setSampleData] = useState<any>(null);
@@ -42,25 +51,25 @@ export function DashboardPage() {
   
   // Initialize sample data for first-time users
   useEffect(() => {
-    if (isFirstTime && !firstTimeUserState.hasSeenSampleData()) {
+    if (isFirstTime) {
       // Generate sample data
       const data = generateFirstTimeUserData();
       setSampleData(data);
-      firstTimeUserState.markSampleDataSeen();
+      markSampleSeenForUser();
       
       // Show welcome modal after brief delay (let page render first)
       setTimeout(() => {
-        if (!firstTimeUserState.hasSeenWelcome()) {
+        if (!hasSeenWelcomeForUser()) {
           setShowWelcome(true);
         }
       }, 800);
     }
-  }, [isFirstTime]);
+  }, [isFirstTime, sampleSeenKey, welcomeSeenKey]);
   
   // Handle welcome modal - Quick Start
   function handleWelcomeGetStarted() {
     setShowWelcome(false);
-    firstTimeUserState.markWelcomeSeen();
+    markWelcomeSeenForUser();
     
     // Show hotspot on energy meter after modal closes
     setTimeout(() => {
@@ -72,7 +81,7 @@ export function DashboardPage() {
   // Handle welcome modal - Set Up Profile
   function handleCustomizeProfile() {
     setShowWelcome(false);
-    firstTimeUserState.markWelcomeSeen();
+    markWelcomeSeenForUser();
     
     // Navigate to onboarding wizard
     navigate('/onboarding');
@@ -101,7 +110,7 @@ export function DashboardPage() {
         show={showWelcome}
         onClose={() => {
           setShowWelcome(false);
-          firstTimeUserState.markWelcomeSeen();
+          markWelcomeSeenForUser();
         }}
         onGetStarted={handleWelcomeGetStarted}
         onCustomizeProfile={handleCustomizeProfile}

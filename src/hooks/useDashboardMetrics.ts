@@ -15,6 +15,7 @@ type DashboardTask = {
   completed?: boolean;
   completedAt?: string | null;
   updatedAt?: string;
+  status?: string;
   priority?: string;
   scheduledTime?: string;
 };
@@ -66,7 +67,8 @@ export function useDashboardMetrics() {
 
     const activeTasks = tasks.filter(t => !t.completed);
     const completedToday = (tasks as DashboardTask[]).filter(t => {
-      if (!t.completed) return false;
+      const isCompleted = t.completed || t.status === 'completed';
+      if (!isCompleted) return false;
       const completionTimestamp = t.completedAt || t.updatedAt;
       if (!completionTimestamp) return false;
       const completedDate = new Date(completionTimestamp);
@@ -96,13 +98,20 @@ export function useDashboardMetrics() {
   }, [tasks, energy.entries]);
 
   const completionDates = useMemo(() => {
-    return (tasks as DashboardTask[])
-      .filter(task => task.completed)
+    const taskCompletionDates = (tasks as DashboardTask[])
+      .filter(task => task.completed || task.status === 'completed')
       .map(task => task.completedAt || task.updatedAt)
       .filter((timestamp): timestamp is string => Boolean(timestamp))
       .map(timestamp => new Date(timestamp))
       .filter(date => !Number.isNaN(date.getTime()));
-  }, [tasks]);
+
+    const energyCompletionDates = energy.entries
+      .filter(entry => entry.source === 'tasks')
+      .map(entry => new Date(entry.timestamp))
+      .filter(date => !Number.isNaN(date.getTime()));
+
+    return [...taskCompletionDates, ...energyCompletionDates];
+  }, [tasks, energy.entries]);
 
   const derivedStreak = useMemo(() => {
     if (completionDates.length === 0) return 0;
@@ -119,9 +128,32 @@ export function useDashboardMetrics() {
     return streakDays;
   }, [completionDates]);
 
-  const streak = derivedStreak || gamification?.profile.stats.currentStreak || profile.dailyStreak || 0;
-  const longestStreak = Math.max(streak, gamification?.profile.stats.longestStreak || streak);
-  const level = profile.level || gamification?.profile.level || CURRENT_USER.level || 24;
+  const hasRealCompletionActivity = completionDates.length > 0;
+  const seededGamification =
+    (gamification?.profile.level ?? 0) >= 24 &&
+    (gamification?.profile.stats.currentStreak ?? 0) >= 28 &&
+    !hasRealCompletionActivity;
+  const seededProfile =
+    (profile.id === 'user_001' || profile.id === 'user-jordan-smith') &&
+    profile.level >= 24 &&
+    profile.dailyStreak >= 12 &&
+    !hasRealCompletionActivity;
+
+  const streak =
+    derivedStreak > 0
+      ? derivedStreak
+      : seededGamification
+        ? 0
+        : (gamification?.profile.stats.currentStreak ?? profile.dailyStreak ?? 0);
+  const longestStreak = Math.max(streak, seededGamification ? streak : (gamification?.profile.stats.longestStreak ?? streak));
+  const level = Math.max(
+    1,
+    seededProfile
+      ? 1
+      : seededGamification
+        ? 1
+        : (profile.level ?? gamification?.profile.level ?? CURRENT_USER.level ?? 1),
+  );
   const xp = gamification?.profile.xp || 0;
   const nextLevelXp = gamification?.profile.nextLevelXp || 100;
   const xpPercent = Math.min(100, Math.round((xp / nextLevelXp) * 100));
