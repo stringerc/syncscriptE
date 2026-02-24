@@ -95,7 +95,8 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   }, [location.pathname]);
 
   return (
-    <div className="flex h-screen bg-[#141619] overflow-hidden">
+    <div className="relative flex h-screen bg-[#141619] overflow-hidden">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_18%,rgba(45,212,191,0.1),transparent_38%),radial-gradient(circle_at_82%_14%,rgba(168,85,247,0.08),transparent_42%),radial-gradient(circle_at_50%_100%,rgba(59,130,246,0.06),transparent_45%)]" />
       {/* Guest Mode Banner (appears at top of screen) */}
       <GuestModeBanner />
       
@@ -103,7 +104,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       <Sidebar />
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="relative z-10 flex-1 flex flex-col overflow-hidden bg-gradient-to-br from-[#161a22]/90 via-[#151920]/90 to-[#12151b]/90 shadow-[inset_0_0_120px_rgba(45,212,191,0.05)]">
         {/* Header with toggle function */}
         <DashboardHeader
           isAIInsightsOpen={isAIInsightsOpen}
@@ -115,7 +116,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           {/* Page Content */}
           <main
             id="main-content"
-            className="flex-1 overflow-y-auto hide-scrollbar transition-all duration-300"
+            className="flex-1 overflow-y-auto hide-scrollbar transition-all duration-300 bg-[radial-gradient(circle_at_10%_0%,rgba(45,212,191,0.05),transparent_30%),radial-gradient(circle_at_85%_5%,rgba(168,85,247,0.05),transparent_28%)]"
             ref={mainRef}
           >
             <div className="p-4 md:p-6 pb-20 md:pb-6">
@@ -164,7 +165,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
             {/* Panel Content */}
             <div
-              className={`h-full bg-[#1a1c20] border-l border-gray-800 overflow-hidden transition-all duration-300 ${
+              className={`h-full bg-gradient-to-b from-[#1b1f27] to-[#171b22] border-l border-gray-700/70 shadow-[inset_0_0_50px_rgba(45,212,191,0.05)] overflow-hidden transition-all duration-300 ${
                 isAIInsightsOpen ? 'opacity-100' : 'opacity-0'
               }`}
             >

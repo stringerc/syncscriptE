@@ -11,8 +11,8 @@ const MARKETING_PATHS = new Set(['/', '/features', '/pricing', '/faq']);
 
 const STATIC_ROUTE_KEYFRAMES: Record<string, OrbKeyframe[]> = {
   '/': [
-    { at: 0, expand: 0.9, spread: 0, noiseAmp: 0.65, speed: 0.75, tiltX: 0.32, rotSpeed: 0.7, brightness: 0.95, color1: '#10b981', color2: '#34d399', opacity: 0.72, posX: 0.45, posY: 0, scale: 0.92 },
-    { at: 1, expand: 0.9, spread: 0, noiseAmp: 0.65, speed: 0.75, tiltX: 0.32, rotSpeed: 0.7, brightness: 0.95, color1: '#10b981', color2: '#34d399', opacity: 0.72, posX: 0.45, posY: 0, scale: 0.92 },
+    { at: 0, expand: 0.9, spread: 0, noiseAmp: 0.65, speed: 0.75, tiltX: 0.32, rotSpeed: 0.7, brightness: 1.08, color1: '#10b981', color2: '#34d399', opacity: 0.8, posX: 0, posY: 0, scale: 0.94 },
+    { at: 1, expand: 0.9, spread: 0, noiseAmp: 0.65, speed: 0.75, tiltX: 0.32, rotSpeed: 0.7, brightness: 1.08, color1: '#10b981', color2: '#34d399', opacity: 0.8, posX: 0, posY: 0, scale: 0.94 },
   ],
   '/features': [
     { at: 0, expand: 1.0, spread: 0, noiseAmp: 0.75, speed: 0.7, tiltX: 0.45, rotSpeed: 0.8, brightness: 1.1, color1: '#3b82f6', color2: '#06b6d4', opacity: 0.75, posX: -0.5, posY: 0, scale: 0.95 },
@@ -68,7 +68,7 @@ export function SharedMarketingOrb() {
       </div>
       {isLanding && (
         <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(6,182,212,0.08),transparent_45%),radial-gradient(circle_at_80%_75%,rgba(20,184,166,0.06),transparent_50%),radial-gradient(circle_at_50%_50%,rgba(139,92,246,0.05),transparent_55%)]" />
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(6,182,212,0.12),transparent_48%),radial-gradient(circle_at_80%_75%,rgba(20,184,166,0.1),transparent_55%),radial-gradient(circle_at_50%_50%,rgba(139,92,246,0.08),transparent_60%)]" />
         </div>
       )}
     </>

@@ -148,6 +148,34 @@ export function EnergyFocusPage() {
     const { levelName } = getROYGBIVProgress(energyValue);
     return levelName;
   };
+
+  const normalizedDailyHistory = useMemo(() => {
+    if (energy.dailyHistory && energy.dailyHistory.length > 0) {
+      return energy.dailyHistory;
+    }
+
+    if (!energy.entries || energy.entries.length === 0) {
+      return [];
+    }
+
+    // Rebuild daily history from raw entries so the tab remains useful even before rollups exist.
+    const byDate = new Map<string, number>();
+    energy.entries.forEach((entry) => {
+      const date = new Date(entry.timestamp);
+      if (Number.isNaN(date.getTime())) return;
+      const key = date.toISOString().slice(0, 10);
+      byDate.set(key, (byDate.get(key) || 0) + (entry.amount || 0));
+    });
+
+    return Array.from(byDate.entries())
+      .sort((a, b) => b[0].localeCompare(a[0]))
+      .map(([date, finalEnergy]) => ({
+        date,
+        finalEnergy,
+        colorReached: COLOR_LEVELS[Math.min(Math.floor((finalEnergy / 100) % COLOR_LEVELS.length), COLOR_LEVELS.length - 1)],
+        auraEarned: finalEnergy >= 700,
+      }));
+  }, [energy.dailyHistory, energy.entries]);
   
   const graphData = useMemo(() => {
     if (graphTimeframe === 'day') {
@@ -184,9 +212,9 @@ export function EnergyFocusPage() {
     } else if (graphTimeframe === 'week') {
       // WEEKLY: Last 7 days (already have this data)
       // Research: Bar charts best for discrete comparisons (Stephen Few)
-      if (!energy.dailyHistory || energy.dailyHistory.length === 0) return [];
+      if (normalizedDailyHistory.length === 0) return [];
       
-      return energy.dailyHistory
+      return normalizedDailyHistory
         .slice(0, 7)
         .reverse()
         .map(day => {
@@ -204,9 +232,9 @@ export function EnergyFocusPage() {
     } else if (graphTimeframe === 'month') {
       // MONTHLY: Last 30 days
       // Research: Line charts show trends (Mike Bostock, D3.js)
-      if (!energy.dailyHistory || energy.dailyHistory.length === 0) return [];
+      if (normalizedDailyHistory.length === 0) return [];
       
-      return energy.dailyHistory
+      return normalizedDailyHistory
         .slice(0, 30)
         .reverse()
         .map(day => {
@@ -222,12 +250,12 @@ export function EnergyFocusPage() {
     } else if (graphTimeframe === 'year') {
       // YEARLY: Monthly aggregates (last 12 months)
       // Research: Whoop uses monthly aggregates for long-term trends
-      if (!energy.dailyHistory || energy.dailyHistory.length === 0) return [];
+      if (normalizedDailyHistory.length === 0) return [];
       
       // Group by month
       const monthlyData: Record<string, { total: number; count: number; max: number }> = {};
       
-      energy.dailyHistory.forEach(day => {
+      normalizedDailyHistory.forEach(day => {
         const date = new Date(day.date);
         const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
         
@@ -259,7 +287,7 @@ export function EnergyFocusPage() {
     }
     
     return [];
-  }, [energy.entries, energy.dailyHistory, graphTimeframe]);
+  }, [energy.entries, normalizedDailyHistory, graphTimeframe]);
 
   // ═══════════════════════════════════════════════════════════════════════════
   // BREATHING ANIMATION STATE
@@ -1316,6 +1344,7 @@ export function EnergyFocusPage() {
                         if (graphData.length < 2) return '—';
                         const first = graphData[0].energy;
                         const last = graphData[graphData.length - 1].energy;
+                        if (first <= 0) return '—';
                         const change = ((last - first) / first) * 100;
                         return (
                           <span className={change > 0 ? 'text-green-400' : 'text-orange-400'}>

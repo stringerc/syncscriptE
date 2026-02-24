@@ -47,7 +47,7 @@ export function MobileNav() {
   return (
     <>
       {/* Mobile Bottom Navigation Bar - Visible on <768px */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-[#1e2128]/95 backdrop-blur-md border-t border-gray-800 z-40 safe-area-inset-bottom">
+      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-gradient-to-r from-[#1d232d]/95 via-[#1a2029]/95 to-[#171c24]/95 backdrop-blur-md border-t border-gray-700/70 shadow-[0_-8px_36px_rgba(45,212,191,0.09)] z-40 safe-area-inset-bottom">
         <div className="grid grid-cols-5 gap-0.5 px-1 py-1.5">
           {/* Dashboard */}
           <button
@@ -129,7 +129,7 @@ export function MobileNav() {
               animate={{ opacity: 0.6 }}
               exit={{ opacity: 0 }}
               onClick={() => setIsDrawerOpen(false)}
-              className="md:hidden fixed inset-0 bg-black backdrop-blur-sm z-50"
+              className="md:hidden fixed inset-0 bg-black/75 backdrop-blur-sm z-50"
             />
 
             {/* Drawer */}
@@ -138,7 +138,7 @@ export function MobileNav() {
               animate={{ x: 0 }}
               exit={{ x: '-100%' }}
               transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-              className="md:hidden fixed left-0 top-0 bottom-0 w-[280px] bg-[#1e2128] border-r border-gray-800 z-50 overflow-y-auto"
+              className="md:hidden fixed left-0 top-0 bottom-0 w-[280px] bg-gradient-to-b from-[#1f252f] via-[#1a2029] to-[#171c25] border-r border-gray-700/70 shadow-[inset_-1px_0_0_rgba(45,212,191,0.08),0_0_40px_rgba(45,212,191,0.08)] z-50 overflow-y-auto ambient-scrollbar"
             >
               {/* Header */}
               <div className="flex items-center justify-between p-4 border-b border-gray-800">

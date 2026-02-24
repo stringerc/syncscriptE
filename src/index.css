@@ -16999,6 +16999,29 @@ html {
   background: linear-gradient(#a855f7, #9333ea);
 }
 
+.ambient-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #22d3ee4d transparent;
+}
+
+.ambient-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.ambient-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.ambient-scrollbar::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #14b8a666, #0ea5e966);
+  border-radius: 999px;
+  border: 1px solid #22d3ee33;
+}
+
+.ambient-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, #14b8a699, #0ea5e999);
+}
+
 .card-hover {
   transition: all .2s;
 }

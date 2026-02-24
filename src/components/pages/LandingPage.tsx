@@ -238,7 +238,7 @@ export function LandingPage() {
     <SmoothScrollProvider>
     <div
       data-marketing-root
-      className="min-h-screen bg-gradient-to-b from-[#0a0e1a] via-[#0f1420] to-[#0a0e1a] text-white overflow-x-hidden"
+      className="min-h-screen bg-gradient-to-b from-[#101728] via-[#131b2c] to-[#0f1625] text-white overflow-x-hidden"
       style={{
         fontFamily: "'Space Grotesk', system-ui, sans-serif",
         ['--marketing-top-offset' as any]: '52px',
@@ -1390,8 +1390,8 @@ export function LandingPage() {
           <p className="text-center text-sm text-white/40 mb-8 tracking-wide uppercase font-medium">Calendar sync live — more integrations shipping regularly</p>
         </div>
         <div className="relative">
-          <div className="absolute left-0 top-0 bottom-0 w-32 bg-gradient-to-r from-[#0a0e1a] to-transparent z-10 pointer-events-none" />
-          <div className="absolute right-0 top-0 bottom-0 w-32 bg-gradient-to-l from-[#0a0e1a] to-transparent z-10 pointer-events-none" />
+          <div className="absolute left-0 top-0 bottom-0 w-32 bg-gradient-to-r from-[#101728] to-transparent z-10 pointer-events-none" />
+          <div className="absolute right-0 top-0 bottom-0 w-32 bg-gradient-to-l from-[#101728] to-transparent z-10 pointer-events-none" />
           <div
             className="flex gap-10 items-center whitespace-nowrap animate-marquee-infinite"
           >

@@ -1,5 +1,5 @@
 import { useNavigate, useLocation } from 'react-router';
-import { LayoutDashboard, Target, Calendar, Bot, Phone, Zap, Waves, Users, TrendingUp, Gamepad2, Building2, FileText, Menu, Settings } from 'lucide-react';
+import { LayoutDashboard, Target, Calendar, Bot, Zap, Waves, Users, TrendingUp, Gamepad2, Building2, FileText, Menu, Settings } from 'lucide-react';
 import logoImage from 'figma:asset/914d5787f554946c037cbfbb2cf65fcc0de06278.png';
 import { navigationLinks } from '../utils/navigation';
 import { useCalendarNavigation } from '../contexts/CalendarNavigationContext';
@@ -14,7 +14,6 @@ export function Sidebar() {
     { icon: Target, label: 'Tasks', id: 'Tasks', path: navigationLinks.sidebar.tasks },
     { icon: Calendar, label: 'Calendar', id: 'Calendar', path: navigationLinks.sidebar.calendar },
     { icon: Bot, label: 'AI', id: 'AI', path: navigationLinks.sidebar.ai },
-    { icon: Phone, label: 'Voice', id: 'Voice', path: '/ai?voice=true' },
     { icon: Zap, label: 'Energy', id: 'Energy', path: navigationLinks.sidebar.energy },
     { icon: Waves, label: 'Resonance Engine', id: 'Resonance', path: navigationLinks.sidebar.resonance },
     { icon: Users, label: 'Team', id: 'Team', path: navigationLinks.sidebar.team },
@@ -47,7 +46,7 @@ export function Sidebar() {
   };
 
   return (
-    <div className="hidden md:flex md:w-14 lg:w-[100px] bg-[#1e2128] border-r border-gray-800 flex-col items-center py-5 backdrop-blur-sm">
+    <div className="hidden md:flex md:w-14 lg:w-[100px] bg-gradient-to-b from-[#1f232d] via-[#1b2029] to-[#181c25] border-r border-gray-700/70 shadow-[inset_-1px_0_0_rgba(45,212,191,0.08),0_0_40px_rgba(45,212,191,0.08)] flex-col items-center py-5 backdrop-blur-sm">
       {/* Logo */}
       <div 
         className="mb-5 transition-transform hover:scale-110 cursor-pointer flex-shrink-0"
@@ -59,13 +58,13 @@ export function Sidebar() {
       </div>
 
       {/* Navigation Container - Only scrollable if needed */}
-      <div className="flex-1 w-full overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-transparent hover:scrollbar-thumb-gray-600">
+      <div className="ambient-scrollbar flex-1 w-full overflow-y-auto overflow-x-hidden">
         {/* Navigation Items */}
         <nav className="flex flex-col items-center space-y-3 md:space-y-2 lg:space-y-3 px-1.5">
           {navItems.map((item) => {
             const Icon = item.icon;
             const pathOnly = item.path.split('?')[0];
-            const isActive = location.pathname === pathOnly && (item.id !== 'Voice' || location.search.includes('voice=true'));
+            const isActive = location.pathname === pathOnly;
             
             return (
               <div 
