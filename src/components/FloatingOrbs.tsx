@@ -96,8 +96,8 @@ function buildSystem() {
   const particles: Particle[] = [];
   const TAU = Math.PI * 2;
 
-  // Streaks — gentle drifts, not aggressive traversals
-  for (let i = 0; i < 25; i++) {
+  // Streaks — reduced count for smoother continuous rendering.
+  for (let i = 0; i < 16; i++) {
     particles.push({
       sprite: pickWeighted(),
       drawSize: lerp(50, 130, rand()),
@@ -110,8 +110,8 @@ function buildSystem() {
     });
   }
 
-  // Orbital — slower, calmer circles
-  for (let i = 0; i < 18; i++) {
+  // Orbital — reduced count for less overdraw.
+  for (let i = 0; i < 10; i++) {
     const radius = lerp(0.25, 0.45, rand());
     const speed = lerp(0.03, 0.08, rand());
     const phase = rand() * TAU;
@@ -127,8 +127,8 @@ function buildSystem() {
     });
   }
 
-  // Scattered — gentle ambient drift
-  for (let i = 0; i < 40; i++) {
+  // Scattered — reduced count with same style.
+  for (let i = 0; i < 24; i++) {
     particles.push({
       sprite: pickWeighted(),
       drawSize: lerp(30, 80, rand()),
@@ -141,9 +141,9 @@ function buildSystem() {
     });
   }
 
-  // Flybys — fewer, slower, longer pauses between
+  // Flybys — retained but normally disabled for performance.
   const flybys: FlybyP[] = [];
-  for (let i = 0; i < 3; i++) {
+  for (let i = 0; i < 2; i++) {
     const fromLeft = rand() > 0.5;
     flybys.push({
       sprite: flybySprites[i % flybySprites.length],
@@ -315,9 +315,9 @@ export function FloatingOrbs() {
   useNoiseCanvas(
     deferred ? canvasRef : { current: null },
     noiseFadeRef,
-    lowEnd ? 1000 / 20 : 1000 / 30,
-    lowEnd ? 1 : 1.25,
-    !lowEnd,
+    lowEnd ? 1000 / 16 : 1000 / 24,
+    1,
+    false,
   );
 
   if (!deferred || reducedMotion) return null;
