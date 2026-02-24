@@ -997,14 +997,19 @@ export function LandingPage() {
                           )}
                           {nexusVoice.isVoiceLoading && (
                             <div className="flex justify-start">
-                              <div className="bg-white/5 border border-emerald-500/25 rounded-2xl px-4 py-3 min-w-[190px]">
-                                <div className="flex items-center gap-2">
-                                  <span className="w-2 h-2 bg-emerald-400/90 rounded-full animate-pulse" />
-                                  <span className="text-xs text-emerald-300/90">Nexus is connecting voice...</span>
-                                </div>
-                                <div className="mt-2 h-1.5 rounded-full bg-emerald-500/10 overflow-hidden">
-                                  <div className="h-full w-1/3 bg-gradient-to-r from-emerald-500/40 to-teal-400/40 animate-[pulse_1s_ease-in-out_infinite]" />
-                                </div>
+                              <div className="bg-white/5 border border-emerald-500/20 rounded-2xl px-4 py-3 flex items-center gap-1.5">
+                                <span
+                                  className="w-2 h-2 bg-emerald-400/85 rounded-full animate-bounce"
+                                  style={{ animationDelay: '0ms' }}
+                                />
+                                <span
+                                  className="w-2 h-2 bg-emerald-400/65 rounded-full animate-bounce"
+                                  style={{ animationDelay: '140ms' }}
+                                />
+                                <span
+                                  className="w-2 h-2 bg-emerald-400/45 rounded-full animate-bounce"
+                                  style={{ animationDelay: '280ms' }}
+                                />
                               </div>
                             </div>
                           )}
