@@ -45,7 +45,7 @@ export function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
-  const { user, loading: authLoading, signIn, signInWithGoogle, signInWithMicrosoft, continueAsGuest } = useAuth();
+  const { user, loading: authLoading, signIn, signInWithGoogle, signInWithMicrosoft, continueAsGuest, signOut } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -54,18 +54,7 @@ export function LoginPage() {
   const [guestLoading, setGuestLoading] = useState(false);
 
   const redirectTo = (location.state as any)?.from || '/dashboard';
-
-  useEffect(() => {
-    if (user && !authLoading) {
-      navigate(redirectTo, { replace: true });
-    }
-  }, [user, authLoading]);
-
-  useEffect(() => {
-    if (searchParams.get('guest') === 'true') {
-      handleGuestSignIn();
-    }
-  }, []);
+  const isGuestIntent = searchParams.get('guest') === 'true';
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -138,6 +127,20 @@ export function LoginPage() {
     }
   }
 
+  async function handleUseDifferentAccount() {
+    setError('');
+    setLoading(true);
+    try {
+      await signOut();
+      setEmail('');
+      setPassword('');
+    } catch {
+      setError('Could not switch accounts. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#0a0e1a] via-[#0f1420] to-[#0a0e1a] flex items-center justify-center p-4">
       {/* Background Effects */}
@@ -186,6 +189,38 @@ export function LoginPage() {
           initial={{ scale: 0.95 }}
           animate={{ scale: 1 }}
         >
+          {!authLoading && user ? (
+            <div className="space-y-4">
+              <Alert className="bg-cyan-500/10 border-cyan-500/40">
+                <AlertDescription className="text-cyan-100">
+                  You are already signed in{user.email ? ` as ${user.email}` : ''}.
+                </AlertDescription>
+              </Alert>
+              <Button
+                type="button"
+                onClick={() => navigate(redirectTo, { replace: true })}
+                className="w-full bg-gradient-to-r from-cyan-600 to-teal-600 hover:from-cyan-500 hover:to-teal-500 text-white font-medium h-11"
+              >
+                Continue to SyncScript
+              </Button>
+              <Button
+                type="button"
+                onClick={handleUseDifferentAccount}
+                disabled={loading}
+                variant="outline"
+                className="w-full bg-slate-800/50 border-slate-700 text-white hover:bg-slate-800 hover:border-slate-600"
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                    Switching account...
+                  </>
+                ) : (
+                  'Use a different account'
+                )}
+              </Button>
+            </div>
+          ) : (
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Error Alert */}
             <AnimatePresence>
@@ -268,7 +303,10 @@ export function LoginPage() {
               )}
             </Button>
           </form>
+          )}
 
+          {!(!authLoading && user) && (
+          <>
           {/* Divider */}
           <div className="relative my-6">
             <div className="absolute inset-0 flex items-center">
@@ -308,6 +346,11 @@ export function LoginPage() {
 
           {/* Guest Sign In Button */}
           <div className="mt-6 text-center text-sm">
+            {isGuestIntent && (
+              <div className="mb-3 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-emerald-200 text-xs">
+                Continue as Guest is ready. Click below to start guest mode.
+              </div>
+            )}
             <Button
               type="button"
               onClick={handleGuestSignIn}
@@ -330,6 +373,8 @@ export function LoginPage() {
               Sign up
             </Link>
           </div>
+          </>
+          )}
         </motion.div>
 
         {/* Footer */}

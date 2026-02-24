@@ -83,6 +83,7 @@ const SecurityPage = lazy(() => import('./components/pages/SecurityPage').then(m
 const ForgotPasswordPage = lazy(() => import('./components/pages/ForgotPasswordPage').then(m => ({ default: m.ForgotPasswordPage })));
 const LoginPage = lazy(() => import('./components/pages/LoginPage').then(m => ({ default: m.LoginPage })));
 const SignupPage = lazy(() => import('./components/pages/SignupPage').then(m => ({ default: m.SignupPage })));
+const LogoutPage = lazy(() => import('./components/pages/LogoutPage').then(m => ({ default: m.LogoutPage })));
 const FeaturesPage = lazy(() => import('./components/pages/FeaturesPage').then(m => ({ default: m.FeaturesPage })));
 const PricingPage = lazy(() => import('./components/pages/PricingPage').then(m => ({ default: m.PricingPage })));
 const FAQPage = lazy(() => import('./components/pages/FAQPage').then(m => ({ default: m.FAQPage })));
@@ -235,6 +236,7 @@ function AppContent() {
                 <Route path="/login" element={<LoginPage />} />
                 <Route path="/signup" element={<SignupPage />} />
                 <Route path="/auth" element={<LoginPage />} />
+                <Route path="/logout" element={<LogoutPage />} />
                 <Route path="/forgot-password" element={<ForgotPasswordPage />} />
                 <Route path="/auth/callback" element={<AuthCallbackPage />} />
                 <Route path="/oauth-callback" element={<OAuthCallbackPage />} />
