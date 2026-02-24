@@ -113,9 +113,9 @@ const DEFAULT_PROFILE: UserGamificationProfile = {
   userId: CURRENT_USER.email,
   
   // Core Progression
-  level: CURRENT_USER.level || 28,
-  xp: CURRENT_USER.xp || 7850,
-  nextLevelXp: CURRENT_USER.nextLevelXP || 10000,
+  level: CURRENT_USER.level ?? 1,
+  xp: CURRENT_USER.xp ?? 0,
+  nextLevelXp: CURRENT_USER.nextLevelXP ?? 100,
   totalXpEarned: 125000,
   
   // League
@@ -214,8 +214,8 @@ const DEFAULT_PROFILE: UserGamificationProfile = {
     leagueDemotions: 1,
     seasonPassesCompleted: 1,
     prestigesPerformed: 0,
-    longestStreak: CURRENT_USER.longestStreak || 42,
-    currentStreak: CURRENT_USER.currentStreak || 28,
+    longestStreak: CURRENT_USER.longestStreak ?? 0,
+    currentStreak: CURRENT_USER.currentStreak ?? 0,
     totalDaysActive: 156,
   },
   

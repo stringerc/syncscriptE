@@ -20,6 +20,8 @@ interface UserProfileContextType {
 }
 
 const UserProfileContext = createContext<UserProfileContextType | undefined>(undefined);
+const USER_PROFILE_STORAGE_KEY = 'userProfile';
+const PROFILE_MIGRATION_FLAG_KEY = 'syncscript_profile_seed_migration_v1';
 
 const DEFAULT_PROFILE: UserProfile = {
   id: 'user_001',
@@ -27,29 +29,60 @@ const DEFAULT_PROFILE: UserProfile = {
   email: 'jordan.smith@syncscript.com',
   avatar: 'https://images.unsplash.com/photo-1576558656222-ba66febe3dec?w=100',
   status: 'online',
-  level: 24,
-  xp: 3450,
-  dailyStreak: 12,
+  level: 1,
+  xp: 0,
+  dailyStreak: 0,
   energyReadinessOverride: 0, // Start at 0% (RED) for new users
 };
+
+function migrateLegacySeedProfile(storedProfile: Partial<UserProfile>): UserProfile {
+  const merged: UserProfile = { ...DEFAULT_PROFILE, ...storedProfile };
+  const alreadyMigrated = localStorage.getItem(PROFILE_MIGRATION_FLAG_KEY) === 'true';
+  if (alreadyMigrated) return merged;
+
+  const isLegacySeedProfile =
+    merged.id === 'user_001' &&
+    merged.email === 'jordan.smith@syncscript.com' &&
+    merged.name === 'Jordan Smith' &&
+    merged.level === 24 &&
+    merged.dailyStreak === 12 &&
+    merged.xp === 3450;
+
+  if (!isLegacySeedProfile) {
+    localStorage.setItem(PROFILE_MIGRATION_FLAG_KEY, 'true');
+    return merged;
+  }
+
+  const resetProfile: UserProfile = {
+    ...merged,
+    level: 1,
+    xp: 0,
+    dailyStreak: 0,
+  };
+
+  localStorage.setItem(PROFILE_MIGRATION_FLAG_KEY, 'true');
+  localStorage.setItem(USER_PROFILE_STORAGE_KEY, JSON.stringify(resetProfile));
+  return resetProfile;
+}
 
 export function UserProfileProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<UserProfile>(() => {
     // Try to load from localStorage
-    const stored = localStorage.getItem('userProfile');
+    const stored = localStorage.getItem(USER_PROFILE_STORAGE_KEY);
     if (stored) {
       try {
-        return { ...DEFAULT_PROFILE, ...JSON.parse(stored) };
+        return migrateLegacySeedProfile(JSON.parse(stored));
       } catch {
         return DEFAULT_PROFILE;
       }
     }
+    localStorage.setItem(PROFILE_MIGRATION_FLAG_KEY, 'true');
     return DEFAULT_PROFILE;
   });
 
   // Save to localStorage whenever profile changes
   useEffect(() => {
-    localStorage.setItem('userProfile', JSON.stringify(profile));
+    localStorage.setItem(USER_PROFILE_STORAGE_KEY, JSON.stringify(profile));
   }, [profile]);
 
   const updateProfile = (updates: Partial<UserProfile>) => {

@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useGamification } from '../contexts/GamificationContext';
 import { useUserProfile } from '../utils/user-profile';
 import { useUserPreferences } from '../utils/user-preferences';
+import { useEnergy } from '../contexts/EnergyContext';
 import { CURRENT_USER } from '../utils/user-constants';
 import { getPersonalizedCircadianCurve } from '../utils/resonance-calculus';
 import { getCalibrationInsights, getCalibrationProfile } from '../utils/resonance-calibration';
@@ -20,6 +21,7 @@ type DashboardTask = {
 
 export function useDashboardMetrics() {
   const { tasks } = useTasks();
+  const { energy } = useEnergy();
   const { user } = useAuth();
   const { profile } = useUserProfile();
   const { preferences } = useUserPreferences();
@@ -71,6 +73,12 @@ export function useDashboardMetrics() {
       if (Number.isNaN(completedDate.getTime())) return false;
       return completedDate >= today && completedDate < tomorrow;
     }).length;
+    const completedTodayFromEnergy = energy.entries.filter((entry) => {
+      if (entry.source !== 'tasks') return false;
+      const ts = new Date(entry.timestamp);
+      if (Number.isNaN(ts.getTime())) return false;
+      return ts >= today && ts < tomorrow;
+    }).length;
 
     const highPriority = activeTasks.filter(t => t.priority === 'high' || t.priority === 'urgent').length;
     const scheduledToday = tasks.filter(t => {
@@ -79,8 +87,13 @@ export function useDashboardMetrics() {
       return scheduled >= today && scheduled < tomorrow && !t.completed;
     }).length;
 
-    return { total: activeTasks.length, completedToday, highPriority, scheduledToday };
-  }, [tasks]);
+    return {
+      total: activeTasks.length,
+      completedToday: Math.max(completedToday, completedTodayFromEnergy),
+      highPriority,
+      scheduledToday,
+    };
+  }, [tasks, energy.entries]);
 
   const completionDates = useMemo(() => {
     return (tasks as DashboardTask[])

@@ -18,9 +18,9 @@
 
 export const CURRENT_USER = {
   // Profile Information - MUST MATCH UserProfileContext
-  id: 'user-jordan-smith',
+  id: 'user_001',
   name: 'Jordan Smith',
-  email: 'jordan.smith@syncscript.ai',
+  email: 'jordan.smith@syncscript.com',
   initials: 'JS',
   
   // Avatar - MUST MATCH UserProfileContext
@@ -29,18 +29,18 @@ export const CURRENT_USER = {
   image: 'https://images.unsplash.com/photo-1576558656222-ba66febe3dec?w=400&h=400&fit=crop&crop=face', // Alias for compatibility
   
   // Gamification Stats
-  level: 28,
-  xp: 7850,
-  nextLevelXP: 10000,
+  level: 1,
+  xp: 0,
+  nextLevelXP: 100,
   
   // Energy & Productivity
   energyLevel: 85, // 0-100
   todayScore: 85,  // 0-100
   
   // Streaks & Engagement
-  dailyStreak: 12,
-  currentStreak: 42,
-  longestStreak: 67,
+  dailyStreak: 0,
+  currentStreak: 0,
+  longestStreak: 0,
   
   // Analytics
   weeklyAverage: 78,
