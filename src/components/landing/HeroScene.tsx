@@ -10,6 +10,8 @@ const IS_LOW_END =
   ((navigator.hardwareConcurrency ?? 4) <= 6 || DEVICE_MEMORY <= 4);
 const PARTICLE_COUNT = IS_LOW_END ? 900 : 1400;
 const PIXEL_RATIO_CAP = IS_LOW_END ? 1 : 1.25;
+const TARGET_FPS = IS_LOW_END ? 24 : 30;
+const FRAME_INTERVAL_MS = 1000 / TARGET_FPS;
 const RING_RADIUS = 4.2;
 const TUBE_RADIUS = 0.85;
 
@@ -478,6 +480,7 @@ export function HeroScene({
 
     let animId = 0;
     let isRunning = false;
+    let lastFrameMs = 0;
 
     const LERP_SPEED = 0.035;
 
@@ -486,6 +489,10 @@ export function HeroScene({
 
       animId = requestAnimationFrame(animate);
       isRunning = true;
+
+      const nowMs = performance.now();
+      if (nowMs - lastFrameMs < FRAME_INTERVAL_MS) return;
+      lastFrameMs = nowMs;
 
       clock.update();
       const t = clock.getElapsed();
