@@ -806,8 +806,13 @@ export function NexusVoiceCallProvider({ children }: { children: ReactNode }) {
 
         // ─── Path B: SSE streaming ──────────────────────────────────────
         // First chunk already in hand — process it, then continue reading.
-        const processSSEChunk = (chunk: string) => {
-          const lines = chunk.split('\n');
+        let sseCarry = '';
+        let sseFinalContent = '';
+        const processSSEChunk = (chunk: string, isDone = false) => {
+          sseCarry += chunk;
+          const lines = sseCarry.split('\n');
+          sseCarry = isDone ? '' : (lines.pop() ?? '');
+
           for (const line of lines) {
             const trimmed = line.trim();
             if (!trimmed.startsWith('data: ')) continue;
@@ -816,6 +821,11 @@ export function NexusVoiceCallProvider({ children }: { children: ReactNode }) {
 
             try {
               const parsed = JSON.parse(payload);
+
+              if (parsed.finalContent && typeof parsed.finalContent === 'string') {
+                sseFinalContent = parsed.finalContent;
+                continue;
+              }
 
               if (parsed.content && !parsed.token) {
                 fullText = parsed.content;
@@ -850,6 +860,16 @@ export function NexusVoiceCallProvider({ children }: { children: ReactNode }) {
             const chunk = decoder.decode(value, { stream: true });
             if (processSSEChunk(chunk)) break;
           }
+        }
+
+        // Flush decoder + trailing partial line once the stream closes.
+        const decoderTail = decoder.decode();
+        processSSEChunk(decoderTail, true);
+
+        // Reconcile with server-sent final content to recover from any token loss.
+        if (sseFinalContent.trim() && sseFinalContent.trim() !== fullText.trim()) {
+          fullText = sseFinalContent.trim();
+          textBuffer = '';
         }
 
         // Safety: only speak the trailing buffer if it looks like a complete thought.

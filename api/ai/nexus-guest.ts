@@ -68,9 +68,10 @@ CRITICAL OUTPUT FORMAT (your text goes directly to a TTS engine):
 - Use correct verb forms: "How does AI schedule your work" not "How does AI scheduling your work".
 - Never drop words, especially pronouns. Say "optimizing your schedule" not "optimizing schedule". Say "tracks your energy" not "tracks energy". Always include "your", "you", "your" where they belong.
 - End questions with a question mark so the voice rises at the end.
-- Use exclamation marks when genuinely enthusiastic! It makes the voice come alive.
 - Mix short and longer sentences for natural rhythm.
 - Double check your grammar before finishing. Every sentence must read perfectly if spoken aloud.
+- Never use filler tag questions like "isn't that cool?" or "you know?".
+- Use the exact pricing language provided below. Do not improvise prices or units.
 
 YOUR PERSONALITY:
 Warm, confident, and genuinely enthusiastic about SyncScript. You're like the best customer service rep who truly loves their product. Be empathetic when someone mentions stress or burnout. Never pushy or salesy.
@@ -149,7 +150,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     try {
       const { stream } = await callAIStream(chatMessages, {
         maxTokens: 150,
-        temperature: 0.5,
+        temperature: 0.3,
       });
 
       res.setHeader('Content-Type', 'text/event-stream');
@@ -161,20 +162,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         : null;
 
       if (!reader) {
-        const fallback = await callAI(chatMessages, { maxTokens: 150, temperature: 0.5 });
+        const fallback = await callAI(chatMessages, { maxTokens: 150, temperature: 0.3 });
         res.write(`data: ${JSON.stringify({ content: fallback.content })}\n\n`);
+        res.write(`data: ${JSON.stringify({ finalContent: fallback.content })}\n\n`);
         res.write('data: [DONE]\n\n');
         return res.end();
       }
 
       const decoder = new TextDecoder();
+      let carry = '';
+      let fullContent = '';
 
       while (true) {
         const { done, value } = await reader.read();
-        if (done) break;
+        if (done) {
+          carry += decoder.decode();
+        } else {
+          carry += decoder.decode(value, { stream: true });
+        }
 
-        const chunk = decoder.decode(value, { stream: true });
-        const lines = chunk.split('\n');
+        const lines = carry.split('\n');
+        carry = done ? '' : (lines.pop() ?? '');
 
         for (const line of lines) {
           const trimmed = line.trim();
@@ -182,7 +190,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
           const payload = trimmed.slice(6);
           if (payload === '[DONE]') {
-            res.write('data: [DONE]\n\n');
             continue;
           }
 
@@ -190,6 +197,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             const parsed = JSON.parse(payload);
             const token = parsed.choices?.[0]?.delta?.content;
             if (token) {
+              fullContent += token;
               res.write(`data: ${JSON.stringify({ token })}\n\n`);
               if (typeof (res as any).flush === 'function') (res as any).flush();
             }
@@ -197,18 +205,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             /* skip malformed lines */
           }
         }
+
+        if (done) break;
       }
 
       if (!res.writableEnded) {
+        if (fullContent.trim()) {
+          res.write(`data: ${JSON.stringify({ finalContent: fullContent })}\n\n`);
+        }
         res.write('data: [DONE]\n\n');
         res.end();
       }
     } catch (error: any) {
       console.error('Nexus streaming error, falling back:', error.message);
       try {
-        const result = await callAI(chatMessages, { maxTokens: 150, temperature: 0.5 });
+        const result = await callAI(chatMessages, { maxTokens: 150, temperature: 0.3 });
         res.setHeader('Content-Type', 'text/event-stream');
         res.write(`data: ${JSON.stringify({ content: result.content })}\n\n`);
+        res.write(`data: ${JSON.stringify({ finalContent: result.content })}\n\n`);
         res.write('data: [DONE]\n\n');
         return res.end();
       } catch {
@@ -217,7 +231,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
   } else {
     try {
-      const result = await callAI(chatMessages, { maxTokens: 150, temperature: 0.5 });
+      const result = await callAI(chatMessages, { maxTokens: 150, temperature: 0.3 });
       return res.status(200).json({ content: result.content });
     } catch (error: any) {
       console.error('Nexus guest handler error:', error);
