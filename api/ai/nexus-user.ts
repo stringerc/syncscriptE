@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { validateAuth } from '../_lib/auth';
 import { callAI, isAIConfigured, type AIMessage } from '../_lib/ai-service';
-import { sanitizePrivateContext, serializePromptContext } from './_lib/nexus-context-firewall.mjs';
+import { sanitizePrivateContext, serializePromptContext } from './_lib/nexus-context-firewall';
 
 const MAX_INPUT_MESSAGES = 12;
 

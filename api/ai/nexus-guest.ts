@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { callAI, callAIStream, isAIConfigured, type AIMessage } from '../_lib/ai-service';
-import { sanitizePublicContext, serializePromptContext } from './_lib/nexus-context-firewall.mjs';
+import { sanitizePublicContext, serializePromptContext } from './_lib/nexus-context-firewall';
 
 type PublicPlan = {
   name: string;

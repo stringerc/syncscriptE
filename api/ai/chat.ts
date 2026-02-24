@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { validateAuth } from '../_lib/auth';
-import { sanitizePrivateContext, serializePromptContext } from './_lib/nexus-context-firewall.mjs';
+import { sanitizePrivateContext, serializePromptContext } from './_lib/nexus-context-firewall';
 
 const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
 const DEEPSEEK_URL = 'https://api.deepseek.com/v1/chat/completions';
