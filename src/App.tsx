@@ -81,11 +81,12 @@ const PrivacyPage = lazy(() => import('./components/pages/PrivacyPage').then(m =
 const TermsPage = lazy(() => import('./components/pages/TermsPage').then(m => ({ default: m.TermsPage })));
 const SecurityPage = lazy(() => import('./components/pages/SecurityPage').then(m => ({ default: m.SecurityPage })));
 const ForgotPasswordPage = lazy(() => import('./components/pages/ForgotPasswordPage').then(m => ({ default: m.ForgotPasswordPage })));
+const LoginPage = lazy(() => import('./components/pages/LoginPage').then(m => ({ default: m.LoginPage })));
+const SignupPage = lazy(() => import('./components/pages/SignupPage').then(m => ({ default: m.SignupPage })));
 const FeaturesPage = lazy(() => import('./components/pages/FeaturesPage').then(m => ({ default: m.FeaturesPage })));
 const PricingPage = lazy(() => import('./components/pages/PricingPage').then(m => ({ default: m.PricingPage })));
 const FAQPage = lazy(() => import('./components/pages/FAQPage').then(m => ({ default: m.FAQPage })));
 const ContactSalesPage = lazy(() => import('./components/pages/ContactSalesPage').then(m => ({ default: m.ContactSalesPage })));
-const AppAuthPage = lazy(() => import('./components/app/pages/AppAuthPage').then(m => ({ default: m.AppAuthPage })));
 const AppDashboardPage = lazy(() => import('./components/app/pages/AppDashboardPage').then(m => ({ default: m.AppDashboardPage })));
 const AppTasksPage = lazy(() => import('./components/app/pages/AppTasksPage').then(m => ({ default: m.AppTasksPage })));
 const AppCalendarPage = lazy(() => import('./components/app/pages/AppCalendarPage').then(m => ({ default: m.AppCalendarPage })));
@@ -231,9 +232,9 @@ function AppContent() {
                 <Route path="/security" element={<SecurityPage />} />
 
                 {/* Auth routes — lightweight */}
-                <Route path="/login" element={<AppAuthPage />} />
-                <Route path="/signup" element={<AppAuthPage />} />
-                <Route path="/auth" element={<AppAuthPage />} />
+                <Route path="/login" element={<LoginPage />} />
+                <Route path="/signup" element={<SignupPage />} />
+                <Route path="/auth" element={<LoginPage />} />
                 <Route path="/forgot-password" element={<ForgotPasswordPage />} />
                 <Route path="/auth/callback" element={<AuthCallbackPage />} />
                 <Route path="/oauth-callback" element={<OAuthCallbackPage />} />
