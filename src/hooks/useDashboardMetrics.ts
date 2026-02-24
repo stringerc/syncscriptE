@@ -12,12 +12,21 @@ import { getCalibrationInsights, getCalibrationProfile } from '../utils/resonanc
 const DEFAULT_PEAK_WINDOW = { start: 7, end: 14 };
 
 type DashboardTask = {
+  id?: string;
   completed?: boolean;
   completedAt?: string | null;
   updatedAt?: string;
   status?: string;
   priority?: string;
   scheduledTime?: string;
+  energyLevel?: 'high' | 'medium' | 'low';
+};
+
+type ResonanceTrajectoryPoint = {
+  hour: number;
+  potential: number;
+  expected: number;
+  scheduledCount: number;
 };
 
 export function useDashboardMetrics() {
@@ -158,19 +167,88 @@ export function useDashboardMetrics() {
   const nextLevelXp = gamification?.profile.nextLevelXp || 100;
   const xpPercent = Math.min(100, Math.round((xp / nextLevelXp) * 100));
 
-  const sparklineData = useMemo(() => {
-    const points: number[] = [];
+  const resonanceTrajectory = useMemo(() => {
+    const points: ResonanceTrajectoryPoint[] = [];
     const windowMidpoint = (peakWindow.windowStart + peakWindow.windowEnd) / 2;
     const windowRadius = Math.max(1, (peakWindow.windowEnd - peakWindow.windowStart) / 2);
+    const nowHour = new Date().getHours();
+    const plannedTasks = (tasks as DashboardTask[]).filter((task) => {
+      if (task.completed || task.status === 'completed') return false;
+      return Boolean(task.scheduledTime);
+    });
 
-    for (let h = 6; h <= 22; h++) {
-      const base = getPersonalizedCircadianCurve(h, chronotype);
-      const distance = Math.abs(h - windowMidpoint) / windowRadius;
-      const inWindowBoost = distance <= 1 ? 1 + (1 - distance) * 0.12 : 1 - Math.min(0.14, (distance - 1) * 0.08);
-      points.push(Math.round(Math.max(0.3, Math.min(1, base * inWindowBoost)) * 100));
+    for (let offset = 0; offset < 8; offset++) {
+      const hour = (nowHour + offset) % 24;
+      const base = getPersonalizedCircadianCurve(hour, chronotype);
+      const distance = Math.abs(hour - windowMidpoint) / windowRadius;
+      const inWindowBoost = distance <= 1
+        ? 1 + (1 - distance) * 0.12
+        : 1 - Math.min(0.14, (distance - 1) * 0.08);
+      const potential = Math.round(Math.max(0.3, Math.min(1, base * inWindowBoost)) * 100);
+
+      const tasksInHour = plannedTasks.filter((task) => {
+        const scheduled = new Date(task.scheduledTime as string);
+        if (Number.isNaN(scheduled.getTime())) return false;
+        return scheduled.getHours() === hour;
+      });
+
+      let expected = potential * 0.88; // Unscheduled hours underperform potential in most real workflows
+
+      if (tasksInHour.length > 0) {
+        const aggregate = tasksInHour.reduce((sum, task) => {
+          let score = potential;
+          const isPeakHour = potential >= 78;
+
+          if ((task.priority === 'low') && isPeakHour) score -= 18;
+          if ((task.priority === 'high' || task.priority === 'urgent') && isPeakHour) score += 8;
+          if (task.energyLevel === 'high' && potential < 55) score -= 20;
+          if (task.energyLevel === 'high' && potential >= 70) score += 10;
+          if (task.energyLevel === 'low' && isPeakHour) score -= 10;
+
+          return sum + score;
+        }, 0);
+
+        expected = aggregate / tasksInHour.length;
+
+        if (tasksInHour.length > 2) {
+          expected -= Math.min(18, (tasksInHour.length - 2) * 6);
+        }
+      }
+
+      points.push({
+        hour,
+        potential,
+        expected: Math.round(Math.max(25, Math.min(100, expected))),
+        scheduledCount: tasksInHour.length,
+      });
     }
-    return points;
-  }, [chronotype, peakWindow.windowStart, peakWindow.windowEnd]);
+
+    const current = points[0] ?? { potential: 60, expected: 60 };
+    const peak = points.reduce((best, point, idx) => {
+      if (idx === 0 || point.expected > best.expected) return point;
+      return best;
+    }, points[0] ?? { hour: nowHour, potential: 60, expected: 60, scheduledCount: 0 });
+
+    const deltaNow = current.expected - current.potential;
+    const alignmentScore = Math.max(
+      0,
+      Math.min(
+        100,
+        Math.round(
+          (points.reduce((sum, point) => sum + Math.max(0, 100 - Math.abs(point.expected - point.potential)), 0) / (points.length || 1)),
+        ),
+      ),
+    );
+
+    return {
+      points,
+      currentResonance: current.expected,
+      deltaNow: Math.round(deltaNow),
+      nextPeakHour: peak.hour,
+      peakInHours: points.findIndex((point) => point.hour === peak.hour),
+      alignmentScore,
+    };
+  }, [chronotype, peakWindow.windowStart, peakWindow.windowEnd, tasks]);
 
   const calibration = useMemo(() => {
     const calibrationProfile = getCalibrationProfile();
@@ -186,7 +264,8 @@ export function useDashboardMetrics() {
     longestStreak,
     level,
     xpPercent,
-    sparklineData,
+    sparklineData: resonanceTrajectory.points.map((point) => point.expected),
+    resonanceTrajectory,
     calibration,
   };
 }

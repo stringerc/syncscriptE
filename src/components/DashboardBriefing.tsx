@@ -21,14 +21,13 @@ import { useDashboardMetrics } from '../hooks/useDashboardMetrics';
 
 export function DashboardBriefing() {
   const {
-    currentHour,
     peakWindow,
     taskSummary,
     streak,
     longestStreak,
     level,
     xpPercent,
-    sparklineData,
+    resonanceTrajectory,
     calibration,
   } = useDashboardMetrics();
 
@@ -44,23 +43,31 @@ export function DashboardBriefing() {
     const width = 120;
     const height = 28;
     const padding = 2;
-    const min = Math.min(...sparklineData);
-    const max = Math.max(...sparklineData);
+    const expectedSeries = resonanceTrajectory.points.map((point) => point.expected);
+    const potentialSeries = resonanceTrajectory.points.map((point) => point.potential);
+    const min = Math.min(...expectedSeries, ...potentialSeries);
+    const max = Math.max(...expectedSeries, ...potentialSeries);
     const range = max - min || 1;
-    
-    const points = sparklineData.map((val, i) => {
-      const x = padding + (i / (sparklineData.length - 1)) * (width - padding * 2);
+
+    const expectedPoints = expectedSeries.map((val, i) => {
+      const x = padding + (i / (expectedSeries.length - 1)) * (width - padding * 2);
+      const y = height - padding - ((val - min) / range) * (height - padding * 2);
+      return `${x},${y}`;
+    }).join(' ');
+
+    const potentialPoints = potentialSeries.map((val, i) => {
+      const x = padding + (i / (potentialSeries.length - 1)) * (width - padding * 2);
       const y = height - padding - ((val - min) / range) * (height - padding * 2);
       return `${x},${y}`;
     }).join(' ');
 
     // Current position marker
-    const currentIndex = Math.max(0, Math.min(sparklineData.length - 1, currentHour - 6));
-    const markerX = padding + (currentIndex / (sparklineData.length - 1)) * (width - padding * 2);
-    const markerY = height - padding - ((sparklineData[currentIndex] - min) / range) * (height - padding * 2);
+    const currentIndex = 0;
+    const markerX = padding + (currentIndex / (expectedSeries.length - 1)) * (width - padding * 2);
+    const markerY = height - padding - ((expectedSeries[currentIndex] - min) / range) * (height - padding * 2);
 
-    return { width, height, points, markerX, markerY };
-  }, [sparklineData, currentHour]);
+    return { width, height, expectedPoints, potentialPoints, markerX, markerY };
+  }, [resonanceTrajectory.points]);
 
   return (
     <motion.div
@@ -172,7 +179,7 @@ export function DashboardBriefing() {
               <TrendingUp className="w-3.5 h-3.5 text-teal-400" />
             </div>
             <div>
-              <div className="text-[10px] text-gray-500 uppercase tracking-wider">Energy Curve</div>
+              <div className="text-[10px] text-gray-500 uppercase tracking-wider">Resonance Trajectory</div>
               <svg 
                 width={sparklineSvg.width} 
                 height={sparklineSvg.height} 
@@ -186,12 +193,23 @@ export function DashboardBriefing() {
                     <stop offset="100%" stopColor="#06b6d4" stopOpacity="0.6" />
                   </linearGradient>
                 </defs>
-                {/* Line */}
+                {/* Circadian potential (reference) */}
+                <polyline
+                  fill="none"
+                  stroke="#6b7280"
+                  strokeOpacity="0.55"
+                  strokeWidth="1"
+                  points={sparklineSvg.potentialPoints}
+                  strokeDasharray="2 2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                {/* Expected resonance (primary) */}
                 <polyline
                   fill="none"
                   stroke="url(#sparkGrad)"
                   strokeWidth="1.5"
-                  points={sparklineSvg.points}
+                  points={sparklineSvg.expectedPoints}
                   strokeLinecap="round"
                   strokeLinejoin="round"
                 />
@@ -205,6 +223,14 @@ export function DashboardBriefing() {
                   strokeWidth="1"
                 />
               </svg>
+              <div className="text-[9px] text-gray-400 mt-0.5">
+                {resonanceTrajectory.peakInHours <= 0
+                  ? 'Peak now'
+                  : `Peak in ${resonanceTrajectory.peakInHours}h`}
+                <span className={`ml-1 ${resonanceTrajectory.deltaNow >= 0 ? 'text-emerald-400' : 'text-amber-400'}`}>
+                  {resonanceTrajectory.deltaNow >= 0 ? `+${resonanceTrajectory.deltaNow}` : resonanceTrajectory.deltaNow} delta
+                </span>
+              </div>
             </div>
           </div>
 
