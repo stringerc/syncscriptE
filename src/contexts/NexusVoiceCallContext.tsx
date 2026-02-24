@@ -335,6 +335,7 @@ class ProgressivePlayer {
 async function playCachedBuffers(
   buffers: ArrayBuffer[],
   signal: AbortSignal,
+  onFirstPlay?: () => void,
 ): Promise<boolean> {
   if (!buffers.length) return true;
 
@@ -350,6 +351,12 @@ async function playCachedBuffers(
       src.buffer = audio;
       src.connect(ctx.destination);
       src.start(when);
+      if (i === 0 && onFirstPlay) {
+        const delayMs = Math.max(0, (when - ctx.currentTime) * 1000);
+        setTimeout(() => {
+          try { onFirstPlay(); } catch { /* noop */ }
+        }, delayMs);
+      }
       sources.push(src);
       const isLast = i === buffers.length - 1;
       const overlap = isLast ? 0 : 0.10;
@@ -573,7 +580,11 @@ export function NexusVoiceCallProvider({ children }: { children: ReactNode }) {
   // ── Speak a cached or live phrase ────────────────────────────────────────
 
   const speakPhrase = useCallback(
-    async (text: string, cache?: AudioCacheEntry | null): Promise<void> => {
+    async (
+      text: string,
+      cache?: AudioCacheEntry | null,
+      opts?: { onFirstPlay?: () => void },
+    ): Promise<void> => {
       speakingRef.current = true;
       setIsSpeakingLocal(true);
       voiceStream.stopListening();
@@ -583,9 +594,10 @@ export function NexusVoiceCallProvider({ children }: { children: ReactNode }) {
 
       try {
         if (cache?.ready && cache.buffers.length > 0) {
-          await playCachedBuffers(cache.buffers, ac.signal);
+          await playCachedBuffers(cache.buffers, ac.signal, opts?.onFirstPlay);
         } else {
           const player = new ProgressivePlayer(ac.signal);
+          if (opts?.onFirstPlay) player.onFirstPlay = opts.onFirstPlay;
           for (const s of splitToSentences(text)) {
             const seg = toProsodySegment(s);
             player.feed(fetchTTSBuffer(seg, ac.signal));
@@ -856,12 +868,14 @@ export function NexusVoiceCallProvider({ children }: { children: ReactNode }) {
             }
           }
         }
-        if (!revealOpen && fullText) openRevealGate();
-        if (fullText) showNexusText(fullText);
+        // Do not reveal text here preemptively; wait for first playable audio.
+        // If no playable audio ever arrives, we reveal after waitUntilDone below.
+        if (revealOpen && fullText) showNexusText(fullText);
 
         clearProcessingOnce();
         player.seal();
         await player.waitUntilDone();
+        if (!revealOpen && fullText) openRevealGate();
       } catch (err: any) {
         if (err?.name === 'AbortError') { /* normal cancellation */ }
         else if (!fullText) {
@@ -987,7 +1001,7 @@ export function NexusVoiceCallProvider({ children }: { children: ReactNode }) {
     setMessages([]);
     setCallDuration(0);
     setIsProcessing(false);
-    setIsVoiceLoading(false);
+    setIsVoiceLoading(true);
     processingRef.current = false;
 
     playChime('connect');
@@ -1014,7 +1028,10 @@ export function NexusVoiceCallProvider({ children }: { children: ReactNode }) {
     }, 1000);
 
     // Play greeting from preloaded cache — near-instant
-    await speakPhrase(GREETING, greetingCacheRef.current);
+    await speakPhrase(GREETING, greetingCacheRef.current, {
+      onFirstPlay: () => setIsVoiceLoading(false),
+    });
+    setIsVoiceLoading(false);
 
     if (activeRef.current) {
       voiceStream.clearTranscript();

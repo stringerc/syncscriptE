@@ -968,8 +968,7 @@ export function LandingPage() {
                               const hideUntilVoiceStarts =
                                 msg.role === 'nexus' &&
                                 nexusVoice.isVoiceLoading &&
-                                msg.id === latestNexusId &&
-                                !nexusVoice.isSpeaking;
+                                msg.id === latestNexusId;
 
                               if (hideUntilVoiceStarts) return null;
 
