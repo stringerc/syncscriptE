@@ -205,7 +205,7 @@ function AppContent() {
         <AnalyticsTracker />
         <CookieConsentBanner />
         <FloatingFeedbackButton discordInviteUrl="https://discord.gg/2rq38UJrDJ" />
-        <Toaster position="top-right" richColors />
+        <Toaster position="top-right" richColors closeButton />
         <SharedMarketingOrb />
         <NexusVoiceCallProvider>
           <ParticleTransitionProvider>

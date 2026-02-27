@@ -26,6 +26,7 @@ import { usePermissions } from '../hooks/usePermissions';
 import type { UserRole } from '../types/unified-types';
 import { useAnalytics } from '../hooks/useAnalytics';
 import { useEnergy } from '../hooks/useEnergy';
+import { useTasks } from '../hooks/useTasks';
 import { CURRENT_USER } from '../utils/user-constants';
 
 interface TaskDetailModalProps {
@@ -97,6 +98,8 @@ export function TaskDetailModal({ task, open, onOpenChange }: TaskDetailModalPro
   const [milestoneResources, setMilestoneResources] = React.useState<Record<string, any[]>>({});
   const [stepResources, setStepResources] = React.useState<Record<string, any[]>>({});
   const [currentTask, setCurrentTask] = React.useState(task);
+  const [collaborators, setCollaborators] = React.useState(task?.collaborators || []);
+  const [isCompletingTask, setIsCompletingTask] = React.useState(false);
   const [milestones, setMilestones] = React.useState(task?.subtasks || []);
   const [isAddUserToMilestoneOpen, setIsAddUserToMilestoneOpen] = React.useState(false);
   const [selectedMilestoneForUser, setSelectedMilestoneForUser] = React.useState<{ id: string; name: string; assignedTo?: { name: string; image: string; fallback: string }[] } | null>(null);
@@ -112,6 +115,7 @@ export function TaskDetailModal({ task, open, onOpenChange }: TaskDetailModalPro
   // PHASE 1: Initialize hooks
   const { track: trackAnalytics } = useAnalytics();
   const { energy } = useEnergy();
+  const { toggleTaskCompletion, updateTask } = useTasks();
   const permissions = usePermissions();
   
   // Update state when task changes
@@ -120,15 +124,55 @@ export function TaskDetailModal({ task, open, onOpenChange }: TaskDetailModalPro
       setMilestones(task.subtasks || []);
       setTaskResources(task.resources || []);
       setCurrentTask(task);
+      setCollaborators(task.collaborators || []);
       setActiveTab('overview'); // Reset to overview tab when task changes
     }
   }, [task]);
+
+  const persistMilestones = React.useCallback(
+    async (
+      nextMilestones: typeof milestones,
+      rollback?: () => void,
+      options?: { successMessage?: string; errorMessage?: string },
+    ) => {
+      if (!task?.id) return;
+      try {
+        await updateTask(task.id, { subtasks: nextMilestones } as any);
+        setCurrentTask(prev => (prev ? { ...prev, subtasks: nextMilestones } : prev));
+        if (options?.successMessage) toast.success(options.successMessage);
+      } catch {
+        rollback?.();
+        toast.error(options?.errorMessage || 'Could not save milestone changes');
+      }
+    },
+    [task?.id, updateTask],
+  );
+
+  const persistCollaborators = React.useCallback(
+    async (
+      nextCollaborators: typeof collaborators,
+      rollback?: () => void,
+      options?: { successMessage?: string; errorMessage?: string },
+    ) => {
+      if (!task?.id) return;
+      try {
+        await updateTask(task.id, { collaborators: nextCollaborators } as any);
+        setCurrentTask(prev => (prev ? { ...prev, collaborators: nextCollaborators } : prev));
+        if (options?.successMessage) toast.success(options.successMessage);
+      } catch {
+        rollback?.();
+        toast.error(options?.errorMessage || 'Could not save team changes');
+      }
+    },
+    [task?.id, updateTask],
+  );
   
   const currentUser = 'Jordan Smith';
 
   // Handlers for EnhancedMilestoneItem
   const handleToggleMilestone = (taskId: string, milestoneId: string) => {
-    setMilestones(prev => prev.map(milestone => {
+    const previousMilestones = milestones;
+    const nextMilestones = previousMilestones.map(milestone => {
       if (milestone.id === milestoneId) {
         // Check if there are incomplete steps
         const hasIncompleteSteps = milestone.steps && milestone.steps.some(step => !step.completed);
@@ -167,11 +211,22 @@ export function TaskDetailModal({ task, open, onOpenChange }: TaskDetailModalPro
         };
       }
       return milestone;
-    }));
+    });
+    setMilestones(nextMilestones);
+    setCurrentTask(prev => (prev ? { ...prev, subtasks: nextMilestones } : prev));
+    void persistMilestones(
+      nextMilestones,
+      () => {
+        setMilestones(previousMilestones);
+        setCurrentTask(prev => (prev ? { ...prev, subtasks: previousMilestones } : prev));
+      },
+      { errorMessage: 'Could not update milestone status' },
+    );
   };
 
   const handleToggleStep = (taskId: string, milestoneId: string, stepId: string) => {
-    setMilestones(prev => prev.map(milestone => {
+    const previousMilestones = milestones;
+    const nextMilestones = previousMilestones.map(milestone => {
       if (milestone.id === milestoneId && milestone.steps) {
         const step = milestone.steps.find(s => s.id === stepId);
         
@@ -209,11 +264,22 @@ export function TaskDetailModal({ task, open, onOpenChange }: TaskDetailModalPro
         return { ...milestone, steps: updatedSteps };
       }
       return milestone;
-    }));
+    });
+    setMilestones(nextMilestones);
+    setCurrentTask(prev => (prev ? { ...prev, subtasks: nextMilestones } : prev));
+    void persistMilestones(
+      nextMilestones,
+      () => {
+        setMilestones(previousMilestones);
+        setCurrentTask(prev => (prev ? { ...prev, subtasks: previousMilestones } : prev));
+      },
+      { errorMessage: 'Could not update step status' },
+    );
   };
 
   const handleAddStep = (taskId: string, milestoneId: string, stepTitle: string) => {
-    setMilestones(prev => prev.map(milestone => {
+    const previousMilestones = milestones;
+    const nextMilestones = previousMilestones.map(milestone => {
       if (milestone.id === milestoneId) {
         const newStep = {
           id: `step-${Date.now()}-${Math.random()}`,
@@ -228,7 +294,17 @@ export function TaskDetailModal({ task, open, onOpenChange }: TaskDetailModalPro
         };
       }
       return milestone;
-    }));
+    });
+    setMilestones(nextMilestones);
+    setCurrentTask(prev => (prev ? { ...prev, subtasks: nextMilestones } : prev));
+    void persistMilestones(
+      nextMilestones,
+      () => {
+        setMilestones(previousMilestones);
+        setCurrentTask(prev => (prev ? { ...prev, subtasks: previousMilestones } : prev));
+      },
+      { errorMessage: 'Could not add step' },
+    );
   };
   
   // Helper function to format date in user-friendly way
@@ -306,9 +382,10 @@ export function TaskDetailModal({ task, open, onOpenChange }: TaskDetailModalPro
   };
   
   if (!task) return null;
+  const detailTask = currentTask || task;
   
   // PHASE 1: Define permissions based on user role
-  const currentUserRole = (task.currentUserRole || 'viewer') as UserRole;
+  const currentUserRole = (detailTask.currentUserRole || 'creator') as UserRole;
   const canEdit = permissions.canEdit(currentUserRole);
   const canDelete = permissions.canDelete(currentUserRole);
   const canManageMilestones = permissions.canManageMilestones(currentUserRole);
@@ -354,16 +431,31 @@ export function TaskDetailModal({ task, open, onOpenChange }: TaskDetailModalPro
                   TASK
                 </Badge>
                 <h2 className="text-2xl text-white">{task.title}</h2>
-                {task.team && <TeamBadge team={task.team} />}
+                {detailTask.team && <TeamBadge team={detailTask.team} />}
                 {isCreatorOrAdmin && (
                   <div className="flex items-center gap-1 px-2 py-1 bg-yellow-500/10 border border-yellow-500/30 rounded">
                     <Crown className="w-4 h-4 text-yellow-400" />
                     <span className="text-xs text-yellow-400">{currentUserRole === 'creator' ? 'Creator' : 'Admin'}</span>
                   </div>
                 )}
+                {canEdit && (
+                  <Badge variant="outline" className="text-[10px] border-blue-500/40 text-blue-300 bg-blue-500/10">
+                    Can Edit
+                  </Badge>
+                )}
+                {canManageMilestones && (
+                  <Badge variant="outline" className="text-[10px] border-teal-500/40 text-teal-300 bg-teal-500/10">
+                    Milestone Manager
+                  </Badge>
+                )}
+                {permissions.canManageCollaborators(currentUserRole) && (
+                  <Badge variant="outline" className="text-[10px] border-purple-500/40 text-purple-300 bg-purple-500/10">
+                    Team Manager
+                  </Badge>
+                )}
               </div>
-              {task.description && (
-                <p className="text-gray-400 text-sm">{task.description}</p>
+              {detailTask.description && (
+                <p className="text-gray-400 text-sm">{detailTask.description}</p>
               )}
             </div>
             {canEdit && (
@@ -397,7 +489,7 @@ export function TaskDetailModal({ task, open, onOpenChange }: TaskDetailModalPro
             </TabsTrigger>
             <TabsTrigger value="team" className="data-[state=active]:bg-purple-600/20 data-[state=active]:text-purple-400">
               <Users className="w-4 h-4 mr-2" />
-              Team ({task.collaborators?.length || 0})
+              Team ({collaborators.length})
             </TabsTrigger>
             <TabsTrigger value="activity" className="data-[state=active]:bg-orange-600/20 data-[state=active]:text-orange-400">
               <Activity className="w-4 h-4 mr-2" />
@@ -413,16 +505,16 @@ export function TaskDetailModal({ task, open, onOpenChange }: TaskDetailModalPro
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="bg-[#2a2d35] border border-gray-800 rounded-lg p-4">
                   <div className="text-xs text-gray-400 mb-2">Priority</div>
-                  <Badge variant="outline" className={getPriorityColor(task.priority)}>
-                    {task.priority.charAt(0).toUpperCase() + task.priority.slice(1)}
+                  <Badge variant="outline" className={getPriorityColor(detailTask.priority)}>
+                    {detailTask.priority.charAt(0).toUpperCase() + detailTask.priority.slice(1)}
                   </Badge>
                 </div>
                 <div className="bg-[#2a2d35] border border-gray-800 rounded-lg p-4">
                   <div className="text-xs text-gray-400 mb-2">Energy Level</div>
                   <div className="flex items-center gap-2">
-                    <Zap className={`w-4 h-4 ${getEnergyColor(task.energyLevel)}`} />
-                    <span className={getEnergyColor(task.energyLevel)}>
-                      {task.energyLevel.charAt(0).toUpperCase() + task.energyLevel.slice(1)}
+                    <Zap className={`w-4 h-4 ${getEnergyColor(detailTask.energyLevel)}`} />
+                    <span className={getEnergyColor(detailTask.energyLevel)}>
+                      {detailTask.energyLevel.charAt(0).toUpperCase() + detailTask.energyLevel.slice(1)}
                     </span>
                   </div>
                 </div>
@@ -430,14 +522,14 @@ export function TaskDetailModal({ task, open, onOpenChange }: TaskDetailModalPro
                   <div className="text-xs text-gray-400 mb-2">Estimated Time</div>
                   <div className="flex items-center gap-2">
                     <Clock className="w-4 h-4 text-gray-400" />
-                    <span className="text-white">{task.estimatedTime}</span>
+                    <span className="text-white">{detailTask.estimatedTime}</span>
                   </div>
                 </div>
                 <div className="bg-[#2a2d35] border border-gray-800 rounded-lg p-4">
                   <div className="text-xs text-gray-400 mb-2">Due Date</div>
                   <div className="flex items-center gap-2">
                     <Calendar className="w-4 h-4 text-gray-400" />
-                    <span className="text-white text-sm">{formatDueDate(task.dueDate)}</span>
+                    <span className="text-white text-sm">{formatDueDate(detailTask.dueDate)}</span>
                   </div>
                 </div>
               </div>
@@ -471,14 +563,14 @@ export function TaskDetailModal({ task, open, onOpenChange }: TaskDetailModalPro
               )}
 
               {/* Tags */}
-              {task.tags && task.tags.length > 0 && (
+              {detailTask.tags && detailTask.tags.length > 0 && (
                 <div>
                   <div className="text-sm text-gray-400 mb-2 flex items-center gap-2">
                     <Tag className="w-4 h-4" />
                     Tags
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    {task.tags.map((tag) => (
+                    {detailTask.tags.map((tag) => (
                       <Badge key={tag} variant="secondary" className="text-xs">
                         {tag}
                       </Badge>
@@ -488,16 +580,16 @@ export function TaskDetailModal({ task, open, onOpenChange }: TaskDetailModalPro
               )}
 
               {/* AI Suggestion */}
-              {task.aiSuggestion && (
+              {detailTask.aiSuggestion && (
                 <div className="bg-gradient-to-r from-purple-900/20 to-blue-900/20 border border-purple-500/30 rounded-lg p-4">
                   <div className="text-sm text-purple-400 mb-1 flex items-center gap-2">
                     <Zap className="w-4 h-4" />
                     AI Suggestion
                   </div>
                   <p className="text-sm text-gray-300">
-                    {typeof task.aiSuggestion === 'string' 
-                      ? task.aiSuggestion 
-                      : `${task.aiSuggestion.day} at ${task.aiSuggestion.time} - ${task.aiSuggestion.reason}`
+                    {typeof detailTask.aiSuggestion === 'string' 
+                      ? detailTask.aiSuggestion 
+                      : `${detailTask.aiSuggestion.day} at ${detailTask.aiSuggestion.time} - ${detailTask.aiSuggestion.reason}`
                     }
                   </p>
                 </div>
@@ -769,7 +861,28 @@ export function TaskDetailModal({ task, open, onOpenChange }: TaskDetailModalPro
                                           onClick={(e) => {
                                             e.stopPropagation();
                                             if (confirm(`Delete milestone "${milestone.title}"?`)) {
-                                              setMilestones(milestones.filter(m => m.id !== milestone.id));
+                                              const previousMilestones = milestones;
+                                              const nextMilestones = milestones.filter(m => m.id !== milestone.id);
+                                              setMilestones(nextMilestones);
+                                              setCurrentTask(prev => (prev ? { ...prev, subtasks: nextMilestones } : prev));
+                                              void persistMilestones(
+                                                nextMilestones,
+                                                () => {
+                                                  setMilestones(previousMilestones);
+                                                  setCurrentTask(prev => (prev ? { ...prev, subtasks: previousMilestones } : prev));
+                                                },
+                                                { errorMessage: 'Could not delete milestone' },
+                                              );
+                                              toast.success('Milestone deleted', {
+                                                action: {
+                                                  label: 'Undo',
+                                                  onClick: () => {
+                                                    setMilestones(previousMilestones);
+                                                    setCurrentTask(prev => (prev ? { ...prev, subtasks: previousMilestones } : prev));
+                                                    void persistMilestones(previousMilestones);
+                                                  },
+                                                },
+                                              });
                                             }
                                           }}
                                           className="p-1.5 hover:bg-red-500/10 rounded transition-all opacity-0 group-hover/milestone:opacity-100"
@@ -950,7 +1063,8 @@ export function TaskDetailModal({ task, open, onOpenChange }: TaskDetailModalPro
                                                 onClick={(e) => {
                                                   e.stopPropagation();
                                                   if (confirm(`Delete step "${step.title}"?`)) {
-                                                    setMilestones(milestones.map(m => {
+                                                    const previousMilestones = milestones;
+                                                    const nextMilestones = milestones.map(m => {
                                                       if (m.id === milestone.id) {
                                                         return {
                                                           ...m,
@@ -958,7 +1072,27 @@ export function TaskDetailModal({ task, open, onOpenChange }: TaskDetailModalPro
                                                         };
                                                       }
                                                       return m;
-                                                    }));
+                                                    });
+                                                    setMilestones(nextMilestones);
+                                                    setCurrentTask(prev => (prev ? { ...prev, subtasks: nextMilestones } : prev));
+                                                    void persistMilestones(
+                                                      nextMilestones,
+                                                      () => {
+                                                        setMilestones(previousMilestones);
+                                                        setCurrentTask(prev => (prev ? { ...prev, subtasks: previousMilestones } : prev));
+                                                      },
+                                                      { errorMessage: 'Could not delete step' },
+                                                    );
+                                                    toast.success('Step deleted', {
+                                                      action: {
+                                                        label: 'Undo',
+                                                        onClick: () => {
+                                                          setMilestones(previousMilestones);
+                                                          setCurrentTask(prev => (prev ? { ...prev, subtasks: previousMilestones } : prev));
+                                                          void persistMilestones(previousMilestones);
+                                                        },
+                                                      },
+                                                    });
                                                   }
                                                 }}
                                                 className="opacity-0 group-hover/step:opacity-100 transition-opacity p-0.5 hover:bg-red-500/10 rounded"
@@ -1194,14 +1328,68 @@ export function TaskDetailModal({ task, open, onOpenChange }: TaskDetailModalPro
 
             {/* Team Tab */}
             <TabsContent value="team" className="mt-0 space-y-6">
-              {task.collaborators && task.collaborators.length > 0 && (
-                <div>
-                  <div className="text-sm text-gray-400 mb-3 flex items-center gap-2">
+              <div>
+                <div className="text-sm text-gray-400 mb-3 flex items-center justify-between">
+                  <span className="flex items-center gap-2">
                     <User className="w-4 h-4" />
-                    Collaborators ({task.collaborators.length})
-                  </div>
+                    Collaborators ({collaborators.length})
+                  </span>
+                  {canEdit && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-7 gap-1.5 text-xs hover:bg-gray-800"
+                      onClick={() => {
+                        const name = window.prompt('Team member name');
+                        if (!name || !name.trim()) return;
+                        const trimmed = name.trim();
+                        const fallback = trimmed.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+                        const exists = collaborators.some(c => c.name.toLowerCase() === trimmed.toLowerCase());
+                        if (exists) {
+                          toast.error('That team member is already on this task');
+                          return;
+                        }
+                        const newMember = {
+                          name: trimmed,
+                          image: `https://ui-avatars.com/api/?name=${encodeURIComponent(trimmed)}&background=0D8ABC&color=fff`,
+                          fallback,
+                          progress: 0,
+                          animationType: 'pulse' as const,
+                          status: 'online' as const,
+                          role: 'collaborator' as const,
+                        };
+                        const previousCollaborators = collaborators;
+                        const nextCollaborators = [...collaborators, newMember];
+                        setCollaborators(nextCollaborators);
+                        setCurrentTask(prev => prev ? { ...prev, collaborators: nextCollaborators } : prev);
+                        void persistCollaborators(
+                          nextCollaborators,
+                          () => {
+                            setCollaborators(previousCollaborators);
+                            setCurrentTask(prev => (prev ? { ...prev, collaborators: previousCollaborators } : prev));
+                          },
+                          { errorMessage: 'Could not add team member' },
+                        );
+                        toast.success('Team member added', {
+                          action: {
+                            label: 'Undo',
+                            onClick: () => {
+                              setCollaborators(previousCollaborators);
+                              setCurrentTask(prev => (prev ? { ...prev, collaborators: previousCollaborators } : prev));
+                              void persistCollaborators(previousCollaborators);
+                            },
+                          },
+                        });
+                      }}
+                    >
+                      <Plus className="w-3 h-3" />
+                      Add Team Member
+                    </Button>
+                  )}
+                </div>
+                {collaborators.length > 0 ? (
                   <div className="space-y-3">
-                    {task.collaborators.map((collab, idx) => {
+                    {collaborators.map((collab, idx) => {
                       const isExpanded = expandedCollaborator === collab.name;
                       
                       // Calculate completed milestones and steps for this collaborator
@@ -1334,8 +1522,13 @@ export function TaskDetailModal({ task, open, onOpenChange }: TaskDetailModalPro
                       );
                     })}
                   </div>
-                </div>
-              )}
+                ) : (
+                  <div className="bg-[#2a2d35] border border-gray-800 rounded-lg p-6 text-center">
+                    <Users className="w-8 h-8 text-gray-600 mx-auto mb-2" />
+                    <p className="text-sm text-gray-500">No team members yet</p>
+                  </div>
+                )}
+              </div>
             </TabsContent>
               
             {/* Activity Tab */}
@@ -1373,18 +1566,46 @@ export function TaskDetailModal({ task, open, onOpenChange }: TaskDetailModalPro
         <div className="p-6 pt-4 border-t border-gray-800 shrink-0 bg-[#1a1d24]">
           <div className="flex gap-3">
             <Button
+              className="flex-1 bg-gradient-to-r from-teal-600 to-blue-600"
+              disabled={isCompletingTask}
+              onClick={async () => {
+                if (!detailTask?.id) return;
+                const previousCompleted = detailTask.completed;
+                setCurrentTask(prev => (prev ? { ...prev, completed: !previousCompleted } : prev));
+                setIsCompletingTask(true);
+                try {
+                  const updated = await toggleTaskCompletion(detailTask.id);
+                  setCurrentTask(prev => prev ? { ...prev, completed: updated.completed } : prev);
+                  toast.success(updated.completed ? 'Task marked complete' : 'Task marked incomplete', {
+                    action: {
+                      label: 'Undo',
+                      onClick: async () => {
+                        try {
+                          const reverted = await toggleTaskCompletion(detailTask.id);
+                          setCurrentTask(prev => (prev ? { ...prev, completed: reverted.completed } : prev));
+                        } catch {
+                          toast.error('Could not undo completion');
+                        }
+                      },
+                    },
+                  });
+                } catch {
+                  setCurrentTask(prev => (prev ? { ...prev, completed: previousCompleted } : prev));
+                  toast.error('Could not update task status');
+                } finally {
+                  setIsCompletingTask(false);
+                }
+              }}
+            >
+              <CheckCircle2 className="w-4 h-4 mr-2" />
+              {detailTask.completed ? 'Mark Incomplete' : 'Mark Complete'}
+            </Button>
+            <Button
               variant="outline"
               className="flex-1"
               onClick={() => onOpenChange(false)}
             >
               Close
-            </Button>
-            <Button
-              className="flex-1 bg-gradient-to-r from-teal-600 to-blue-600"
-              onClick={() => onOpenChange(false)}
-            >
-              <CheckCircle2 className="w-4 h-4 mr-2" />
-              {task.completed ? 'Mark Incomplete' : 'Mark Complete'}
             </Button>
           </div>
         </div>
@@ -1417,10 +1638,23 @@ export function TaskDetailModal({ task, open, onOpenChange }: TaskDetailModalPro
       <EditTaskDialog
         open={isEditTaskOpen}
         onOpenChange={setIsEditTaskOpen}
-        task={task}
-        onSave={(updatedTask) => {
-          console.log('Task updated:', updatedTask);
+        task={detailTask}
+        onSave={async (updatedTask) => {
           setCurrentTask(updatedTask);
+          try {
+            await updateTask(updatedTask.id, {
+              title: updatedTask.title,
+              description: updatedTask.description,
+              priority: updatedTask.priority as any,
+              energyLevel: updatedTask.energyLevel as any,
+              estimatedTime: updatedTask.estimatedTime,
+              dueDate: updatedTask.dueDate as any,
+              tags: updatedTask.tags,
+            } as any);
+            toast.success('Task updated');
+          } catch {
+            toast.error('Could not persist task changes');
+          }
         }}
       />
 
@@ -1428,20 +1662,32 @@ export function TaskDetailModal({ task, open, onOpenChange }: TaskDetailModalPro
         open={isAddMilestoneOpen}
         onOpenChange={setIsAddMilestoneOpen}
         onAdd={(newMilestone) => {
-          setMilestones([...milestones, newMilestone]);
+          const previousMilestones = milestones;
+          const nextMilestones = [...milestones, newMilestone];
+          setMilestones(nextMilestones);
+          setCurrentTask(prev => (prev ? { ...prev, subtasks: nextMilestones } : prev));
+          void persistMilestones(
+            nextMilestones,
+            () => {
+              setMilestones(previousMilestones);
+              setCurrentTask(prev => (prev ? { ...prev, subtasks: previousMilestones } : prev));
+            },
+            { errorMessage: 'Could not add milestone' },
+          );
         }}
-        availableUsers={task?.collaborators?.map(c => ({ 
+        availableUsers={collaborators.map(c => ({ 
           name: c.name, 
           image: c.image, 
           fallback: c.fallback 
-        })) || []}
+        }))}
       />
 
       <AddStepDialog
         open={isAddStepOpen}
         onOpenChange={setIsAddStepOpen}
         onAdd={(newStep) => {
-          setMilestones(milestones.map(milestone => {
+          const previousMilestones = milestones;
+          const nextMilestones = milestones.map(milestone => {
             if (milestone.id === selectedMilestoneForStep?.id) {
               return {
                 ...milestone,
@@ -1449,7 +1695,17 @@ export function TaskDetailModal({ task, open, onOpenChange }: TaskDetailModalPro
               };
             }
             return milestone;
-          }));
+          });
+          setMilestones(nextMilestones);
+          setCurrentTask(prev => (prev ? { ...prev, subtasks: nextMilestones } : prev));
+          void persistMilestones(
+            nextMilestones,
+            () => {
+              setMilestones(previousMilestones);
+              setCurrentTask(prev => (prev ? { ...prev, subtasks: previousMilestones } : prev));
+            },
+            { errorMessage: 'Could not add step' },
+          );
         }}
         availableUsers={selectedMilestoneForStep?.assignedTo || []}
         milestoneName={selectedMilestoneForStep?.name || ''}
@@ -1459,7 +1715,8 @@ export function TaskDetailModal({ task, open, onOpenChange }: TaskDetailModalPro
         open={isAddUserToMilestoneOpen}
         onOpenChange={setIsAddUserToMilestoneOpen}
         onAdd={(user) => {
-          setMilestones(milestones.map(milestone => {
+          const previousMilestones = milestones;
+          const nextMilestones = milestones.map(milestone => {
             if (milestone.id === selectedMilestoneForUser?.id) {
               return {
                 ...milestone,
@@ -1467,10 +1724,20 @@ export function TaskDetailModal({ task, open, onOpenChange }: TaskDetailModalPro
               };
             }
             return milestone;
-          }));
+          });
+          setMilestones(nextMilestones);
+          setCurrentTask(prev => (prev ? { ...prev, subtasks: nextMilestones } : prev));
+          void persistMilestones(
+            nextMilestones,
+            () => {
+              setMilestones(previousMilestones);
+              setCurrentTask(prev => (prev ? { ...prev, subtasks: previousMilestones } : prev));
+            },
+            { errorMessage: 'Could not assign user to milestone' },
+          );
         }}
         availableUsers={
-          (task?.collaborators || [])
+          collaborators
             .map(c => ({ name: c.name, image: c.image, fallback: c.fallback }))
             .filter(user => !selectedMilestoneForUser?.assignedTo?.some(assignedUser => assignedUser.name === user.name))
         }
@@ -1481,7 +1748,8 @@ export function TaskDetailModal({ task, open, onOpenChange }: TaskDetailModalPro
         open={isAddUserToStepOpen}
         onOpenChange={setIsAddUserToStepOpen}
         onAdd={(user) => {
-          setMilestones(milestones.map(milestone => {
+          const previousMilestones = milestones;
+          const nextMilestones = milestones.map(milestone => {
             if (milestone.id === selectedStepForUser?.milestoneId) {
               return {
                 ...milestone,
@@ -1497,10 +1765,20 @@ export function TaskDetailModal({ task, open, onOpenChange }: TaskDetailModalPro
               };
             }
             return milestone;
-          }));
+          });
+          setMilestones(nextMilestones);
+          setCurrentTask(prev => (prev ? { ...prev, subtasks: nextMilestones } : prev));
+          void persistMilestones(
+            nextMilestones,
+            () => {
+              setMilestones(previousMilestones);
+              setCurrentTask(prev => (prev ? { ...prev, subtasks: previousMilestones } : prev));
+            },
+            { errorMessage: 'Could not assign user to step' },
+          );
         }}
         availableUsers={
-          (task?.collaborators || [])
+          collaborators
             .map(c => ({ name: c.name, image: c.image, fallback: c.fallback }))
             .filter(user => user.name !== selectedStepForUser?.assignedTo?.name)
         }
@@ -1513,7 +1791,18 @@ export function TaskDetailModal({ task, open, onOpenChange }: TaskDetailModalPro
         taskName={task?.title || ''}
         existingMilestones={milestones}
         onAdd={(selectedMilestones) => {
-          setMilestones([...milestones, ...selectedMilestones]);
+          const previousMilestones = milestones;
+          const nextMilestones = [...milestones, ...selectedMilestones];
+          setMilestones(nextMilestones);
+          setCurrentTask(prev => (prev ? { ...prev, subtasks: nextMilestones } : prev));
+          void persistMilestones(
+            nextMilestones,
+            () => {
+              setMilestones(previousMilestones);
+              setCurrentTask(prev => (prev ? { ...prev, subtasks: previousMilestones } : prev));
+            },
+            { errorMessage: 'Could not add suggested milestones' },
+          );
         }}
       />
 
@@ -1523,7 +1812,8 @@ export function TaskDetailModal({ task, open, onOpenChange }: TaskDetailModalPro
         milestoneName={selectedMilestoneForSuggestSteps?.name || ''}
         existingSteps={milestones.find(m => m.id === selectedMilestoneForSuggestSteps?.id)?.steps || []}
         onAdd={(selectedSteps) => {
-          setMilestones(milestones.map(milestone => {
+          const previousMilestones = milestones;
+          const nextMilestones = milestones.map(milestone => {
             if (milestone.id === selectedMilestoneForSuggestSteps?.id) {
               return {
                 ...milestone,
@@ -1531,7 +1821,17 @@ export function TaskDetailModal({ task, open, onOpenChange }: TaskDetailModalPro
               };
             }
             return milestone;
-          }));
+          });
+          setMilestones(nextMilestones);
+          setCurrentTask(prev => (prev ? { ...prev, subtasks: nextMilestones } : prev));
+          void persistMilestones(
+            nextMilestones,
+            () => {
+              setMilestones(previousMilestones);
+              setCurrentTask(prev => (prev ? { ...prev, subtasks: previousMilestones } : prev));
+            },
+            { errorMessage: 'Could not add suggested steps' },
+          );
         }}
       />
     </Dialog>

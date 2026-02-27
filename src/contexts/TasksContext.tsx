@@ -118,7 +118,13 @@ export function TasksProvider({ children }: TasksProviderProps) {
     try {
       const updatedTask = await taskRepository.updateTask(id, updates);
       setTasks(prev => prev.map(t => t.id === id ? updatedTask : t));
-      toast.success('Task updated');
+      const updateKeys = Object.keys((updates || {}) as Record<string, unknown>);
+      const isMicroModalUpdate =
+        updateKeys.length > 0 &&
+        updateKeys.every((key) => key === 'subtasks' || key === 'collaborators');
+      if (!isMicroModalUpdate) {
+        toast.success('Task updated');
+      }
       return updatedTask;
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to update task';
@@ -199,6 +205,17 @@ export function TasksProvider({ children }: TasksProviderProps) {
         
         // Pass resonance if task has it
         awardTaskEnergy(currentTask.id, currentTask.title, energyPriority, currentTask.resonance);
+        window.dispatchEvent(
+          new CustomEvent('syncscript:task-completed', {
+            detail: {
+              taskId: currentTask.id,
+              taskTitle: currentTask.title,
+              priority: currentTask.priority,
+              resonance: currentTask.resonance,
+              completedAt: updatedTask.completedAt ?? new Date().toISOString(),
+            },
+          }),
+        );
         
         // ═══════════════════════════════════════════════════════════════════
         // ENHANCED FEEDBACK: Show both Energy Points AND Readiness boost
@@ -426,13 +443,6 @@ export function TasksProvider({ children }: TasksProviderProps) {
     getPrioritizedTasks,
     getTasksByTag,
   };
-  
-  // Debug logging
-  console.log('✅ TasksProvider: Context value created', {
-    hasToggleTaskCompletion: !!value.toggleTaskCompletion,
-    toggleTaskCompletionType: typeof value.toggleTaskCompletion,
-    isFunction: typeof value.toggleTaskCompletion === 'function'
-  });
   
   return (
     <TasksContext.Provider value={value}>
