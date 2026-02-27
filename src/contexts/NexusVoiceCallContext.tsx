@@ -1,6 +1,5 @@
 import {
   createContext,
-  useContext,
   useState,
   useRef,
   useCallback,
@@ -32,7 +31,10 @@ interface NexusVoiceCallState {
   interimText: string;
   isSpeaking: boolean;
   isListening: boolean;
+  micLevel: number;
   isProcessing: boolean;
+  isVoiceLoading: boolean;
+  voiceError: string | null;
 }
 
 interface NexusVoiceCallContextValue extends NexusVoiceCallState {
@@ -41,13 +43,7 @@ interface NexusVoiceCallContextValue extends NexusVoiceCallState {
   sendTextMessage: (text: string) => void;
 }
 
-const NexusVoiceCallContext = createContext<NexusVoiceCallContextValue | null>(null);
-
-export function useNexusVoiceCall() {
-  const ctx = useContext(NexusVoiceCallContext);
-  if (!ctx) throw new Error('useNexusVoiceCall must be used within NexusVoiceCallProvider');
-  return ctx;
-}
+export const NexusVoiceCallContext = createContext<NexusVoiceCallContextValue | null>(null);
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Constants
@@ -320,6 +316,7 @@ class ProgressivePlayer {
 async function playCachedBuffers(
   buffers: ArrayBuffer[],
   signal: AbortSignal,
+  onFirstPlay?: () => void,
 ): Promise<boolean> {
   if (!buffers.length) return true;
 
@@ -327,6 +324,7 @@ async function playCachedBuffers(
   const sources: AudioBufferSourceNode[] = [];
   let when = ctx.currentTime + 0.02;
 
+  let firstPlayFired = false;
   for (let i = 0; i < buffers.length; i++) {
     if (signal.aborted) { ctx.close().catch(() => {}); return false; }
     try {
@@ -334,6 +332,10 @@ async function playCachedBuffers(
       const src = ctx.createBufferSource();
       src.buffer = audio;
       src.connect(ctx.destination);
+      if (!firstPlayFired) {
+        firstPlayFired = true;
+        try { onFirstPlay?.(); } catch { /* silent */ }
+      }
       src.start(when);
       sources.push(src);
       const isLast = i === buffers.length - 1;
@@ -462,6 +464,8 @@ export function NexusVoiceCallProvider({ children }: { children: ReactNode }) {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isSpeakingLocal, setIsSpeakingLocal] = useState(false);
+  const [isVoiceLoading, setIsVoiceLoading] = useState(false);
+  const [voiceError, setVoiceError] = useState<string | null>(null);
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const processingRef = useRef(false);
@@ -480,11 +484,8 @@ export function NexusVoiceCallProvider({ children }: { children: ReactNode }) {
 
   // Preload greeting + goodbye TTS on mount (invisible network request)
   useEffect(() => {
-    const t = setTimeout(() => {
-      greetingCacheRef.current = preloadPhrase(GREETING);
-      goodbyeCacheRef.current = preloadPhrase(GOODBYE);
-    }, 2000);
-    return () => clearTimeout(t);
+    greetingCacheRef.current = preloadPhrase(GREETING);
+    goodbyeCacheRef.current = preloadPhrase(GOODBYE);
   }, []);
 
   // ── Transcript handler ─────────────────────────────────────────────────
@@ -496,6 +497,7 @@ export function NexusVoiceCallProvider({ children }: { children: ReactNode }) {
 
     const text = result.text.trim();
     if (!text) return;
+    setVoiceError(null);
 
     const last = lastProcessedRef.current;
     if (text === last.text && Date.now() - last.time < 8000) return;
@@ -507,6 +509,19 @@ export function NexusVoiceCallProvider({ children }: { children: ReactNode }) {
     continuous: true,
     interimResults: true,
     onTranscript: handleTranscript,
+    onStatusChange: (status) => {
+      if (status === 'listening') {
+        setIsVoiceLoading(false);
+        setVoiceError(null);
+      }
+    },
+    onError: (error) => {
+      if (!activeRef.current) return;
+      const normalized = error?.includes('no speech')
+        ? 'Mic is active but no speech is being detected. Check your selected microphone and browser mic permissions.'
+        : error;
+      setVoiceError(normalized || 'Microphone issue detected. Please check your audio input and try again.');
+    },
   });
 
   // ── Message helpers ────────────────────────────────────────────────────
@@ -533,7 +548,11 @@ export function NexusVoiceCallProvider({ children }: { children: ReactNode }) {
   // ── Speak a cached or live phrase ────────────────────────────────────────
 
   const speakPhrase = useCallback(
-    async (text: string, cache?: AudioCacheEntry | null): Promise<void> => {
+    async (
+      text: string,
+      cache?: AudioCacheEntry | null,
+      opts?: { onFirstAudioStart?: () => void },
+    ): Promise<void> => {
       speakingRef.current = true;
       setIsSpeakingLocal(true);
       voiceStream.stopListening();
@@ -543,9 +562,12 @@ export function NexusVoiceCallProvider({ children }: { children: ReactNode }) {
 
       try {
         if (cache?.ready && cache.buffers.length > 0) {
-          await playCachedBuffers(cache.buffers, ac.signal);
+          await playCachedBuffers(cache.buffers, ac.signal, opts?.onFirstAudioStart);
         } else {
           const player = new ProgressivePlayer(ac.signal);
+          player.onFirstPlay = () => {
+            try { opts?.onFirstAudioStart?.(); } catch { /* silent */ }
+          };
           for (const s of splitToSentences(text)) {
             const seg = toProsodySegment(s);
             player.feed(fetchTTSBuffer(seg, ac.signal));
@@ -622,7 +644,9 @@ export function NexusVoiceCallProvider({ children }: { children: ReactNode }) {
       let fullText = '';
       let textBuffer = '';
       let nexusMsgAdded = false;
+      let canRevealText = false;
       let processingCleared = false;
+      let ttsFetchChain: Promise<unknown> = Promise.resolve();
 
       const showNexusText = (text: string) => {
         const display = cleanForDisplay(text);
@@ -641,9 +665,19 @@ export function NexusVoiceCallProvider({ children }: { children: ReactNode }) {
         }
       };
 
+      const ensureNexusBubble = () => {
+        if (!nexusMsgAdded) {
+          addMessage('nexus', '');
+          nexusMsgAdded = true;
+        }
+      };
+
       const feedSentence = (sentence: string) => {
         const seg = toProsodySegment(sentence);
-        player.feed(fetchTTSBuffer(seg, ac.signal));
+        // Queue TTS fetches to avoid burst-parallel requests that can trigger 504s upstream.
+        const queued = ttsFetchChain.then(() => fetchTTSBuffer(seg, ac.signal));
+        ttsFetchChain = queued.then(() => undefined, () => undefined);
+        player.feed(queued);
       };
 
       try {
@@ -657,6 +691,7 @@ export function NexusVoiceCallProvider({ children }: { children: ReactNode }) {
         if (!res.ok) {
           const data = await res.json().catch(() => ({}));
           fullText = data.content || "I'm sorry, could you ask again?";
+          ensureNexusBubble();
           showNexusText(fullText);
           clearProcessingOnce();
           for (const s of splitToSentences(fullText)) feedSentence(s);
@@ -667,6 +702,7 @@ export function NexusVoiceCallProvider({ children }: { children: ReactNode }) {
 
         if (!res.body) {
           fullText = "I'm sorry, could you ask again?";
+          ensureNexusBubble();
           showNexusText(fullText);
           clearProcessingOnce();
           feedSentence(fullText);
@@ -683,6 +719,7 @@ export function NexusVoiceCallProvider({ children }: { children: ReactNode }) {
 
         if (firstRead.done) {
           fullText = "I'm sorry, could you ask again?";
+          ensureNexusBubble();
           showNexusText(fullText);
           clearProcessingOnce();
           feedSentence(fullText);
@@ -715,12 +752,14 @@ export function NexusVoiceCallProvider({ children }: { children: ReactNode }) {
           if (!fullText) fullText = "I'm sorry, could you ask again?";
 
           const display = cleanForDisplay(fullText);
+          ensureNexusBubble();
 
-          // Show text immediately — user gets visual feedback now
-          addMessage('nexus', '');
-          nexusMsgAdded = true;
-          clearProcessingOnce();
-          startTypewriter(display, 3);
+          // Keep the bubble visible, but only reveal text once audio starts.
+          player.onFirstPlay = () => {
+            canRevealText = true;
+            clearProcessingOnce();
+            startTypewriter(display, 3);
+          };
 
           // Fire TTS in parallel — audio starts while text is still typing
           const sentences = splitToSentences(fullText);
@@ -728,12 +767,23 @@ export function NexusVoiceCallProvider({ children }: { children: ReactNode }) {
           player.seal();
 
           await player.waitUntilDone();
+          if (!canRevealText) {
+            showNexusText(display);
+            clearProcessingOnce();
+          }
           stopTypewriter(display);
           return fullText;
         }
 
         // ─── Path B: SSE streaming ──────────────────────────────────────
         // First chunk already in hand — process it, then continue reading.
+        ensureNexusBubble();
+        player.onFirstPlay = () => {
+          canRevealText = true;
+          clearProcessingOnce();
+          if (fullText.trim()) showNexusText(fullText);
+        };
+
         const processSSEChunk = (chunk: string) => {
           const lines = chunk.split('\n');
           for (const line of lines) {
@@ -748,8 +798,7 @@ export function NexusVoiceCallProvider({ children }: { children: ReactNode }) {
               if (parsed.content && !parsed.token) {
                 fullText = parsed.content;
                 textBuffer = '';
-                showNexusText(fullText);
-                clearProcessingOnce();
+                if (canRevealText) showNexusText(fullText);
                 for (const s of splitToSentences(fullText)) feedSentence(s);
                 return true;
               }
@@ -759,8 +808,7 @@ export function NexusVoiceCallProvider({ children }: { children: ReactNode }) {
 
               fullText += token;
               textBuffer += token;
-              showNexusText(fullText);
-              clearProcessingOnce();
+              if (canRevealText) showNexusText(fullText);
 
               const { sentences, remainder } = extractCompleteSentences(textBuffer);
               for (const sent of sentences) feedSentence(sent);
@@ -783,11 +831,11 @@ export function NexusVoiceCallProvider({ children }: { children: ReactNode }) {
         }
 
         if (textBuffer.trim()) feedSentence(textBuffer.trim());
-        if (fullText) showNexusText(fullText);
-
-        clearProcessingOnce();
+        if (fullText && canRevealText) showNexusText(fullText);
         player.seal();
         await player.waitUntilDone();
+        if (fullText && !canRevealText) showNexusText(fullText);
+        clearProcessingOnce();
       } catch (err: any) {
         if (err?.name === 'AbortError') { /* normal cancellation */ }
         else if (!fullText) {
@@ -809,6 +857,39 @@ export function NexusVoiceCallProvider({ children }: { children: ReactNode }) {
     },
     [voiceStream, addMessage, updateLastNexusMessage, startTypewriter, stopTypewriter],
   );
+
+  // ── End call ───────────────────────────────────────────────────────────
+
+  const endCallInternal = useCallback(async () => {
+    if (!activeRef.current) return;
+    activeRef.current = false;
+    setCallStatus('ending');
+    setIsProcessing(false);
+    setIsVoiceLoading(false);
+    setVoiceError(null);
+    processingRef.current = false;
+
+    voiceStream.stopListening();
+    voiceStream.stopSpeaking();
+    abortRef.current?.abort();
+
+    if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
+
+    addMessage('nexus', GOODBYE);
+    await speakPhrase(GOODBYE, goodbyeCacheRef.current);
+
+    playChime('disconnect');
+    await new Promise((r) => setTimeout(r, GOODBYE_LINGER_MS));
+
+    setCallStatus('idle');
+    setMessages([]);
+    setCallDuration(0);
+    setSessionId(null);
+
+    // Re-preload for next call
+    greetingCacheRef.current = preloadPhrase(GREETING);
+    goodbyeCacheRef.current = preloadPhrase(GOODBYE);
+  }, [voiceStream, addMessage, speakPhrase]);
 
   // ── Process user message ───────────────────────────────────────────────
 
@@ -858,37 +939,6 @@ export function NexusVoiceCallProvider({ children }: { children: ReactNode }) {
     processUserMessageRef.current = processUserMessage;
   }, [processUserMessage]);
 
-  // ── End call ───────────────────────────────────────────────────────────
-
-  const endCallInternal = useCallback(async () => {
-    if (!activeRef.current) return;
-    activeRef.current = false;
-    setCallStatus('ending');
-    setIsProcessing(false);
-    processingRef.current = false;
-
-    voiceStream.stopListening();
-    voiceStream.stopSpeaking();
-    abortRef.current?.abort();
-
-    if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
-
-    addMessage('nexus', GOODBYE);
-    await speakPhrase(GOODBYE, goodbyeCacheRef.current);
-
-    playChime('disconnect');
-    await new Promise((r) => setTimeout(r, GOODBYE_LINGER_MS));
-
-    setCallStatus('idle');
-    setMessages([]);
-    setCallDuration(0);
-    setSessionId(null);
-
-    // Re-preload for next call
-    greetingCacheRef.current = preloadPhrase(GREETING);
-    goodbyeCacheRef.current = preloadPhrase(GOODBYE);
-  }, [voiceStream, addMessage, speakPhrase]);
-
   // ── Start call ─────────────────────────────────────────────────────────
 
   const startCall = useCallback(async () => {
@@ -897,6 +947,8 @@ export function NexusVoiceCallProvider({ children }: { children: ReactNode }) {
     if (!mic.ok) { alert(mic.reason); return; }
 
     setCallStatus('connecting');
+    setIsVoiceLoading(true);
+    setVoiceError(null);
     const sid = generateSessionId();
     setSessionId(sid);
     setMessages([]);
@@ -907,7 +959,8 @@ export function NexusVoiceCallProvider({ children }: { children: ReactNode }) {
     playChime('connect');
     await new Promise((r) => setTimeout(r, 400));
 
-    addMessage('nexus', GREETING);
+    const greetingDisplay = cleanForDisplay(GREETING);
+    addMessage('nexus', greetingDisplay);
     activeRef.current = true;
     setCallStatus('active');
 
@@ -927,14 +980,18 @@ export function NexusVoiceCallProvider({ children }: { children: ReactNode }) {
       });
     }, 1000);
 
-    // Play greeting from preloaded cache — near-instant
-    await speakPhrase(GREETING, greetingCacheRef.current);
+    // Greeting text is shown immediately; audio is still preloaded and starts as soon as available.
+    await speakPhrase(GREETING, greetingCacheRef.current, {
+      onFirstAudioStart: () => {
+        setIsVoiceLoading(false);
+      },
+    });
 
     if (activeRef.current) {
       voiceStream.clearTranscript();
       voiceStream.startListening();
     }
-  }, [voiceStream, addMessage, endCallInternal, speakPhrase]);
+  }, [voiceStream, addMessage, endCallInternal, speakPhrase, startTypewriter, stopTypewriter]);
 
   // ── sendTextMessage ────────────────────────────────────────────────────
 
@@ -972,7 +1029,10 @@ export function NexusVoiceCallProvider({ children }: { children: ReactNode }) {
     interimText: voiceStream.interimText,
     isSpeaking: voiceStream.isSpeaking || isSpeakingLocal,
     isListening: voiceStream.isListening,
+    micLevel: voiceStream.audioLevel,
     isProcessing,
+    isVoiceLoading,
+    voiceError,
     startCall,
     endCall,
     sendTextMessage,
