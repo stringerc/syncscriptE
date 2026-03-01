@@ -10,6 +10,7 @@ import { Progress } from '../ui/progress';
 import { Switch } from '../ui/switch';
 import { toast } from 'sonner@2.0.3';
 import { projectId, publicAnonKey } from '../../utils/supabase/info';
+import { supabase } from '../../utils/supabase/client';
 
 interface OAuthProvider {
   id: string;
@@ -47,6 +48,11 @@ export function OAuthConnector({ provider, onConnectionChange }: OAuthConnectorP
   const [autoSync, setAutoSync] = useState(true);
   const [syncFrequency, setSyncFrequency] = useState<'realtime' | '5min' | '15min' | '1hour'>('15min');
 
+  const getAuthHeader = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    return `Bearer ${session?.access_token || publicAnonKey}`;
+  };
+
   // Load connection status on mount
   useEffect(() => {
     loadConnectionStatus();
@@ -73,11 +79,12 @@ export function OAuthConnector({ provider, onConnectionChange }: OAuthConnectorP
 
   const loadConnectionStatus = async () => {
     try {
+      const authHeader = await getAuthHeader();
       const response = await fetch(
         `https://${projectId}.supabase.co/functions/v1/make-server-57781ad9/integrations/${provider.id}/status`,
         {
           headers: {
-            'Authorization': `Bearer ${publicAnonKey}`,
+            'Authorization': authHeader,
             'Content-Type': 'application/json'
           }
         }
@@ -93,7 +100,7 @@ export function OAuthConnector({ provider, onConnectionChange }: OAuthConnectorP
             `https://${projectId}.supabase.co/functions/v1/make-server-57781ad9/integrations/${provider.id}/settings`,
             {
               headers: {
-                'Authorization': `Bearer ${publicAnonKey}`,
+                'Authorization': authHeader,
               }
             }
           );
@@ -114,13 +121,14 @@ export function OAuthConnector({ provider, onConnectionChange }: OAuthConnectorP
     setIsConnecting(true);
     
     try {
+      const authHeader = await getAuthHeader();
       // Request OAuth authorization URL
       const response = await fetch(
         `https://${projectId}.supabase.co/functions/v1/make-server-57781ad9/integrations/${provider.id}/authorize`,
         {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${publicAnonKey}`,
+            'Authorization': authHeader,
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({
@@ -167,12 +175,13 @@ export function OAuthConnector({ provider, onConnectionChange }: OAuthConnectorP
     setIsDisconnecting(true);
 
     try {
+      const authHeader = await getAuthHeader();
       const response = await fetch(
         `https://${projectId}.supabase.co/functions/v1/make-server-57781ad9/integrations/${provider.id}/disconnect`,
         {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${publicAnonKey}`,
+            'Authorization': authHeader,
             'Content-Type': 'application/json'
           }
         }
@@ -195,6 +204,7 @@ export function OAuthConnector({ provider, onConnectionChange }: OAuthConnectorP
 
   const handleSync = async () => {
     try {
+      const authHeader = await getAuthHeader();
       toast.info(`Syncing ${provider.name}...`);
       
       const response = await fetch(
@@ -202,7 +212,7 @@ export function OAuthConnector({ provider, onConnectionChange }: OAuthConnectorP
         {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${publicAnonKey}`,
+            'Authorization': authHeader,
             'Content-Type': 'application/json'
           }
         }
@@ -223,12 +233,13 @@ export function OAuthConnector({ provider, onConnectionChange }: OAuthConnectorP
 
   const handleSettingsChange = async (key: string, value: any) => {
     try {
+      const authHeader = await getAuthHeader();
       const response = await fetch(
         `https://${projectId}.supabase.co/functions/v1/make-server-57781ad9/integrations/${provider.id}/settings`,
         {
           method: 'PUT',
           headers: {
-            'Authorization': `Bearer ${publicAnonKey}`,
+            'Authorization': authHeader,
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({ [key]: value })
@@ -503,6 +514,37 @@ export const OAUTH_PROVIDERS: Record<string, OAuthProvider> = {
       'offline_access'
     ],
     features: ['Two-way sync', 'Event creation', 'Categories', 'Recurring events']
+  },
+  google_mail: {
+    id: 'google_mail',
+    name: 'Gmail',
+    type: 'communication',
+    icon: MessageSquare,
+    color: 'text-red-500',
+    bgColor: 'bg-red-500/10',
+    description: 'Connect Gmail for unified inbox and sent-email automation',
+    scopes: [
+      'https://www.googleapis.com/auth/gmail.readonly',
+      'https://www.googleapis.com/auth/gmail.send',
+      'https://www.googleapis.com/auth/userinfo.email'
+    ],
+    features: ['Unified inbox', 'Sent email tracking', 'Auto-complete tasks']
+  },
+  outlook_mail: {
+    id: 'outlook_mail',
+    name: 'Outlook Mail',
+    type: 'communication',
+    icon: MessageSquare,
+    color: 'text-blue-500',
+    bgColor: 'bg-blue-500/10',
+    description: 'Connect Outlook for unified inbox and sent-email automation',
+    scopes: [
+      'Mail.Read',
+      'Mail.Send',
+      'offline_access',
+      'User.Read'
+    ],
+    features: ['Unified inbox', 'Sent email tracking', 'Auto-complete tasks']
   },
   slack: {
     id: 'slack',

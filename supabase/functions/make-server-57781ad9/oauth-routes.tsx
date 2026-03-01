@@ -54,6 +54,29 @@ export const OAUTH_CONFIGS = {
       'offline_access'
     ]
   },
+  google_mail: {
+    authUrl: 'https://accounts.google.com/o/oauth2/v2/auth',
+    tokenUrl: 'https://oauth2.googleapis.com/token',
+    clientId: Deno.env.get('GOOGLE_CLIENT_ID') || '',
+    clientSecret: Deno.env.get('GOOGLE_CLIENT_SECRET') || '',
+    defaultScopes: [
+      'https://www.googleapis.com/auth/gmail.readonly',
+      'https://www.googleapis.com/auth/gmail.send',
+      'https://www.googleapis.com/auth/userinfo.email'
+    ]
+  },
+  outlook_mail: {
+    authUrl: 'https://login.microsoftonline.com/common/oauth2/v2.0/authorize',
+    tokenUrl: 'https://login.microsoftonline.com/common/oauth2/v2.0/token',
+    clientId: Deno.env.get('MICROSOFT_CLIENT_ID') || '',
+    clientSecret: Deno.env.get('MICROSOFT_CLIENT_SECRET') || '',
+    defaultScopes: [
+      'Mail.Read',
+      'Mail.Send',
+      'offline_access',
+      'User.Read'
+    ]
+  },
   slack: {
     authUrl: 'https://slack.com/oauth/v2/authorize',
     tokenUrl: 'https://slack.com/api/oauth.v2.access',
@@ -67,6 +90,80 @@ export const OAUTH_CONFIGS = {
     ]
   }
 };
+
+/**
+ * Get a valid access token for a provider/user pair.
+ * - Returns current token when still valid.
+ * - Attempts refresh when expired and refresh_token exists.
+ * - Returns null if missing/invalid and cannot be refreshed.
+ */
+export async function getValidToken(provider: string, userId: string): Promise<string | null> {
+  try {
+    const key = `oauth:${provider}:${userId}`;
+    const tokenRecord = await kv.get(key);
+    if (!tokenRecord?.access_token) return null;
+
+    const expiresAtMs = tokenRecord.expires_at ? new Date(tokenRecord.expires_at).getTime() : 0;
+    const now = Date.now();
+    const isStillValid = Number.isFinite(expiresAtMs) && expiresAtMs - now > 60_000; // 60s buffer
+    if (isStillValid) return tokenRecord.access_token as string;
+
+    if (!tokenRecord.refresh_token) return null;
+
+    const config = OAUTH_CONFIGS[provider as keyof typeof OAUTH_CONFIGS];
+    if (!config) return null;
+
+    const refreshBody = new URLSearchParams({
+      client_id: config.clientId,
+      client_secret: config.clientSecret,
+      grant_type: 'refresh_token',
+      refresh_token: tokenRecord.refresh_token as string,
+    });
+
+    const refreshResponse = await fetch(config.tokenUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: refreshBody.toString(),
+    });
+
+    if (!refreshResponse.ok) {
+      const err = await refreshResponse.text();
+      console.error(`[OAUTH] Token refresh failed for ${provider}/${userId}:`, err);
+      return null;
+    }
+
+    const refreshed = await refreshResponse.json();
+    const updatedTokens = {
+      ...tokenRecord,
+      access_token: refreshed.access_token,
+      refresh_token: refreshed.refresh_token || tokenRecord.refresh_token,
+      expires_at: new Date(Date.now() + ((refreshed.expires_in || 3600) * 1000)).toISOString(),
+      token_type: refreshed.token_type || tokenRecord.token_type,
+      scope: refreshed.scope || tokenRecord.scope,
+    };
+
+    await kv.set(key, updatedTokens);
+    return updatedTokens.access_token as string;
+  } catch (error) {
+    console.error(`[OAUTH] getValidToken error for ${provider}/${userId}:`, error);
+    return null;
+  }
+}
+
+export async function getUserConnectedIntegrations(userId: string): Promise<Record<string, boolean>> {
+  const providers = ['google_calendar', 'outlook_calendar', 'google_mail', 'outlook_mail', 'slack'] as const;
+  const entries = await Promise.all(
+    providers.map(async (provider) => {
+      try {
+        const tokenRecord = await kv.get(`oauth:${provider}:${userId}`);
+        return [provider, Boolean(tokenRecord?.access_token)] as const;
+      } catch {
+        return [provider, false] as const;
+      }
+    }),
+  );
+  return Object.fromEntries(entries);
+}
 
 export function registerOAuthRoutes(app: Hono) {
   

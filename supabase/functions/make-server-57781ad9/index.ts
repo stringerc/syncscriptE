@@ -21,6 +21,7 @@ import aiContextOptimizer from "./ai-context-optimizer.tsx";
 import aiABTesting from "./ai-ab-testing.tsx";
 import aiCrossAgentMemory from "./ai-cross-agent-memory.tsx";
 import aiPredictivePrefetch from "./ai-predictive-prefetch.tsx";
+import emailTaskRoutes from "./email-task-routes.tsx";
 import discordRoutes from "./discord-routes.tsx";
 import scriptsRoutes from "./scripts-routes.tsx";
 import growthRoutes from "./growth-automation.tsx";
@@ -1083,24 +1084,55 @@ app.get("/make-server-57781ad9/traffic/commute", async (c) => {
       return c.json({ ...cached.data, cached: true });
     }
     
-    // For now, return estimated data based on distance
-    // In production, this would call a real traffic API
-    // OpenRouter is primarily for AI, not traffic data
-    // TODO: Integrate with Google Maps Directions API or TomTom Traffic API
-    
-    // Simplified distance calculation (placeholder)
-    const estimatedMinutes = 25; // Default commute time
-    const trafficMultiplier = 1.2; // Assume some traffic
-    
-    const trafficData = {
-      durationMinutes: estimatedMinutes,
-      durationWithTrafficMinutes: Math.round(estimatedMinutes * trafficMultiplier),
-      trafficCondition: 'moderate' as const,
-      origin,
-      destination,
-      lastUpdated: new Date().toISOString(),
-      note: 'Using estimated data. Connect Google Maps API for real-time traffic.'
-    };
+    const GOOGLE_MAPS_API_KEY = Deno.env.get('GOOGLE_MAPS_API_KEY');
+    let trafficData: any = null;
+
+    // Live mode via Google Directions API when key is configured.
+    if (GOOGLE_MAPS_API_KEY) {
+      try {
+        const mapsUrl =
+          `https://maps.googleapis.com/maps/api/directions/json?origin=${encodeURIComponent(origin)}` +
+          `&destination=${encodeURIComponent(destination)}&departure_time=now&traffic_model=best_guess&key=${GOOGLE_MAPS_API_KEY}`;
+        const mapsResp = await fetch(mapsUrl);
+        const mapsJson = await mapsResp.json();
+
+        if (mapsResp.ok && mapsJson?.status === 'OK' && mapsJson?.routes?.[0]?.legs?.[0]) {
+          const leg = mapsJson.routes[0].legs[0];
+          const baseMin = Math.max(1, Math.round((leg.duration?.value || 0) / 60));
+          const trafficMin = Math.max(1, Math.round((leg.duration_in_traffic?.value || leg.duration?.value || 0) / 60));
+          const delay = Math.max(0, trafficMin - baseMin);
+          const condition = delay >= 15 ? 'heavy' : delay >= 6 ? 'moderate' : 'light';
+
+          trafficData = {
+            durationMinutes: baseMin,
+            durationWithTrafficMinutes: trafficMin,
+            trafficCondition: condition as const,
+            origin,
+            destination,
+            lastUpdated: new Date().toISOString(),
+          };
+        }
+      } catch (error) {
+        console.warn('[TRAFFIC API] Google Maps live lookup failed, falling back to estimate:', error);
+      }
+    }
+
+    // Fallback mode: deterministic estimate when live data unavailable.
+    if (!trafficData) {
+      const estimatedMinutes = 25;
+      const trafficMultiplier = 1.2;
+      trafficData = {
+        durationMinutes: estimatedMinutes,
+        durationWithTrafficMinutes: Math.round(estimatedMinutes * trafficMultiplier),
+        trafficCondition: 'moderate' as const,
+        origin,
+        destination,
+        lastUpdated: new Date().toISOString(),
+        note: GOOGLE_MAPS_API_KEY
+          ? 'Using estimated data. Google Maps route response unavailable.'
+          : 'Using estimated data. Connect Google Maps API for real-time traffic.',
+      };
+    }
     
     // Cache the result
     trafficCache.set(cacheKey, {
@@ -1498,6 +1530,7 @@ app.post('/make-server-57781ad9/admin/metrics/ces', performanceMetrics.recordCES
 // Complete email automation with drip campaigns, triggers, and analytics
 // ====================================================================
 app.route('/make-server-57781ad9/email', emailSystemRoutes);
+app.route('/make-server-57781ad9', emailTaskRoutes);
 
 // ====================================================================
 // FEEDBACK INTELLIGENCE SYSTEM ROUTES

@@ -1,5 +1,5 @@
 import { useNavigate, useLocation } from 'react-router';
-import { LayoutDashboard, Target, Calendar, Bot, Zap, Waves, Users, TrendingUp, Gamepad2, Building2, FileText, Menu, Settings } from 'lucide-react';
+import { LayoutDashboard, Target, Calendar, Bot, Zap, Waves, Users, TrendingUp, Gamepad2, Building2, FileText, Menu, Settings, Mail } from 'lucide-react';
 import logoImage from 'figma:asset/914d5787f554946c037cbfbb2cf65fcc0de06278.png';
 import { navigationLinks } from '../utils/navigation';
 import { useCalendarNavigation } from '../contexts/CalendarNavigationContext';
@@ -17,6 +17,7 @@ export function Sidebar() {
     { icon: Zap, label: 'Energy', id: 'Energy', path: navigationLinks.sidebar.energy },
     { icon: Waves, label: 'Resonance Engine', id: 'Resonance', path: navigationLinks.sidebar.resonance },
     { icon: Users, label: 'Team', id: 'Team', path: navigationLinks.sidebar.team },
+    { icon: Mail, label: 'Email', id: 'Email', path: navigationLinks.sidebar.email },
     { icon: Gamepad2, label: 'Gaming', id: 'Gaming', path: navigationLinks.sidebar.gaming },
     { icon: FileText, label: 'Scripts & Templates', id: 'Scripts', path: navigationLinks.sidebar.scripts },
     { icon: TrendingUp, label: 'Analytics', id: 'Analytics', path: navigationLinks.sidebar.analytics },

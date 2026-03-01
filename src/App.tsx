@@ -56,6 +56,7 @@ const AnalyticsInsightsPage = lazy(() => import('./components/pages/AnalyticsIns
 const GamificationHubPage = lazy(() => import('./components/pages/GamificationHubPage').then(m => ({ default: m.GamificationHubPage })));
 const GamificationHubPageV2 = lazy(() => import('./components/pages/GamificationHubPageV2').then(m => ({ default: m.GamificationHubPageV2 })));
 const IntegrationsPage = lazy(() => import('./components/pages/IntegrationsPage').then(m => ({ default: m.IntegrationsPage })));
+const EmailHubPage = lazy(() => import('./components/pages/EmailHubPage').then(m => ({ default: m.EmailHubPage })));
 const EnterpriseToolsPage = lazy(() => import('./components/pages/EnterpriseToolsPage').then(m => ({ default: m.EnterpriseToolsPage })));
 const ScriptsTemplatesPage = lazy(() => import('./components/pages/ScriptsTemplatesPage').then(m => ({ default: m.ScriptsTemplatesPage })));
 const TeamScriptsPage = lazy(() => import('./components/pages/TeamScriptsPage').then(m => ({ default: m.TeamScriptsPage })));
@@ -157,6 +158,9 @@ function DashboardRoutes() {
         <Route path="/gaming-v2" element={<ProtectedRoute><GamificationHubPageV2 /></ProtectedRoute>} />
         <Route path="/integrations" element={
           <ProtectedRoute><ErrorBoundary><IntegrationsPage /></ErrorBoundary></ProtectedRoute>
+        } />
+        <Route path="/email" element={
+          <ProtectedRoute><ErrorBoundary><EmailHubPage /></ErrorBoundary></ProtectedRoute>
         } />
         <Route path="/enterprise" element={<ProtectedRoute><EnterpriseToolsPage /></ProtectedRoute>} />
         <Route path="/scripts-templates" element={<ProtectedRoute><ScriptsTemplatesPage /></ProtectedRoute>} />

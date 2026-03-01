@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'motion/react';
+import { useNavigate } from 'react-router';
 import { 
   Link2, Check, X, AlertCircle, RefreshCw, Settings,
   Calendar, Mail, MessageSquare, Video, Heart, Dumbbell,
@@ -26,6 +27,7 @@ import {
 } from '../IntegrationVisualizations';
 
 export function IntegrationsPage() {
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [showImportDialog, setShowImportDialog] = useState(false);
@@ -490,6 +492,39 @@ export function IntegrationsPage() {
               }
             }}
           />
+
+          {/* Gmail OAuth */}
+          <OAuthConnector
+            provider={OAUTH_PROVIDERS.google_mail}
+            onConnectionChange={(connected) => {
+              if (connected) {
+                toast.success('Gmail connected! Email automation is ready.');
+              }
+            }}
+          />
+
+          {/* Outlook Mail OAuth */}
+          <OAuthConnector
+            provider={OAUTH_PROVIDERS.outlook_mail}
+            onConnectionChange={(connected) => {
+              if (connected) {
+                toast.success('Outlook Mail connected! Email automation is ready.');
+              }
+            }}
+          />
+
+          <div className="flex items-center justify-between gap-3 bg-[#252830] border border-gray-700 rounded-lg p-4">
+            <div>
+              <p className="text-sm text-white font-medium">Unified Email Hub</p>
+              <p className="text-xs text-gray-400 mt-1">
+                View Gmail + Outlook in one place and track auto-completed email tasks.
+              </p>
+            </div>
+            <Button onClick={() => navigate('/email')} className="gap-2">
+              <Mail className="w-4 h-4" />
+              Open Email Hub
+            </Button>
+          </div>
         </div>
 
         {/* Other Integrations (Coming Soon) */}

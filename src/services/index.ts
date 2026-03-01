@@ -15,11 +15,17 @@
 
 import { ITaskRepository } from './ITaskRepository';
 import { MockTaskRepository } from './MockTaskRepository';
+import { SupabaseTaskRepository } from './SupabaseTaskRepository';
 
 // ==================== ACTIVE REPOSITORY ====================
 // Change this ONE line to swap backends!
 
-export const taskRepository: ITaskRepository = new MockTaskRepository();
+const useSupabaseTaskRepository =
+  import.meta.env.PROD || import.meta.env.VITE_USE_SUPABASE_TASKS === 'true';
+
+export const taskRepository: ITaskRepository = useSupabaseTaskRepository
+  ? new SupabaseTaskRepository()
+  : new MockTaskRepository();
 
 // ==================== FUTURE EXAMPLES ====================
 
