@@ -4,15 +4,72 @@ import { projectId, publicAnonKey } from '../utils/supabase/info';
 import { supabase } from '../utils/supabase/client';
 
 const API_BASE = `https://${projectId}.supabase.co/functions/v1/make-server-57781ad9`;
+const LEGACY_TASKS_STORAGE_KEY = 'syncscript_tasks_v1';
+const LEGACY_MIGRATION_FLAG_PREFIX = 'syncscript_tasks_migrated_to_supabase';
 
 export class SupabaseTaskRepository implements ITaskRepository {
-  private async getAuthHeaders(): Promise<Record<string, string>> {
+  private async getAuthContext(): Promise<{ token: string; userId: string | null; isAuthenticated: boolean }> {
     const { data: { session } } = await supabase.auth.getSession();
-    const token = session?.access_token || publicAnonKey;
+    return {
+      token: session?.access_token || publicAnonKey,
+      userId: session?.user?.id || null,
+      isAuthenticated: Boolean(session?.access_token && session?.user?.id),
+    };
+  }
+
+  private async getAuthHeaders(): Promise<Record<string, string>> {
+    const { token } = await this.getAuthContext();
     return {
       Authorization: `Bearer ${token}`,
       'Content-Type': 'application/json',
     };
+  }
+
+  private getLegacyMigrationFlagKey(userId: string): string {
+    return `${LEGACY_MIGRATION_FLAG_PREFIX}:${userId}`;
+  }
+
+  private getLegacyLocalTasks(): Task[] {
+    if (typeof window === 'undefined') return [];
+    try {
+      const raw = window.localStorage.getItem(LEGACY_TASKS_STORAGE_KEY);
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+
+  private async migrateLegacyLocalTasksIfNeeded(userId: string): Promise<boolean> {
+    if (typeof window === 'undefined') return false;
+
+    const migrationFlagKey = this.getLegacyMigrationFlagKey(userId);
+    const alreadyMigrated = window.localStorage.getItem(migrationFlagKey) === '1';
+    if (alreadyMigrated) return false;
+
+    const legacyTasks = this.getLegacyLocalTasks();
+    if (!legacyTasks.length) {
+      window.localStorage.setItem(migrationFlagKey, '1');
+      return false;
+    }
+
+    let migratedCount = 0;
+    for (const legacyTask of legacyTasks) {
+      try {
+        const { id: _legacyId, ...rest } = (legacyTask || {}) as Task & { id?: string };
+        await this.request<Task>('/tasks', {
+          method: 'POST',
+          body: JSON.stringify(rest),
+        });
+        migratedCount += 1;
+      } catch {
+        // Continue best-effort migration for remaining tasks.
+      }
+    }
+
+    window.localStorage.setItem(migrationFlagKey, '1');
+    return migratedCount > 0;
   }
 
   private async request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -55,8 +112,31 @@ export class SupabaseTaskRepository implements ITaskRepository {
     if (filters?.completed !== undefined) params.set('completed', String(filters.completed));
     if (filters?.scheduled !== undefined) params.set('scheduled', String(filters.scheduled));
     const query = params.toString();
-    const tasks = await this.request<Task[]>(`/tasks${query ? `?${query}` : ''}`);
-    return this.filterTasks(tasks || [], filters);
+    const path = `/tasks${query ? `?${query}` : ''}`;
+
+    try {
+      const tasks = await this.request<Task[]>(path);
+      const auth = await this.getAuthContext();
+
+      // One-time migration: if backend is empty for this signed-in user, import legacy browser tasks.
+      if (auth.isAuthenticated && auth.userId && (!tasks || tasks.length === 0)) {
+        const migrated = await this.migrateLegacyLocalTasksIfNeeded(auth.userId);
+        if (migrated) {
+          const refetched = await this.request<Task[]>(path);
+          return this.filterTasks(refetched || [], filters);
+        }
+      }
+
+      return this.filterTasks(tasks || [], filters);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '';
+      const isUnauthorized = message.includes('Task API 401') || message.includes('Unauthorized');
+      if (isUnauthorized) {
+        // Keep app usable when a browser session token is missing/expired.
+        return this.filterTasks(this.getLegacyLocalTasks(), filters);
+      }
+      throw error;
+    }
   }
 
   async getTaskById(id: string): Promise<Task | null> {
