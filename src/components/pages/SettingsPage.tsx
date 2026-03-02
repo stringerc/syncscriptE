@@ -851,6 +851,7 @@ export function SettingsPage() {
                   <Input 
                     type="password"
                     placeholder="••••••••" 
+                    autoComplete="current-password"
                     className="bg-[#1a1c20] border-gray-800 text-white placeholder:text-gray-500"
                   />
                 </div>
@@ -860,6 +861,7 @@ export function SettingsPage() {
                   <Input 
                     type="password"
                     placeholder="••••••••" 
+                    autoComplete="new-password"
                     className="bg-[#1a1c20] border-gray-800 text-white placeholder:text-gray-500"
                   />
                 </div>
@@ -869,6 +871,7 @@ export function SettingsPage() {
                   <Input 
                     type="password"
                     placeholder="••••••••" 
+                    autoComplete="new-password"
                     className="bg-[#1a1c20] border-gray-800 text-white placeholder:text-gray-500"
                   />
                 </div>
@@ -1195,7 +1198,39 @@ export function SettingsPage() {
                       <p className="text-sm text-gray-400">Sync events and schedule</p>
                     </div>
                   </div>
-                  <Button variant="outline" size="sm" onClick={() => toast.info('Coming soon', { description: 'Google Calendar integration is in development' })}>
+                  <Button variant="outline" size="sm" onClick={() => navigate('/integrations')}>
+                    Connect
+                  </Button>
+                </div>
+
+                {/* Gmail */}
+                <div className="flex items-center justify-between p-4 bg-[#1a1c20] border border-gray-800 rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-red-600/20 rounded-lg flex items-center justify-center">
+                      <Mail className="w-5 h-5 text-red-400" />
+                    </div>
+                    <div>
+                      <Label className="text-white font-medium">Gmail</Label>
+                      <p className="text-sm text-gray-400">Auto-complete tasks from sent emails</p>
+                    </div>
+                  </div>
+                  <Button variant="outline" size="sm" onClick={() => navigate('/integrations')}>
+                    Connect
+                  </Button>
+                </div>
+
+                {/* Outlook Mail */}
+                <div className="flex items-center justify-between p-4 bg-[#1a1c20] border border-gray-800 rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-blue-600/20 rounded-lg flex items-center justify-center">
+                      <Mail className="w-5 h-5 text-blue-400" />
+                    </div>
+                    <div>
+                      <Label className="text-white font-medium">Outlook Mail</Label>
+                      <p className="text-sm text-gray-400">Unify Outlook email and sent-event automation</p>
+                    </div>
+                  </div>
+                  <Button variant="outline" size="sm" onClick={() => navigate('/integrations')}>
                     Connect
                   </Button>
                 </div>
@@ -1211,7 +1246,7 @@ export function SettingsPage() {
                       <p className="text-sm text-gray-400">Import tasks and notes</p>
                     </div>
                   </div>
-                  <Button variant="outline" size="sm" onClick={() => toast.info('Coming soon', { description: 'Notion integration is in development' })}>
+                  <Button variant="outline" size="sm" onClick={() => navigate('/integrations')}>
                     Connect
                   </Button>
                 </div>
@@ -1227,7 +1262,7 @@ export function SettingsPage() {
                       <p className="text-sm text-gray-400">Get notifications and updates</p>
                     </div>
                   </div>
-                  <Button variant="outline" size="sm" onClick={() => toast.info('Coming soon', { description: 'Slack integration is in development' })}>
+                  <Button variant="outline" size="sm" onClick={() => navigate('/integrations')}>
                     Connect
                   </Button>
                 </div>
@@ -1243,7 +1278,7 @@ export function SettingsPage() {
                       <p className="text-sm text-gray-400">Import and sync tasks</p>
                     </div>
                   </div>
-                  <Button variant="outline" size="sm" onClick={() => toast.info('Coming soon', { description: 'Todoist integration is in development' })}>
+                  <Button variant="outline" size="sm" onClick={() => navigate('/integrations')}>
                     Connect
                   </Button>
                 </div>
@@ -1259,7 +1294,7 @@ export function SettingsPage() {
                       <p className="text-sm text-gray-400">Energy tracking from real biometrics</p>
                     </div>
                   </div>
-                  <Button variant="outline" size="sm" onClick={() => toast.info('Coming soon', { description: 'Health integration is in development' })}>
+                  <Button variant="outline" size="sm" onClick={() => navigate('/integrations')}>
                     Connect
                   </Button>
                 </div>
@@ -1275,7 +1310,7 @@ export function SettingsPage() {
                       <p className="text-sm text-gray-400">Focus playlists and productivity music</p>
                     </div>
                   </div>
-                  <Button variant="outline" size="sm" onClick={() => toast.info('Coming soon', { description: 'Spotify integration is in development' })}>
+                  <Button variant="outline" size="sm" onClick={() => navigate('/integrations')}>
                     Connect
                   </Button>
                 </div>
