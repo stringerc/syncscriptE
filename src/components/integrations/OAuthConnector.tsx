@@ -11,6 +11,7 @@ import { Switch } from '../ui/switch';
 import { toast } from 'sonner@2.0.3';
 import { projectId, publicAnonKey } from '../../utils/supabase/info';
 import { supabase } from '../../utils/supabase/client';
+import { useGamification } from '../../contexts/GamificationContext';
 
 interface OAuthProvider {
   id: string;
@@ -40,7 +41,11 @@ interface OAuthConnectorProps {
   onConnectionChange?: (connected: boolean) => void;
 }
 
+const INTEGRATION_REWARD_STORAGE_KEY = 'syncscript_integration_xp_rewards_v1';
+const INTEGRATION_CONNECT_XP = 60;
+
 export function OAuthConnector({ provider, onConnectionChange }: OAuthConnectorProps) {
+  const { earnXP } = useGamification();
   const [isConnecting, setIsConnecting] = useState(false);
   const [isDisconnecting, setIsDisconnecting] = useState(false);
   const [status, setStatus] = useState<ConnectionStatus>({ connected: false });
@@ -66,6 +71,33 @@ export function OAuthConnector({ provider, onConnectionChange }: OAuthConnectorP
     return `Bearer ${session?.access_token || publicAnonKey}`;
   };
 
+  const awardIntegrationConnectXP = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    const userId = session?.user?.id;
+    if (!userId) return;
+
+    let rewardMap: Record<string, string[]> = {};
+    try {
+      const raw = localStorage.getItem(INTEGRATION_REWARD_STORAGE_KEY);
+      rewardMap = raw ? JSON.parse(raw) : {};
+    } catch {
+      rewardMap = {};
+    }
+
+    const rewardedProviders = new Set(rewardMap[userId] || []);
+    if (rewardedProviders.has(provider.id)) return;
+
+    rewardedProviders.add(provider.id);
+    rewardMap[userId] = Array.from(rewardedProviders);
+    localStorage.setItem(INTEGRATION_REWARD_STORAGE_KEY, JSON.stringify(rewardMap));
+
+    earnXP(INTEGRATION_CONNECT_XP, `Connected ${provider.name} integration`);
+    toast.success(`+${INTEGRATION_CONNECT_XP} XP`, {
+      description: `${provider.name} integration connected`,
+      duration: 2500,
+    });
+  };
+
   // Load connection status on mount
   useEffect(() => {
     loadConnectionStatus();
@@ -76,6 +108,7 @@ export function OAuthConnector({ provider, onConnectionChange }: OAuthConnectorP
     const handleOAuthCallback = (event: MessageEvent) => {
       if (event.data?.type === 'oauth-callback' && event.data?.provider === provider.id) {
         if (event.data.success) {
+          void awardIntegrationConnectXP();
           toast.success(`${provider.name} connected successfully!`);
           loadConnectionStatus();
           onConnectionChange?.(true);
