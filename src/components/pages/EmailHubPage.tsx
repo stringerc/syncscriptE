@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Mail, RefreshCw, Inbox, Send, Settings2, CheckCircle2 } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import { DashboardLayout } from '../layout/DashboardLayout';
@@ -126,6 +126,8 @@ export function EmailHubPage() {
   const [providerErrors, setProviderErrors] = useState<Record<string, string>>({});
   const [previewMode, setPreviewMode] = useState<'rich' | 'text'>('rich');
   const [previewZoom, setPreviewZoom] = useState(110);
+  const iframeRef = useRef<HTMLIFrameElement | null>(null);
+  const [iframeHeight, setIframeHeight] = useState(900);
 
   const baseUrl = `https://${projectId}.supabase.co/functions/v1/make-server-57781ad9`;
 
@@ -196,6 +198,7 @@ export function EmailHubPage() {
     setSelectedDetail(null);
     setPreviewMode('rich');
     setPreviewZoom(110);
+    setIframeHeight(900);
     try {
       const authHeader = await getAuthHeader();
       const res = await fetch(`${baseUrl}/email/messages/${msg.provider}/${msg.id}`, {
@@ -282,6 +285,21 @@ export function EmailHubPage() {
 
     return { text: decodeEntities(selectedDetail.snippet || ''), html: '' };
   }, [selectedDetail, selectedMessage?.provider]);
+
+  const resizeIframeToContent = () => {
+    const iframe = iframeRef.current;
+    if (!iframe) return;
+    try {
+      const doc = iframe.contentDocument || iframe.contentWindow?.document;
+      const bodyHeight = doc?.body?.scrollHeight || 0;
+      const htmlHeight = doc?.documentElement?.scrollHeight || 0;
+      const next = Math.max(700, bodyHeight, htmlHeight) + 20;
+      setIframeHeight(next);
+    } catch {
+      // If access is blocked by browser sandbox behavior, keep fallback height.
+      setIframeHeight((prev) => Math.max(prev, 900));
+    }
+  };
 
   return (
     <DashboardLayout>
@@ -474,10 +492,14 @@ export function EmailHubPage() {
                   )}
                   {selectedBody.html && previewMode === 'rich' ? (
                     <iframe
+                      ref={iframeRef}
+                      onLoad={resizeIframeToContent}
+                      key={`${selectedMessage?.id || 'email'}-${previewZoom}`}
                       title="Email rich preview"
-                      sandbox="allow-popups allow-popups-to-escape-sandbox"
+                      sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox"
                       srcDoc={buildEmailIframeDoc(selectedBody.html, previewZoom)}
-                      className="w-full h-[74vh] min-h-[700px] bg-[#ffffff] border border-gray-800 rounded-md"
+                      style={{ height: `${iframeHeight}px` }}
+                      className="w-full min-h-[700px] bg-[#ffffff] border border-gray-800 rounded-md"
                     />
                   ) : (
                     <div className="bg-[#1a1d24] border border-gray-800 rounded-md p-3 text-sm text-gray-200 whitespace-pre-wrap">
