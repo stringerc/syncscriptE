@@ -47,8 +47,62 @@ export function AuthCallbackPage() {
       const state = urlParams.get('state');
       const errorParam = urlParams.get('error');
       const errorDescription = urlParams.get('error_description');
+      const providerFromState = state?.split(':')[0] || '';
+      const integrationProviders = ['google_calendar', 'outlook_calendar', 'google_mail', 'outlook_mail', 'slack'];
+      const isIntegrationProvider = integrationProviders.includes(providerFromState);
+      const integrationStateKey = isIntegrationProvider ? `oauth-state-${providerFromState}` : '';
+      const storedIntegrationState = integrationStateKey ? sessionStorage.getItem(integrationStateKey) : null;
+
+      // Integration OAuth callbacks can share /auth/callback with login OAuth.
+      if (code && state && isIntegrationProvider && storedIntegrationState === state) {
+        const response = await fetch(
+          `https://${projectId}.supabase.co/functions/v1/make-server-57781ad9/integrations/${providerFromState}/callback`,
+          {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${publicAnonKey}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ code, state })
+          }
+        );
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(errorText || `Failed to connect ${providerFromState}`);
+        }
+
+        const result = await response.json();
+        sessionStorage.removeItem(integrationStateKey);
+
+        if (window.opener) {
+          window.opener.postMessage({
+            type: 'oauth-callback',
+            provider: providerFromState,
+            success: true,
+            data: result
+          }, window.location.origin);
+          setProcessing(false);
+          setTimeout(() => window.close(), 600);
+          return;
+        }
+
+        setProcessing(false);
+        setTimeout(() => navigate('/integrations', { replace: true }), 500);
+        return;
+      }
 
       if (errorParam) {
+        if (state && isIntegrationProvider && storedIntegrationState === state && window.opener) {
+          window.opener.postMessage({
+            type: 'oauth-callback',
+            provider: providerFromState,
+            success: false,
+            error: errorDescription || errorParam,
+          }, window.location.origin);
+          setTimeout(() => window.close(), 800);
+          return;
+        }
         setError(errorDescription || errorParam);
         setProcessing(false);
         setTimeout(() => navigate('/login', { replace: true }), 3000);

@@ -57,8 +57,8 @@ export function OAuthConnector({ provider, onConnectionChange }: OAuthConnectorP
       host.endsWith('.local');
 
     return isLocal
-      ? `${window.location.origin}/oauth-callback`
-      : `${canonicalAppUrl}/oauth-callback`;
+      ? `${window.location.origin}/auth/callback`
+      : `${canonicalAppUrl}/auth/callback`;
   };
 
   const getAuthHeader = async () => {
