@@ -69,27 +69,35 @@ function decodeEntities(text: string): string {
   }
 }
 
-function findGmailPart(payload: any, mimeType: string): string {
-  if (!payload) return '';
+function collectGmailParts(payload: any, mimeType: string, acc: string[] = []): string[] {
+  if (!payload) return acc;
   if (payload.mimeType === mimeType && payload.body?.data) {
-    return decodeBase64Url(payload.body.data);
+    const decoded = decodeBase64Url(payload.body.data);
+    if (decoded) acc.push(decoded);
   }
-  if (!Array.isArray(payload.parts)) return '';
-  for (const part of payload.parts) {
-    const direct = findGmailPart(part, mimeType);
-    if (direct) return direct;
+  if (Array.isArray(payload.parts)) {
+    for (const part of payload.parts) {
+      collectGmailParts(part, mimeType, acc);
+    }
   }
-  return '';
+  return acc;
 }
 
-function buildEmailIframeDoc(html: string): string {
+function buildEmailIframeDoc(html: string, zoomPercent: number): string {
   return `<!doctype html>
 <html>
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <style>
-      body { font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #e5e7eb; background: #1a1d24; margin: 0; padding: 12px; line-height: 1.45; }
+      html, body { margin: 0; padding: 0; }
+      body {
+        font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        color: #111827;
+        background: #ffffff;
+        line-height: 1.45;
+        zoom: ${Math.max(0.75, Math.min(2, zoomPercent / 100))};
+      }
       a { color: #5eead4; text-decoration: underline; }
       img { max-width: 100%; height: auto; display: block; }
       table { max-width: 100% !important; width: auto !important; }
@@ -115,6 +123,7 @@ export function EmailHubPage() {
   const [retentionDays, setRetentionDays] = useState(30);
   const [providerErrors, setProviderErrors] = useState<Record<string, string>>({});
   const [previewMode, setPreviewMode] = useState<'rich' | 'text'>('rich');
+  const [previewZoom, setPreviewZoom] = useState(110);
 
   const baseUrl = `https://${projectId}.supabase.co/functions/v1/make-server-57781ad9`;
 
@@ -184,6 +193,7 @@ export function EmailHubPage() {
     setSelectedMessage(msg);
     setSelectedDetail(null);
     setPreviewMode('rich');
+    setPreviewZoom(110);
     try {
       const authHeader = await getAuthHeader();
       const res = await fetch(`${baseUrl}/email/messages/${msg.provider}/${msg.id}`, {
@@ -241,8 +251,10 @@ export function EmailHubPage() {
       };
     }
 
-    const plain = findGmailPart(selectedDetail.payload, 'text/plain');
-    const html = findGmailPart(selectedDetail.payload, 'text/html');
+    const plainCandidates = collectGmailParts(selectedDetail.payload, 'text/plain');
+    const htmlCandidates = collectGmailParts(selectedDetail.payload, 'text/html');
+    const plain = plainCandidates.sort((a, b) => b.length - a.length)[0] || '';
+    const html = htmlCandidates.sort((a, b) => b.length - a.length)[0] || '';
     const bodyData = selectedDetail.payload?.body?.data ? decodeBase64Url(selectedDetail.payload.body.data) : '';
 
     if (plain || html) {
@@ -434,14 +446,29 @@ export function EmailHubPage() {
                       >
                         Plain Text
                       </button>
+                      <div className="ml-auto flex items-center gap-1">
+                        <button
+                          onClick={() => setPreviewZoom((z) => Math.max(80, z - 10))}
+                          className="px-2 py-1 rounded border border-gray-700 text-gray-300"
+                        >
+                          -
+                        </button>
+                        <span className="text-gray-400 min-w-[44px] text-center">{previewZoom}%</span>
+                        <button
+                          onClick={() => setPreviewZoom((z) => Math.min(170, z + 10))}
+                          className="px-2 py-1 rounded border border-gray-700 text-gray-300"
+                        >
+                          +
+                        </button>
+                      </div>
                     </div>
                   )}
                   {selectedBody.html && previewMode === 'rich' ? (
                     <iframe
                       title="Email rich preview"
                       sandbox="allow-popups allow-popups-to-escape-sandbox"
-                      srcDoc={buildEmailIframeDoc(selectedBody.html)}
-                      className="w-full min-h-[340px] bg-[#1a1d24] border border-gray-800 rounded-md"
+                      srcDoc={buildEmailIframeDoc(selectedBody.html, previewZoom)}
+                      className="w-full h-[68vh] min-h-[560px] bg-[#ffffff] border border-gray-800 rounded-md"
                     />
                   ) : (
                     <div className="bg-[#1a1d24] border border-gray-800 rounded-md p-3 text-sm text-gray-200 whitespace-pre-wrap">
