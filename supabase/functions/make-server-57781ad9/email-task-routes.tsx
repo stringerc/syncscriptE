@@ -187,6 +187,12 @@ async function collectGmailBodyCandidates(
   return acc;
 }
 
+function visibleTextScore(htmlOrText: string): number {
+  const noTags = htmlOrText.replace(/<style[\s\S]*?<\/style>/gi, " ").replace(/<script[\s\S]*?<\/script>/gi, " ").replace(/<[^>]+>/g, " ");
+  const normalized = noTags.replace(/\s+/g, " ").trim();
+  return normalized.length;
+}
+
 async function fetchGmailMessages(
   userId: string,
   folder: "inbox" | "sent",
@@ -605,8 +611,8 @@ app.get("/email/messages/:provider/:messageId", async (c) => {
         collectGmailBodyCandidates(json?.payload, "text/plain", token, messageId),
         collectGmailBodyCandidates(json?.payload, "text/html", token, messageId),
       ]);
-      const resolvedPlain = [...plainCandidates].sort((a, b) => b.length - a.length)[0] || "";
-      const resolvedHtml = [...htmlCandidates].sort((a, b) => b.length - a.length)[0] || "";
+      const resolvedPlain = [...plainCandidates].sort((a, b) => visibleTextScore(b) - visibleTextScore(a))[0] || "";
+      const resolvedHtml = [...htmlCandidates].sort((a, b) => visibleTextScore(b) - visibleTextScore(a))[0] || "";
       return c.json({
         provider: "gmail",
         message: json,

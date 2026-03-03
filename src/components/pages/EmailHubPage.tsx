@@ -353,7 +353,7 @@ export function EmailHubPage() {
             </Button>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 min-h-[520px]">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 min-h-[640px]">
             <div className="border border-gray-800 rounded-lg overflow-y-auto max-h-[520px]">
               {messages.length === 0 ? (
                 <div className="text-sm text-gray-500 p-6 text-center space-y-3">
@@ -404,7 +404,7 @@ export function EmailHubPage() {
               )}
             </div>
 
-            <div className="border border-gray-800 rounded-lg bg-[#12151b] p-4 overflow-y-auto max-h-[520px]">
+            <div className="border border-gray-800 rounded-lg bg-[#12151b] p-4 overflow-y-auto min-h-[640px]">
               {!selectedMessage ? (
                 <div className="h-full flex items-center justify-center text-gray-500 text-sm">
                   Select a message to view details
@@ -477,7 +477,7 @@ export function EmailHubPage() {
                       title="Email rich preview"
                       sandbox="allow-popups allow-popups-to-escape-sandbox"
                       srcDoc={buildEmailIframeDoc(selectedBody.html, previewZoom)}
-                      className="w-full h-[68vh] min-h-[560px] bg-[#ffffff] border border-gray-800 rounded-md"
+                      className="w-full h-[74vh] min-h-[700px] bg-[#ffffff] border border-gray-800 rounded-md"
                     />
                   ) : (
                     <div className="bg-[#1a1d24] border border-gray-800 rounded-md p-3 text-sm text-gray-200 whitespace-pre-wrap">
