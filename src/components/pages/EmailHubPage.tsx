@@ -31,6 +31,52 @@ interface EmailMetrics {
   sentEventsProcessed: number;
 }
 
+function decodeBase64Url(input?: string): string {
+  if (!input) return '';
+  try {
+    const normalized = input.replace(/-/g, '+').replace(/_/g, '/');
+    const pad = normalized.length % 4 === 0 ? '' : '='.repeat(4 - (normalized.length % 4));
+    return atob(normalized + pad);
+  } catch {
+    return '';
+  }
+}
+
+function htmlToText(html: string): string {
+  if (!html) return '';
+  try {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, 'text/html');
+    return (doc.body?.textContent || '').trim();
+  } catch {
+    return html;
+  }
+}
+
+function decodeEntities(text: string): string {
+  if (!text) return '';
+  try {
+    const textarea = document.createElement('textarea');
+    textarea.innerHTML = text;
+    return textarea.value;
+  } catch {
+    return text;
+  }
+}
+
+function findGmailPart(payload: any, mimeType: string): string {
+  if (!payload) return '';
+  if (payload.mimeType === mimeType && payload.body?.data) {
+    return decodeBase64Url(payload.body.data);
+  }
+  if (!Array.isArray(payload.parts)) return '';
+  for (const part of payload.parts) {
+    const direct = findGmailPart(part, mimeType);
+    if (direct) return direct;
+  }
+  return '';
+}
+
 export function EmailHubPage() {
   const navigate = useNavigate();
   const [provider, setProvider] = useState<ProviderKey>('all');
@@ -161,9 +207,20 @@ export function EmailHubPage() {
   const selectedBody = useMemo(() => {
     if (!selectedDetail) return '';
     if (selectedMessage?.provider === 'outlook') {
-      return selectedDetail.body?.content || selectedDetail.bodyPreview || '';
+      const raw = selectedDetail.body?.content || selectedDetail.bodyPreview || '';
+      return decodeEntities(htmlToText(raw));
     }
-    return selectedDetail.snippet || selectedDetail.payload?.body?.data || '';
+
+    const plain = findGmailPart(selectedDetail.payload, 'text/plain');
+    if (plain) return decodeEntities(plain);
+
+    const html = findGmailPart(selectedDetail.payload, 'text/html');
+    if (html) return decodeEntities(htmlToText(html));
+
+    const bodyData = selectedDetail.payload?.body?.data ? decodeBase64Url(selectedDetail.payload.body.data) : '';
+    if (bodyData) return decodeEntities(bodyData);
+
+    return decodeEntities(selectedDetail.snippet || '');
   }, [selectedDetail, selectedMessage?.provider]);
 
   return (
@@ -296,16 +353,28 @@ export function EmailHubPage() {
                 <div className="space-y-3">
                   <div className="flex items-center justify-between gap-2">
                     <h3 className="text-white font-medium">{selectedMessage.subject}</h3>
-                    {selectedMessage.webLink && (
-                      <a
-                        href={selectedMessage.webLink}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-xs text-teal-300 hover:text-teal-200"
-                      >
-                        Open in provider
-                      </a>
-                    )}
+                    <div className="flex items-center gap-3">
+                      {selectedMessage.webLink && (
+                        <a
+                          href={selectedMessage.webLink}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs text-teal-300 hover:text-teal-200"
+                        >
+                          Open in provider
+                        </a>
+                      )}
+                      {selectedMessage.webLink && (
+                        <a
+                          href={selectedMessage.webLink}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs text-blue-300 hover:text-blue-200"
+                        >
+                          Reply in provider
+                        </a>
+                      )}
+                    </div>
                   </div>
                   <div className="text-xs text-gray-400 space-y-1">
                     <p><span className="text-gray-500">From:</span> {selectedMessage.from || '-'}</p>

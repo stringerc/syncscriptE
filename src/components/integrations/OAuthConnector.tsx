@@ -186,6 +186,8 @@ export function OAuthConnector({ provider, onConnectionChange }: OAuthConnectorP
     }
 
     setIsDisconnecting(true);
+    // Yield one frame so the button spinner paints before network work starts.
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
 
     try {
       const authHeader = await getAuthHeader();
@@ -483,11 +485,10 @@ export function OAuthConnector({ provider, onConnectionChange }: OAuthConnectorP
                 variant="ghost"
                 size="sm"
                 className="w-full text-gray-400 hover:text-white"
-                onClick={() => window.open(`https://${projectId}.supabase.co/functions/v1/make-server-57781ad9/integrations/${provider.id}/permissions`, '_blank')}
+                onClick={handleConnect}
               >
                 <Lock className="w-4 h-4 mr-2" />
                 Manage Permissions
-                <ExternalLink className="w-3 h-3 ml-auto" />
               </Button>
             </div>
           </motion.div>
