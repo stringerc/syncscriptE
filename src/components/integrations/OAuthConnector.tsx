@@ -47,6 +47,19 @@ export function OAuthConnector({ provider, onConnectionChange }: OAuthConnectorP
   const [showSettings, setShowSettings] = useState(false);
   const [autoSync, setAutoSync] = useState(true);
   const [syncFrequency, setSyncFrequency] = useState<'realtime' | '5min' | '15min' | '1hour'>('15min');
+  const canonicalAppUrl = (import.meta.env.VITE_APP_URL || 'https://syncscript.app').replace(/\/$/, '');
+
+  const getOAuthRedirectUri = () => {
+    const host = window.location.hostname;
+    const isLocal =
+      host === 'localhost' ||
+      host === '127.0.0.1' ||
+      host.endsWith('.local');
+
+    return isLocal
+      ? `${window.location.origin}/oauth-callback`
+      : `${canonicalAppUrl}/oauth-callback`;
+  };
 
   const getAuthHeader = async () => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -133,7 +146,7 @@ export function OAuthConnector({ provider, onConnectionChange }: OAuthConnectorP
           },
           body: JSON.stringify({
             scopes: provider.scopes,
-            redirectUri: `${window.location.origin}/oauth-callback`
+            redirectUri: getOAuthRedirectUri()
           })
         }
       );
