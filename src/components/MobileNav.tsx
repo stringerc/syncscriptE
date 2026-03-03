@@ -2,7 +2,7 @@ import { useNavigate, useLocation } from 'react-router';
 import { useState, useEffect } from 'react';
 import { 
   LayoutDashboard, Target, Calendar, Bot, Zap, Waves, Users, 
-  TrendingUp, Gamepad2, Link2, Building2, FileText, Menu, Settings, Mail,
+  TrendingUp, Gamepad2, Link2, Building2, FileText, Menu, Settings, Mail, DollarSign,
   X
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -27,11 +27,12 @@ export function MobileNav() {
     { icon: LayoutDashboard, label: 'Dashboard', id: 'Dashboard', path: navigationLinks.sidebar.dashboard },
     { icon: Target, label: 'Tasks', id: 'Tasks', path: navigationLinks.sidebar.tasks },
     { icon: Calendar, label: 'Calendar', id: 'Calendar', path: navigationLinks.sidebar.calendar },
+    { icon: DollarSign, label: 'Financials', id: 'Financials', path: navigationLinks.sidebar.financials },
+    { icon: Mail, label: 'Email', id: 'Email', path: navigationLinks.sidebar.email },
     { icon: Bot, label: 'AI', id: 'AI', path: navigationLinks.sidebar.ai },
     { icon: Zap, label: 'Energy', id: 'Energy', path: navigationLinks.sidebar.energy },
     { icon: Waves, label: 'Resonance Engine', id: 'Resonance', path: navigationLinks.sidebar.resonance },
     { icon: Users, label: 'Team', id: 'Team', path: navigationLinks.sidebar.team },
-    { icon: Mail, label: 'Email', id: 'Email', path: navigationLinks.sidebar.email },
     { icon: Gamepad2, label: 'Gaming', id: 'Gaming', path: navigationLinks.sidebar.gaming },
     { icon: FileText, label: 'Scripts & Templates', id: 'Scripts', path: navigationLinks.sidebar.scripts },
     { icon: TrendingUp, label: 'Analytics', id: 'Analytics', path: navigationLinks.sidebar.analytics },

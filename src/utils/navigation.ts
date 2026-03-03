@@ -10,6 +10,7 @@ export const navigationLinks = {
     dashboard: '/dashboard',
     tasks: '/tasks',
     calendar: '/calendar',
+    financials: '/financials',
     ai: '/ai',
     energy: '/energy',
     resonance: '/resonance-engine',

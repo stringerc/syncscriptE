@@ -13,7 +13,7 @@ import {
   LayoutDashboard, Calendar, CheckSquare, Target, Zap, 
   Users, BarChart3, Trophy, Puzzle, Settings, Brain,
   Plus, TrendingUp, Search, FileText, MessageSquare,
-  Activity, Clock, Sparkles, ListChecks, AlertCircle, Bell
+  Activity, Clock, Sparkles, ListChecks, AlertCircle, Bell, DollarSign
 } from 'lucide-react';
 
 export interface PageContext {
@@ -154,6 +154,64 @@ export const PAGE_CONTEXTS: Record<string, PageContext> = {
       'Smart scheduling suggestions',
       'Conflict detection',
       'Energy-aware scheduling',
+    ],
+  },
+
+  '/financials': {
+    route: '/financials',
+    displayName: 'Financials',
+    icon: DollarSign,
+    description: 'Revenue modeling, financial planning, and execution intelligence',
+    quickActions: [
+      {
+        id: 'financial-brief',
+        label: 'Generate Brief',
+        icon: Sparkles,
+        description: 'Build a CFO-style weekly financial brief',
+        command: 'Generate my financial operating brief for this week',
+        type: 'analyze',
+      },
+      {
+        id: 'revenue-scenario',
+        label: 'Revenue Scenario',
+        icon: TrendingUp,
+        description: 'Model MRR upside from conversion and pricing changes',
+        command: 'Model revenue upside for my current traffic and price',
+        type: 'analyze',
+      },
+      {
+        id: 'cost-focus',
+        label: 'Cost Focus',
+        icon: AlertCircle,
+        description: 'Identify top cost-risk areas and mitigation',
+        command: 'Where are my highest financial risks this month?',
+        type: 'query',
+      },
+      {
+        id: 'execution-plan',
+        label: 'Execution Plan',
+        icon: ListChecks,
+        description: 'Convert financial strategy to tasks',
+        command: 'Turn this financial strategy into prioritized tasks',
+        type: 'optimize',
+      },
+    ],
+    conversationStarters: [
+      'What are the top levers to increase MRR this month?',
+      'Show my likely upgrade conversion opportunities',
+      'What is my biggest financial risk right now?',
+      'Convert this financial plan into execution tasks',
+    ],
+    smartInsights: [
+      'Financial upside is highest from conversion improvements',
+      'Modeling suggests aggressive mode has higher volatility',
+      'Use weekly financial check-ins to improve forecast accuracy',
+    ],
+    aiCapabilities: [
+      'CFO-style operating brief generation',
+      'Revenue and conversion scenario modeling',
+      'Risk and opportunity analysis',
+      'Financial strategy-to-task execution planning',
     ],
   },
 
@@ -655,7 +713,7 @@ export function hasContextualInsights(pathname: string, userData?: any): boolean
   if (pathname === '/energy' && userData?.energyLevel < 40) return true;
   
   // For demo, show notification on certain pages
-  return ['/calendar', '/tasks', '/energy', '/resonance-engine'].includes(pathname);
+  return ['/calendar', '/tasks', '/energy', '/resonance-engine', '/financials'].includes(pathname);
 }
 
 /**

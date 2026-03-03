@@ -53,6 +53,7 @@ const EnergyFocusPage = lazy(() => import('./components/pages/EnergyFocusPageV2'
 const ResonanceEnginePage = lazy(() => import('./components/pages/ResonanceEnginePage').then(m => ({ default: m.ResonanceEnginePage })));
 const TeamCollaborationPage = lazy(() => import('./components/pages/TeamCollaborationPage').then(m => ({ default: m.TeamCollaborationPage })));
 const AnalyticsInsightsPage = lazy(() => import('./components/pages/AnalyticsInsightsPage').then(m => ({ default: m.AnalyticsInsightsPage })));
+const FinancialsPage = lazy(() => import('./components/pages/FinancialsPage').then(m => ({ default: m.FinancialsPage })));
 const GamificationHubPage = lazy(() => import('./components/pages/GamificationHubPage').then(m => ({ default: m.GamificationHubPage })));
 const GamificationHubPageV2 = lazy(() => import('./components/pages/GamificationHubPageV2').then(m => ({ default: m.GamificationHubPageV2 })));
 const IntegrationsPage = lazy(() => import('./components/pages/IntegrationsPage').then(m => ({ default: m.IntegrationsPage })));
@@ -145,6 +146,12 @@ function DashboardRoutes() {
         <Route path="/calendar" element={
           <ProtectedRoute><ErrorBoundary><CalendarEventsPage /></ErrorBoundary></ProtectedRoute>
         } />
+        <Route path="/financials" element={
+          <ProtectedRoute><ErrorBoundary><FinancialsPage /></ErrorBoundary></ProtectedRoute>
+        } />
+        <Route path="/email" element={
+          <ProtectedRoute><ErrorBoundary><EmailHubPage /></ErrorBoundary></ProtectedRoute>
+        } />
         <Route path="/ai" element={<ProtectedRoute><AIAssistantPage /></ProtectedRoute>} />
         <Route path="/energy" element={<ProtectedRoute><EnergyFocusPage /></ProtectedRoute>} />
         <Route path="/resonance-engine" element={<ProtectedRoute><ResonanceEnginePage /></ProtectedRoute>} />
@@ -158,9 +165,6 @@ function DashboardRoutes() {
         <Route path="/gaming-v2" element={<ProtectedRoute><GamificationHubPageV2 /></ProtectedRoute>} />
         <Route path="/integrations" element={
           <ProtectedRoute><ErrorBoundary><IntegrationsPage /></ErrorBoundary></ProtectedRoute>
-        } />
-        <Route path="/email" element={
-          <ProtectedRoute><ErrorBoundary><EmailHubPage /></ErrorBoundary></ProtectedRoute>
         } />
         <Route path="/enterprise" element={<ProtectedRoute><EnterpriseToolsPage /></ProtectedRoute>} />
         <Route path="/scripts-templates" element={<ProtectedRoute><ScriptsTemplatesPage /></ProtectedRoute>} />
