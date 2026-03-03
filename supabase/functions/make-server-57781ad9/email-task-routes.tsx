@@ -131,6 +131,62 @@ function extractEmailList(value: string): string[] {
     .filter(Boolean);
 }
 
+function decodeBase64UrlServer(input: string): string {
+  try {
+    const normalized = input.replace(/-/g, "+").replace(/_/g, "/");
+    const pad = normalized.length % 4 === 0 ? "" : "=".repeat(4 - (normalized.length % 4));
+    return atob(normalized + pad);
+  } catch {
+    return "";
+  }
+}
+
+async function fetchGmailAttachmentBody(
+  token: string,
+  messageId: string,
+  attachmentId: string,
+): Promise<string> {
+  const resp = await fetch(
+    `https://gmail.googleapis.com/gmail/v1/users/me/messages/${messageId}/attachments/${attachmentId}`,
+    { headers: { Authorization: `Bearer ${token}` } },
+  );
+  if (!resp.ok) return "";
+  const json = await resp.json();
+  const data = String(json?.data || "");
+  return data ? decodeBase64UrlServer(data) : "";
+}
+
+async function collectGmailBodyCandidates(
+  payload: any,
+  mimeType: string,
+  token: string,
+  messageId: string,
+  acc: string[] = [],
+): Promise<string[]> {
+  if (!payload) return acc;
+
+  if (payload.mimeType === mimeType) {
+    const inlineData = String(payload?.body?.data || "");
+    const attachmentId = String(payload?.body?.attachmentId || "");
+
+    if (inlineData) {
+      const decoded = decodeBase64UrlServer(inlineData);
+      if (decoded) acc.push(decoded);
+    } else if (attachmentId) {
+      const decoded = await fetchGmailAttachmentBody(token, messageId, attachmentId);
+      if (decoded) acc.push(decoded);
+    }
+  }
+
+  if (Array.isArray(payload.parts)) {
+    for (const part of payload.parts) {
+      await collectGmailBodyCandidates(part, mimeType, token, messageId, acc);
+    }
+  }
+
+  return acc;
+}
+
 async function fetchGmailMessages(
   userId: string,
   folder: "inbox" | "sent",
@@ -545,7 +601,20 @@ app.get("/email/messages/:provider/:messageId", async (c) => {
       });
       if (!resp.ok) return c.json({ error: await resp.text() }, resp.status as any);
       const json = await resp.json();
-      return c.json({ provider: "gmail", message: json });
+      const [plainCandidates, htmlCandidates] = await Promise.all([
+        collectGmailBodyCandidates(json?.payload, "text/plain", token, messageId),
+        collectGmailBodyCandidates(json?.payload, "text/html", token, messageId),
+      ]);
+      const resolvedPlain = [...plainCandidates].sort((a, b) => b.length - a.length)[0] || "";
+      const resolvedHtml = [...htmlCandidates].sort((a, b) => b.length - a.length)[0] || "";
+      return c.json({
+        provider: "gmail",
+        message: json,
+        resolved: {
+          plain: resolvedPlain,
+          html: resolvedHtml,
+        },
+      });
     }
 
     if (provider === "outlook") {

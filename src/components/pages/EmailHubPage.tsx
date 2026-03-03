@@ -100,7 +100,9 @@ function buildEmailIframeDoc(html: string, zoomPercent: number): string {
       }
       a { color: #5eead4; text-decoration: underline; }
       img { max-width: 100%; height: auto; display: block; }
-      table { max-width: 100% !important; width: auto !important; }
+      table { max-width: 100% !important; width: 100% !important; }
+      td, th, div { max-width: 100% !important; }
+      body > table, #bodyTable, #backgroundTable, .container { width: 100% !important; max-width: 100% !important; margin: 0 !important; }
       pre { white-space: pre-wrap; word-break: break-word; }
       blockquote { border-left: 3px solid #374151; margin-left: 0; padding-left: 10px; color: #9ca3af; }
     </style>
@@ -248,6 +250,13 @@ export function EmailHubPage() {
       return {
         text: decodeEntities(htmlToText(raw)),
         html: isLikelyHtml ? raw : '',
+      };
+    }
+
+    if (selectedDetail.resolved?.plain || selectedDetail.resolved?.html) {
+      return {
+        text: decodeEntities(selectedDetail.resolved.plain || htmlToText(selectedDetail.resolved.html || '')),
+        html: selectedDetail.resolved.html || '',
       };
     }
 
