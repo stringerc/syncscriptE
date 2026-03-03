@@ -48,6 +48,7 @@ export function OAuthConnector({ provider, onConnectionChange }: OAuthConnectorP
   const { earnXP } = useGamification();
   const [isConnecting, setIsConnecting] = useState(false);
   const [isDisconnecting, setIsDisconnecting] = useState(false);
+  const [disconnectArmed, setDisconnectArmed] = useState(false);
   const [status, setStatus] = useState<ConnectionStatus>({ connected: false });
   const [showSettings, setShowSettings] = useState(false);
   const [autoSync, setAutoSync] = useState(true);
@@ -165,6 +166,8 @@ export function OAuthConnector({ provider, onConnectionChange }: OAuthConnectorP
 
   const handleConnect = async () => {
     setIsConnecting(true);
+    // Let loading state paint before network work to improve interaction latency.
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
     
     try {
       const authHeader = await getAuthHeader();
@@ -214,10 +217,18 @@ export function OAuthConnector({ provider, onConnectionChange }: OAuthConnectorP
   };
 
   const handleDisconnect = async () => {
-    if (!confirm(`Are you sure you want to disconnect ${provider.name}? All synced data will be preserved, but automatic syncing will stop.`)) {
+    // Two-step, non-blocking confirmation to avoid native confirm() INP penalties.
+    if (!disconnectArmed) {
+      setDisconnectArmed(true);
+      toast.warning(`Click disconnect again to remove ${provider.name}`, {
+        description: 'This confirmation expires in 4 seconds.',
+        duration: 3000,
+      });
+      setTimeout(() => setDisconnectArmed(false), 4000);
       return;
     }
 
+    setDisconnectArmed(false);
     setIsDisconnecting(true);
     // Yield one frame so the button spinner paints before network work starts.
     await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
@@ -252,6 +263,8 @@ export function OAuthConnector({ provider, onConnectionChange }: OAuthConnectorP
 
   const handleSync = async () => {
     try {
+      // Yield a frame before network work for smoother interaction response.
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
       const authHeader = await getAuthHeader();
       toast.info(`Syncing ${provider.name}...`);
       
@@ -281,6 +294,8 @@ export function OAuthConnector({ provider, onConnectionChange }: OAuthConnectorP
 
   const handleSettingsChange = async (key: string, value: any) => {
     try {
+      // Keep controls responsive before async persistence.
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
       const authHeader = await getAuthHeader();
       const response = await fetch(
         `https://${projectId}.supabase.co/functions/v1/make-server-57781ad9/integrations/${provider.id}/settings`,
@@ -397,7 +412,7 @@ export function OAuthConnector({ provider, onConnectionChange }: OAuthConnectorP
               ) : (
                 <>
                   <X className="w-4 h-4 mr-2" />
-                  Disconnect
+                  {disconnectArmed ? 'Confirm' : 'Disconnect'}
                 </>
               )}
             </Button>
