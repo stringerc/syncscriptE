@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Mail, RefreshCw, Inbox, Send, Settings2, CheckCircle2 } from 'lucide-react';
+import { useNavigate } from 'react-router';
 import { DashboardLayout } from '../layout/DashboardLayout';
 import { Button } from '../ui/button';
 import { Tabs, TabsList, TabsTrigger } from '../ui/tabs';
@@ -31,6 +32,7 @@ interface EmailMetrics {
 }
 
 export function EmailHubPage() {
+  const navigate = useNavigate();
   const [provider, setProvider] = useState<ProviderKey>('all');
   const [folder, setFolder] = useState<FolderKey>('inbox');
   const [query, setQuery] = useState('');
@@ -41,6 +43,7 @@ export function EmailHubPage() {
   const [metrics, setMetrics] = useState<EmailMetrics>({ emailCompletedTasks: 0, sentEventsProcessed: 0 });
   const [autoCompleteSentEmails, setAutoCompleteSentEmails] = useState(true);
   const [retentionDays, setRetentionDays] = useState(30);
+  const [providerErrors, setProviderErrors] = useState<Record<string, string>>({});
 
   const baseUrl = `https://${projectId}.supabase.co/functions/v1/make-server-57781ad9`;
 
@@ -96,6 +99,7 @@ export function EmailHubPage() {
       }
       const data = await res.json();
       setMessages(Array.isArray(data.messages) ? data.messages : []);
+      setProviderErrors(typeof data.providerErrors === 'object' && data.providerErrors ? data.providerErrors : {});
       setSelectedMessage(null);
       setSelectedDetail(null);
     } catch (error) {
@@ -235,7 +239,25 @@ export function EmailHubPage() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 min-h-[520px]">
             <div className="border border-gray-800 rounded-lg overflow-y-auto max-h-[520px]">
               {messages.length === 0 ? (
-                <div className="text-sm text-gray-500 p-6 text-center">No messages found for current filters.</div>
+                <div className="text-sm text-gray-500 p-6 text-center space-y-3">
+                  <p>No messages found for current filters.</p>
+                  {(providerErrors.gmail || providerErrors.outlook) && (
+                    <div className="text-left bg-[#1a1d24] border border-gray-800 rounded-md p-3 space-y-2 text-xs">
+                      <p className="text-gray-300">Provider status:</p>
+                      {providerErrors.gmail && (
+                        <p className="text-yellow-300">Gmail: connect Gmail Mail in Integrations (mail scopes required).</p>
+                      )}
+                      {providerErrors.outlook && (
+                        <p className="text-yellow-300">Outlook: connect Outlook Mail in Integrations.</p>
+                      )}
+                      <div>
+                        <Button size="sm" variant="outline" onClick={() => navigate('/integrations')}>
+                          Open Integrations
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
               ) : (
                 messages.map((msg) => (
                   <button

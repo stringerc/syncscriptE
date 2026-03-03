@@ -455,6 +455,7 @@ app.get("/email/messages", async (c) => {
   try {
     let messages: EmailMetadata[] = [];
     let nextCursor: string | null = null;
+    const providerErrors: Record<string, string> = {};
 
     if (provider === "gmail") {
       const out = await fetchGmailMessages(user.id, folder, limit, cursor, search);
@@ -475,10 +476,14 @@ app.get("/email/messages", async (c) => {
       if (gmail.status === "fulfilled") {
         messages.push(...gmail.value.messages);
         await pruneAndSaveCache(user.id, "gmail", gmail.value.messages, retentionDays);
+      } else {
+        providerErrors.gmail = String(gmail.reason || "Gmail fetch failed");
       }
       if (outlook.status === "fulfilled") {
         messages.push(...outlook.value.messages);
         await pruneAndSaveCache(user.id, "outlook", outlook.value.messages, retentionDays);
+      } else {
+        providerErrors.outlook = String(outlook.reason || "Outlook fetch failed");
       }
       messages = messages.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, limit);
     }
@@ -490,6 +495,7 @@ app.get("/email/messages", async (c) => {
       folder,
       count: messages.length,
       retentionDays,
+      providerErrors,
     });
   } catch (error) {
     console.error("[EMAIL] list messages failed:", error);
