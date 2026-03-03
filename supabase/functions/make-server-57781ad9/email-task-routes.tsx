@@ -458,15 +458,39 @@ app.get("/email/messages", async (c) => {
     const providerErrors: Record<string, string> = {};
 
     if (provider === "gmail") {
-      const out = await fetchGmailMessages(user.id, folder, limit, cursor, search);
-      messages = out.messages;
-      nextCursor = out.nextCursor;
-      await pruneAndSaveCache(user.id, "gmail", messages, retentionDays);
+      try {
+        const out = await fetchGmailMessages(user.id, folder, limit, cursor, search);
+        messages = out.messages;
+        nextCursor = out.nextCursor;
+        await pruneAndSaveCache(user.id, "gmail", messages, retentionDays);
+      } catch (error) {
+        providerErrors.gmail = String(error || "Gmail fetch failed");
+        const cached = await kv.get(EMAIL_CACHE_KEY(user.id, "gmail"));
+        const cachedList = Array.isArray(cached) ? (cached as EmailMetadata[]) : [];
+        const filtered = cachedList
+          .filter((m) => m.folder === folder)
+          .filter((m) => !search || m.subject.toLowerCase().includes(search.toLowerCase()) || m.snippet.toLowerCase().includes(search.toLowerCase()))
+          .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+          .slice(0, limit);
+        messages = filtered;
+      }
     } else if (provider === "outlook") {
-      const out = await fetchOutlookMessages(user.id, folder, limit, cursor, search);
-      messages = out.messages;
-      nextCursor = out.nextCursor;
-      await pruneAndSaveCache(user.id, "outlook", messages, retentionDays);
+      try {
+        const out = await fetchOutlookMessages(user.id, folder, limit, cursor, search);
+        messages = out.messages;
+        nextCursor = out.nextCursor;
+        await pruneAndSaveCache(user.id, "outlook", messages, retentionDays);
+      } catch (error) {
+        providerErrors.outlook = String(error || "Outlook fetch failed");
+        const cached = await kv.get(EMAIL_CACHE_KEY(user.id, "outlook"));
+        const cachedList = Array.isArray(cached) ? (cached as EmailMetadata[]) : [];
+        const filtered = cachedList
+          .filter((m) => m.folder === folder)
+          .filter((m) => !search || m.subject.toLowerCase().includes(search.toLowerCase()) || m.snippet.toLowerCase().includes(search.toLowerCase()))
+          .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+          .slice(0, limit);
+        messages = filtered;
+      }
     } else {
       const eachLimit = Math.max(1, Math.floor(limit / 2));
       const [gmail, outlook] = await Promise.allSettled([
