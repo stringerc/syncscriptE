@@ -31,6 +31,11 @@ interface EmailMetrics {
   sentEventsProcessed: number;
 }
 
+interface EmailPreviewContent {
+  text: string;
+  html: string;
+}
+
 function decodeBase64Url(input?: string): string {
   if (!input) return '';
   try {
@@ -77,6 +82,25 @@ function findGmailPart(payload: any, mimeType: string): string {
   return '';
 }
 
+function buildEmailIframeDoc(html: string): string {
+  return `<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style>
+      body { font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #e5e7eb; background: #1a1d24; margin: 0; padding: 12px; line-height: 1.45; }
+      a { color: #5eead4; text-decoration: underline; }
+      img { max-width: 100%; height: auto; display: block; }
+      table { max-width: 100% !important; width: auto !important; }
+      pre { white-space: pre-wrap; word-break: break-word; }
+      blockquote { border-left: 3px solid #374151; margin-left: 0; padding-left: 10px; color: #9ca3af; }
+    </style>
+  </head>
+  <body>${html}</body>
+</html>`;
+}
+
 export function EmailHubPage() {
   const navigate = useNavigate();
   const [provider, setProvider] = useState<ProviderKey>('all');
@@ -90,6 +114,7 @@ export function EmailHubPage() {
   const [autoCompleteSentEmails, setAutoCompleteSentEmails] = useState(true);
   const [retentionDays, setRetentionDays] = useState(30);
   const [providerErrors, setProviderErrors] = useState<Record<string, string>>({});
+  const [previewMode, setPreviewMode] = useState<'rich' | 'text'>('rich');
 
   const baseUrl = `https://${projectId}.supabase.co/functions/v1/make-server-57781ad9`;
 
@@ -158,6 +183,7 @@ export function EmailHubPage() {
   const fetchMessageDetail = async (msg: EmailMessage) => {
     setSelectedMessage(msg);
     setSelectedDetail(null);
+    setPreviewMode('rich');
     try {
       const authHeader = await getAuthHeader();
       const res = await fetch(`${baseUrl}/email/messages/${msg.provider}/${msg.id}`, {
@@ -204,23 +230,36 @@ export function EmailHubPage() {
     void fetchMessages();
   }, [provider, folder]);
 
-  const selectedBody = useMemo(() => {
-    if (!selectedDetail) return '';
+  const selectedBody = useMemo<EmailPreviewContent>(() => {
+    if (!selectedDetail) return { text: '', html: '' };
     if (selectedMessage?.provider === 'outlook') {
       const raw = selectedDetail.body?.content || selectedDetail.bodyPreview || '';
-      return decodeEntities(htmlToText(raw));
+      const isLikelyHtml = /<[^>]+>/.test(raw);
+      return {
+        text: decodeEntities(htmlToText(raw)),
+        html: isLikelyHtml ? raw : '',
+      };
     }
 
     const plain = findGmailPart(selectedDetail.payload, 'text/plain');
-    if (plain) return decodeEntities(plain);
-
     const html = findGmailPart(selectedDetail.payload, 'text/html');
-    if (html) return decodeEntities(htmlToText(html));
-
     const bodyData = selectedDetail.payload?.body?.data ? decodeBase64Url(selectedDetail.payload.body.data) : '';
-    if (bodyData) return decodeEntities(bodyData);
 
-    return decodeEntities(selectedDetail.snippet || '');
+    if (plain || html) {
+      return {
+        text: decodeEntities(plain || htmlToText(html)),
+        html: html || '',
+      };
+    }
+
+    if (bodyData) {
+      return {
+        text: decodeEntities(htmlToText(bodyData)),
+        html: /<[^>]+>/.test(bodyData) ? bodyData : '',
+      };
+    }
+
+    return { text: decodeEntities(selectedDetail.snippet || ''), html: '' };
   }, [selectedDetail, selectedMessage?.provider]);
 
   return (
@@ -381,9 +420,34 @@ export function EmailHubPage() {
                     <p><span className="text-gray-500">To:</span> {selectedMessage.to.join(', ') || '-'}</p>
                     <p><span className="text-gray-500">Date:</span> {new Date(selectedMessage.date).toLocaleString()}</p>
                   </div>
-                  <div className="bg-[#1a1d24] border border-gray-800 rounded-md p-3 text-sm text-gray-200 whitespace-pre-wrap">
-                    {selectedBody || selectedMessage.snippet || 'No body preview available.'}
-                  </div>
+                  {selectedBody.html && (
+                    <div className="flex items-center gap-2 text-xs">
+                      <button
+                        onClick={() => setPreviewMode('rich')}
+                        className={`px-2 py-1 rounded border ${previewMode === 'rich' ? 'border-teal-500/50 text-teal-300 bg-teal-500/10' : 'border-gray-700 text-gray-400'}`}
+                      >
+                        Rich Preview
+                      </button>
+                      <button
+                        onClick={() => setPreviewMode('text')}
+                        className={`px-2 py-1 rounded border ${previewMode === 'text' ? 'border-teal-500/50 text-teal-300 bg-teal-500/10' : 'border-gray-700 text-gray-400'}`}
+                      >
+                        Plain Text
+                      </button>
+                    </div>
+                  )}
+                  {selectedBody.html && previewMode === 'rich' ? (
+                    <iframe
+                      title="Email rich preview"
+                      sandbox="allow-popups allow-popups-to-escape-sandbox"
+                      srcDoc={buildEmailIframeDoc(selectedBody.html)}
+                      className="w-full min-h-[340px] bg-[#1a1d24] border border-gray-800 rounded-md"
+                    />
+                  ) : (
+                    <div className="bg-[#1a1d24] border border-gray-800 rounded-md p-3 text-sm text-gray-200 whitespace-pre-wrap">
+                      {selectedBody.text || selectedMessage.snippet || 'No body preview available.'}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
