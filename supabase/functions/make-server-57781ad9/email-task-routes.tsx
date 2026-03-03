@@ -141,6 +141,17 @@ function decodeBase64UrlServer(input: string): string {
   }
 }
 
+function encodeBase64UrlServer(input: string): string {
+  try {
+    const bytes = new TextEncoder().encode(input);
+    let binary = "";
+    for (const b of bytes) binary += String.fromCharCode(b);
+    return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+  } catch {
+    return "";
+  }
+}
+
 async function fetchGmailAttachmentBody(
   token: string,
   messageId: string,
@@ -191,6 +202,12 @@ function visibleTextScore(htmlOrText: string): number {
   const noTags = htmlOrText.replace(/<style[\s\S]*?<\/style>/gi, " ").replace(/<script[\s\S]*?<\/script>/gi, " ").replace(/<[^>]+>/g, " ");
   const normalized = noTags.replace(/\s+/g, " ").trim();
   return normalized.length;
+}
+
+function ensureReplySubject(subject?: string): string {
+  const raw = String(subject || "").trim();
+  if (!raw) return "Re: (no subject)";
+  return /^re:/i.test(raw) ? raw : `Re: ${raw}`;
 }
 
 async function fetchGmailMessages(
@@ -629,7 +646,7 @@ app.get("/email/messages/:provider/:messageId", async (c) => {
         (await getValidToken("outlook_calendar", user.id));
       if (!token) return c.json({ error: "Outlook not connected" }, 400);
       const resp = await fetch(
-        `https://graph.microsoft.com/v1.0/me/messages/${messageId}?$select=id,conversationId,subject,from,toRecipients,ccRecipients,body,bodyPreview,sentDateTime,receivedDateTime,webLink`,
+        `https://graph.microsoft.com/v1.0/me/messages/${messageId}?$select=id,conversationId,internetMessageId,subject,from,toRecipients,ccRecipients,body,bodyPreview,sentDateTime,receivedDateTime,webLink`,
         { headers: { Authorization: `Bearer ${token}` } },
       );
       if (!resp.ok) return c.json({ error: await resp.text() }, resp.status as any);
@@ -641,6 +658,98 @@ app.get("/email/messages/:provider/:messageId", async (c) => {
   } catch (error) {
     console.error("[EMAIL] message detail failed:", error);
     return c.json({ error: "Failed to fetch message detail", details: String(error) }, 500);
+  }
+});
+
+app.post("/email/reply", async (c) => {
+  const user = await requireUser(c);
+  if (!user) return c.json({ error: "Unauthorized" }, 401);
+
+  try {
+    const body = await c.req.json();
+    const provider = String(body?.provider || "").toLowerCase();
+    const messageId = String(body?.messageId || "").trim();
+    const to = String(body?.to || "").trim();
+    const subject = ensureReplySubject(body?.subject);
+    const bodyText = String(body?.bodyText || "").trim();
+    const threadId = String(body?.threadId || "").trim();
+    const inReplyTo = String(body?.inReplyTo || "").trim();
+    const references = String(body?.references || "").trim();
+
+    if (!messageId) return c.json({ error: "messageId is required" }, 400);
+    if (!to) return c.json({ error: "to is required" }, 400);
+    if (!bodyText) return c.json({ error: "bodyText is required" }, 400);
+
+    if (provider === "gmail") {
+      const token =
+        (await getValidToken("google_mail", user.id)) ||
+        (await getValidToken("google_calendar", user.id));
+      if (!token) return c.json({ error: "Gmail not connected" }, 400);
+
+      const lines = [
+        `To: ${to}`,
+        `Subject: ${subject}`,
+        "MIME-Version: 1.0",
+        'Content-Type: text/plain; charset="UTF-8"',
+      ];
+      if (inReplyTo) lines.push(`In-Reply-To: ${inReplyTo}`);
+      if (references || inReplyTo) lines.push(`References: ${references || inReplyTo}`);
+      const rawMime = `${lines.join("\r\n")}\r\n\r\n${bodyText}\r\n`;
+      const raw = encodeBase64UrlServer(rawMime);
+      if (!raw) return c.json({ error: "Failed to encode message" }, 500);
+
+      const sendResp = await fetch("https://gmail.googleapis.com/gmail/v1/users/me/messages/send", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          raw,
+          threadId: threadId || undefined,
+        }),
+      });
+      if (!sendResp.ok) {
+        return c.json({ error: "Gmail send failed", details: await sendResp.text() }, sendResp.status as any);
+      }
+      const sent = await sendResp.json();
+      return c.json({
+        success: true,
+        provider: "gmail",
+        sentMessageId: sent?.id || null,
+        threadId: sent?.threadId || threadId || null,
+      });
+    }
+
+    if (provider === "outlook") {
+      const token =
+        (await getValidToken("outlook_mail", user.id)) ||
+        (await getValidToken("outlook_calendar", user.id));
+      if (!token) return c.json({ error: "Outlook not connected" }, 400);
+
+      const replyResp = await fetch(`https://graph.microsoft.com/v1.0/me/messages/${messageId}/reply`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ comment: bodyText }),
+      });
+      if (!replyResp.ok) {
+        return c.json({ error: "Outlook reply failed", details: await replyResp.text() }, replyResp.status as any);
+      }
+      return c.json({
+        success: true,
+        provider: "outlook",
+        sentMessageId: null,
+        threadId: threadId || null,
+      });
+    }
+
+    return c.json({ error: "Invalid provider" }, 400);
+  } catch (error) {
+    console.error("[EMAIL] reply failed:", error);
+    return c.json({ error: "Failed to send reply", details: String(error) }, 500);
   }
 });
 

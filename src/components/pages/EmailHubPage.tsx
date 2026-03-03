@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Mail, RefreshCw, Inbox, Send, Settings2, CheckCircle2 } from 'lucide-react';
+import { Mail, RefreshCw, Inbox, Send, Settings2, CheckCircle2, Sparkles, ListTodo, Flame, Clock3, BrainCircuit, ArrowUpRight, Wand2, SendHorizontal, Users, PauseCircle, PlayCircle } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import { DashboardLayout } from '../layout/DashboardLayout';
 import { Button } from '../ui/button';
@@ -9,6 +9,8 @@ import { Switch } from '../ui/switch';
 import { toast } from 'sonner@2.0.3';
 import { projectId, publicAnonKey } from '../../utils/supabase/info';
 import { supabase } from '../../utils/supabase/client';
+import { useOpenClaw } from '../../contexts/OpenClawContext';
+import { useTasks } from '../../hooks/useTasks';
 
 type ProviderKey = 'all' | 'gmail' | 'outlook';
 type FolderKey = 'inbox' | 'sent';
@@ -69,6 +71,79 @@ function decodeEntities(text: string): string {
   }
 }
 
+function buildLocalEmailBrief(subject: string, from: string, body: string): string {
+  const normalized = body.replace(/\s+/g, ' ').trim();
+  const short = normalized.slice(0, 360);
+  return [
+    `- Subject: ${subject || 'No subject'}`,
+    `- Sender: ${from || 'Unknown sender'}`,
+    `- Core signal: ${short || 'No readable body content available.'}`,
+    '- Suggested next step: confirm owner, due date, and desired outcome.',
+  ].join('\n');
+}
+
+function scoreEmailPriority(msg: EmailMessage): number {
+  const text = `${msg.subject} ${msg.snippet}`.toLowerCase();
+  const urgentRegex = /\b(urgent|asap|immediately|today|deadline|overdue|blocked|critical)\b/;
+  const actionRegex = /\b(reply|review|approve|confirm|send|submit|schedule|follow up|payment|invoice)\b/;
+  const hoursSince = Math.max(0, (Date.now() - new Date(msg.date).getTime()) / (1000 * 60 * 60));
+  const recencyScore = Math.max(0, 30 - Math.min(30, hoursSince));
+  const urgentScore = urgentRegex.test(text) ? 55 : 0;
+  const actionScore = actionRegex.test(text) ? 25 : 0;
+  return recencyScore + urgentScore + actionScore;
+}
+
+function classifyPriority(score: number): 'critical' | 'high' | 'normal' {
+  if (score >= 70) return 'critical';
+  if (score >= 40) return 'high';
+  return 'normal';
+}
+
+function extractActionSignals(text: string): string[] {
+  if (!text.trim()) return [];
+  const chunks = text
+    .split(/[\n.!?]+/g)
+    .map((c) => c.trim())
+    .filter(Boolean);
+  const actionRegex = /\b(reply|respond|review|approve|confirm|send|submit|schedule|follow up|pay|payment|invoice|share|update)\b/i;
+  return chunks.filter((c) => actionRegex.test(c)).slice(0, 5);
+}
+
+function extractPrimaryEmailAddress(value: string): string {
+  if (!value) return '';
+  const angleMatch = value.match(/<([^>]+)>/);
+  if (angleMatch?.[1]) return angleMatch[1].trim();
+  const bare = value.trim();
+  return /\S+@\S+\.\S+/.test(bare) ? bare : '';
+}
+
+function ensureReplySubject(subject: string): string {
+  const s = (subject || '').trim();
+  if (!s) return 'Re: (no subject)';
+  return /^re:/i.test(s) ? s : `Re: ${s}`;
+}
+
+function estimateBestSendTime(priority: 'critical' | 'high' | 'normal') {
+  const now = new Date();
+  const out = new Date(now);
+  if (priority === 'critical') {
+    out.setMinutes(out.getMinutes() + 2);
+    return out;
+  }
+
+  // Heuristic: for non-critical replies, target next business-focused slot.
+  const hour = now.getHours();
+  if (hour < 9) {
+    out.setHours(9, 0, 0, 0);
+  } else if (hour >= 17) {
+    out.setDate(out.getDate() + 1);
+    out.setHours(9, 0, 0, 0);
+  } else {
+    out.setMinutes(Math.ceil((now.getMinutes() + 1) / 15) * 15, 0, 0);
+  }
+  return out;
+}
+
 function collectGmailParts(payload: any, mimeType: string, acc: string[] = []): string[] {
   if (!payload) return acc;
   if (payload.mimeType === mimeType && payload.body?.data) {
@@ -113,6 +188,8 @@ function buildEmailIframeDoc(html: string, zoomPercent: number): string {
 
 export function EmailHubPage() {
   const navigate = useNavigate();
+  const { sendMessage, getTaskSuggestions, isInitialized: openClawReady } = useOpenClaw();
+  const { createTask } = useTasks();
   const [provider, setProvider] = useState<ProviderKey>('all');
   const [folder, setFolder] = useState<FolderKey>('inbox');
   const [query, setQuery] = useState('');
@@ -128,6 +205,16 @@ export function EmailHubPage() {
   const [previewZoom, setPreviewZoom] = useState(110);
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const [iframeHeight, setIframeHeight] = useState(900);
+  const [nexusSummary, setNexusSummary] = useState('');
+  const [nexusSuggestions, setNexusSuggestions] = useState<any[]>([]);
+  const [nexusLoading, setNexusLoading] = useState(false);
+  const [replyOpen, setReplyOpen] = useState(false);
+  const [replyTo, setReplyTo] = useState('');
+  const [replySubject, setReplySubject] = useState('');
+  const [replyBody, setReplyBody] = useState('');
+  const [replySending, setReplySending] = useState(false);
+  const [bestSendAt, setBestSendAt] = useState<string>('');
+  const [triageState, setTriageState] = useState<'none' | 'do' | 'delegate' | 'defer'>('none');
 
   const baseUrl = `https://${projectId}.supabase.co/functions/v1/make-server-57781ad9`;
 
@@ -215,6 +302,238 @@ export function EmailHubPage() {
     }
   };
 
+  const runNexusAnalysis = async () => {
+    if (!selectedMessage) return;
+    const body = selectedBody.text || selectedMessage.snippet || '';
+    if (!body.trim()) {
+      toast.info('No message content available to analyze yet');
+      return;
+    }
+
+    setNexusLoading(true);
+    try {
+      const context = {
+        source: 'email-hub',
+        provider: selectedMessage.provider,
+        folder: selectedMessage.folder,
+        subject: selectedMessage.subject,
+        from: selectedMessage.from,
+        to: selectedMessage.to,
+        bodyPreview: body.slice(0, 6000),
+      };
+
+      let summaryText = buildLocalEmailBrief(selectedMessage.subject, selectedMessage.from, body);
+      if (openClawReady) {
+        const summary = await sendMessage({
+          message: `Summarize this email in concise bullets and include action items:\nSubject: ${selectedMessage.subject}\nFrom: ${selectedMessage.from}\nTo: ${selectedMessage.to.join(', ')}\nBody:\n${body.slice(0, 6000)}`,
+          context: {
+            currentPage: 'email-hub',
+            recentActions: ['email-analysis'],
+            userPreferences: { style: 'concise-actionable' },
+          },
+        });
+        summaryText = summary?.message?.content || summaryText;
+      }
+
+      const aiSuggestions = await getTaskSuggestions(context);
+      setNexusSummary(summaryText || 'No summary returned. Use "Open in provider" for full thread details.');
+      setNexusSuggestions(Array.isArray(aiSuggestions) ? aiSuggestions.slice(0, 4) : []);
+    } catch (error) {
+      console.error('[EmailHub][Nexus] analysis failed:', error);
+      toast.error('Nexus analysis failed for this email');
+    } finally {
+      setNexusLoading(false);
+    }
+  };
+
+  const createTaskFromSuggestion = async (suggestion: any) => {
+    try {
+      const taskInput = {
+        title: suggestion.title || 'Follow up from email',
+        description: suggestion.description || `Created from email: ${selectedMessage?.subject || ''}`,
+        priority: (suggestion.priority || 'medium') as 'low' | 'medium' | 'high' | 'urgent',
+        energyLevel: ((suggestion.energyRequired || 'medium') as 'low' | 'medium' | 'high'),
+        estimatedTime: suggestion.estimatedTime || '30 min',
+        tags: Array.isArray(suggestion.tags) ? suggestion.tags : ['email'],
+        dueDate: suggestion.suggestedTime || new Date().toISOString(),
+      };
+      await createTask(taskInput as any);
+      toast.success('Task created from Nexus suggestion');
+    } catch (error) {
+      console.error('[EmailHub][Nexus] create task failed:', error);
+      toast.error('Could not create task from suggestion');
+    }
+  };
+
+  const generateReplyDraft = async () => {
+    if (!selectedMessage) return;
+    const sourceBody = selectedBody.text || selectedMessage.snippet || '';
+    const fallback = [
+      `Hi,`,
+      '',
+      `Thanks for the update on "${selectedMessage.subject || 'your message'}".`,
+      'I reviewed this and will follow up with the next step shortly.',
+      '',
+      'Best,',
+      'Sent from SyncScript',
+    ].join('\n');
+
+    try {
+      if (!openClawReady) {
+        setReplyBody(fallback);
+        toast.info('Using smart local draft (OpenClaw unavailable)');
+        return;
+      }
+
+      const draft = await sendMessage({
+        message: `Draft a concise professional email reply.\nOriginal subject: ${selectedMessage.subject}\nSender: ${selectedMessage.from}\nOriginal body/snippet:\n${sourceBody.slice(0, 5000)}\n\nReply tone: confident, friendly, clear. Include explicit next step.`,
+        context: {
+          currentPage: 'email-hub',
+          recentActions: ['reply-draft'],
+          userPreferences: { responseStyle: 'concise-professional' },
+        },
+      });
+      const generated = draft?.message?.content?.trim();
+      setReplyBody(generated || fallback);
+      toast.success('AI draft generated');
+    } catch (error) {
+      console.error('[EmailHub][Reply] draft generation failed:', error);
+      setReplyBody(fallback);
+      toast.error('Draft generation failed, using fallback draft');
+    }
+  };
+
+  const optimizeReplySendTime = async () => {
+    const priority = classifyPriority(scoreEmailPriority(selectedMessage as EmailMessage));
+    const local = estimateBestSendTime(priority);
+    let recommendation = local;
+
+    try {
+      if (openClawReady && selectedMessage) {
+        const ai = await sendMessage({
+          message: `Given this email context, suggest the best send timestamp (ISO) and reasoning.\nSubject: ${selectedMessage.subject}\nPriority: ${priority}\nCurrent local time: ${new Date().toISOString()}\n`,
+          context: {
+            currentPage: 'email-hub',
+            recentActions: ['send-time-optimization'],
+          },
+        });
+        const content = ai?.message?.content || '';
+        const isoMatch = content.match(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z/);
+        if (isoMatch?.[0]) {
+          const parsed = new Date(isoMatch[0]);
+          if (!Number.isNaN(parsed.getTime())) recommendation = parsed;
+        }
+      }
+    } catch {
+      // keep local recommendation
+    }
+
+    setBestSendAt(recommendation.toISOString());
+    toast.success(`Best send time: ${recommendation.toLocaleString()}`);
+  };
+
+  const sendReplyInSyncScript = async () => {
+    if (!selectedMessage) return;
+    if (!replyTo.trim()) {
+      toast.error('Reply recipient is required');
+      return;
+    }
+    if (!replyBody.trim()) {
+      toast.error('Reply body is required');
+      return;
+    }
+
+    setReplySending(true);
+    try {
+      const authHeader = await getAuthHeader();
+      const headers = selectedDetail?.payload?.headers || [];
+      const gmailMessageIdHeader = headers.find((h: any) => String(h?.name || '').toLowerCase() === 'message-id')?.value || '';
+      const outlookMessageIdHeader = selectedDetail?.internetMessageId || '';
+      const inReplyTo = gmailMessageIdHeader || outlookMessageIdHeader || '';
+      const references = inReplyTo;
+
+      const res = await fetch(`${baseUrl}/email/reply`, {
+        method: 'POST',
+        headers: {
+          Authorization: authHeader,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          provider: selectedMessage.provider,
+          messageId: selectedMessage.id,
+          threadId: selectedMessage.threadId || '',
+          to: replyTo.trim(),
+          subject: ensureReplySubject(replySubject || selectedMessage.subject || ''),
+          bodyText: replyBody,
+          inReplyTo,
+          references,
+          sendAt: bestSendAt || null,
+        }),
+      });
+
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text || 'Failed to send reply');
+      }
+
+      await fetch(`${baseUrl}/email/events/sent`, {
+        method: 'POST',
+        headers: {
+          Authorization: authHeader,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          provider: selectedMessage.provider,
+          messageId: `reply_${selectedMessage.provider}_${selectedMessage.id}_${Date.now()}`,
+          subject: ensureReplySubject(replySubject || selectedMessage.subject || ''),
+          to: [replyTo.trim()],
+          snippet: replyBody.slice(0, 180),
+          occurredAt: new Date().toISOString(),
+          webLink: selectedMessage.webLink || undefined,
+        }),
+      });
+
+      toast.success('Reply sent inside SyncScript');
+      setReplyOpen(false);
+      setReplyBody('');
+      setBestSendAt('');
+      void fetchMetrics();
+      if (folder === 'sent') void fetchMessages();
+    } catch (error) {
+      console.error('[EmailHub][Reply] send failed:', error);
+      toast.error(`Could not send reply: ${String(error)}`);
+    } finally {
+      setReplySending(false);
+    }
+  };
+
+  const applyTriageAction = async (action: 'do' | 'delegate' | 'defer') => {
+    if (!selectedMessage) return;
+    try {
+      const now = new Date();
+      const due = new Date(now);
+      if (action === 'do') due.setHours(now.getHours() + 1);
+      if (action === 'delegate') due.setDate(now.getDate() + 1);
+      if (action === 'defer') due.setDate(now.getDate() + 2);
+
+      const titlePrefix = action === 'do' ? 'Do now' : action === 'delegate' ? 'Delegate' : 'Defer';
+      await createTask({
+        title: `${titlePrefix}: ${selectedMessage.subject || 'Email follow-up'}`,
+        description: `Email action from ${selectedMessage.provider}.\nFrom: ${selectedMessage.from}\nSnippet: ${selectedMessage.snippet}`,
+        priority: action === 'do' ? 'high' : 'medium',
+        energyLevel: action === 'do' ? 'high' : 'medium',
+        estimatedTime: action === 'do' ? '20 min' : '10 min',
+        tags: ['email', `triage:${action}`, `provider:${selectedMessage.provider}`],
+        dueDate: due.toISOString(),
+      } as any);
+      setTriageState(action);
+      toast.success(`Triage applied: ${action.toUpperCase()}`);
+    } catch (error) {
+      console.error('[EmailHub][Triage] failed:', error);
+      toast.error('Could not apply triage action');
+    }
+  };
+
   const saveSettings = async (next: { autoCompleteSentEmails?: boolean; retentionDays?: number }) => {
     try {
       const authHeader = await getAuthHeader();
@@ -285,6 +604,32 @@ export function EmailHubPage() {
 
     return { text: decodeEntities(selectedDetail.snippet || ''), html: '' };
   }, [selectedDetail, selectedMessage?.provider]);
+
+  const prioritizedMessages = useMemo(() => {
+    return [...messages]
+      .map((msg) => ({ msg, score: scoreEmailPriority(msg) }))
+      .sort((a, b) => b.score - a.score || new Date(b.msg.date).getTime() - new Date(a.msg.date).getTime());
+  }, [messages]);
+
+  const selectedActionSignals = useMemo(() => {
+    const source = selectedBody.text || selectedMessage?.snippet || '';
+    return extractActionSignals(source);
+  }, [selectedBody.text, selectedMessage?.snippet]);
+
+  useEffect(() => {
+    setNexusSummary('');
+    setNexusSuggestions([]);
+  }, [selectedMessage?.id]);
+
+  useEffect(() => {
+    if (!selectedMessage) return;
+    setReplyTo(extractPrimaryEmailAddress(selectedMessage.from));
+    setReplySubject(ensureReplySubject(selectedMessage.subject || ''));
+    setReplyBody('');
+    setReplyOpen(false);
+    setBestSendAt('');
+    setTriageState('none');
+  }, [selectedMessage?.id]);
 
   const resizeIframeToContent = () => {
     const iframe = iframeRef.current;
@@ -371,9 +716,9 @@ export function EmailHubPage() {
             </Button>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 min-h-[640px]">
+          <div className="grid grid-cols-1 xl:grid-cols-[340px_minmax(0,1fr)_300px] gap-4 min-h-[640px]">
             <div className="border border-gray-800 rounded-lg overflow-y-auto max-h-[520px]">
-              {messages.length === 0 ? (
+              {prioritizedMessages.length === 0 ? (
                 <div className="text-sm text-gray-500 p-6 text-center space-y-3">
                   <p>No messages found for current filters.</p>
                   {(providerErrors.gmail || providerErrors.outlook) && (
@@ -394,7 +739,7 @@ export function EmailHubPage() {
                   )}
                 </div>
               ) : (
-                messages.map((msg) => (
+                prioritizedMessages.map(({ msg, score }) => (
                   <button
                     key={`${msg.provider}-${msg.id}`}
                     onClick={() => void fetchMessageDetail(msg)}
@@ -411,9 +756,16 @@ export function EmailHubPage() {
                         <p className="text-xs text-gray-500 truncate mt-1">{msg.snippet}</p>
                       </div>
                       <div className="text-right shrink-0">
-                        <Badge variant="outline" className="text-[10px] border-gray-700 text-gray-300">
-                          {msg.provider}
-                        </Badge>
+                        <div className="flex items-center justify-end gap-1.5">
+                          <Badge variant="outline" className="text-[10px] border-gray-700 text-gray-300">
+                            {msg.provider}
+                          </Badge>
+                          {classifyPriority(score) !== 'normal' && (
+                            <Badge variant="outline" className={`text-[10px] ${classifyPriority(score) === 'critical' ? 'border-rose-500/50 text-rose-300' : 'border-amber-500/50 text-amber-300'}`}>
+                              {classifyPriority(score)}
+                            </Badge>
+                          )}
+                        </div>
                         <p className="text-[11px] text-gray-500 mt-1">{new Date(msg.date).toLocaleString()}</p>
                       </div>
                     </div>
@@ -442,16 +794,12 @@ export function EmailHubPage() {
                           Open in provider
                         </a>
                       )}
-                      {selectedMessage.webLink && (
-                        <a
-                          href={selectedMessage.webLink}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-xs text-blue-300 hover:text-blue-200"
-                        >
-                          Reply in provider
-                        </a>
-                      )}
+                      <button
+                        onClick={() => setReplyOpen((prev) => !prev)}
+                        className="text-xs text-blue-300 hover:text-blue-200"
+                      >
+                        {replyOpen ? 'Close reply' : 'Reply in SyncScript'}
+                      </button>
                     </div>
                   </div>
                   <div className="text-xs text-gray-400 space-y-1">
@@ -459,6 +807,91 @@ export function EmailHubPage() {
                     <p><span className="text-gray-500">To:</span> {selectedMessage.to.join(', ') || '-'}</p>
                     <p><span className="text-gray-500">Date:</span> {new Date(selectedMessage.date).toLocaleString()}</p>
                   </div>
+                  <div className="bg-[#1a1d24] border border-gray-800 rounded-md p-3 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs text-gray-300 flex items-center gap-1.5">
+                        <Sparkles className="w-3.5 h-3.5 text-purple-300" />
+                        Nexus Brief (OpenClaw)
+                      </p>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => void runNexusAnalysis()}
+                        disabled={nexusLoading}
+                        className="h-7 text-xs"
+                      >
+                        {nexusLoading ? 'Analyzing...' : 'Analyze Email'}
+                      </Button>
+                    </div>
+                    {nexusSummary ? (
+                      <p className="text-xs text-gray-200 whitespace-pre-wrap">{nexusSummary}</p>
+                    ) : (
+                      <p className="text-xs text-gray-500">Generate an AI summary and task extraction for this email.</p>
+                    )}
+                    {nexusSuggestions.length > 0 && (
+                      <div className="space-y-2">
+                        <p className="text-xs text-gray-300 flex items-center gap-1.5">
+                          <ListTodo className="w-3.5 h-3.5 text-teal-300" />
+                          Suggested tasks
+                        </p>
+                        {nexusSuggestions.map((s, idx) => (
+                          <div key={`${s.id || s.title || 'suggestion'}-${idx}`} className="flex items-center justify-between gap-2 bg-[#12151b] border border-gray-800 rounded px-2 py-1.5">
+                            <p className="text-xs text-gray-200 truncate">{s.title || 'Suggested action'}</p>
+                            <Button size="sm" variant="outline" className="h-6 text-[11px]" onClick={() => void createTaskFromSuggestion(s)}>
+                              Add Task
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  {replyOpen && (
+                    <div className="bg-[#1a1d24] border border-teal-800/40 rounded-md p-3 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <p className="text-xs text-teal-300">Compose reply in SyncScript</p>
+                        {bestSendAt && (
+                          <p className="text-[11px] text-gray-400">
+                            Suggested send: {new Date(bestSendAt).toLocaleString()}
+                          </p>
+                        )}
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                        <input
+                          value={replyTo}
+                          onChange={(e) => setReplyTo(e.target.value)}
+                          placeholder="Recipient email"
+                          className="bg-[#12151b] border border-gray-700 rounded-md px-3 py-2 text-xs text-white"
+                        />
+                        <input
+                          value={replySubject}
+                          onChange={(e) => setReplySubject(e.target.value)}
+                          placeholder="Subject"
+                          className="bg-[#12151b] border border-gray-700 rounded-md px-3 py-2 text-xs text-white"
+                        />
+                      </div>
+                      <textarea
+                        value={replyBody}
+                        onChange={(e) => setReplyBody(e.target.value)}
+                        rows={8}
+                        placeholder="Write your reply..."
+                        className="w-full bg-[#12151b] border border-gray-700 rounded-md px-3 py-2 text-sm text-white"
+                      />
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Button size="sm" variant="outline" className="gap-1.5" onClick={() => void generateReplyDraft()}>
+                          <Wand2 className="w-3.5 h-3.5" />
+                          AI Draft
+                        </Button>
+                        <Button size="sm" variant="outline" className="gap-1.5" onClick={() => void optimizeReplySendTime()}>
+                          <Clock3 className="w-3.5 h-3.5" />
+                          Optimize Send Time
+                        </Button>
+                        <Button size="sm" className="gap-1.5 ml-auto" onClick={() => void sendReplyInSyncScript()} disabled={replySending}>
+                          <SendHorizontal className="w-3.5 h-3.5" />
+                          {replySending ? 'Sending...' : 'Send Reply'}
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                   {selectedBody.html && (
                     <div className="flex items-center gap-2 text-xs">
                       <button
@@ -507,6 +940,111 @@ export function EmailHubPage() {
                     </div>
                   )}
                 </div>
+              )}
+            </div>
+            <div className="border border-gray-800 rounded-lg bg-[#12151b] p-4 min-h-[640px] space-y-4">
+              <div>
+                <p className="text-sm text-white flex items-center gap-2">
+                  <BrainCircuit className="w-4 h-4 text-purple-300" />
+                  Action Cockpit
+                </p>
+                <p className="text-xs text-gray-400 mt-1">
+                  Decision layer for what to do next, powered by OpenClaw + urgency heuristics.
+                </p>
+              </div>
+
+              {!selectedMessage ? (
+                <div className="text-xs text-gray-500 bg-[#1a1d24] border border-gray-800 rounded-md p-3">
+                  Select an email to unlock triage, action extraction, and one-click tasking.
+                </div>
+              ) : (
+                <>
+                  <div className="bg-[#1a1d24] border border-gray-800 rounded-md p-3 space-y-2">
+                    <p className="text-xs text-gray-300 flex items-center gap-1.5">
+                      <Flame className="w-3.5 h-3.5 text-rose-300" />
+                      Priority signal
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline" className={`text-xs ${classifyPriority(scoreEmailPriority(selectedMessage)) === 'critical' ? 'border-rose-500/50 text-rose-300' : classifyPriority(scoreEmailPriority(selectedMessage)) === 'high' ? 'border-amber-500/50 text-amber-300' : 'border-gray-700 text-gray-300'}`}>
+                        {classifyPriority(scoreEmailPriority(selectedMessage)).toUpperCase()}
+                      </Badge>
+                      <span className="text-[11px] text-gray-400">Score {Math.round(scoreEmailPriority(selectedMessage))}</span>
+                    </div>
+                  </div>
+
+                  <div className="bg-[#1a1d24] border border-gray-800 rounded-md p-3 space-y-2">
+                    <p className="text-xs text-gray-300 flex items-center gap-1.5">
+                      <Clock3 className="w-3.5 h-3.5 text-teal-300" />
+                      Actionable lines
+                    </p>
+                    {selectedActionSignals.length > 0 ? (
+                      <div className="space-y-1.5">
+                        {selectedActionSignals.map((line, idx) => (
+                          <p key={`${line}-${idx}`} className="text-xs text-gray-200">
+                            - {line}
+                          </p>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-gray-500">No clear action language detected yet.</p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="grid grid-cols-3 gap-2">
+                      <Button
+                        size="sm"
+                        variant={triageState === 'do' ? 'default' : 'outline'}
+                        className="gap-1.5"
+                        onClick={() => void applyTriageAction('do')}
+                      >
+                        <PlayCircle className="w-3.5 h-3.5" />
+                        Do
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant={triageState === 'delegate' ? 'default' : 'outline'}
+                        className="gap-1.5"
+                        onClick={() => void applyTriageAction('delegate')}
+                      >
+                        <Users className="w-3.5 h-3.5" />
+                        Delegate
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant={triageState === 'defer' ? 'default' : 'outline'}
+                        className="gap-1.5"
+                        onClick={() => void applyTriageAction('defer')}
+                      >
+                        <PauseCircle className="w-3.5 h-3.5" />
+                        Defer
+                      </Button>
+                    </div>
+                    <Button
+                      size="sm"
+                      className="w-full gap-1.5"
+                      onClick={() => void runNexusAnalysis()}
+                      disabled={nexusLoading}
+                    >
+                      <Sparkles className="w-3.5 h-3.5" />
+                      {nexusLoading ? 'Analyzing with Nexus...' : 'Run Nexus Analysis'}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="w-full gap-1.5"
+                      disabled={!selectedMessage?.webLink}
+                      onClick={() => {
+                        if (selectedMessage?.webLink) {
+                          window.open(selectedMessage.webLink, '_blank', 'noopener,noreferrer');
+                        }
+                      }}
+                    >
+                      <ArrowUpRight className="w-3.5 h-3.5" />
+                      Open in Provider
+                    </Button>
+                  </div>
+                </>
               )}
             </div>
           </div>
