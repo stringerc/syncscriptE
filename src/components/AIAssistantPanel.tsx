@@ -796,6 +796,18 @@ export function AIAssistantPanel({
   const leftRailAgents = hubTab === 'nexus' ? NEXUS_TAB_AGENTS : enterpriseRoster;
   const showSelectionGrid = requiresSpecialistSelection && !activeSpecialist;
   const inputLocked = requiresSpecialistSelection && !activeSpecialist;
+  const handleAgentAvatarDragStart = (event: React.DragEvent, agent: { id: string; name: string }) => {
+    const payload = JSON.stringify({
+      type: 'agent',
+      id: agent.id,
+      name: agent.name,
+      sourceTab: hubTab,
+      workspaceId: hubTab === 'enterprise' ? enterpriseWorkspaceId : undefined,
+    });
+    event.dataTransfer.setData('application/x-syncscript-agent', payload);
+    event.dataTransfer.setData('text/plain', `@${agent.id}`);
+    event.dataTransfer.effectAllowed = 'copyMove';
+  };
 
   if (!isOpen) return null;
 
@@ -1233,8 +1245,47 @@ export function AIAssistantPanel({
                 </ScrollArea>
               </div>
             ) : (
-              <div className="flex h-full min-h-0 gap-3">
-                <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-gray-700 bg-[#252830]">
+              <div className="grid h-full min-h-0 grid-cols-[68px_minmax(0,1fr)] gap-3">
+                <div className="flex min-h-0 w-[68px] flex-col overflow-hidden rounded-lg border border-gray-700 bg-[#252830]">
+                  <div className="border-b border-gray-700 p-1.5">
+                    <button
+                      type="button"
+                      title="Back to full list"
+                      onClick={() => hubTab === 'nexus' ? setSelectedNexusAgentId(null) : setSelectedEnterpriseAgentId(null)}
+                      className="flex h-9 w-full items-center justify-center rounded-md bg-black/20 text-[10px] text-gray-300 hover:bg-black/30"
+                    >
+                      All
+                    </button>
+                  </div>
+                  <ScrollArea className="min-h-0 flex-1">
+                    <div className="space-y-1.5 p-1.5">
+                      {leftRailAgents.map((agent) => {
+                        const isActive = activeSpecialist?.id === agent.id;
+                        return (
+                          <button
+                            key={agent.id}
+                            type="button"
+                            title={`Drag ${agent.name} onto task/goal/event`}
+                            draggable
+                            onDragStart={(event) => handleAgentAvatarDragStart(event, agent)}
+                            onClick={() => hubTab === 'nexus' ? setSelectedNexusAgentId(agent.id) : setSelectedEnterpriseAgentId(agent.id)}
+                            className={`flex w-full items-center justify-center rounded-md border p-1 transition-colors ${
+                              isActive ? 'border-purple-500/40 bg-purple-500/20' : 'border-transparent hover:border-gray-600 hover:bg-black/20'
+                            }`}
+                          >
+                            <img
+                              src={`https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(agent.id)}`}
+                              alt={agent.name}
+                              className="h-8 w-8 rounded-full border border-gray-700 bg-black/30"
+                            />
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </ScrollArea>
+                </div>
+
+                <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-lg border border-gray-700 bg-[#252830]">
                   <div className="border-b border-gray-700 px-3 py-2">
                     <p className="text-xs font-medium text-white">{activeSpecialist?.name || 'Agent'}</p>
                     <p className="text-[11px] text-gray-400">
@@ -1282,43 +1333,6 @@ export function AIAssistantPanel({
                         </motion.div>
                       )}
                       <div ref={chatEndRef} />
-                    </div>
-                  </ScrollArea>
-                </div>
-
-                <div className="flex min-h-0 w-[68px] flex-col overflow-hidden rounded-lg border border-gray-700 bg-[#252830]">
-                  <div className="border-b border-gray-700 p-1.5">
-                    <button
-                      type="button"
-                      title="Back to full list"
-                      onClick={() => hubTab === 'nexus' ? setSelectedNexusAgentId(null) : setSelectedEnterpriseAgentId(null)}
-                      className="flex h-9 w-full items-center justify-center rounded-md bg-black/20 text-[10px] text-gray-300 hover:bg-black/30"
-                    >
-                      All
-                    </button>
-                  </div>
-                  <ScrollArea className="min-h-0 flex-1">
-                    <div className="space-y-1.5 p-1.5">
-                      {leftRailAgents.map((agent) => {
-                        const isActive = activeSpecialist?.id === agent.id;
-                        return (
-                          <button
-                            key={agent.id}
-                            type="button"
-                            title={agent.name}
-                            onClick={() => hubTab === 'nexus' ? setSelectedNexusAgentId(agent.id) : setSelectedEnterpriseAgentId(agent.id)}
-                            className={`flex w-full items-center justify-center rounded-md border p-1 transition-colors ${
-                              isActive ? 'border-purple-500/40 bg-purple-500/20' : 'border-transparent hover:border-gray-600 hover:bg-black/20'
-                            }`}
-                          >
-                            <img
-                              src={`https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(agent.id)}`}
-                              alt={agent.name}
-                              className="h-8 w-8 rounded-full border border-gray-700 bg-black/30"
-                            />
-                          </button>
-                        );
-                      })}
                     </div>
                   </ScrollArea>
                 </div>
