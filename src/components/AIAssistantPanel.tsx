@@ -940,14 +940,14 @@ export function AIAssistantPanel({
       )}
 
       {hubTab === 'social' ? (
-        <div className="flex-1 overflow-hidden p-4">
-          <div className={socialPaneRatio}>
-            <div className="overflow-hidden rounded-lg border border-gray-700 bg-[#252830]">
+        <div className="flex-1 min-h-0 overflow-hidden p-4">
+          <div className={`${socialPaneRatio} h-full min-h-0`}>
+            <div className="flex min-h-0 flex-col overflow-hidden rounded-lg border border-gray-700 bg-[#252830]">
               <div className="border-b border-gray-700 px-3 py-2">
                 <p className="text-[11px] uppercase tracking-wide text-gray-400">Recents</p>
                 <p className="mt-1 text-[11px] text-gray-500">{relationshipStatsLabel}</p>
               </div>
-              <ScrollArea className="h-[calc(100%-3.5rem)]">
+              <ScrollArea className="flex-1 min-h-0">
                 <div className="space-y-1 p-2">
                   {leftRailRecords.length === 0 ? (
                     <p className="px-2 py-3 text-xs text-gray-500">{socialEmptyMessage}</p>
@@ -990,7 +990,7 @@ export function AIAssistantPanel({
               </ScrollArea>
             </div>
 
-            <div className="overflow-hidden rounded-lg border border-gray-700 bg-[#252830]">
+            <div className="flex min-h-0 flex-col overflow-hidden rounded-lg border border-gray-700 bg-[#252830]">
               <div className="border-b border-gray-700 p-3">
                 <div className="mb-2 flex items-center justify-between gap-2">
                   <div className="min-w-0">
@@ -1032,7 +1032,7 @@ export function AIAssistantPanel({
                 )}
               </div>
 
-              <div className="h-[75%]">
+              <div className="h-[75%] min-h-0">
                 {showRelationshipManagement ? (
                   <div className="h-full overflow-hidden">
                     <ScrollArea className="h-full p-3">
@@ -1131,17 +1131,17 @@ export function AIAssistantPanel({
         </div>
       ) : (
         <>
-          <div className="flex-1 overflow-hidden p-3">
+          <div className="flex-1 min-h-0 overflow-hidden p-3">
             {showSelectionGrid ? (
-              <div className="h-full overflow-hidden rounded-lg border border-gray-700 bg-[#252830]">
+              <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-lg border border-gray-700 bg-[#252830]">
                 <div className="border-b border-gray-700 px-3 py-2">
                   <p className="text-[11px] uppercase tracking-wide text-gray-400">
                     {hubTab === 'nexus' ? 'Tab Agents' : 'Enterprise Agents'}
                   </p>
                   <p className="mt-1 text-[11px] text-gray-500">
                     {hubTab === 'nexus'
-                      ? 'Pick an agent to open chat. After selection, avatars stay on the left for fast switching.'
-                      : 'Pick an enterprise specialist to open chat, then switch quickly from avatar heads.'}
+                      ? 'Pick an agent to open chat. After selection, avatars stay on the right for fast switching.'
+                      : 'Pick an enterprise specialist to open chat, then switch quickly from right-side avatar heads.'}
                   </p>
                 </div>
                 {hubTab === 'enterprise' && (
@@ -1187,7 +1187,7 @@ export function AIAssistantPanel({
                     </div>
                   </div>
                 )}
-                <ScrollArea className={hubTab === 'enterprise' ? 'h-[calc(100%-8.75rem)]' : 'h-[calc(100%-3.5rem)]'}>
+                <ScrollArea className="min-h-0 flex-1">
                   <div className="grid grid-cols-1 gap-2 p-2">
                     {leftRailAgents.map((agent) => (
                       <button
@@ -1223,45 +1223,8 @@ export function AIAssistantPanel({
                 </ScrollArea>
               </div>
             ) : (
-              <div className="grid h-full grid-cols-[68px_1fr] gap-3">
-                <div className="overflow-hidden rounded-lg border border-gray-700 bg-[#252830]">
-                  <div className="border-b border-gray-700 p-1.5">
-                    <button
-                      type="button"
-                      title="Back to full list"
-                      onClick={() => hubTab === 'nexus' ? setSelectedNexusAgentId(null) : setSelectedEnterpriseAgentId(null)}
-                      className="flex h-9 w-full items-center justify-center rounded-md bg-black/20 text-[10px] text-gray-300 hover:bg-black/30"
-                    >
-                      All
-                    </button>
-                  </div>
-                  <ScrollArea className="h-[calc(100%-3rem)]">
-                    <div className="space-y-1.5 p-1.5">
-                      {leftRailAgents.map((agent) => {
-                        const isActive = activeSpecialist?.id === agent.id;
-                        return (
-                          <button
-                            key={agent.id}
-                            type="button"
-                            title={agent.name}
-                            onClick={() => hubTab === 'nexus' ? setSelectedNexusAgentId(agent.id) : setSelectedEnterpriseAgentId(agent.id)}
-                            className={`flex w-full items-center justify-center rounded-md border p-1 transition-colors ${
-                              isActive ? 'border-purple-500/40 bg-purple-500/20' : 'border-transparent hover:border-gray-600 hover:bg-black/20'
-                            }`}
-                          >
-                            <img
-                              src={`https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(agent.id)}`}
-                              alt={agent.name}
-                              className="h-8 w-8 rounded-full border border-gray-700 bg-black/30"
-                            />
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </ScrollArea>
-                </div>
-
-                <div className="overflow-hidden rounded-lg border border-gray-700 bg-[#252830]">
+              <div className="grid h-full min-h-0 grid-cols-[1fr_68px] gap-3">
+                <div className="flex min-h-0 flex-col overflow-hidden rounded-lg border border-gray-700 bg-[#252830]">
                   <div className="border-b border-gray-700 px-3 py-2">
                     <p className="text-xs font-medium text-white">{activeSpecialist?.name || 'Agent'}</p>
                     <p className="text-[11px] text-gray-400">
@@ -1270,7 +1233,7 @@ export function AIAssistantPanel({
                         : `${selectedWorkspaceLabel} • ${(activeSpecialist as any)?.team || 'Enterprise'}`}
                     </p>
                   </div>
-                  <ScrollArea className="h-[calc(100%-3.25rem)] px-4 py-3">
+                  <ScrollArea className="min-h-0 flex-1 px-4 py-3">
                     <div className="space-y-3">
                       {messages.map((msg, idx) => (
                         <motion.div
@@ -1309,6 +1272,43 @@ export function AIAssistantPanel({
                         </motion.div>
                       )}
                       <div ref={chatEndRef} />
+                    </div>
+                  </ScrollArea>
+                </div>
+
+                <div className="flex min-h-0 flex-col overflow-hidden rounded-lg border border-gray-700 bg-[#252830]">
+                  <div className="border-b border-gray-700 p-1.5">
+                    <button
+                      type="button"
+                      title="Back to full list"
+                      onClick={() => hubTab === 'nexus' ? setSelectedNexusAgentId(null) : setSelectedEnterpriseAgentId(null)}
+                      className="flex h-9 w-full items-center justify-center rounded-md bg-black/20 text-[10px] text-gray-300 hover:bg-black/30"
+                    >
+                      All
+                    </button>
+                  </div>
+                  <ScrollArea className="min-h-0 flex-1">
+                    <div className="space-y-1.5 p-1.5">
+                      {leftRailAgents.map((agent) => {
+                        const isActive = activeSpecialist?.id === agent.id;
+                        return (
+                          <button
+                            key={agent.id}
+                            type="button"
+                            title={agent.name}
+                            onClick={() => hubTab === 'nexus' ? setSelectedNexusAgentId(agent.id) : setSelectedEnterpriseAgentId(agent.id)}
+                            className={`flex w-full items-center justify-center rounded-md border p-1 transition-colors ${
+                              isActive ? 'border-purple-500/40 bg-purple-500/20' : 'border-transparent hover:border-gray-600 hover:bg-black/20'
+                            }`}
+                          >
+                            <img
+                              src={`https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(agent.id)}`}
+                              alt={agent.name}
+                              className="h-8 w-8 rounded-full border border-gray-700 bg-black/30"
+                            />
+                          </button>
+                        );
+                      })}
                     </div>
                   </ScrollArea>
                 </div>

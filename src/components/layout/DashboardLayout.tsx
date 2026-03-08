@@ -8,6 +8,8 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { hasContextualInsights } from '../../utils/ai-context-config';
 import { AIAssistantPanel } from '../AIAssistantPanel';
 import { OnboardingChecklist } from '../onboarding/OnboardingChecklist';
+import { NexusPlannerModal } from '../NexusPlannerModal';
+import { useAIInsightsRouting } from '../../contexts/AIInsightsRoutingContext';
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -26,8 +28,10 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     // Default: Open on desktop, closed on mobile
     return window.innerWidth >= 1280;
   });
+  const [isNexusPlannerOpen, setIsNexusPlannerOpen] = useState(false);
   
   const location = useLocation();
+  const { openRequestedAt } = useAIInsightsRouting();
   const mainRef = useRef<HTMLElement>(null);
   const scrollPositions = useRef<{ [key: string]: number }>({});
   
@@ -73,6 +77,55 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     // Mark that user has manually toggled (don't auto-adjust on resize)
     localStorage.setItem('ai-insights-manual-toggle', 'true');
   };
+
+  useEffect(() => {
+    const handlePlannerOpen = () => setIsNexusPlannerOpen(true);
+    const handleOpenInsights = () => {
+      setIsAIInsightsOpen(true);
+      localStorage.setItem('ai-insights-open', 'true');
+    };
+    window.addEventListener('syncscript:nexus-planner-open', handlePlannerOpen);
+    window.addEventListener('syncscript:open-ai-insights', handleOpenInsights);
+    return () => {
+      window.removeEventListener('syncscript:nexus-planner-open', handlePlannerOpen);
+      window.removeEventListener('syncscript:open-ai-insights', handleOpenInsights);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!openRequestedAt) return;
+    setIsAIInsightsOpen(true);
+    localStorage.setItem('ai-insights-open', 'true');
+  }, [openRequestedAt]);
+
+  // Safety guard: recover from rare stuck "pointer-events: none" states
+  // caused by modal/overlay teardown races, which can make the dashboard unclickable.
+  useEffect(() => {
+    const hasOpenModal = () =>
+      Boolean(
+        document.querySelector(
+          '[data-slot="dialog-overlay"][data-state="open"], [data-slot="sheet-overlay"][data-state="open"], [role="dialog"][data-state="open"]'
+        )
+      );
+
+    const ensurePointerInteractivity = () => {
+      const bodyBlocked = document.body.style.pointerEvents === 'none';
+      const htmlBlocked = document.documentElement.style.pointerEvents === 'none';
+      if ((bodyBlocked || htmlBlocked) && !hasOpenModal()) {
+        document.body.style.pointerEvents = 'auto';
+        document.documentElement.style.pointerEvents = 'auto';
+      }
+    };
+
+    // Run immediately on mount and keep a light watchdog while on dashboard routes.
+    ensurePointerInteractivity();
+    const interval = window.setInterval(ensurePointerInteractivity, 1200);
+
+    return () => {
+      window.clearInterval(interval);
+      ensurePointerInteractivity();
+    };
+  }, []);
 
   // Save and restore scroll position
   useEffect(() => {
@@ -127,7 +180,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           {/* AI Assistant Sidebar with Tab */}
           <div
             className={`transition-all duration-300 ease-in-out flex-shrink-0 relative ${
-              isAIInsightsOpen ? 'w-80' : 'w-0'
+              isAIInsightsOpen ? 'w-[42rem] xl:w-[46rem]' : 'w-0'
             }`}
           >
             {/* Vertical Tab */}
@@ -135,7 +188,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
               onClick={handleToggleAIInsights}
               className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-full bg-[#1a1c20]/80 backdrop-blur-sm border-l border-t border-b border-gray-800/50 rounded-l-md px-1.5 py-4 hover:bg-[#1e2128]/90 hover:px-2 transition-all group shadow-md opacity-60 hover:opacity-100 z-10"
               data-nav="ai-insights-toggle"
-              aria-label={isAIInsightsOpen ? 'Close AI Assistant' : 'Open AI Assistant'}
+              aria-label={isAIInsightsOpen ? 'Close Chat Assistant' : 'Open Chat Assistant'}
             >
               <div className="flex flex-col items-center gap-1.5 relative">
                 {/* Icon */}
@@ -157,7 +210,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                     className="text-purple-400/80 group-hover:text-purple-300 transition-colors text-[10px] font-medium tracking-wider"
                     style={{ writingMode: 'vertical-rl', textOrientation: 'mixed' }}
                   >
-                    AI INSIGHTS
+                    CHAT
                   </span>
                 </div>
               </div>
@@ -169,15 +222,17 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                 isAIInsightsOpen ? 'opacity-100' : 'opacity-0'
               }`}
             >
-              {/* AI Assistant Panel - Fully Functional */}
-              <AIAssistantPanel 
-                isOpen={isAIInsightsOpen} 
-                onOpenAIInsights={() => {
-                  if (!isAIInsightsOpen) {
-                    handleToggleAIInsights();
-                  }
-                }}
-              />
+              {/* PERF-002: Avoid hidden panel work when closed */}
+              {isAIInsightsOpen && (
+                <AIAssistantPanel 
+                  isOpen={isAIInsightsOpen} 
+                  onOpenAIInsights={() => {
+                    if (!isAIInsightsOpen) {
+                      handleToggleAIInsights();
+                    }
+                  }}
+                />
+              )}
             </div>
           </div>
         </div>
@@ -188,6 +243,11 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
       {/* Onboarding Checklist (auto-hides when complete or dismissed) */}
       <OnboardingChecklist />
+
+      <NexusPlannerModal
+        open={isNexusPlannerOpen}
+        onClose={() => setIsNexusPlannerOpen(false)}
+      />
     </div>
   );
 }
