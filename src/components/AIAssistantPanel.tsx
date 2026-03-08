@@ -404,9 +404,9 @@ export function AIAssistantPanel({
           <Button
             type="button"
             onClick={() => toast.info('Friend invites are coming soon')}
-            className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500"
+            className="rounded-xl border border-blue-200/40 bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 px-5 py-2 text-white shadow-[0_10px_30px_rgba(30,64,175,0.45)] ring-1 ring-inset ring-white/10 transition-all hover:from-slate-800 hover:via-blue-800 hover:to-indigo-800 hover:shadow-[0_12px_34px_rgba(37,99,235,0.55)] hover:scale-[1.01] font-semibold tracking-wide"
           >
-            <UserPlus className="w-4 h-4 mr-2" />
+            <UserPlus className="mr-2 h-4 w-4 text-blue-100" />
             Add Friend
           </Button>
         </div>
