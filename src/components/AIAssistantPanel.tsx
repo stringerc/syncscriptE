@@ -18,19 +18,22 @@
  * ✅ Real-time user data integration
  */
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo, type ReactNode } from 'react';
 import { motion } from 'motion/react';
-import { 
+import {
   Brain, Send, Sparkles, Settings, RefreshCw, MessageSquare,
-  UserPlus
+  UserPlus, Mail, Check, X, Ban, UserX
 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { ScrollArea } from './ui/scroll-area';
 import { Tabs, TabsList, TabsTrigger } from './ui/tabs';
+import { Badge } from './ui/badge';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from './ui/dialog';
 import { useLocation } from 'react-router';
 import { toast } from 'sonner@2.0.3';
 import { useAI } from '../contexts/AIContext';
+import { useAuth } from '../contexts/AuthContext';
 import { getPageContext, generateWelcomeMessage, hasContextualInsights } from '../utils/ai-context-config';
 import {
   DropdownMenu,
@@ -49,6 +52,17 @@ import { routeAgentRequest, buildAgentRoutedPrompt } from '../utils/agent-router
 import { buildChatThreadEnvelope } from '../utils/ai-thread-model';
 import { buildResponseContractCards, sanitizeAssistantContent } from '../utils/ai-response-contract';
 import { shouldShowPromptWithCadence, markPromptShown } from '../utils/prompt-cadence';
+import {
+  inviteByEmail,
+  listMessages,
+  listRelationships,
+  relationshipAction,
+  sendMessage,
+  subscribeToSocialMessages,
+  type SocialChatMessage,
+  type SocialRelationshipRecord,
+  type SocialType,
+} from '../utils/social-chat';
 
 interface AIAssistantPanelProps {
   isOpen: boolean;
@@ -71,8 +85,17 @@ export function AIAssistantPanel({
   const [notifications, setNotifications] = useState(true);
   const [hubTab, setHubTab] = useState<'social' | 'nexus' | 'agents'>('nexus');
   const [socialTab, setSocialTab] = useState<'friends' | 'teammates' | 'collaboratives'>('friends');
+  const [showSocialInviteDialog, setShowSocialInviteDialog] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [socialRelationships, setSocialRelationships] = useState<SocialRelationshipRecord[]>([]);
+  const [selectedSocialPartnerId, setSelectedSocialPartnerId] = useState<string | null>(null);
+  const [socialMessages, setSocialMessages] = useState<SocialChatMessage[]>([]);
+  const [socialMessageInput, setSocialMessageInput] = useState('');
+  const [socialLoading, setSocialLoading] = useState(false);
+  const [socialSending, setSocialSending] = useState(false);
   const { routeContext } = useAIInsightsRouting();
   const { queueAgentAction } = useContinuity();
+  const { user, accessToken } = useAuth();
   const chatEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   
@@ -82,6 +105,36 @@ export function AIAssistantPanel({
     getContextualSuggestions,
     energyData,
   } = useAI();
+  const actorId = String(user?.id || 'guest-user');
+
+  const socialTypeByTab: Record<typeof socialTab, SocialType> = {
+    friends: 'friend',
+    teammates: 'teammate',
+    collaboratives: 'collaborative',
+  };
+
+  const activeSocialType = socialTypeByTab[socialTab];
+  const tabAgentName = hubTab === 'social'
+    ? 'Social Concierge'
+    : hubTab === 'agents'
+      ? 'Agent Router'
+      : 'Nexus Orchestrator';
+
+  const isAuthenticatedSocial = Boolean(accessToken && !accessToken.startsWith('gst_') && !user?.isGuest);
+
+  const refreshSocialRelationships = async () => {
+    if (!isAuthenticatedSocial) {
+      setSocialRelationships([]);
+      setSelectedSocialPartnerId(null);
+      return;
+    }
+    const data = await listRelationships(activeSocialType);
+    setSocialRelationships(data);
+    if (selectedSocialPartnerId && !data.some((item) => item.partnerUserId === selectedSocialPartnerId && item.status === 'accepted')) {
+      setSelectedSocialPartnerId(null);
+      setSocialMessages([]);
+    }
+  };
 
   // Get context-aware configuration
   const pageContext = getPageContext(location.pathname);
@@ -151,10 +204,15 @@ export function AIAssistantPanel({
     }]);
   }, [location.pathname, hubTab]);
 
+  useEffect(() => {
+    if (hubTab !== 'social') return;
+    void refreshSocialRelationships();
+  }, [hubTab, socialTab, actorId, isAuthenticatedSocial]);
+
   const tabContextHint = (tab: 'social' | 'nexus' | 'agents') => {
-    if (tab === 'social') return 'Mode: Social. Focus collaboration, friends, teammates, and handoffs.';
-    if (tab === 'agents') return 'Mode: Agents. Focus specialist routing, delegation, and execution status.';
-    return 'Mode: Nexus. Focus orchestration, planning, and contextual guidance.';
+    if (tab === 'social') return 'Agent: Social Concierge. Mode: Social. Focus collaboration, friends, teammates, and handoffs.';
+    if (tab === 'agents') return 'Agent: Agent Router. Mode: Agents. Focus specialist routing, delegation, and execution status.';
+    return 'Agent: Nexus Orchestrator. Mode: Nexus. Focus orchestration, planning, and contextual guidance.';
   };
 
 
@@ -207,6 +265,330 @@ export function AIAssistantPanel({
     setMessage('');
     await sendMessageText(content);
   };
+
+  const socialBuckets = useMemo(() => {
+    return {
+      pendingInbound: socialRelationships.filter((item) => item.status === 'pending' && item.direction === 'inbound'),
+      pendingOutbound: socialRelationships.filter((item) => item.status === 'pending' && item.direction === 'outbound'),
+      connected: socialRelationships.filter((item) => item.status === 'accepted'),
+      blocked: socialRelationships.filter((item) => item.status === 'blocked'),
+    };
+  }, [socialRelationships]);
+
+  const socialTypeLabel = activeSocialType === 'friend'
+    ? 'friend'
+    : activeSocialType === 'teammate'
+      ? 'teammate'
+      : 'collaborative';
+
+  const socialTabLabel = socialTab === 'friends'
+    ? 'Friends'
+    : socialTab === 'teammates'
+      ? 'Teammates'
+      : 'Collaboratives';
+
+  const selectedSocialPartner = useMemo(
+    () => socialBuckets.connected.find((item) => item.partnerUserId === selectedSocialPartnerId) || null,
+    [socialBuckets.connected, selectedSocialPartnerId],
+  );
+
+  const resetInviteDialog = () => {
+    setInviteEmail('');
+    setShowSocialInviteDialog(false);
+  };
+
+  const handleSocialInvite = async () => {
+    if (!isAuthenticatedSocial) {
+      toast.error('Sign in is required for real social invites.');
+      return;
+    }
+    const email = inviteEmail.trim();
+    if (!email) {
+      toast.error('Email is required to send an invite.');
+      return;
+    }
+    try {
+      const rel = await inviteByEmail(activeSocialType, email);
+      toast.success(`${socialTabLabel} invite sent to ${rel.partnerName}`);
+      resetInviteDialog();
+      await refreshSocialRelationships();
+    } catch (error: any) {
+      toast.error(error?.message || 'Could not send invite.');
+    }
+  };
+
+  const handleSocialTransition = async (
+    relationshipId: string,
+    action: 'accept' | 'decline' | 'cancel' | 'block' | 'unblock' | 'revoke',
+    successMessage: string,
+  ) => {
+    try {
+      await relationshipAction(relationshipId, action);
+      toast.success(successMessage);
+      await refreshSocialRelationships();
+    } catch (error: any) {
+      toast.error(error?.message || 'Action failed.');
+    }
+  };
+
+  const loadSocialMessagesForPartner = async (partnerUserId: string) => {
+    if (!isAuthenticatedSocial) return;
+    setSocialLoading(true);
+    try {
+      const items = await listMessages(activeSocialType, partnerUserId);
+      setSocialMessages(items);
+      setSelectedSocialPartnerId(partnerUserId);
+    } catch (error: any) {
+      toast.error(error?.message || 'Could not load messages.');
+    } finally {
+      setSocialLoading(false);
+    }
+  };
+
+  const handleSendSocialMessage = async () => {
+    if (!selectedSocialPartner || !socialMessageInput.trim() || socialSending) return;
+    setSocialSending(true);
+    const body = socialMessageInput;
+    setSocialMessageInput('');
+    try {
+      const sent = await sendMessage(activeSocialType, selectedSocialPartner.partnerUserId, body);
+      setSocialMessages((prev) => [...prev, sent]);
+    } catch (error: any) {
+      toast.error(error?.message || 'Could not send message.');
+      setSocialMessageInput(body);
+    } finally {
+      setSocialSending(false);
+    }
+  };
+
+  useEffect(() => {
+    if (hubTab !== 'social' || !isAuthenticatedSocial || !actorId) return;
+    const unsubscribe = subscribeToSocialMessages(actorId, (incoming) => {
+      if (incoming.relationshipType !== activeSocialType) return;
+      const partnerId = incoming.senderId === actorId ? incoming.recipientId : incoming.senderId;
+      if (selectedSocialPartnerId && partnerId === selectedSocialPartnerId) {
+        setSocialMessages((prev) => {
+          if (prev.some((item) => item.messageId === incoming.messageId)) return prev;
+          return [...prev, incoming];
+        });
+      }
+      void refreshSocialRelationships();
+    });
+    return unsubscribe;
+  }, [hubTab, activeSocialType, actorId, isAuthenticatedSocial, selectedSocialPartnerId]);
+
+  useEffect(() => {
+    if (!selectedSocialPartnerId || hubTab !== 'social') return;
+    void loadSocialMessagesForPartner(selectedSocialPartnerId);
+  }, [selectedSocialPartnerId, activeSocialType, hubTab]);
+
+  const getAvatarUrl = (record: SocialRelationshipRecord) => {
+    if (record.partnerAvatar) return record.partnerAvatar;
+    return `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(record.partnerEmail || record.partnerUserId)}`;
+  };
+
+  const getLastMessagePreview = (partnerUserId: string) => {
+    const partnerMessages = socialMessages.filter((item) => {
+      const other = item.senderId === actorId ? item.recipientId : item.senderId;
+      return other === partnerUserId;
+    });
+    if (partnerMessages.length === 0) return 'No messages yet';
+    const last = partnerMessages[partnerMessages.length - 1];
+    return last.body.length > 48 ? `${last.body.slice(0, 48)}...` : last.body;
+  };
+
+  const getRelationshipStatusRing = (record: SocialRelationshipRecord) => {
+    if (record.status === 'accepted') return 'bg-emerald-400';
+    if (record.status === 'pending') return 'bg-amber-400';
+    return 'bg-red-400';
+  };
+
+  const formatSocialTimestamp = (iso: string) => {
+    const date = new Date(iso);
+    const now = Date.now();
+    const deltaMinutes = Math.floor((now - date.getTime()) / 60000);
+    if (deltaMinutes < 1) return 'now';
+    if (deltaMinutes < 60) return `${deltaMinutes}m`;
+    const deltaHours = Math.floor(deltaMinutes / 60);
+    if (deltaHours < 24) return `${deltaHours}h`;
+    return `${Math.floor(deltaHours / 24)}d`;
+  };
+
+  const socialEmptyMessage = !isAuthenticatedSocial
+    ? 'Sign in to send real invites and chat with connected users.'
+    : `No connected ${socialTypeLabel}s yet. Add one to start chatting.`;
+
+  const handleSocialMessageKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === 'Enter' && !event.shiftKey) {
+      event.preventDefault();
+      void handleSendSocialMessage();
+    }
+  };
+
+  const selectedProfileSubtitle = selectedSocialPartner
+    ? `${socialTabLabel.slice(0, -1)} • ${selectedSocialPartner.partnerEmail}`
+    : `${socialTabLabel} chat`;
+
+  const selectedPartnerMessages = selectedSocialPartner
+    ? socialMessages.filter((item) => {
+        const other = item.senderId === actorId ? item.recipientId : item.senderId;
+        return other === selectedSocialPartner.partnerUserId;
+      })
+    : [];
+
+  const socialHeaderHint = selectedSocialPartner
+    ? `Chatting with ${selectedSocialPartner.partnerName}`
+    : socialEmptyMessage;
+
+  const socialPaneRatio = 'grid grid-cols-[30%_70%] gap-3';
+
+  const socialThreadPlaceholder = selectedSocialPartner
+    ? 'Type a message...'
+    : 'Select a connected user to chat';
+
+  const canSendToSelected = Boolean(selectedSocialPartner && isAuthenticatedSocial);
+
+  const relationshipStatsLabel = `${socialBuckets.connected.length} connected • ${socialBuckets.pendingInbound.length} inbound • ${socialBuckets.pendingOutbound.length} outbound`;
+
+  const relationshipCardClass = 'rounded-md border border-gray-700/70 bg-black/20 p-2.5';
+
+  const leftRailRecords = socialBuckets.connected;
+
+  const rightPaneHasChat = Boolean(selectedSocialPartner && canSendToSelected);
+
+  const showRelationshipManagement = !rightPaneHasChat;
+
+  const relationStatusBadge = (record: SocialRelationshipRecord) => {
+    if (record.status === 'accepted') {
+      return <Badge variant="outline" className="border-emerald-500/40 text-emerald-300">Connected</Badge>;
+    }
+    if (record.status === 'pending') {
+      return <Badge variant="outline" className="border-amber-500/40 text-amber-300">Pending</Badge>;
+    }
+    return <Badge variant="outline" className="border-red-500/40 text-red-300">Blocked</Badge>;
+  };
+
+  const relationshipTitleForRow = (item: SocialRelationshipRecord) => item.partnerName || item.partnerEmail || item.partnerUserId;
+
+  const relationshipSubtitleForRow = (item: SocialRelationshipRecord) => item.partnerEmail || item.partnerUserId;
+
+  const clearSelectionIfDisconnected = () => {
+    if (!selectedSocialPartnerId) return;
+    const stillConnected = socialBuckets.connected.some((entry) => entry.partnerUserId === selectedSocialPartnerId);
+    if (!stillConnected) {
+      setSelectedSocialPartnerId(null);
+      setSocialMessages([]);
+    }
+  };
+
+  useEffect(() => {
+    clearSelectionIfDisconnected();
+  }, [socialBuckets.connected.length]);
+
+  const buildSocialRelationshipRow = (
+    item: SocialRelationshipRecord,
+    actions: ReactNode,
+  ) => (
+    <div key={item.relationshipId} className={relationshipCardClass}>
+      <div className="flex items-center justify-between gap-2">
+        <div className="min-w-0">
+          <p className="truncate text-xs font-medium text-white">{relationshipTitleForRow(item)}</p>
+          <p className="truncate text-[11px] text-gray-400">{relationshipSubtitleForRow(item)}</p>
+        </div>
+        {relationStatusBadge(item)}
+      </div>
+      <div className="mt-2 flex gap-2">{actions}</div>
+    </div>
+  );
+
+  const renderRelationshipManagement = () => (
+    <div className="space-y-3">
+      <div className="rounded-lg border border-gray-700 bg-[#252830] p-3">
+        <div className="mb-2 flex items-center justify-between">
+          <h4 className="text-xs font-semibold uppercase tracking-wide text-gray-300">
+            Pending Invites ({socialBuckets.pendingOutbound.length})
+          </h4>
+        </div>
+        {socialBuckets.pendingOutbound.length === 0 ? (
+          <p className="text-xs text-gray-500">No pending outbound invites.</p>
+        ) : (
+          <div className="space-y-2">
+            {socialBuckets.pendingOutbound.map((item) =>
+              buildSocialRelationshipRow(
+                item,
+                <>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 text-[11px]"
+                    onClick={() => void handleSocialTransition(item.relationshipId, 'cancel', 'Invite cancelled')}
+                  >
+                    <X className="mr-1 h-3 w-3" />
+                    Cancel
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 text-[11px] border-red-500/40 text-red-300 hover:bg-red-500/10"
+                    onClick={() => void handleSocialTransition(item.relationshipId, 'block', 'Connection blocked')}
+                  >
+                    <Ban className="mr-1 h-3 w-3" />
+                    Block
+                  </Button>
+                </>,
+              ),
+            )}
+          </div>
+        )}
+      </div>
+
+      <div className="rounded-lg border border-gray-700 bg-[#252830] p-3">
+        <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-300">
+          Incoming Requests ({socialBuckets.pendingInbound.length})
+        </h4>
+        {socialBuckets.pendingInbound.length === 0 ? (
+          <p className="text-xs text-gray-500">No inbound requests yet.</p>
+        ) : (
+          <div className="space-y-2">
+            {socialBuckets.pendingInbound.map((item) =>
+              buildSocialRelationshipRow(
+                item,
+                <>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 text-[11px] border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/10"
+                    onClick={() => void handleSocialTransition(item.relationshipId, 'accept', 'Request accepted')}
+                  >
+                    <Check className="mr-1 h-3 w-3" />
+                    Accept
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 text-[11px]"
+                    onClick={() => void handleSocialTransition(item.relationshipId, 'decline', 'Request declined')}
+                  >
+                    <UserX className="mr-1 h-3 w-3" />
+                    Decline
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 text-[11px] border-red-500/40 text-red-300 hover:bg-red-500/10"
+                    onClick={() => void handleSocialTransition(item.relationshipId, 'block', 'Connection blocked')}
+                  >
+                    <Ban className="mr-1 h-3 w-3" />
+                    Block
+                  </Button>
+                </>,
+              ),
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
 
   useEffect(() => {
     if (!isOpen || !quickTalkStarter || isProcessing) return;
@@ -280,7 +662,7 @@ export function AIAssistantPanel({
               <h3 className="text-white font-semibold text-sm">Chat Hub</h3>
               <p className="text-[10px] text-gray-400">
                 {pageContext.displayName} • {energyData.current}% energy
-                {routeContext?.agentName ? ` • Agent: ${routeContext.agentName}` : ''}
+                {` • Agent: ${tabAgentName}`}
               </p>
             </div>
           </div>
@@ -400,15 +782,194 @@ export function AIAssistantPanel({
       )}
 
       {hubTab === 'social' ? (
-        <div className="flex-1 flex items-center justify-center px-4">
-          <Button
-            type="button"
-            onClick={() => toast.info('Friend invites are coming soon')}
-            className="rounded-xl border border-blue-200/40 bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 px-5 py-2 text-white shadow-[0_10px_30px_rgba(30,64,175,0.45)] ring-1 ring-inset ring-white/10 transition-all hover:from-slate-800 hover:via-blue-800 hover:to-indigo-800 hover:shadow-[0_12px_34px_rgba(37,99,235,0.55)] hover:scale-[1.01] font-semibold tracking-wide"
-          >
-            <UserPlus className="mr-2 h-4 w-4 text-blue-100" />
-            Add Friend
-          </Button>
+        <div className="flex-1 overflow-hidden p-4">
+          <div className={socialPaneRatio}>
+            <div className="overflow-hidden rounded-lg border border-gray-700 bg-[#252830]">
+              <div className="border-b border-gray-700 px-3 py-2">
+                <p className="text-[11px] uppercase tracking-wide text-gray-400">Recents</p>
+                <p className="mt-1 text-[11px] text-gray-500">{relationshipStatsLabel}</p>
+              </div>
+              <ScrollArea className="h-[calc(100%-3.5rem)]">
+                <div className="space-y-1 p-2">
+                  {leftRailRecords.length === 0 ? (
+                    <p className="px-2 py-3 text-xs text-gray-500">{socialEmptyMessage}</p>
+                  ) : (
+                    leftRailRecords.map((record) => {
+                      const isActive = selectedSocialPartnerId === record.partnerUserId;
+                      return (
+                        <button
+                          key={record.relationshipId}
+                          type="button"
+                          onClick={() => void loadSocialMessagesForPartner(record.partnerUserId)}
+                          className={`w-full rounded-md border px-2 py-2 text-left transition-colors ${
+                            isActive
+                              ? 'border-blue-500/40 bg-blue-500/10'
+                              : 'border-transparent hover:border-gray-600 hover:bg-black/20'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <div className="relative">
+                              <img
+                                src={getAvatarUrl(record)}
+                                alt={record.partnerName}
+                                className="h-8 w-8 rounded-full object-cover"
+                              />
+                              <span className={`absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border border-[#252830] ${getRelationshipStatusRing(record)}`} />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center justify-between gap-2">
+                                <p className="truncate text-xs font-medium text-white">{record.partnerName}</p>
+                                <span className="text-[10px] text-gray-500">{formatSocialTimestamp(record.updatedAt)}</span>
+                              </div>
+                              <p className="truncate text-[11px] text-gray-400">{getLastMessagePreview(record.partnerUserId)}</p>
+                            </div>
+                          </div>
+                        </button>
+                      );
+                    })
+                  )}
+                </div>
+              </ScrollArea>
+            </div>
+
+            <div className="overflow-hidden rounded-lg border border-gray-700 bg-[#252830]">
+              <div className="border-b border-gray-700 p-3">
+                <div className="mb-2 flex items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold text-white">
+                      {selectedSocialPartner ? selectedSocialPartner.partnerName : socialTabLabel}
+                    </p>
+                    <p className="truncate text-[11px] text-gray-400">{selectedProfileSubtitle}</p>
+                  </div>
+                  <Button
+                    type="button"
+                    onClick={() => setShowSocialInviteDialog(true)}
+                    className="rounded-xl border border-blue-200/40 bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 px-3 py-1.5 text-[11px] text-white shadow-[0_10px_30px_rgba(30,64,175,0.45)] ring-1 ring-inset ring-white/10 transition-all hover:from-slate-800 hover:via-blue-800 hover:to-indigo-800 hover:shadow-[0_12px_34px_rgba(37,99,235,0.55)]"
+                  >
+                    <UserPlus className="mr-1.5 h-3.5 w-3.5 text-blue-100" />
+                    Add {socialTypeLabel.charAt(0).toUpperCase() + socialTypeLabel.slice(1)}
+                  </Button>
+                </div>
+                <p className="text-[11px] text-gray-500">{socialHeaderHint}</p>
+              </div>
+
+              <div className="h-[25%] border-b border-gray-700/70 p-3">
+                {selectedSocialPartner ? (
+                  <div className="flex h-full items-center gap-3">
+                    <img
+                      src={getAvatarUrl(selectedSocialPartner)}
+                      alt={selectedSocialPartner.partnerName}
+                      className="h-14 w-14 rounded-full object-cover"
+                    />
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold text-white">{selectedSocialPartner.partnerName}</p>
+                      <p className="truncate text-xs text-gray-400">{selectedSocialPartner.partnerEmail}</p>
+                      <p className="mt-1 text-[11px] text-emerald-300">Connected {formatSocialTimestamp(selectedSocialPartner.updatedAt)} ago</p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex h-full items-center justify-center text-xs text-gray-500">
+                    Select a connected user from Recents to open chat.
+                  </div>
+                )}
+              </div>
+
+              <div className="h-[75%]">
+                {showRelationshipManagement ? (
+                  <div className="h-full overflow-hidden">
+                    <ScrollArea className="h-full p-3">
+                      {renderRelationshipManagement()}
+                    </ScrollArea>
+                  </div>
+                ) : (
+                  <div className="flex h-full flex-col">
+                    <ScrollArea className="flex-1 px-3 py-2">
+                      {socialLoading ? (
+                        <p className="text-xs text-gray-500">Loading messages...</p>
+                      ) : selectedPartnerMessages.length === 0 ? (
+                        <p className="text-xs text-gray-500">No messages yet. Start the conversation.</p>
+                      ) : (
+                        <div className="space-y-2">
+                          {selectedPartnerMessages.map((msg) => {
+                            const mine = msg.senderId === actorId;
+                            return (
+                              <div key={msg.messageId} className={`flex ${mine ? 'justify-end' : 'justify-start'}`}>
+                                <div className={`max-w-[85%] rounded-lg px-3 py-2 text-xs ${
+                                  mine
+                                    ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white'
+                                    : 'bg-black/30 text-gray-200 border border-gray-700'
+                                }`}>
+                                  <p className="whitespace-pre-wrap">{msg.body}</p>
+                                  <p className={`mt-1 text-[10px] ${mine ? 'text-blue-100/80' : 'text-gray-500'}`}>
+                                    {formatSocialTimestamp(msg.createdAt)}
+                                  </p>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </ScrollArea>
+                    <div className="border-t border-gray-700 px-3 py-2">
+                      <div className="flex gap-2">
+                        <Input
+                          value={socialMessageInput}
+                          onChange={(event) => setSocialMessageInput(event.target.value)}
+                          onKeyDown={handleSocialMessageKeyDown}
+                          placeholder={socialThreadPlaceholder}
+                          className="h-8 bg-[#1e2128] border-gray-700 text-xs"
+                          disabled={!canSendToSelected || socialSending}
+                        />
+                        <Button
+                          size="sm"
+                          className="h-8 px-2.5"
+                          onClick={() => void handleSendSocialMessage()}
+                          disabled={!canSendToSelected || !socialMessageInput.trim() || socialSending}
+                        >
+                          <Send className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <Dialog open={showSocialInviteDialog} onOpenChange={setShowSocialInviteDialog}>
+            <DialogContent className="border-gray-700 bg-[#1e2128] text-white">
+              <DialogHeader>
+                <DialogTitle>Add {socialTypeLabel.charAt(0).toUpperCase() + socialTypeLabel.slice(1)}</DialogTitle>
+                <DialogDescription className="text-gray-400">
+                  Enter the exact email of an existing user.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-3 pt-2">
+                <div>
+                  <label className="mb-1 block text-xs text-gray-400">Email</label>
+                  <Input
+                    value={inviteEmail}
+                    onChange={(event) => setInviteEmail(event.target.value)}
+                    placeholder="name@example.com"
+                    className="bg-[#252830] border-gray-700"
+                  />
+                </div>
+                <div className="flex justify-end gap-2 pt-2">
+                  <Button variant="outline" onClick={resetInviteDialog}>
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={() => void handleSocialInvite()}
+                    className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500"
+                    disabled={!inviteEmail.trim()}
+                  >
+                    <Mail className="mr-2 h-4 w-4" />
+                    Send Invite
+                  </Button>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
         </div>
       ) : (
         <>
