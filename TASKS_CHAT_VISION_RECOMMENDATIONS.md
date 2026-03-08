@@ -1848,35 +1848,35 @@ Use this as the immediate implementation command board.
 
 | ID | Initiative | Scope | Owner | Depends On | Risk | Status | Target |
 |---|---|---|---|---|---|---|---|
-| PERF-001 | Shared dashboard layout routing | stop shell remount on tab/page changes | FE | none | medium | approved | Sprint 0 |
-| PERF-002 | Conditional mount AI panel | avoid hidden heavy panel work | FE | PERF-001 | low | approved | Sprint 0 |
-| PERF-003 | Replace onboarding polling loop | remove 2s storage polling churn | FE | PERF-001 | low | approved | Sprint 0 |
+| PERF-001 | Shared dashboard layout routing | stop shell remount on tab/page changes | FE | none | medium | shipped | Sprint 0 |
+| PERF-002 | Conditional mount AI panel | avoid hidden heavy panel work | FE | PERF-001 | low | shipped | Sprint 0 |
+| PERF-003 | Replace onboarding polling loop | remove 2s storage polling churn | FE | PERF-001 | low | shipped | Sprint 0 |
 | PERF-004 | Continuity heartbeat gating | reduce background churn by visibility/activity | FE + BE | PERF-001 | medium | shipped | Sprint 0 |
 | PERF-005 | Hot-path log stripping/guarding | remove interaction-path console overhead | FE | none | low | shipped | Sprint 0 |
 | PERF-006 | Dashboard perf telemetry baseline | instrument INP and route interaction timings | FE | PERF-001 | medium | shipped | Sprint 0 |
 | PERF-007 | Analytics egress noise guard | suppress high-frequency Plausible perf-event forwarding + add client-side rate limiting to avoid CORS/429 console storms on production hosts | FE | PERF-006 | low | shipped | Sprint 0 |
-| EX-001 | Remove AI Extract from header | `DashboardHeader` UI cleanup | Product + FE | PERF-005 | low | approved | Sprint 0 |
-| EX-002 | Move Discord from FAB to profile menu | de-emphasize floating CTA, keep support discoverable | Product + FE | EX-001 | low | approved | Sprint 0 |
-| EX-003 | Remove All Features nav dead entry | nav consistency + no dead route | FE | PERF-001 | low | approved | Sprint 0 |
-| EX-004 | Mission Cockpit relocation | move from individual primary nav | Product + FE | EX-003 | low | approved | Sprint 0 |
-| EX-005 | AI card relocation (Current Context/Learning Progress) | move to Analytics or remove | Product + FE | EX-003 | low | approved | Sprint 0 |
-| EX-006 | Tasks tab card declutter | remove low-value duplicate cards | Product + FE | EX-005 | low | approved | Sprint 0 |
-| EX-007 | Goal linkage model (`goalId`) | tasks-goals data bridge | FE + BE | none | medium | approved | Sprint 1 |
-| EX-008 | Goal selector in task create/edit | task UX integration | FE | EX-007 | medium | approved | Sprint 1 |
-| EX-009 | Goal badges in task/calendar surfaces | cross-tab traceability | FE | EX-007 | low | approved | Sprint 1 |
+| EX-001 | Remove AI Extract from header | `DashboardHeader` UI cleanup | Product + FE | PERF-005 | low | shipped | Sprint 0 |
+| EX-002 | Move Discord from FAB to profile menu | de-emphasize floating CTA, keep support discoverable | Product + FE | EX-001 | low | shipped | Sprint 0 |
+| EX-003 | Remove All Features nav dead entry | nav consistency + no dead route | FE | PERF-001 | low | shipped | Sprint 0 |
+| EX-004 | Mission Cockpit relocation | move from individual primary nav | Product + FE | EX-003 | low | shipped | Sprint 0 |
+| EX-005 | AI card relocation (Current Context/Learning Progress) | move to Analytics or remove | Product + FE | EX-003 | low | shipped | Sprint 0 |
+| EX-006 | Tasks tab card declutter | remove low-value duplicate cards | Product + FE | EX-005 | low | shipped | Sprint 0 |
+| EX-007 | Goal linkage model (`goalId`) | tasks-goals data bridge | FE + BE | none | medium | shipped | Sprint 1 |
+| EX-008 | Goal selector in task create/edit | task UX integration | FE | EX-007 | medium | shipped | Sprint 1 |
+| EX-009 | Goal badges in task/calendar surfaces | cross-tab traceability | FE | EX-007 | low | shipped | Sprint 1 |
 | EX-010 | Nexus runtime contract (`runId`, steps, status) | concrete autonomous execution spine | BE + AI | none | high | shipped | Sprint 1-2 |
 | EX-011 | Typed tool contract hardening | schema + idempotency + error envelopes | BE + AI | EX-010 | high | shipped | Sprint 2 |
 | EX-012 | Approval policy engine integration | high-risk gated actions | BE + FE | EX-010 | high | shipped | Sprint 2 |
 | EX-013 | Memory layering implementation | thought/goal/execution separation | BE + AI | EX-010 | high | shipped | Sprint 2 |
 | EX-014 | Nexus "what I’m doing now" panel | trust and observability UX | FE + AI | EX-010 | medium | shipped | Sprint 2 |
-| EX-015 | Email -> task/project conversion | communication-to-execution bridge | FE + BE | EX-007 | medium | approved | Sprint 2 |
+| EX-015 | Email -> task/project conversion | communication-to-execution bridge | FE + BE | EX-007 | medium | shipped | Sprint 2 |
 | EX-016 | Task-level call actions + Nexus call workflow | phone integration with consent | FE + BE | EX-012 | high | shipped | Sprint 2-3 |
 | EX-017 | Workstream canvas MVP | drag nodes from task breakdown into graph | FE + BE | EX-007 | high | shipped | Sprint 3 |
 | EX-018 | Workstream -> project promotion flow | project creation from graph | FE + BE | EX-017 | medium | shipped | Sprint 3 |
 | EX-019 | Calendar semantic zoom (year->minute in multi-day) | timeline depth and planning coherence | FE | EX-018 | high | shipped | Sprint 3-4 |
 | EX-020 | Financials redesign as planning center | budget-to-goal/project integration | FE + BE | EX-007 | high | shipped | Sprint 4 |
 | EX-021 | Notifications event model + watch budget | reduce noise, improve actionability | FE + BE | EX-012 | medium | shipped | Sprint 4 |
-| EX-022 | Scripts/Templates Stripe path hardening | checkout and entitlement reliability | FE + BE | none | medium | approved | Sprint 1 |
+| EX-022 | Scripts/Templates Stripe path hardening | checkout and entitlement reliability | FE + BE | none | medium | shipped | Sprint 1 |
 | EX-023 | Gaming tab decision gate | ship value or hide from primary nav | Product + FE | EX-003 | low | shipped | Sprint 0 |
 | EX-024 | Nexus pull-down full-page mode prototype | Nexus-first without nav breakage | FE + Product | EX-010 | medium | shipped | Sprint 3 |
 | EX-025 | Rename AI Insights surface to Chat | terminology + IA consistency | Product + FE | EX-001 | low | shipped | Sprint 0 |
@@ -1887,34 +1887,34 @@ Use this as the immediate implementation command board.
 | EX-030 | Approval cards + watch actions | high-risk approve/deny/snooze UX | FE + BE | EX-012, EX-021 | high | shipped | Sprint 2-3 |
 | EX-031 | Project thread context binding | attach chat actions to goal/task/project/workstream IDs | FE + BE | EX-026, EX-007 | medium | shipped | Sprint 2-3 |
 | EX-032 | Non-pushy prompt cadence controls | invitation/cooldown logic in Nexus coaching prompts | AI + FE | EX-013 | medium | shipped | Sprint 3 |
-| EX-033 | RBAC scope model + role bindings | canonical role/scope authorization model | BE + FE | EX-007 | high | approved | Sprint 1-2 |
-| EX-034 | Assignment policy engine | task/event/project assignment permission checks | BE | EX-033 | high | approved | Sprint 2 |
-| EX-035 | Unified assignment picker + guardrails | single UI with role-aware controls/messages | FE | EX-034 | medium | approved | Sprint 2 |
-| EX-036 | Assignment audit log + review UI | immutable assignment history and diagnostics | BE + FE | EX-034 | medium | approved | Sprint 2-3 |
-| EX-037 | Remove Today card quick filters | simplify Today's Schedule card UI | FE | PERF-001 | low | approved | Sprint 0 |
-| EX-038 | Fix Today card scroll reliability | stable scroll container + parent sizing chain | FE | EX-037 | medium | approved | Sprint 0 |
-| EX-039 | Disable implicit sample injection in prod | prevent random tasks/events appearing live | FE + BE | PERF-005 | high | approved | Sprint 0 |
-| EX-040 | Canonical profile source hardening | prevent identity/profile fallback to constants | FE + BE | EX-039 | high | approved | Sprint 0-1 |
-| EX-041 | Remove static/demo identity constants from runtime paths | eliminate `Jordan Smith` / `user-1` fallback in prod paths | FE | EX-040 | medium | approved | Sprint 1 |
-| EX-042 | Email 2-pane default + optional AI panel | restore clean reading-first email UX | FE | EX-005 | medium | approved | Sprint 1 |
-| EX-043 | Email delete action wiring | provider-aware delete/trash + optimistic UI update | FE + BE | EX-042 | medium | approved | Sprint 1 |
-| EX-044 | Email reply reliability hardening | guaranteed send status + retry/error states + task linkage | FE + BE | EX-042 | medium | approved | Sprint 1 |
-| EX-045 | Production demo/mock kill-switch | single env-driven gate to hard-disable mock/demo injectors in production | FE + BE | EX-039 | high | approved | Sprint 0 |
-| EX-046 | Dead card registry + CI guard | fail builds when primary-tab cards are placeholder/mock-only without explicit beta flag | FE | EX-045 | medium | approved | Sprint 1 |
-| EX-047 | Cross-user visibility matrix implementation | enforce private/friend/team/workspace/public scopes across entities | BE + FE | EX-033, EX-034 | high | approved | Sprint 2 |
-| EX-048 | Assignment propagation bus | transactional outbox + inbox projections for tasks/events/milestones/steps | BE | EX-047 | high | approved | Sprint 2-3 |
-| EX-049 | Friends discovery + consent model hardening | search/privacy/block/request lifecycle + audits | BE + FE | EX-047 | medium | approved | Sprint 2-3 |
-| EX-050 | Shared-assignment unified views | "Assigned to me" + inherited assignment views across Tasks/Calendar/Chat | FE | EX-048 | medium | approved | Sprint 3 |
-| EX-051 | Marketplace visibility + entitlement contract | publish scopes, listing vs execution separation, paid entitlement checks | BE + FE | EX-022, EX-047 | high | approved | Sprint 3 |
-| EX-052 | Cross-user consistency test harness | contract + E2E suite for all collaboration propagation paths | QA + FE + BE | EX-048, EX-051 | high | approved | Sprint 3 |
-| EX-053 | Marketing parity style system | shared tokens/components for Landing/Features/Pricing/FAQ visual consistency | FE + Design | PERF-001 | medium | approved | Sprint 1 |
-| EX-054 | Features/Pricing/FAQ airy retrofit | apply shared airy system without content loss | FE + Design | EX-053 | medium | approved | Sprint 1-2 |
-| EX-055 | Product-shell airy adoption rules | bring selective airy principles to app pages with data-density guardrails | FE + Design | EX-053 | medium | approved | Sprint 2 |
-| EX-060 | Email AI assist parity (auto-analyze + send-now/later + provider leverage assessment) | make Email Hub behavior match modern mailbox UX: auto analysis on open, explicit send timing UX, and evaluate Google/Gmail Workspace capabilities (draft + schedule) for adapter-based adoption without platform lock-in | Product + FE + BE | EX-015 | medium | approved | Sprint 2 |
-| EX-056 | Spec status tagging pass | tag all sections as authoritative/contextual/historical | Product + FE | none | low | approved | Sprint 0 |
-| EX-057 | Canonical navigation index + read order | add implementation-first table of contents and order | Product | EX-056 | low | approved | Sprint 0 |
-| EX-058 | Traceability matrix | map requirements to contracts, board IDs, and tests | Product + QA | EX-057 | medium | approved | Sprint 1 |
-| EX-059 | Execution board unification | merge section-local board addenda into one canonical board | Product + PM | EX-058 | medium | approved | Sprint 1 |
+| EX-033 | RBAC scope model + role bindings | canonical role/scope authorization model | BE + FE | EX-007 | high | shipped | Sprint 1-2 |
+| EX-034 | Assignment policy engine | task/event/project assignment permission checks | BE | EX-033 | high | shipped | Sprint 2 |
+| EX-035 | Unified assignment picker + guardrails | single UI with role-aware controls/messages | FE | EX-034 | medium | shipped | Sprint 2 |
+| EX-036 | Assignment audit log + review UI | immutable assignment history and diagnostics | BE + FE | EX-034 | medium | shipped | Sprint 2-3 |
+| EX-037 | Remove Today card quick filters | simplify Today's Schedule card UI | FE | PERF-001 | low | shipped | Sprint 0 |
+| EX-038 | Fix Today card scroll reliability | stable scroll container + parent sizing chain | FE | EX-037 | medium | shipped | Sprint 0 |
+| EX-039 | Disable implicit sample injection in prod | prevent random tasks/events appearing live | FE + BE | PERF-005 | high | shipped | Sprint 0 |
+| EX-040 | Canonical profile source hardening | prevent identity/profile fallback to constants | FE + BE | EX-039 | high | shipped | Sprint 0-1 |
+| EX-041 | Remove static/demo identity constants from runtime paths | eliminate `Jordan Smith` / `user-1` fallback in prod paths | FE | EX-040 | medium | shipped | Sprint 1 |
+| EX-042 | Email 2-pane default + optional AI panel | restore clean reading-first email UX | FE | EX-005 | medium | shipped | Sprint 1 |
+| EX-043 | Email delete action wiring | provider-aware delete/trash + optimistic UI update | FE + BE | EX-042 | medium | shipped | Sprint 1 |
+| EX-044 | Email reply reliability hardening | guaranteed send status + retry/error states + task linkage | FE + BE | EX-042 | medium | shipped | Sprint 1 |
+| EX-045 | Production demo/mock kill-switch | single env-driven gate to hard-disable mock/demo injectors in production | FE + BE | EX-039 | high | shipped | Sprint 0 |
+| EX-046 | Dead card registry + CI guard | fail builds when primary-tab cards are placeholder/mock-only without explicit beta flag | FE | EX-045 | medium | shipped | Sprint 1 |
+| EX-047 | Cross-user visibility matrix implementation | enforce private/friend/team/workspace/public scopes across entities | BE + FE | EX-033, EX-034 | high | shipped | Sprint 2 |
+| EX-048 | Assignment propagation bus | transactional outbox + inbox projections for tasks/events/milestones/steps | BE | EX-047 | high | shipped | Sprint 2-3 |
+| EX-049 | Friends discovery + consent model hardening | search/privacy/block/request lifecycle + audits | BE + FE | EX-047 | medium | shipped | Sprint 2-3 |
+| EX-050 | Shared-assignment unified views | "Assigned to me" + inherited assignment views across Tasks/Calendar/Chat | FE | EX-048 | medium | shipped | Sprint 3 |
+| EX-051 | Marketplace visibility + entitlement contract | publish scopes, listing vs execution separation, paid entitlement checks | BE + FE | EX-022, EX-047 | high | shipped | Sprint 3 |
+| EX-052 | Cross-user consistency test harness | contract + E2E suite for all collaboration propagation paths | QA + FE + BE | EX-048, EX-051 | high | shipped | Sprint 3 |
+| EX-053 | Marketing parity style system | shared tokens/components for Landing/Features/Pricing/FAQ visual consistency | FE + Design | PERF-001 | medium | shipped | Sprint 1 |
+| EX-054 | Features/Pricing/FAQ airy retrofit | apply shared airy system without content loss | FE + Design | EX-053 | medium | shipped | Sprint 1-2 |
+| EX-055 | Product-shell airy adoption rules | bring selective airy principles to app pages with data-density guardrails | FE + Design | EX-053 | medium | shipped | Sprint 2 |
+| EX-060 | Email AI assist parity (auto-analyze + send-now/later + provider leverage assessment) | make Email Hub behavior match modern mailbox UX: auto analysis on open, explicit send timing UX, and evaluate Google/Gmail Workspace capabilities (draft + schedule) for adapter-based adoption without platform lock-in | Product + FE + BE | EX-015 | medium | shipped | Sprint 2 |
+| EX-056 | Spec status tagging pass | tag all sections as authoritative/contextual/historical | Product + FE | none | low | shipped | Sprint 0 |
+| EX-057 | Canonical navigation index + read order | add implementation-first table of contents and order | Product | EX-056 | low | shipped | Sprint 0 |
+| EX-058 | Traceability matrix | map requirements to contracts, board IDs, and tests | Product + QA | EX-057 | medium | shipped | Sprint 1 |
+| EX-059 | Execution board unification | merge section-local board addenda into one canonical board | Product + PM | EX-058 | medium | shipped | Sprint 1 |
 
 **Definition of done policy for board items**
 - No dead links/routes.
@@ -1924,7 +1924,7 @@ Use this as the immediate implementation command board.
 
 **Status normalization note (Mar 2026)**
 - Board rows moved to `shipped` only where implementation is present and validated by passing smoke/contract tests.
-- Canonical local release command: `npm run release:gate:final:local`.
+- Canonical local release command: `npm run release:gate:vision:local`.
 - Evidence mapping: `FINAL_IMPLEMENTATION_VERIFICATION.md`.
 
 ### Active Batch Queue (Mar 2026)
