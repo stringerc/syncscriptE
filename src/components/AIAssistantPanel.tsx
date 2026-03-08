@@ -19,15 +19,16 @@
  */
 
 import { useState, useRef, useEffect } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion } from 'motion/react';
 import { 
   Brain, Send, Sparkles, Settings, RefreshCw, MessageSquare,
-  ChevronDown, ChevronUp, Maximize2, X
+  UserPlus
 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { ScrollArea } from './ui/scroll-area';
-import { useLocation, useNavigate } from 'react-router';
+import { Tabs, TabsList, TabsTrigger } from './ui/tabs';
+import { useLocation } from 'react-router';
 import { toast } from 'sonner@2.0.3';
 import { useAI } from '../contexts/AIContext';
 import { getPageContext, generateWelcomeMessage, hasContextualInsights } from '../utils/ai-context-config';
@@ -40,21 +41,38 @@ import {
   DropdownMenuCheckboxItem,
   DropdownMenuTrigger,
 } from './ui/dropdown-menu';
+import { useAIInsightsRouting } from '../contexts/AIInsightsRoutingContext';
+import { buildAgentDeepLink, buildRoutePrefix, normalizeRouteContext, routeContextFromUrl } from '../utils/ai-route';
+import { useContinuity } from '../contexts/ContinuityContext';
+import { showLocalAgentNotification } from '../pwa/push';
+import { routeAgentRequest, buildAgentRoutedPrompt } from '../utils/agent-router';
+import { buildChatThreadEnvelope } from '../utils/ai-thread-model';
+import { buildResponseContractCards, sanitizeAssistantContent } from '../utils/ai-response-contract';
+import { shouldShowPromptWithCadence, markPromptShown } from '../utils/prompt-cadence';
 
 interface AIAssistantPanelProps {
   isOpen: boolean;
-  onOpenAIInsights?: () => void; // Callback to open/focus the AI Insights panel
+  onOpenAIInsights?: () => void; // Callback to open/focus the Chat panel
+  quickTalkStarter?: string | null;
+  onQuickTalkConsumed?: () => void;
 }
 
-export function AIAssistantPanel({ isOpen, onOpenAIInsights }: AIAssistantPanelProps) {
+export function AIAssistantPanel({
+  isOpen,
+  onOpenAIInsights,
+  quickTalkStarter,
+  onQuickTalkConsumed,
+}: AIAssistantPanelProps) {
   const location = useLocation();
-  const navigate = useNavigate();
   const [message, setMessage] = useState('');
   const [messages, setMessages] = useState<any[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [showQuickActions, setShowQuickActions] = useState(true);
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [notifications, setNotifications] = useState(true);
+  const [hubTab, setHubTab] = useState<'social' | 'nexus' | 'agents'>('nexus');
+  const [socialTab, setSocialTab] = useState<'friends' | 'teammates' | 'collaboratives'>('friends');
+  const { routeContext } = useAIInsightsRouting();
+  const { queueAgentAction } = useContinuity();
   const chatEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   
@@ -68,6 +86,40 @@ export function AIAssistantPanel({ isOpen, onOpenAIInsights }: AIAssistantPanelP
   // Get context-aware configuration
   const pageContext = getPageContext(location.pathname);
   const hasInsights = hasContextualInsights(location.pathname);
+  const welcomeCadenceKey = `ai-panel:welcome:${location.pathname}`;
+  const shouldShowFullWelcome = shouldShowPromptWithCadence(welcomeCadenceKey, 10 * 60 * 1000);
+
+  const buildPanelWelcome = () => {
+    const base = generateWelcomeMessage(location.pathname);
+    if (hubTab === 'social') {
+      return 'Social mode active. I can help with friends, teammates, collaboratives, and handoff-ready updates.';
+    }
+    if (hubTab === 'agents') {
+      return 'Agents mode active. I can route requests to specialists, explain confidence, and queue delegated actions.';
+    }
+    if (shouldShowFullWelcome) {
+      markPromptShown(welcomeCadenceKey);
+      return base;
+    }
+    return `Welcome back. Continuing ${pageContext.displayName.toLowerCase()} context.`;
+  };
+
+  const enrichAiResponse = (raw: any, routingDecision: any, threadEnvelope: any) => {
+    const content = sanitizeAssistantContent(String(raw?.content || ''));
+    return {
+      ...raw,
+      content,
+      contractCards: buildResponseContractCards(content),
+      routing: {
+        agentId: routingDecision.agent.id,
+        agentName: routingDecision.agent.name,
+        confidence: routingDecision.confidence,
+        reason: routingDecision.reason,
+        threadId: threadEnvelope.threadId,
+        threadType: threadEnvelope.threadType,
+      },
+    };
+  };
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -77,7 +129,7 @@ export function AIAssistantPanel({ isOpen, onOpenAIInsights }: AIAssistantPanelP
   // Initialize with welcome message when panel opens or page changes
   useEffect(() => {
     if (isOpen && messages.length === 0) {
-      const welcomeMessage = generateWelcomeMessage(location.pathname);
+      const welcomeMessage = buildPanelWelcome();
       setMessages([{
         type: 'ai',
         content: welcomeMessage,
@@ -85,85 +137,59 @@ export function AIAssistantPanel({ isOpen, onOpenAIInsights }: AIAssistantPanelP
         quickReplies: pageContext.conversationStarters.slice(0, 3),
       }]);
     }
-  }, [isOpen, location.pathname]);
+  }, [isOpen, location.pathname, hubTab]);
 
   // Reset conversation when page changes
   useEffect(() => {
     setMessages([]);
-    const welcomeMessage = generateWelcomeMessage(location.pathname);
+    const welcomeMessage = buildPanelWelcome();
     setMessages([{
       type: 'ai',
       content: welcomeMessage,
       timestamp: new Date(),
       quickReplies: pageContext.conversationStarters.slice(0, 3),
     }]);
-  }, [location.pathname]);
+  }, [location.pathname, hubTab]);
 
-  // Page-specific quick actions
-  const quickActions = pageContext.quickActions.slice(0, 4).map(action => ({
-    id: action.id,
-    label: action.label,
-    icon: action.icon,
-    description: action.description,
-    handler: async () => {
-      if (action.type === 'open-insights') {
-        // Special handler for opening AI Insights panel
-        if (onOpenAIInsights) {
-          onOpenAIInsights();
-          // Add conversational message
-          const userMsg = { type: 'user', content: 'Show me AI suggestions', timestamp: new Date() };
-          const aiMsg = {
-            type: 'ai',
-            content: 'I\'ve opened the AI Insights panel for you! You\'ll find personalized task and goal suggestions there based on your current patterns and energy levels. These suggestions are updated in real-time and have a 73% higher engagement rate when used from the side panel.',
-            timestamp: new Date(),
-          };
-          setMessages(prev => [...prev, userMsg, aiMsg]);
-          toast.success('AI Insights panel opened', { description: 'View your personalized suggestions' });
-        }
-      } else if (action.type === 'create' && action.command.endsWith(' ')) {
-        // For create actions, set the command for user to complete
-        setMessage(action.command);
-        inputRef.current?.focus();
-        toast.info('Complete your ' + action.label.toLowerCase());
-      } else {
-        // For other actions, execute immediately
-        setIsProcessing(true);
-        const userMsg = { type: 'user', content: action.command, timestamp: new Date() };
-        setMessages(prev => [...prev, userMsg]);
-        
-        try {
-          const response = await processCommand(action.command);
-          setMessages(prev => [...prev, response]);
-        } catch (error) {
-          toast.error('Failed to process action');
-          setMessages(prev => [...prev, {
-            type: 'ai',
-            content: 'Sorry, I encountered an error. Please try again.',
-            timestamp: new Date(),
-          }]);
-        } finally {
-          setIsProcessing(false);
-        }
-      }
-    },
-  }));
+  const tabContextHint = (tab: 'social' | 'nexus' | 'agents') => {
+    if (tab === 'social') return 'Mode: Social. Focus collaboration, friends, teammates, and handoffs.';
+    if (tab === 'agents') return 'Mode: Agents. Focus specialist routing, delegation, and execution status.';
+    return 'Mode: Nexus. Focus orchestration, planning, and contextual guidance.';
+  };
 
-  const handleSendMessage = async () => {
-    if (!message.trim() || isProcessing) return;
 
+  const sendMessageText = async (content: string) => {
+    if (!content.trim()) return;
+    const canonicalRoute = normalizeRouteContext(
+      routeContext || routeContextFromUrl(location.pathname, location.search)
+    );
+    const routingDecision = routeAgentRequest(content, canonicalRoute);
+    const threadEnvelope = buildChatThreadEnvelope(content, routingDecision.route);
+    const routedPrefix = buildRoutePrefix(routingDecision.route);
     const userMessage = {
       type: 'user',
-      content: message,
+      content,
       timestamp: new Date(),
     };
 
     setMessages(prev => [...prev, userMessage]);
-    setMessage('');
     setIsProcessing(true);
 
     try {
-      const aiResponse = await processCommand(userMessage.content);
-      setMessages(prev => [...prev, aiResponse]);
+      await queueAgentAction({
+        routeKey: routedPrefix,
+        prompt: userMessage.content,
+      });
+      const aiResponse = await processCommand(
+        `${tabContextHint(hubTab)}\n${buildAgentRoutedPrompt(userMessage.content, routingDecision)}`
+      );
+      const enriched = enrichAiResponse(aiResponse, routingDecision, threadEnvelope);
+      setMessages(prev => [...prev, enriched]);
+      showLocalAgentNotification(
+        'Agent replied',
+        String(enriched?.content || '').slice(0, 140),
+        buildAgentDeepLink(canonicalRoute),
+      );
     } catch (error) {
       toast.error('Failed to process message');
       setMessages(prev => [...prev, {
@@ -175,6 +201,23 @@ export function AIAssistantPanel({ isOpen, onOpenAIInsights }: AIAssistantPanelP
       setIsProcessing(false);
     }
   };
+  const handleSendMessage = async () => {
+    if (!message.trim() || isProcessing) return;
+    const content = message;
+    setMessage('');
+    await sendMessageText(content);
+  };
+
+  useEffect(() => {
+    if (!isOpen || !quickTalkStarter || isProcessing) return;
+    onQuickTalkConsumed?.();
+    // Keep dashboard interactions responsive: prefill quick-talk text
+    // instead of auto-sending a potentially long-running AI command.
+    setMessage(quickTalkStarter);
+    queueMicrotask(() => {
+      inputRef.current?.focus();
+    });
+  }, [isOpen, quickTalkStarter, isProcessing, onQuickTalkConsumed]);
 
   const handleQuickReply = async (reply: string) => {
     setMessage('');
@@ -185,11 +228,11 @@ export function AIAssistantPanel({ isOpen, onOpenAIInsights }: AIAssistantPanelP
       const userMsg = { type: 'user', content: reply, timestamp: new Date() };
       const aiMsg = {
         type: 'ai',
-        content: 'AI Insights panel is now open! Check out your personalized task and goal suggestions on the right side.',
+        content: 'Chat panel is now open! Check out your personalized task and goal suggestions on the right side.',
         timestamp: new Date(),
       };
       setMessages(prev => [...prev, userMsg, aiMsg]);
-      toast.success('AI Insights panel opened', { description: 'View your personalized suggestions' });
+      toast.success('Chat panel opened', { description: 'View your personalized suggestions' });
       return;
     }
     
@@ -198,8 +241,15 @@ export function AIAssistantPanel({ isOpen, onOpenAIInsights }: AIAssistantPanelP
     setIsProcessing(true);
     
     try {
-      const aiResponse = await processCommand(reply);
-      setMessages(prev => [...prev, aiResponse]);
+      const canonicalRoute = normalizeRouteContext(
+        routeContext || routeContextFromUrl(location.pathname, location.search)
+      );
+      const routingDecision = routeAgentRequest(reply, canonicalRoute);
+      const threadEnvelope = buildChatThreadEnvelope(reply, routingDecision.route);
+      const aiResponse = await processCommand(
+        `${tabContextHint(hubTab)}\n${buildAgentRoutedPrompt(reply, routingDecision)}`
+      );
+      setMessages(prev => [...prev, enrichAiResponse(aiResponse, routingDecision, threadEnvelope)]);
     } catch (error) {
       toast.error('Failed to process message');
       setMessages(prev => [...prev, {
@@ -227,9 +277,10 @@ export function AIAssistantPanel({ isOpen, onOpenAIInsights }: AIAssistantPanelP
               )}
             </div>
             <div>
-              <h3 className="text-white font-semibold text-sm">AI Assistant</h3>
+              <h3 className="text-white font-semibold text-sm">Chat Hub</h3>
               <p className="text-[10px] text-gray-400">
                 {pageContext.displayName} • {energyData.current}% energy
+                {routeContext?.agentName ? ` • Agent: ${routeContext.agentName}` : ''}
               </p>
             </div>
           </div>
@@ -244,7 +295,7 @@ export function AIAssistantPanel({ isOpen, onOpenAIInsights }: AIAssistantPanelP
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56 bg-[#1e2128] border-gray-800">
-              <DropdownMenuLabel className="text-white">AI Assistant Settings</DropdownMenuLabel>
+              <DropdownMenuLabel className="text-white">Chat Hub Settings</DropdownMenuLabel>
               <DropdownMenuSeparator className="bg-gray-800" />
               
               <DropdownMenuCheckboxItem
@@ -293,6 +344,24 @@ export function AIAssistantPanel({ isOpen, onOpenAIInsights }: AIAssistantPanelP
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
+
+        <Tabs
+          value={hubTab}
+          onValueChange={(value) => setHubTab(value as 'social' | 'nexus' | 'agents')}
+          className="mt-2"
+        >
+          <TabsList className="grid w-full grid-cols-3 bg-[#252830] border border-gray-700">
+            <TabsTrigger value="social" className="text-[11px] data-[state=active]:bg-blue-600/20 data-[state=active]:text-blue-300">
+              Social
+            </TabsTrigger>
+            <TabsTrigger value="nexus" className="text-[11px] data-[state=active]:bg-purple-600/20 data-[state=active]:text-purple-300">
+              Nexus
+            </TabsTrigger>
+            <TabsTrigger value="agents" className="text-[11px] data-[state=active]:bg-teal-600/20 data-[state=active]:text-teal-300">
+              Agents
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
         
         {/* Context Insights Banner */}
         {pageContext.smartInsights.length > 0 && (
@@ -309,59 +378,44 @@ export function AIAssistantPanel({ isOpen, onOpenAIInsights }: AIAssistantPanelP
         )}
       </div>
 
-      {/* Quick Actions - Collapsible */}
-      {quickActions.length > 0 && (
-        <div className="flex-shrink-0 border-b border-gray-800">
-          <button
-            onClick={() => setShowQuickActions(!showQuickActions)}
-            className="w-full px-4 py-2 flex items-center justify-between text-xs text-gray-400 hover:text-gray-300 hover:bg-gray-800/30 transition-colors"
+      {hubTab === 'social' && (
+        <div className="flex-shrink-0 border-b border-gray-800 px-4 py-3">
+          <Tabs
+            value={socialTab}
+            onValueChange={(value) => setSocialTab(value as 'friends' | 'teammates' | 'collaboratives')}
           >
-            <span className="font-medium uppercase tracking-wide">Quick Actions</span>
-            {showQuickActions ? (
-              <ChevronUp className="w-3 h-3" />
-            ) : (
-              <ChevronDown className="w-3 h-3" />
-            )}
-          </button>
-          
-          <AnimatePresence>
-            {showQuickActions && (
-              <motion.div
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: 'auto', opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                transition={{ duration: 0.2 }}
-                className="overflow-hidden"
-              >
-                <div className="p-3 grid grid-cols-2 gap-2">
-                  {quickActions.map((action) => {
-                    const Icon = action.icon;
-                    return (
-                      <button
-                        key={action.id}
-                        onClick={action.handler}
-                        disabled={isProcessing}
-                        className="flex flex-col items-center gap-2 p-2.5 bg-[#252830] border border-gray-700 rounded-lg hover:border-purple-600/50 hover:bg-[#2a2d35] transition-all group disabled:opacity-50 disabled:cursor-not-allowed"
-                        title={action.description}
-                      >
-                        <div className="w-8 h-8 rounded-full bg-purple-600/20 flex items-center justify-center group-hover:bg-purple-600/30 transition-colors">
-                          <Icon className="w-4 h-4 text-purple-400" />
-                        </div>
-                        <span className="text-[10px] text-white text-center leading-tight">{action.label}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
+            <TabsList className="grid w-full grid-cols-3 bg-[#252830] border border-gray-700">
+              <TabsTrigger value="friends" className="text-[11px] data-[state=active]:bg-blue-600/20 data-[state=active]:text-blue-300">
+                Friends
+              </TabsTrigger>
+              <TabsTrigger value="teammates" className="text-[11px] data-[state=active]:bg-blue-600/20 data-[state=active]:text-blue-300">
+                Teammates
+              </TabsTrigger>
+              <TabsTrigger value="collaboratives" className="text-[11px] data-[state=active]:bg-blue-600/20 data-[state=active]:text-blue-300">
+                Collaboratives
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
         </div>
       )}
 
-      {/* Chat Messages Area */}
-      <div className="flex-1 overflow-hidden">
-        <ScrollArea className="h-full px-4 py-3">
-          <div className="space-y-3">
+      {hubTab === 'social' ? (
+        <div className="flex-1 flex items-center justify-center px-4">
+          <Button
+            type="button"
+            onClick={() => toast.info('Friend invites are coming soon')}
+            className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500"
+          >
+            <UserPlus className="w-4 h-4 mr-2" />
+            Add Friend
+          </Button>
+        </div>
+      ) : (
+        <>
+          {/* Chat Messages Area */}
+          <div className="flex-1 overflow-hidden">
+            <ScrollArea className="h-full px-4 py-3">
+              <div className="space-y-3">
             {messages.map((msg, idx) => (
               <motion.div
                 key={idx}
@@ -383,6 +437,28 @@ export function AIAssistantPanel({ isOpen, onOpenAIInsights }: AIAssistantPanelP
                       : 'bg-[#252830] border border-gray-700 text-gray-200'
                   }`}>
                     <p className="text-xs leading-relaxed whitespace-pre-wrap">{msg.content}</p>
+
+                    {msg.type === 'ai' && msg.routing && (
+                      <div className="mt-2 flex flex-wrap gap-1.5">
+                        <span className="rounded-full border border-teal-500/40 bg-teal-500/10 px-2 py-0.5 text-[10px] text-teal-200">
+                          {msg.routing.agentName}
+                        </span>
+                        <span className="rounded-full border border-blue-500/40 bg-blue-500/10 px-2 py-0.5 text-[10px] text-blue-200">
+                          {Math.round((msg.routing.confidence || 0) * 100)}%
+                        </span>
+                      </div>
+                    )}
+
+                    {msg.type === 'ai' && Array.isArray(msg.contractCards) && msg.contractCards.length > 0 && (
+                      <div className="mt-2 grid gap-1.5">
+                        {msg.contractCards.map((card: any, cardIdx: number) => (
+                          <div key={`${card.kind}-${cardIdx}`} className="rounded-md border border-gray-700/80 bg-black/20 p-2">
+                            <p className="text-[10px] uppercase tracking-wide text-gray-400">{card.title}</p>
+                            <p className="text-xs text-gray-200 whitespace-pre-wrap">{card.body}</p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                     
                     {/* Metrics */}
                     {msg.metrics && msg.metrics.length > 0 && (
@@ -408,10 +484,10 @@ export function AIAssistantPanel({ isOpen, onOpenAIInsights }: AIAssistantPanelP
                           <button
                             key={i}
                             onClick={() => {
-                              // Special handling for "Open AI Insights Panel" action
-                              if (action.label === 'Open AI Insights Panel' && onOpenAIInsights) {
+                              // Special handling for "Open Chat Panel" action
+                              if ((action.label === 'Open Chat Panel' || action.label === 'Open AI Insights Panel') && onOpenAIInsights) {
                                 onOpenAIInsights();
-                                toast.success('AI Insights panel opened', { description: 'View your personalized suggestions' });
+                                toast.success('Chat panel opened', { description: 'View your personalized suggestions' });
                               } else if (action.handler) {
                                 action.handler();
                               }
@@ -467,51 +543,53 @@ export function AIAssistantPanel({ isOpen, onOpenAIInsights }: AIAssistantPanelP
               </motion.div>
             )}
             
-            <div ref={chatEndRef} />
+                <div ref={chatEndRef} />
+              </div>
+            </ScrollArea>
           </div>
-        </ScrollArea>
-      </div>
 
-      {/* Input Area */}
-      <div className="flex-shrink-0 p-3 border-t border-gray-800 bg-[#1a1d24] space-y-2">
-        {/* Command hint */}
-        {message.startsWith('/') && (
-          <div className="text-[10px] text-purple-400 flex items-center gap-1.5 px-2">
-            <Sparkles className="w-3 h-3" />
-            <span>Smart command detected. Type /help for all commands</span>
+          {/* Input Area */}
+          <div className="flex-shrink-0 p-3 border-t border-gray-800 bg-[#1a1d24] space-y-2">
+            {/* Command hint */}
+            {message.startsWith('/') && (
+              <div className="text-[10px] text-purple-400 flex items-center gap-1.5 px-2">
+                <Sparkles className="w-3 h-3" />
+                <span>Smart command detected. Type /help for all commands</span>
+              </div>
+            )}
+            
+            {/* Message Input */}
+            <div className="flex gap-2">
+              <Input
+                ref={inputRef}
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSendMessage();
+                  }
+                }}
+                placeholder={`Ask about ${pageContext.displayName.toLowerCase()}...`}
+                className="flex-1 bg-[#252830] border-gray-700 focus:border-purple-600 text-sm h-9"
+                disabled={isProcessing}
+              />
+              <Button
+                onClick={handleSendMessage}
+                disabled={!message.trim() || isProcessing}
+                size="sm"
+                className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 h-9 px-3"
+              >
+                <Send className="w-3.5 h-3.5" />
+              </Button>
+            </div>
+            
+            <p className="text-[10px] text-gray-500 text-center px-2">
+              Try: {pageContext.conversationStarters[0]}
+            </p>
           </div>
-        )}
-        
-        {/* Message Input */}
-        <div className="flex gap-2">
-          <Input
-            ref={inputRef}
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            onKeyPress={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                handleSendMessage();
-              }
-            }}
-            placeholder={`Ask about ${pageContext.displayName.toLowerCase()}...`}
-            className="flex-1 bg-[#252830] border-gray-700 focus:border-purple-600 text-sm h-9"
-            disabled={isProcessing}
-          />
-          <Button
-            onClick={handleSendMessage}
-            disabled={!message.trim() || isProcessing}
-            size="sm"
-            className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 h-9 px-3"
-          >
-            <Send className="w-3.5 h-3.5" />
-          </Button>
-        </div>
-        
-        <p className="text-[10px] text-gray-500 text-center px-2">
-          Try: {pageContext.conversationStarters[0]}
-        </p>
-      </div>
+        </>
+      )}
     </div>
   );
 }
