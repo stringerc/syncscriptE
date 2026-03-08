@@ -1162,8 +1162,8 @@ export function AIAssistantPanel({
                   </p>
                   <p className="mt-1 text-[11px] text-gray-500">
                     {hubTab === 'nexus'
-                      ? 'Pick an agent to open chat. After selection, avatars stay on the right for fast switching.'
-                      : 'Pick an enterprise specialist to open chat, then switch quickly from right-side avatar heads.'}
+                      ? 'Pick an agent to open chat. After selection, avatars stay on the left for fast switching.'
+                      : 'Pick an enterprise specialist to open chat, then switch quickly from left-side avatar heads.'}
                   </p>
                 </div>
                 {hubTab === 'enterprise' && (
