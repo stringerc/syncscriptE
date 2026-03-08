@@ -27,7 +27,6 @@ import {
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { ScrollArea } from './ui/scroll-area';
-import { Tabs, TabsList, TabsTrigger } from './ui/tabs';
 import { Badge } from './ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from './ui/dialog';
 import { useLocation } from 'react-router';
@@ -727,23 +726,29 @@ export function AIAssistantPanel({
           </DropdownMenu>
         </div>
 
-        <Tabs
-          value={hubTab}
-          onValueChange={(value) => setHubTab(value as 'social' | 'nexus' | 'agents')}
-          className="mt-2"
-        >
-          <TabsList className="grid w-full grid-cols-3 bg-[#252830] border border-gray-700">
-            <TabsTrigger value="social" className="text-[11px] data-[state=active]:bg-blue-600/20 data-[state=active]:text-blue-300">
-              Social
-            </TabsTrigger>
-            <TabsTrigger value="nexus" className="text-[11px] data-[state=active]:bg-purple-600/20 data-[state=active]:text-purple-300">
-              Nexus
-            </TabsTrigger>
-            <TabsTrigger value="agents" className="text-[11px] data-[state=active]:bg-teal-600/20 data-[state=active]:text-teal-300">
-              Agents
-            </TabsTrigger>
-          </TabsList>
-        </Tabs>
+        <div className="mt-2 grid w-full grid-cols-3 rounded-xl border border-gray-700 bg-[#252830] p-[3px]">
+          {([
+            { key: 'social', label: 'Social', activeClass: 'bg-blue-600/20 text-blue-300 ring-1 ring-blue-500/30' },
+            { key: 'nexus', label: 'Nexus', activeClass: 'bg-purple-600/20 text-purple-300 ring-1 ring-purple-500/30' },
+            { key: 'agents', label: 'Agents', activeClass: 'bg-teal-600/20 text-teal-300 ring-1 ring-teal-500/30' },
+          ] as const).map((tab) => {
+            const isActive = hubTab === tab.key;
+            return (
+              <button
+                key={tab.key}
+                type="button"
+                role="tab"
+                aria-selected={isActive}
+                onClick={() => setHubTab(tab.key)}
+                className={`rounded-lg px-2 py-1.5 text-[11px] font-medium transition-colors ${
+                  isActive ? tab.activeClass : 'text-gray-300 hover:bg-white/5'
+                }`}
+              >
+                {tab.label}
+              </button>
+            );
+          })}
+        </div>
         
         {/* Context Insights Banner */}
         {pageContext.smartInsights.length > 0 && (
@@ -762,22 +767,31 @@ export function AIAssistantPanel({
 
       {hubTab === 'social' && (
         <div className="flex-shrink-0 border-b border-gray-800 px-4 py-3">
-          <Tabs
-            value={socialTab}
-            onValueChange={(value) => setSocialTab(value as 'friends' | 'teammates' | 'collaboratives')}
-          >
-            <TabsList className="grid w-full grid-cols-3 bg-[#252830] border border-gray-700">
-              <TabsTrigger value="friends" className="text-[11px] data-[state=active]:bg-blue-600/20 data-[state=active]:text-blue-300">
-                Friends
-              </TabsTrigger>
-              <TabsTrigger value="teammates" className="text-[11px] data-[state=active]:bg-blue-600/20 data-[state=active]:text-blue-300">
-                Teammates
-              </TabsTrigger>
-              <TabsTrigger value="collaboratives" className="text-[11px] data-[state=active]:bg-blue-600/20 data-[state=active]:text-blue-300">
-                Collaboratives
-              </TabsTrigger>
-            </TabsList>
-          </Tabs>
+          <div className="grid w-full grid-cols-3 rounded-xl border border-gray-700 bg-[#252830] p-[3px]">
+            {([
+              { key: 'friends', label: 'Friends' },
+              { key: 'teammates', label: 'Teammates' },
+              { key: 'collaboratives', label: 'Collaboratives' },
+            ] as const).map((tab) => {
+              const isActive = socialTab === tab.key;
+              return (
+                <button
+                  key={tab.key}
+                  type="button"
+                  role="tab"
+                  aria-selected={isActive}
+                  onClick={() => setSocialTab(tab.key)}
+                  className={`rounded-lg px-2 py-1.5 text-[11px] font-medium transition-colors ${
+                    isActive
+                      ? 'bg-blue-600/20 text-blue-300 ring-1 ring-blue-500/30'
+                      : 'text-gray-300 hover:bg-white/5'
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              );
+            })}
+          </div>
         </div>
       )}
 
