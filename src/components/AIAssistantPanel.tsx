@@ -1245,7 +1245,7 @@ export function AIAssistantPanel({
                 </ScrollArea>
               </div>
             ) : (
-              <div className="grid h-full min-h-0 grid-cols-[68px_minmax(0,1fr)] gap-3">
+              <div className="grid h-full min-h-0 grid-cols-[68px_1fr] gap-3">
                 <div className="flex min-h-0 w-[68px] flex-col overflow-hidden rounded-lg border border-gray-700 bg-[#252830]">
                   <div className="border-b border-gray-700 p-1.5">
                     <button
