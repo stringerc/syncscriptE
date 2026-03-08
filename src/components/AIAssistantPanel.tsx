@@ -247,6 +247,16 @@ export function AIAssistantPanel({
   }, [hubTab, socialTab, actorId, isAuthenticatedSocial]);
 
   useEffect(() => {
+    if (hubTab === 'nexus') {
+      setSelectedNexusAgentId(null);
+      return;
+    }
+    if (hubTab === 'enterprise') {
+      setSelectedEnterpriseAgentId(null);
+    }
+  }, [hubTab]);
+
+  useEffect(() => {
     if (hubTab !== 'enterprise' || !user?.id) return;
     let cancelled = false;
     const loadWorkspaces = async () => {
@@ -1223,8 +1233,8 @@ export function AIAssistantPanel({
                 </ScrollArea>
               </div>
             ) : (
-              <div className="grid h-full min-h-0 grid-cols-[1fr_68px] gap-3">
-                <div className="flex min-h-0 flex-col overflow-hidden rounded-lg border border-gray-700 bg-[#252830]">
+              <div className="flex h-full min-h-0 gap-3">
+                <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-gray-700 bg-[#252830]">
                   <div className="border-b border-gray-700 px-3 py-2">
                     <p className="text-xs font-medium text-white">{activeSpecialist?.name || 'Agent'}</p>
                     <p className="text-[11px] text-gray-400">
@@ -1276,7 +1286,7 @@ export function AIAssistantPanel({
                   </ScrollArea>
                 </div>
 
-                <div className="flex min-h-0 flex-col overflow-hidden rounded-lg border border-gray-700 bg-[#252830]">
+                <div className="flex min-h-0 w-[68px] flex-col overflow-hidden rounded-lg border border-gray-700 bg-[#252830]">
                   <div className="border-b border-gray-700 p-1.5">
                     <button
                       type="button"
