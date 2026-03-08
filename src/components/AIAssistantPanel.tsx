@@ -70,6 +70,29 @@ interface AIAssistantPanelProps {
   onQuickTalkConsumed?: () => void;
 }
 
+type NexusTabAgent = {
+  id: string;
+  name: string;
+  tabLabel: string;
+  domainTab: 'dashboard' | 'tasks' | 'goals' | 'calendar' | 'financials' | 'email' | 'enterprise' | 'ai';
+  role: string;
+};
+
+const NEXUS_TAB_AGENTS: NexusTabAgent[] = [
+  { id: 'dashboard-agent', name: 'Dashboard Agent', tabLabel: 'Dashboard', domainTab: 'dashboard', role: 'Cross-view command center and daily synthesis' },
+  { id: 'tasks-agent', name: 'Tasks Agent', tabLabel: 'Tasks', domainTab: 'tasks', role: 'Execution planning, prioritization, and backlog flow' },
+  { id: 'calendar-agent', name: 'Calendar Agent', tabLabel: 'Calendar', domainTab: 'calendar', role: 'Schedule optimization and time conflict handling' },
+  { id: 'financials-agent', name: 'Financials Agent', tabLabel: 'Financials', domainTab: 'financials', role: 'Revenue, expenses, runway, and planning intelligence' },
+  { id: 'email-agent', name: 'Email Agent', tabLabel: 'Email', domainTab: 'email', role: 'Inbox triage, response drafting, and follow-up sequencing' },
+  { id: 'energy-agent', name: 'Energy Agent', tabLabel: 'Energy', domainTab: 'ai', role: 'Performance pacing, workload energy alignment, and recovery' },
+  { id: 'resonance-agent', name: 'Resonance Agent', tabLabel: 'Resonance Engine', domainTab: 'ai', role: 'Focus quality and cognitive-state guidance' },
+  { id: 'team-agent', name: 'Team Agent', tabLabel: 'Team', domainTab: 'ai', role: 'Delegation clarity, ownership, and collaboration health' },
+  { id: 'scripts-agent', name: 'Scripts Agent', tabLabel: 'Scripts & Templates', domainTab: 'ai', role: 'Reusable workflows and template optimization' },
+  { id: 'analytics-agent', name: 'Analytics Agent', tabLabel: 'Analytics', domainTab: 'ai', role: 'KPI interpretation, trend analysis, and anomalies' },
+  { id: 'mission', name: 'Mission Control', tabLabel: 'Enterprise', domainTab: 'enterprise', role: 'Enterprise operations, governance, and mission orchestration' },
+  { id: 'mission-cockpit-agent', name: 'Mission Cockpit Agent', tabLabel: 'Mission Cockpit', domainTab: 'enterprise', role: 'Run lifecycle visibility and command execution' },
+];
+
 export function AIAssistantPanel({
   isOpen,
   onOpenAIInsights,
@@ -84,6 +107,7 @@ export function AIAssistantPanel({
   const [notifications, setNotifications] = useState(true);
   const [hubTab, setHubTab] = useState<'social' | 'nexus' | 'agents'>('nexus');
   const [socialTab, setSocialTab] = useState<'friends' | 'teammates' | 'collaboratives'>('friends');
+  const [selectedNexusAgentId, setSelectedNexusAgentId] = useState<string>('dashboard-agent');
   const [showSocialInviteDialog, setShowSocialInviteDialog] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
   const [socialRelationships, setSocialRelationships] = useState<SocialRelationshipRecord[]>([]);
@@ -120,6 +144,10 @@ export function AIAssistantPanel({
       : 'Nexus Orchestrator';
 
   const isAuthenticatedSocial = Boolean(accessToken && !accessToken.startsWith('gst_') && !user?.isGuest);
+  const selectedNexusAgent = useMemo(
+    () => NEXUS_TAB_AGENTS.find((agent) => agent.id === selectedNexusAgentId) || NEXUS_TAB_AGENTS[0],
+    [selectedNexusAgentId],
+  );
 
   const refreshSocialRelationships = async () => {
     if (!isAuthenticatedSocial) {
@@ -217,9 +245,17 @@ export function AIAssistantPanel({
 
   const sendMessageText = async (content: string) => {
     if (!content.trim()) return;
-    const canonicalRoute = normalizeRouteContext(
+    const baseRoute = normalizeRouteContext(
       routeContext || routeContextFromUrl(location.pathname, location.search)
     );
+    const canonicalRoute = hubTab === 'nexus'
+      ? normalizeRouteContext({
+          ...(baseRoute || {}),
+          domainTab: selectedNexusAgent.domainTab,
+          agentId: selectedNexusAgent.id,
+          agentName: selectedNexusAgent.name,
+        })
+      : baseRoute;
     const routingDecision = routeAgentRequest(content, canonicalRoute);
     const threadEnvelope = buildChatThreadEnvelope(content, routingDecision.route);
     const routedPrefix = buildRoutePrefix(routingDecision.route);
@@ -622,9 +658,17 @@ export function AIAssistantPanel({
     setIsProcessing(true);
     
     try {
-      const canonicalRoute = normalizeRouteContext(
+      const baseRoute = normalizeRouteContext(
         routeContext || routeContextFromUrl(location.pathname, location.search)
       );
+      const canonicalRoute = hubTab === 'nexus'
+        ? normalizeRouteContext({
+            ...(baseRoute || {}),
+            domainTab: selectedNexusAgent.domainTab,
+            agentId: selectedNexusAgent.id,
+            agentName: selectedNexusAgent.name,
+          })
+        : baseRoute;
       const routingDecision = routeAgentRequest(reply, canonicalRoute);
       const threadEnvelope = buildChatThreadEnvelope(reply, routingDecision.route);
       const aiResponse = await processCommand(
@@ -988,9 +1032,59 @@ export function AIAssistantPanel({
       ) : (
         <>
           {/* Chat Messages Area */}
-          <div className="flex-1 overflow-hidden">
-            <ScrollArea className="h-full px-4 py-3">
-              <div className="space-y-3">
+          <div className={`flex-1 overflow-hidden ${hubTab === 'nexus' ? 'p-3' : ''}`}>
+            <div className={hubTab === 'nexus' ? 'grid h-full grid-cols-[36%_64%] gap-3' : 'h-full'}>
+              {hubTab === 'nexus' && (
+                <div className="overflow-hidden rounded-lg border border-gray-700 bg-[#252830]">
+                  <div className="border-b border-gray-700 px-3 py-2">
+                    <p className="text-[11px] uppercase tracking-wide text-gray-400">Tab Agents</p>
+                    <p className="mt-1 text-[11px] text-gray-500">Select a specialist by menu tab</p>
+                  </div>
+                  <ScrollArea className="h-[calc(100%-3.5rem)]">
+                    <div className="space-y-1.5 p-2">
+                      {NEXUS_TAB_AGENTS.map((agent) => {
+                        const isActive = selectedNexusAgent.id === agent.id;
+                        return (
+                          <button
+                            key={agent.id}
+                            type="button"
+                            onClick={() => setSelectedNexusAgentId(agent.id)}
+                            className={`w-full rounded-md border px-2 py-2 text-left transition-colors ${
+                              isActive
+                                ? 'border-purple-500/40 bg-purple-500/10'
+                                : 'border-transparent hover:border-gray-600 hover:bg-black/20'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2">
+                              <img
+                                src={`https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(agent.id)}`}
+                                alt={agent.name}
+                                className="h-8 w-8 rounded-full border border-gray-700 bg-black/30"
+                              />
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-center justify-between gap-2">
+                                  <p className="truncate text-xs font-medium text-white">{agent.name}</p>
+                                  <span className="text-[10px] text-gray-500">{agent.tabLabel}</span>
+                                </div>
+                                <p className="truncate text-[11px] text-gray-400">{agent.role}</p>
+                              </div>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </ScrollArea>
+                </div>
+              )}
+              <div className="overflow-hidden rounded-lg border border-gray-700 bg-[#252830]">
+                {hubTab === 'nexus' && (
+                  <div className="border-b border-gray-700 px-3 py-2">
+                    <p className="text-xs font-medium text-white">{selectedNexusAgent.name}</p>
+                    <p className="text-[11px] text-gray-400">{selectedNexusAgent.tabLabel} specialist</p>
+                  </div>
+                )}
+                <ScrollArea className={`px-4 py-3 ${hubTab === 'nexus' ? 'h-[calc(100%-3.25rem)]' : 'h-full'}`}>
+                  <div className="space-y-3">
             {messages.map((msg, idx) => (
               <motion.div
                 key={idx}
@@ -1120,7 +1214,9 @@ export function AIAssistantPanel({
             
                 <div ref={chatEndRef} />
               </div>
-            </ScrollArea>
+                </ScrollArea>
+              </div>
+            </div>
           </div>
 
           {/* Input Area */}
@@ -1145,7 +1241,9 @@ export function AIAssistantPanel({
                     handleSendMessage();
                   }
                 }}
-                placeholder={`Ask about ${pageContext.displayName.toLowerCase()}...`}
+                placeholder={hubTab === 'nexus'
+                  ? `Message ${selectedNexusAgent.name}...`
+                  : `Ask about ${pageContext.displayName.toLowerCase()}...`}
                 className="flex-1 bg-[#252830] border-gray-700 focus:border-purple-600 text-sm h-9"
                 disabled={isProcessing}
               />
@@ -1160,7 +1258,9 @@ export function AIAssistantPanel({
             </div>
             
             <p className="text-[10px] text-gray-500 text-center px-2">
-              Try: {pageContext.conversationStarters[0]}
+              Try: {hubTab === 'nexus'
+                ? `@${selectedNexusAgent.id} ${pageContext.conversationStarters[0]}`
+                : pageContext.conversationStarters[0]}
             </p>
           </div>
         </>
