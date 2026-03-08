@@ -51,6 +51,7 @@ import { routeAgentRequest, buildAgentRoutedPrompt } from '../utils/agent-router
 import { buildChatThreadEnvelope } from '../utils/ai-thread-model';
 import { buildResponseContractCards, sanitizeAssistantContent } from '../utils/ai-response-contract';
 import { shouldShowPromptWithCadence, markPromptShown } from '../utils/prompt-cadence';
+import { NEXUS_TAB_AGENTS } from '../utils/nexus-tab-agents';
 import {
   inviteByEmail,
   listMessages,
@@ -69,29 +70,6 @@ interface AIAssistantPanelProps {
   quickTalkStarter?: string | null;
   onQuickTalkConsumed?: () => void;
 }
-
-type NexusTabAgent = {
-  id: string;
-  name: string;
-  tabLabel: string;
-  domainTab: 'dashboard' | 'tasks' | 'goals' | 'calendar' | 'financials' | 'email' | 'enterprise' | 'ai';
-  role: string;
-};
-
-const NEXUS_TAB_AGENTS: NexusTabAgent[] = [
-  { id: 'dashboard-agent', name: 'Dashboard Agent', tabLabel: 'Dashboard', domainTab: 'dashboard', role: 'Cross-view command center and daily synthesis' },
-  { id: 'tasks-agent', name: 'Tasks Agent', tabLabel: 'Tasks', domainTab: 'tasks', role: 'Execution planning, prioritization, and backlog flow' },
-  { id: 'calendar-agent', name: 'Calendar Agent', tabLabel: 'Calendar', domainTab: 'calendar', role: 'Schedule optimization and time conflict handling' },
-  { id: 'financials-agent', name: 'Financials Agent', tabLabel: 'Financials', domainTab: 'financials', role: 'Revenue, expenses, runway, and planning intelligence' },
-  { id: 'email-agent', name: 'Email Agent', tabLabel: 'Email', domainTab: 'email', role: 'Inbox triage, response drafting, and follow-up sequencing' },
-  { id: 'energy-agent', name: 'Energy Agent', tabLabel: 'Energy', domainTab: 'ai', role: 'Performance pacing, workload energy alignment, and recovery' },
-  { id: 'resonance-agent', name: 'Resonance Agent', tabLabel: 'Resonance Engine', domainTab: 'ai', role: 'Focus quality and cognitive-state guidance' },
-  { id: 'team-agent', name: 'Team Agent', tabLabel: 'Team', domainTab: 'ai', role: 'Delegation clarity, ownership, and collaboration health' },
-  { id: 'scripts-agent', name: 'Scripts Agent', tabLabel: 'Scripts & Templates', domainTab: 'ai', role: 'Reusable workflows and template optimization' },
-  { id: 'analytics-agent', name: 'Analytics Agent', tabLabel: 'Analytics', domainTab: 'ai', role: 'KPI interpretation, trend analysis, and anomalies' },
-  { id: 'mission', name: 'Mission Control', tabLabel: 'Enterprise', domainTab: 'enterprise', role: 'Enterprise operations, governance, and mission orchestration' },
-  { id: 'mission-cockpit-agent', name: 'Mission Cockpit Agent', tabLabel: 'Mission Cockpit', domainTab: 'enterprise', role: 'Run lifecycle visibility and command execution' },
-];
 
 export function AIAssistantPanel({
   isOpen,

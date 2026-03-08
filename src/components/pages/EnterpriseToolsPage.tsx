@@ -31,6 +31,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useOpenClaw } from '../../contexts/OpenClawContext';
 import { useAIInsightsRouting } from '../../contexts/AIInsightsRoutingContext';
 import { getEnterpriseFeatureFlags } from '../../utils/enterprise-feature-flags';
+import { NEXUS_TAB_AGENTS } from '../../utils/nexus-tab-agents';
 import { projectId, publicAnonKey } from '../../utils/supabase/info';
 import { EnterpriseMissionCalendar } from '../enterprise/EnterpriseMissionCalendar';
 import { markOpAcked, markOpFailed, markOpSent, queueOpLog } from '../../pwa/offline-oplog';
@@ -579,6 +580,20 @@ export function EnterpriseToolsPage() {
       parentType: 'tab',
       parentId: agent.tab,
     }));
+    const nexusRegistryAgents = NEXUS_TAB_AGENTS.map((agent) => {
+      const scope = agent.discordScope || 'tab';
+      const parentType = scope === 'enterprise' ? 'enterprise' : 'tab';
+      const parentId = agent.discordParentId || (scope === 'enterprise' ? 'enterprise' : 'dashboard');
+      const key = parentType === 'enterprise'
+        ? `enterprise:${agent.id}`
+        : `tab:${parentId}:${agent.id}`;
+      return {
+        id: agent.id,
+        name: formatName(key, agent.name),
+        parentType,
+        parentId,
+      };
+    });
 
     const token = accessToken || publicAnonKey;
     await fetch(`https://${projectId}.supabase.co/functions/v1/make-server-57781ad9/discord/sync-agent-registry`, {
@@ -589,7 +604,7 @@ export function EnterpriseToolsPage() {
       },
       body: JSON.stringify({
         workspaceId,
-        agents: [...enterpriseAgents, ...tabSubagents],
+        agents: [...enterpriseAgents, ...tabSubagents, ...nexusRegistryAgents],
       }),
     });
   }, [accessToken, agentIdentityProfiles, discordTabSubagents, orgAgents, syncIdentityToDiscordLabels, user?.id, workspaceId]);
