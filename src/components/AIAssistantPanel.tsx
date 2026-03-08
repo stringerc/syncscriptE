@@ -33,6 +33,7 @@ import { useLocation } from 'react-router';
 import { toast } from 'sonner@2.0.3';
 import { useAI } from '../contexts/AIContext';
 import { useAuth } from '../contexts/AuthContext';
+import { useOpenClaw } from '../contexts/OpenClawContext';
 import { getPageContext, generateWelcomeMessage, hasContextualInsights } from '../utils/ai-context-config';
 import {
   DropdownMenu,
@@ -52,6 +53,7 @@ import { buildChatThreadEnvelope } from '../utils/ai-thread-model';
 import { buildResponseContractCards, sanitizeAssistantContent } from '../utils/ai-response-contract';
 import { shouldShowPromptWithCadence, markPromptShown } from '../utils/prompt-cadence';
 import { NEXUS_TAB_AGENTS } from '../utils/nexus-tab-agents';
+import { ENTERPRISE_CORE_AGENTS } from '../utils/enterprise-agents-catalog';
 import {
   inviteByEmail,
   listMessages,
@@ -83,9 +85,16 @@ export function AIAssistantPanel({
   const [isProcessing, setIsProcessing] = useState(false);
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [notifications, setNotifications] = useState(true);
-  const [hubTab, setHubTab] = useState<'social' | 'nexus' | 'agents'>('nexus');
+  const [hubTab, setHubTab] = useState<'social' | 'nexus' | 'enterprise'>('nexus');
   const [socialTab, setSocialTab] = useState<'friends' | 'teammates' | 'collaboratives'>('friends');
-  const [selectedNexusAgentId, setSelectedNexusAgentId] = useState<string>('dashboard-agent');
+  const [selectedNexusAgentId, setSelectedNexusAgentId] = useState<string | null>(null);
+  const [selectedEnterpriseAgentId, setSelectedEnterpriseAgentId] = useState<string | null>(null);
+  const [enterpriseWorkspaceId, setEnterpriseWorkspaceId] = useState<string>('default');
+  const [enterpriseWorkspaces, setEnterpriseWorkspaces] = useState<Array<{ id: string; name: string }>>([]);
+  const [workspaceEnterpriseAgents, setWorkspaceEnterpriseAgents] = useState<Array<{ id: string; name: string; role: string; team: string }>>([]);
+  const [enterpriseScope, setEnterpriseScope] = useState<'core' | 'workspace'>('core');
+  const [enterpriseSearch, setEnterpriseSearch] = useState('');
+  const [enterpriseLoading, setEnterpriseLoading] = useState(false);
   const [showSocialInviteDialog, setShowSocialInviteDialog] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
   const [socialRelationships, setSocialRelationships] = useState<SocialRelationshipRecord[]>([]);
@@ -97,6 +106,7 @@ export function AIAssistantPanel({
   const { routeContext } = useAIInsightsRouting();
   const { queueAgentAction } = useContinuity();
   const { user, accessToken } = useAuth();
+  const { getEnterpriseWorkspaces, getEnterpriseOrg } = useOpenClaw();
   const chatEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   
@@ -117,14 +127,36 @@ export function AIAssistantPanel({
   const activeSocialType = socialTypeByTab[socialTab];
   const tabAgentName = hubTab === 'social'
     ? 'Social Concierge'
-    : hubTab === 'agents'
-      ? 'Agent Router'
+    : hubTab === 'enterprise'
+      ? 'Enterprise Command'
       : 'Nexus Orchestrator';
 
   const isAuthenticatedSocial = Boolean(accessToken && !accessToken.startsWith('gst_') && !user?.isGuest);
   const selectedNexusAgent = useMemo(
-    () => NEXUS_TAB_AGENTS.find((agent) => agent.id === selectedNexusAgentId) || NEXUS_TAB_AGENTS[0],
+    () => NEXUS_TAB_AGENTS.find((agent) => agent.id === selectedNexusAgentId) || null,
     [selectedNexusAgentId],
+  );
+  const selectedWorkspaceLabel = useMemo(
+    () => enterpriseWorkspaces.find((item) => item.id === enterpriseWorkspaceId)?.name || 'Enterprise',
+    [enterpriseWorkspaces, enterpriseWorkspaceId],
+  );
+  const enterpriseRoster = useMemo(() => {
+    const source = enterpriseScope === 'workspace' && workspaceEnterpriseAgents.length > 0
+      ? workspaceEnterpriseAgents
+      : ENTERPRISE_CORE_AGENTS;
+    const q = enterpriseSearch.trim().toLowerCase();
+    if (!q) return source;
+    return source.filter((agent) =>
+      String(agent.name).toLowerCase().includes(q)
+      || String(agent.role).toLowerCase().includes(q)
+      || String(agent.team).toLowerCase().includes(q)
+      || String(agent.id).toLowerCase().includes(q),
+    );
+  }, [enterpriseScope, workspaceEnterpriseAgents, enterpriseSearch]);
+  const selectedEnterpriseAgent = useMemo(
+    () => enterpriseRoster.find((agent) => agent.id === selectedEnterpriseAgentId)
+      || (selectedEnterpriseAgentId ? ENTERPRISE_CORE_AGENTS.find((agent) => agent.id === selectedEnterpriseAgentId) || null : null),
+    [enterpriseRoster, selectedEnterpriseAgentId],
   );
 
   const refreshSocialRelationships = async () => {
@@ -152,8 +184,8 @@ export function AIAssistantPanel({
     if (hubTab === 'social') {
       return 'Social mode active. I can help with friends, teammates, collaboratives, and handoff-ready updates.';
     }
-    if (hubTab === 'agents') {
-      return 'Agents mode active. I can route requests to specialists, explain confidence, and queue delegated actions.';
+    if (hubTab === 'enterprise') {
+      return 'Enterprise mode active. Choose an enterprise specialist and I will route execution with workspace context.';
     }
     if (shouldShowFullWelcome) {
       markPromptShown(welcomeCadenceKey);
@@ -214,9 +246,77 @@ export function AIAssistantPanel({
     void refreshSocialRelationships();
   }, [hubTab, socialTab, actorId, isAuthenticatedSocial]);
 
-  const tabContextHint = (tab: 'social' | 'nexus' | 'agents') => {
+  useEffect(() => {
+    if (hubTab !== 'enterprise' || !user?.id) return;
+    let cancelled = false;
+    const loadWorkspaces = async () => {
+      setEnterpriseLoading(true);
+      try {
+        const res = await getEnterpriseWorkspaces(user.id, enterpriseWorkspaceId);
+        const workspacesRaw = Array.isArray(res?.workspaces) ? res.workspaces : [];
+        const parsed = workspacesRaw
+          .map((w: any) => ({
+            id: String(w?.id || '').trim(),
+            name: String(w?.name || w?.id || 'Enterprise').trim(),
+          }))
+          .filter((w: { id: string }) => Boolean(w.id))
+          .slice(0, 50);
+        const fallback = [{ id: 'default', name: 'Enterprise Mission Control' }];
+        const merged = parsed.length > 0 ? parsed : fallback;
+        if (!cancelled) {
+          setEnterpriseWorkspaces(merged);
+          if (!merged.some((w) => w.id === enterpriseWorkspaceId)) {
+            setEnterpriseWorkspaceId(merged[0].id);
+          }
+        }
+      } catch {
+        if (!cancelled) {
+          setEnterpriseWorkspaces([{ id: 'default', name: 'Enterprise Mission Control' }]);
+          setEnterpriseWorkspaceId('default');
+        }
+      } finally {
+        if (!cancelled) setEnterpriseLoading(false);
+      }
+    };
+    void loadWorkspaces();
+    return () => {
+      cancelled = true;
+    };
+  }, [hubTab, getEnterpriseWorkspaces, enterpriseWorkspaceId, user?.id]);
+
+  useEffect(() => {
+    if (hubTab !== 'enterprise' || !user?.id) return;
+    let cancelled = false;
+    const loadOrg = async () => {
+      try {
+        const res = await getEnterpriseOrg(user.id, enterpriseWorkspaceId);
+        const list = Array.isArray(res?.agents) ? res.agents : [];
+        const mapped = list
+          .map((agent: any) => ({
+            id: String(agent?.id || '').toLowerCase().trim(),
+            name: String(agent?.name || agent?.id || 'Agent'),
+            role: String(agent?.role || 'Enterprise specialist'),
+            team: String(agent?.team || 'Enterprise'),
+          }))
+          .filter((agent: { id: string }) => Boolean(agent.id))
+          .slice(0, 200);
+        if (!cancelled) {
+          setWorkspaceEnterpriseAgents(mapped);
+          if (mapped.length > 0) setEnterpriseScope('workspace');
+        }
+      } catch {
+        if (!cancelled) setWorkspaceEnterpriseAgents([]);
+      }
+    };
+    void loadOrg();
+    return () => {
+      cancelled = true;
+    };
+  }, [hubTab, enterpriseWorkspaceId, getEnterpriseOrg, user?.id]);
+
+  const tabContextHint = (tab: 'social' | 'nexus' | 'enterprise') => {
     if (tab === 'social') return 'Agent: Social Concierge. Mode: Social. Focus collaboration, friends, teammates, and handoffs.';
-    if (tab === 'agents') return 'Agent: Agent Router. Mode: Agents. Focus specialist routing, delegation, and execution status.';
+    if (tab === 'enterprise') return 'Agent: Enterprise Command. Mode: Enterprise. Focus specialist routing, delegation, governance, and execution status.';
     return 'Agent: Nexus Orchestrator. Mode: Nexus. Focus orchestration, planning, and contextual guidance.';
   };
 
@@ -226,13 +326,21 @@ export function AIAssistantPanel({
     const baseRoute = normalizeRouteContext(
       routeContext || routeContextFromUrl(location.pathname, location.search)
     );
-    const canonicalRoute = hubTab === 'nexus'
+    const canonicalRoute = hubTab === 'nexus' && selectedNexusAgent
       ? normalizeRouteContext({
           ...(baseRoute || {}),
           domainTab: selectedNexusAgent.domainTab,
           agentId: selectedNexusAgent.id,
           agentName: selectedNexusAgent.name,
         })
+      : hubTab === 'enterprise' && selectedEnterpriseAgent
+        ? normalizeRouteContext({
+            ...(baseRoute || {}),
+            domainTab: 'enterprise',
+            workspaceId: enterpriseWorkspaceId,
+            agentId: selectedEnterpriseAgent.id,
+            agentName: selectedEnterpriseAgent.name,
+          })
       : baseRoute;
     const routingDecision = routeAgentRequest(content, canonicalRoute);
     const threadEnvelope = buildChatThreadEnvelope(content, routingDecision.route);
@@ -639,13 +747,21 @@ export function AIAssistantPanel({
       const baseRoute = normalizeRouteContext(
         routeContext || routeContextFromUrl(location.pathname, location.search)
       );
-      const canonicalRoute = hubTab === 'nexus'
+      const canonicalRoute = hubTab === 'nexus' && selectedNexusAgent
         ? normalizeRouteContext({
             ...(baseRoute || {}),
             domainTab: selectedNexusAgent.domainTab,
             agentId: selectedNexusAgent.id,
             agentName: selectedNexusAgent.name,
           })
+        : hubTab === 'enterprise' && selectedEnterpriseAgent
+          ? normalizeRouteContext({
+              ...(baseRoute || {}),
+              domainTab: 'enterprise',
+              workspaceId: enterpriseWorkspaceId,
+              agentId: selectedEnterpriseAgent.id,
+              agentName: selectedEnterpriseAgent.name,
+            })
         : baseRoute;
       const routingDecision = routeAgentRequest(reply, canonicalRoute);
       const threadEnvelope = buildChatThreadEnvelope(reply, routingDecision.route);
@@ -664,6 +780,12 @@ export function AIAssistantPanel({
       setIsProcessing(false);
     }
   };
+
+  const requiresSpecialistSelection = hubTab === 'nexus' || hubTab === 'enterprise';
+  const activeSpecialist = hubTab === 'nexus' ? selectedNexusAgent : selectedEnterpriseAgent;
+  const leftRailAgents = hubTab === 'nexus' ? NEXUS_TAB_AGENTS : enterpriseRoster;
+  const showSelectionGrid = requiresSpecialistSelection && !activeSpecialist;
+  const inputLocked = requiresSpecialistSelection && !activeSpecialist;
 
   if (!isOpen) return null;
 
@@ -752,7 +874,7 @@ export function AIAssistantPanel({
           {([
             { key: 'social', label: 'Social', activeClass: 'bg-blue-600/20 text-blue-300 ring-1 ring-blue-500/30' },
             { key: 'nexus', label: 'Nexus', activeClass: 'bg-purple-600/20 text-purple-300 ring-1 ring-purple-500/30' },
-            { key: 'agents', label: 'Agents', activeClass: 'bg-teal-600/20 text-teal-300 ring-1 ring-teal-500/30' },
+            { key: 'enterprise', label: 'Enterprise', activeClass: 'bg-teal-600/20 text-teal-300 ring-1 ring-teal-500/30' },
           ] as const).map((tab) => {
             const isActive = hubTab === tab.key;
             return (
@@ -1009,192 +1131,189 @@ export function AIAssistantPanel({
         </div>
       ) : (
         <>
-          {/* Chat Messages Area */}
-          <div className={`flex-1 overflow-hidden ${hubTab === 'nexus' ? 'p-3' : ''}`}>
-            <div className={hubTab === 'nexus' ? 'grid h-full grid-cols-[36%_64%] gap-3' : 'h-full'}>
-              {hubTab === 'nexus' && (
-                <div className="overflow-hidden rounded-lg border border-gray-700 bg-[#252830]">
-                  <div className="border-b border-gray-700 px-3 py-2">
-                    <p className="text-[11px] uppercase tracking-wide text-gray-400">Tab Agents</p>
-                    <p className="mt-1 text-[11px] text-gray-500">Select a specialist by menu tab</p>
+          <div className="flex-1 overflow-hidden p-3">
+            {showSelectionGrid ? (
+              <div className="h-full overflow-hidden rounded-lg border border-gray-700 bg-[#252830]">
+                <div className="border-b border-gray-700 px-3 py-2">
+                  <p className="text-[11px] uppercase tracking-wide text-gray-400">
+                    {hubTab === 'nexus' ? 'Tab Agents' : 'Enterprise Agents'}
+                  </p>
+                  <p className="mt-1 text-[11px] text-gray-500">
+                    {hubTab === 'nexus'
+                      ? 'Pick an agent to open chat. After selection, avatars stay on the left for fast switching.'
+                      : 'Pick an enterprise specialist to open chat, then switch quickly from avatar heads.'}
+                  </p>
+                </div>
+                {hubTab === 'enterprise' && (
+                  <div className="grid grid-cols-1 gap-2 border-b border-gray-700 px-3 py-2">
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setEnterpriseScope('core')}
+                        className={`rounded-full px-2.5 py-1 text-[11px] ${
+                          enterpriseScope === 'core' ? 'bg-teal-500/20 text-teal-200' : 'bg-black/20 text-gray-400 hover:text-gray-200'
+                        }`}
+                      >
+                        Core Agents
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setEnterpriseScope('workspace')}
+                        className={`rounded-full px-2.5 py-1 text-[11px] ${
+                          enterpriseScope === 'workspace' ? 'bg-teal-500/20 text-teal-200' : 'bg-black/20 text-gray-400 hover:text-gray-200'
+                        }`}
+                      >
+                        Workspace Agents
+                      </button>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <select
+                        value={enterpriseWorkspaceId}
+                        onChange={(event) => setEnterpriseWorkspaceId(event.target.value)}
+                        className="h-8 w-full rounded-md border border-gray-700 bg-[#1e2128] px-2 text-xs text-gray-200"
+                      >
+                        {enterpriseWorkspaces.map((workspace) => (
+                          <option key={workspace.id} value={workspace.id}>
+                            {workspace.name}
+                          </option>
+                        ))}
+                      </select>
+                      <Input
+                        value={enterpriseSearch}
+                        onChange={(event) => setEnterpriseSearch(event.target.value)}
+                        placeholder="Search"
+                        className="h-8 w-32 bg-[#1e2128] border-gray-700 text-xs"
+                      />
+                    </div>
                   </div>
-                  <ScrollArea className="h-[calc(100%-3.5rem)]">
-                    <div className="space-y-1.5 p-2">
-                      {NEXUS_TAB_AGENTS.map((agent) => {
-                        const isActive = selectedNexusAgent.id === agent.id;
+                )}
+                <ScrollArea className={hubTab === 'enterprise' ? 'h-[calc(100%-8.75rem)]' : 'h-[calc(100%-3.5rem)]'}>
+                  <div className="grid grid-cols-1 gap-2 p-2">
+                    {leftRailAgents.map((agent) => (
+                      <button
+                        key={agent.id}
+                        type="button"
+                        onClick={() => hubTab === 'nexus' ? setSelectedNexusAgentId(agent.id) : setSelectedEnterpriseAgentId(agent.id)}
+                        className="w-full rounded-md border border-transparent bg-black/20 px-2 py-2 text-left transition-colors hover:border-gray-600 hover:bg-black/30"
+                      >
+                        <div className="flex items-center gap-2">
+                          <img
+                            src={`https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(agent.id)}`}
+                            alt={agent.name}
+                            className="h-8 w-8 rounded-full border border-gray-700 bg-black/30"
+                          />
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center justify-between gap-2">
+                              <p className="truncate text-xs font-medium text-white">{agent.name}</p>
+                              <span className="text-[10px] text-gray-500">
+                                {'tabLabel' in agent ? agent.tabLabel : agent.team}
+                              </span>
+                            </div>
+                            <p className="truncate text-[11px] text-gray-400">{agent.role}</p>
+                          </div>
+                        </div>
+                      </button>
+                    ))}
+                    {leftRailAgents.length === 0 && (
+                      <p className="px-1 py-2 text-xs text-gray-500">
+                        {enterpriseLoading ? 'Loading enterprise agents...' : 'No agents found for this filter.'}
+                      </p>
+                    )}
+                  </div>
+                </ScrollArea>
+              </div>
+            ) : (
+              <div className="grid h-full grid-cols-[68px_1fr] gap-3">
+                <div className="overflow-hidden rounded-lg border border-gray-700 bg-[#252830]">
+                  <div className="border-b border-gray-700 p-1.5">
+                    <button
+                      type="button"
+                      title="Back to full list"
+                      onClick={() => hubTab === 'nexus' ? setSelectedNexusAgentId(null) : setSelectedEnterpriseAgentId(null)}
+                      className="flex h-9 w-full items-center justify-center rounded-md bg-black/20 text-[10px] text-gray-300 hover:bg-black/30"
+                    >
+                      All
+                    </button>
+                  </div>
+                  <ScrollArea className="h-[calc(100%-3rem)]">
+                    <div className="space-y-1.5 p-1.5">
+                      {leftRailAgents.map((agent) => {
+                        const isActive = activeSpecialist?.id === agent.id;
                         return (
                           <button
                             key={agent.id}
                             type="button"
-                            onClick={() => setSelectedNexusAgentId(agent.id)}
-                            className={`w-full rounded-md border px-2 py-2 text-left transition-colors ${
-                              isActive
-                                ? 'border-purple-500/40 bg-purple-500/10'
-                                : 'border-transparent hover:border-gray-600 hover:bg-black/20'
+                            title={agent.name}
+                            onClick={() => hubTab === 'nexus' ? setSelectedNexusAgentId(agent.id) : setSelectedEnterpriseAgentId(agent.id)}
+                            className={`flex w-full items-center justify-center rounded-md border p-1 transition-colors ${
+                              isActive ? 'border-purple-500/40 bg-purple-500/20' : 'border-transparent hover:border-gray-600 hover:bg-black/20'
                             }`}
                           >
-                            <div className="flex items-center gap-2">
-                              <img
-                                src={`https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(agent.id)}`}
-                                alt={agent.name}
-                                className="h-8 w-8 rounded-full border border-gray-700 bg-black/30"
-                              />
-                              <div className="min-w-0 flex-1">
-                                <div className="flex items-center justify-between gap-2">
-                                  <p className="truncate text-xs font-medium text-white">{agent.name}</p>
-                                  <span className="text-[10px] text-gray-500">{agent.tabLabel}</span>
-                                </div>
-                                <p className="truncate text-[11px] text-gray-400">{agent.role}</p>
-                              </div>
-                            </div>
+                            <img
+                              src={`https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(agent.id)}`}
+                              alt={agent.name}
+                              className="h-8 w-8 rounded-full border border-gray-700 bg-black/30"
+                            />
                           </button>
                         );
                       })}
                     </div>
                   </ScrollArea>
                 </div>
-              )}
-              <div className="overflow-hidden rounded-lg border border-gray-700 bg-[#252830]">
-                {hubTab === 'nexus' && (
+
+                <div className="overflow-hidden rounded-lg border border-gray-700 bg-[#252830]">
                   <div className="border-b border-gray-700 px-3 py-2">
-                    <p className="text-xs font-medium text-white">{selectedNexusAgent.name}</p>
-                    <p className="text-[11px] text-gray-400">{selectedNexusAgent.tabLabel} specialist</p>
+                    <p className="text-xs font-medium text-white">{activeSpecialist?.name || 'Agent'}</p>
+                    <p className="text-[11px] text-gray-400">
+                      {hubTab === 'nexus'
+                        ? `${(activeSpecialist as any)?.tabLabel || 'Nexus'} specialist`
+                        : `${selectedWorkspaceLabel} • ${(activeSpecialist as any)?.team || 'Enterprise'}`}
+                    </p>
                   </div>
-                )}
-                <ScrollArea className={`px-4 py-3 ${hubTab === 'nexus' ? 'h-[calc(100%-3.25rem)]' : 'h-full'}`}>
-                  <div className="space-y-3">
-            {messages.map((msg, idx) => (
-              <motion.div
-                key={idx}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.2 }}
-                className={`flex gap-2 ${msg.type === 'user' ? 'flex-row-reverse' : 'flex-row'}`}
-              >
-                {msg.type === 'ai' && (
-                  <div className="w-7 h-7 rounded-full bg-gradient-to-br from-purple-600 to-blue-600 flex items-center justify-center flex-shrink-0">
-                    <Sparkles className="w-3.5 h-3.5 text-white" />
-                  </div>
-                )}
-                
-                <div className={`flex-1 ${msg.type === 'user' ? 'flex justify-end' : ''}`}>
-                  <div className={`rounded-lg p-3 max-w-[85%] ${
-                    msg.type === 'user' 
-                      ? 'bg-gradient-to-r from-purple-600 to-blue-600 text-white' 
-                      : 'bg-[#252830] border border-gray-700 text-gray-200'
-                  }`}>
-                    <p className="text-xs leading-relaxed whitespace-pre-wrap">{msg.content}</p>
-
-                    {msg.type === 'ai' && msg.routing && (
-                      <div className="mt-2 flex flex-wrap gap-1.5">
-                        <span className="rounded-full border border-teal-500/40 bg-teal-500/10 px-2 py-0.5 text-[10px] text-teal-200">
-                          {msg.routing.agentName}
-                        </span>
-                        <span className="rounded-full border border-blue-500/40 bg-blue-500/10 px-2 py-0.5 text-[10px] text-blue-200">
-                          {Math.round((msg.routing.confidence || 0) * 100)}%
-                        </span>
-                      </div>
-                    )}
-
-                    {msg.type === 'ai' && Array.isArray(msg.contractCards) && msg.contractCards.length > 0 && (
-                      <div className="mt-2 grid gap-1.5">
-                        {msg.contractCards.map((card: any, cardIdx: number) => (
-                          <div key={`${card.kind}-${cardIdx}`} className="rounded-md border border-gray-700/80 bg-black/20 p-2">
-                            <p className="text-[10px] uppercase tracking-wide text-gray-400">{card.title}</p>
-                            <p className="text-xs text-gray-200 whitespace-pre-wrap">{card.body}</p>
+                  <ScrollArea className="h-[calc(100%-3.25rem)] px-4 py-3">
+                    <div className="space-y-3">
+                      {messages.map((msg, idx) => (
+                        <motion.div
+                          key={idx}
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ duration: 0.2 }}
+                          className={`flex gap-2 ${msg.type === 'user' ? 'flex-row-reverse' : 'flex-row'}`}
+                        >
+                          {msg.type === 'ai' && (
+                            <div className="w-7 h-7 rounded-full bg-gradient-to-br from-purple-600 to-blue-600 flex items-center justify-center flex-shrink-0">
+                              <Sparkles className="w-3.5 h-3.5 text-white" />
+                            </div>
+                          )}
+                          <div className={`flex-1 ${msg.type === 'user' ? 'flex justify-end' : ''}`}>
+                            <div className={`rounded-lg p-3 max-w-[85%] ${
+                              msg.type === 'user' ? 'bg-gradient-to-r from-purple-600 to-blue-600 text-white' : 'bg-[#252830] border border-gray-700 text-gray-200'
+                            }`}>
+                              <p className="text-xs leading-relaxed whitespace-pre-wrap">{msg.content}</p>
+                            </div>
                           </div>
-                        ))}
-                      </div>
-                    )}
-                    
-                    {/* Metrics */}
-                    {msg.metrics && msg.metrics.length > 0 && (
-                      <div className="mt-2 pt-2 border-t border-gray-600/50 flex flex-wrap gap-1.5">
-                        {msg.metrics.map((metric: any, i: number) => (
-                          <div key={i} className="flex items-center gap-1.5 px-2 py-1 bg-gray-900/50 rounded text-[10px]">
-                            <span className="text-gray-400">{metric.label}:</span>
-                            <span className={`font-medium ${
-                              metric.status === 'success' ? 'text-green-400' :
-                              metric.status === 'warning' ? 'text-yellow-400' :
-                              metric.status === 'error' ? 'text-red-400' :
-                              'text-gray-300'
-                            }`}>{metric.value}</span>
+                        </motion.div>
+                      ))}
+                      {isProcessing && (
+                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex gap-2">
+                          <div className="w-7 h-7 rounded-full bg-gradient-to-br from-purple-600 to-blue-600 flex items-center justify-center flex-shrink-0">
+                            <Sparkles className="w-3.5 h-3.5 text-white animate-pulse" />
                           </div>
-                        ))}
-                      </div>
-                    )}
-                    
-                    {/* Action Buttons */}
-                    {msg.actions && msg.actions.length > 0 && (
-                      <div className="mt-2 pt-2 border-t border-gray-600/50 flex flex-wrap gap-1.5">
-                        {msg.actions.map((action: any, i: number) => (
-                          <button
-                            key={i}
-                            onClick={() => {
-                              // Special handling for "Open Chat Panel" action
-                              if ((action.label === 'Open Chat Panel' || action.label === 'Open AI Insights Panel') && onOpenAIInsights) {
-                                onOpenAIInsights();
-                                toast.success('Chat panel opened', { description: 'View your personalized suggestions' });
-                              } else if (action.handler) {
-                                action.handler();
-                              }
-                            }}
-                            className="px-2.5 py-1 bg-purple-600/20 hover:bg-purple-600/30 border border-purple-600/50 rounded text-[10px] text-purple-300 hover:text-purple-200 transition-colors"
-                          >
-                            {action.label}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                    
-                    {/* Quick Reply Chips */}
-                    {msg.quickReplies && msg.quickReplies.length > 0 && msg.type === 'ai' && (
-                      <div className="mt-2 pt-2 border-t border-gray-600/50">
-                        <p className="text-[10px] text-gray-500 mb-1.5">Quick replies:</p>
-                        <div className="flex flex-wrap gap-1.5">
-                          {msg.quickReplies.map((reply: string, i: number) => (
-                            <button
-                              key={i}
-                              onClick={() => handleQuickReply(reply)}
-                              disabled={isProcessing}
-                              className="px-2.5 py-1 bg-gray-700/50 hover:bg-gray-700 border border-gray-600 rounded-full text-[10px] text-gray-300 hover:text-white transition-all hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                              {reply}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
+                          <div className="bg-[#252830] border border-gray-700 rounded-lg p-3">
+                            <div className="flex gap-1">
+                              <span className="w-1.5 h-1.5 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                              <span className="w-1.5 h-1.5 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                              <span className="w-1.5 h-1.5 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                            </div>
+                          </div>
+                        </motion.div>
+                      )}
+                      <div ref={chatEndRef} />
+                    </div>
+                  </ScrollArea>
                 </div>
-              </motion.div>
-            ))}
-            
-            {/* Processing Indicator */}
-            {isProcessing && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="flex gap-2"
-              >
-                <div className="w-7 h-7 rounded-full bg-gradient-to-br from-purple-600 to-blue-600 flex items-center justify-center flex-shrink-0">
-                  <Sparkles className="w-3.5 h-3.5 text-white animate-pulse" />
-                </div>
-                <div className="bg-[#252830] border border-gray-700 rounded-lg p-3">
-                  <div className="flex gap-1">
-                    <span className="w-1.5 h-1.5 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                    <span className="w-1.5 h-1.5 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                    <span className="w-1.5 h-1.5 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-                  </div>
-                </div>
-              </motion.div>
+              </div>
             )}
-            
-                <div ref={chatEndRef} />
-              </div>
-                </ScrollArea>
-              </div>
-            </div>
           </div>
 
           {/* Input Area */}
@@ -1220,14 +1339,16 @@ export function AIAssistantPanel({
                   }
                 }}
                 placeholder={hubTab === 'nexus'
-                  ? `Message ${selectedNexusAgent.name}...`
-                  : `Ask about ${pageContext.displayName.toLowerCase()}...`}
+                  ? (selectedNexusAgent ? `Message ${selectedNexusAgent.name}...` : 'Select a Nexus agent to start')
+                  : hubTab === 'enterprise'
+                    ? (selectedEnterpriseAgent ? `Message ${selectedEnterpriseAgent.name}...` : 'Select an Enterprise agent to start')
+                    : `Ask about ${pageContext.displayName.toLowerCase()}...`}
                 className="flex-1 bg-[#252830] border-gray-700 focus:border-purple-600 text-sm h-9"
-                disabled={isProcessing}
+                disabled={isProcessing || inputLocked}
               />
               <Button
                 onClick={handleSendMessage}
-                disabled={!message.trim() || isProcessing}
+                disabled={!message.trim() || isProcessing || inputLocked}
                 size="sm"
                 className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 h-9 px-3"
               >
@@ -1237,7 +1358,9 @@ export function AIAssistantPanel({
             
             <p className="text-[10px] text-gray-500 text-center px-2">
               Try: {hubTab === 'nexus'
-                ? `@${selectedNexusAgent.id} ${pageContext.conversationStarters[0]}`
+                ? (selectedNexusAgent ? `@${selectedNexusAgent.id} ${pageContext.conversationStarters[0]}` : 'Select an agent above')
+                : hubTab === 'enterprise'
+                  ? (selectedEnterpriseAgent ? `@${selectedEnterpriseAgent.id} ${pageContext.conversationStarters[0]}` : 'Select an enterprise agent above')
                 : pageContext.conversationStarters[0]}
             </p>
           </div>
