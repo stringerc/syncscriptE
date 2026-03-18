@@ -5,6 +5,12 @@ import { VitePWA } from 'vite-plugin-pwa';
 import vitePrerender from 'vite-plugin-prerender';
 import path from 'path';
 
+const localChromePath = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+const explicitPuppeteerPath = process.env.PUPPETEER_EXECUTABLE_PATH;
+const useLocalChromePath = process.platform === 'darwin' && !process.env.CI;
+const resolvedPuppeteerExecutablePath =
+  explicitPuppeteerPath || (useLocalChromePath ? localChromePath : undefined);
+
   /**
    * Vite dev-server middleware that proxies Vercel-style API routes
    * to their actual backends so the full voice pipeline works locally.
@@ -413,9 +419,7 @@ export default defineConfig({
         renderAfterTime: 6000,
         skipThirdPartyRequests: true,
         inject: { prerender: true },
-        executablePath:
-          process.env.PUPPETEER_EXECUTABLE_PATH ||
-          '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+        executablePath: resolvedPuppeteerExecutablePath,
         args: ['--no-sandbox', '--disable-setuid-sandbox'],
       }),
     }),
