@@ -22,9 +22,11 @@ import {
   getAchievementEnergyValue,
   getHealthEnergyValue,
 } from '../utils/energy-system';
+import { getAdaptiveResetHour } from '../utils/daily-cycle';
 import { useRevenueUpsell, useEnergyRevenue } from '../hooks/useRevenueUpsell';
 import { Task, Priority } from '../types/task';
 import { toast } from 'sonner@2.0.3';
+import { checklistTracking } from '../components/onboarding/checklist-tracking';
 
 interface EnergyContextType {
   energy: EnergyState;
@@ -60,6 +62,7 @@ export function EnergyProvider({ children }: { children: React.ReactNode }) {
         const state = {
           ...parsed,
           lastReset: parsed.lastReset ? new Date(parsed.lastReset) : new Date(),
+          resetHour: typeof parsed.resetHour === 'number' ? parsed.resetHour : 3,
           lastActivity: parsed.lastActivity ? new Date(parsed.lastActivity) : new Date(), // Convert lastActivity with fallback
           entries: parsed.entries ? parsed.entries.map((e: any) => ({
             ...e,
@@ -90,8 +93,9 @@ export function EnergyProvider({ children }: { children: React.ReactNode }) {
 
   // Check for midnight reset
   useEffect(() => {
+    const resetHour = getAdaptiveResetHour();
     const checkReset = () => {
-      setEnergy(prev => resetEnergyIfNeeded(prev));
+      setEnergy(prev => resetEnergyIfNeeded(prev, resetHour));
     };
 
     // Check every minute
@@ -219,7 +223,7 @@ export function EnergyProvider({ children }: { children: React.ReactNode }) {
       description: `+${energyGained} energy from ${actionTitles[action]}`,
     });
 
-    import('../components/onboarding/OnboardingChecklist').then(m => m.checklistTracking.completeItem('energy')).catch(() => {});
+    checklistTracking.completeItem('energy');
     localStorage.setItem('syncscript_has_logged_energy', 'true');
   }, []);
 
@@ -235,7 +239,8 @@ export function EnergyProvider({ children }: { children: React.ReactNode }) {
   }, [energy.displayMode]);
 
   const refreshEnergy = useCallback(() => {
-    setEnergy(prev => resetEnergyIfNeeded(prev));
+    const resetHour = getAdaptiveResetHour();
+    setEnergy(prev => resetEnergyIfNeeded(prev, resetHour));
   }, []);
 
   const awardEnergy = useCallback((params: { source: EnergySource; baseEnergy?: number; eventDuration?: number; title: string; itemId?: string; resonance?: number }) => {

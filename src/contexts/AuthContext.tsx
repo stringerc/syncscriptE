@@ -2,6 +2,14 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { projectId, publicAnonKey } from '../utils/supabase/info';
 import { supabase } from '../utils/supabase/client';
 import { clearAllAppData } from '../utils/session-cleanup';
+import { getFreshMockTasks } from '../data/mockTasks';
+import { checklistTracking } from '../components/onboarding/checklist-tracking';
+
+const SESSION_CHECK_TIMEOUT_MS = 8000;
+const PROFILE_FETCH_TIMEOUT_MS = 8000;
+const DEV_GUEST_SEED_STORAGE_KEY = 'syncscript_tasks_v1';
+const DEV_GUEST_SESSION_STORAGE_KEY = 'syncscript_dev_guest_session_v1';
+const LOCAL_ACCESS_TOKEN_KEY = 'syncscript_access_token';
 
 interface User {
   id: string;
@@ -51,6 +59,52 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [disableRemoteProfileFetch, setDisableRemoteProfileFetch] = useState(false);
+  const disableRemoteProfileFetchRef = React.useRef(false);
+  const profileFetchInFlightRef = React.useRef<string | null>(null);
+  const disableGuestStatusCheckRef = React.useRef(false);
+
+  useEffect(() => {
+    disableRemoteProfileFetchRef.current = disableRemoteProfileFetch;
+  }, [disableRemoteProfileFetch]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      if (accessToken) {
+        window.localStorage.setItem(LOCAL_ACCESS_TOKEN_KEY, accessToken);
+      } else {
+        window.localStorage.removeItem(LOCAL_ACCESS_TOKEN_KEY);
+      }
+    } catch {
+      // Ignore storage failures and keep in-memory auth state as source of truth.
+    }
+  }, [accessToken]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (user) {
+      window.sessionStorage.removeItem('syncscript_guest_boot_pending');
+    }
+  }, [user]);
+
+  const readStoredGuestSession = React.useCallback((): { token: string; user: User } | null => {
+    if (typeof window === 'undefined') return null;
+    try {
+      const raw = window.localStorage.getItem(DEV_GUEST_SESSION_STORAGE_KEY);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      if (!parsed?.token || !parsed?.user?.id) return null;
+      return parsed as { token: string; user: User };
+    } catch {
+      return null;
+    }
+  }, []);
+
+  const clearStoredGuestSession = React.useCallback(() => {
+    if (typeof window === 'undefined') return;
+    window.localStorage.removeItem(DEV_GUEST_SESSION_STORAGE_KEY);
+  }, []);
 
   // Check for existing session on mount AND listen for auth state changes
   useEffect(() => {
@@ -62,12 +116,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         if (event === 'SIGNED_IN' && session) {
           setAccessToken(session.access_token);
+          localStorage.setItem('syncscript_auth_user_id', session.user.id);
           await fetchUserProfile(session.user.id, session.access_token);
         } else if (event === 'SIGNED_OUT') {
+          const devGuest = readStoredGuestSession();
+          if (devGuest) {
+            setAccessToken(devGuest.token);
+            setUser(devGuest.user);
+            localStorage.setItem('syncscript_auth_user_id', devGuest.user.id);
+            return;
+          }
           setUser(null);
           setAccessToken(null);
+          localStorage.removeItem('syncscript_auth_user_id');
         } else if (event === 'TOKEN_REFRESHED' && session) {
           setAccessToken(session.access_token);
+          localStorage.setItem('syncscript_auth_user_id', session.user.id);
         }
       }
     );
@@ -79,7 +143,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   async function checkSession() {
     try {
-      const { data: { session }, error } = await supabase.auth.getSession();
+      const sessionResult = await Promise.race([
+        supabase.auth.getSession(),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('Session check timeout')), SESSION_CHECK_TIMEOUT_MS),
+        ),
+      ]);
+      const { data: { session }, error } = sessionResult;
       
       if (error) {
         console.error('[Auth] Session check error:', error);
@@ -89,8 +159,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (session?.access_token) {
         setAccessToken(session.access_token);
+        localStorage.setItem('syncscript_auth_user_id', session.user.id);
         await fetchUserProfile(session.user.id, session.access_token);
       } else {
+        const devGuest = readStoredGuestSession();
+        if (devGuest) {
+          setAccessToken(devGuest.token);
+          setUser(devGuest.user);
+          localStorage.setItem('syncscript_auth_user_id', devGuest.user.id);
+          setLoading(false);
+          return;
+        }
         setLoading(false);
       }
     } catch (error) {
@@ -100,6 +179,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   async function fetchUserProfile(userId: string, token: string) {
+    if (disableRemoteProfileFetchRef.current || disableRemoteProfileFetch) {
+      setUser((prev) => prev || {
+        id: userId,
+        email: '',
+        name: 'User',
+        onboardingCompleted: false,
+        createdAt: new Date().toISOString(),
+        isFirstTime: true,
+        hasLoggedEnergy: false,
+      });
+      setLoading(false);
+      return;
+    }
+    if (profileFetchInFlightRef.current === userId) return;
+    profileFetchInFlightRef.current = userId;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), PROFILE_FETCH_TIMEOUT_MS);
     try {
       const response = await fetch(
         `https://${projectId}.supabase.co/functions/v1/make-server-57781ad9/user/profile`,
@@ -107,15 +203,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
-          }
+          },
+          signal: controller.signal,
         }
       );
 
       if (response.ok) {
         const userData = await response.json();
         setUser(userData);
-      } else {
-        const defaultUser: User = {
+        localStorage.setItem('syncscript_auth_user_id', userData?.id || userId);
+        if (!userData?.isGuest) {
+          clearStoredGuestSession();
+        }
+      } else if (response.status === 401 || response.status === 403) {
+        // Avoid noisy repeated logs when backend auth/CORS is not aligned yet.
+        disableRemoteProfileFetchRef.current = true;
+        setDisableRemoteProfileFetch(true);
+        setUser((prev) => prev ?? {
           id: userId,
           email: '',
           name: 'User',
@@ -123,12 +227,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           createdAt: new Date().toISOString(),
           isFirstTime: true,
           hasLoggedEnergy: false,
-        };
-        setUser(defaultUser);
+        });
+      } else {
+        setUser((prev) => prev ?? {
+          id: userId,
+          email: '',
+          name: 'User',
+          onboardingCompleted: false,
+          createdAt: new Date().toISOString(),
+          isFirstTime: true,
+          hasLoggedEnergy: false,
+        });
       }
     } catch (error) {
-      console.error('[Auth] Failed to fetch user profile:', error);
-      setUser({
+      // Network/CORS failures can happen when function CORS config drifts from app host.
+      disableRemoteProfileFetchRef.current = true;
+      setDisableRemoteProfileFetch(true);
+      setUser((prev) => prev ?? {
         id: userId,
         email: '',
         name: 'User',
@@ -138,6 +253,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         hasLoggedEnergy: false,
       });
     } finally {
+      profileFetchInFlightRef.current = null;
+      clearTimeout(timeoutId);
       setLoading(false);
     }
   }
@@ -155,6 +272,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (data.session?.access_token) {
         setAccessToken(data.session.access_token);
+        clearStoredGuestSession();
         await fetchUserProfile(data.user.id, data.session.access_token);
         return { success: true };
       }
@@ -291,6 +409,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   async function signOut() {
     await supabase.auth.signOut();
     clearAllAppData();
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem(DEV_GUEST_SESSION_STORAGE_KEY);
+      localStorage.removeItem(LOCAL_ACCESS_TOKEN_KEY);
+    }
     setUser(null);
     setAccessToken(null);
   }
@@ -321,7 +443,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const updatedUser = await response.json();
       setUser(updatedUser);
 
-      try { const { checklistTracking } = await import('../components/onboarding/OnboardingChecklist'); checklistTracking.completeItem('profile'); } catch {}
+      checklistTracking.completeItem('profile');
 
       return { success: true };
     } catch (error) {
@@ -526,7 +648,45 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await updateProfile({ onboardingCompleted: true });
   }
 
+  async function seedDevGuestTasks(): Promise<void> {
+    if (!import.meta.env.DEV || typeof window === 'undefined') return;
+    try {
+      const existing = window.localStorage.getItem(DEV_GUEST_SEED_STORAGE_KEY);
+      if (existing) return;
+      window.localStorage.setItem(
+        DEV_GUEST_SEED_STORAGE_KEY,
+        JSON.stringify(getFreshMockTasks()),
+      );
+    } catch (error) {
+      console.warn('[Auth] Dev guest task seeding failed:', error);
+    }
+  }
+
   async function continueAsGuest() {
+    const activateLocalGuestFallback = async () => {
+      const localGuestId = `guest-local-${Date.now()}`;
+      const fallbackToken = `gst_local_${Date.now()}`;
+      const fallbackUser: User = {
+        id: localGuestId,
+        email: '',
+        name: 'Guest User',
+        onboardingCompleted: false,
+        createdAt: new Date().toISOString(),
+        isGuest: true,
+      };
+      setAccessToken(fallbackToken);
+      setUser(fallbackUser);
+      localStorage.setItem('syncscript_auth_user_id', localGuestId);
+      localStorage.setItem(
+        DEV_GUEST_SESSION_STORAGE_KEY,
+        JSON.stringify({ token: fallbackToken, user: fallbackUser }),
+      );
+      if (typeof window !== 'undefined') {
+        window.sessionStorage.setItem('syncscript_guest_boot_pending', '1');
+      }
+      await seedDevGuestTasks();
+      return { success: true as const };
+    };
     try {
       // Wipe all previous session data so the guest sees a completely empty workspace
       clearAllAppData();
@@ -546,7 +706,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
         console.error('[Auth] Guest creation failed:', errorData);
-        return { success: false, error: errorData.error || 'Failed to create guest session' };
+        return activateLocalGuestFallback();
       }
 
       const data = await response.json();
@@ -558,12 +718,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Set the guest user and token
       setAccessToken(data.accessToken);
       setUser(data.user);
+      if (data.user?.id) {
+        localStorage.setItem('syncscript_auth_user_id', data.user.id);
+      }
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(
+          DEV_GUEST_SESSION_STORAGE_KEY,
+          JSON.stringify({ token: data.accessToken, user: data.user }),
+        );
+        window.sessionStorage.setItem('syncscript_guest_boot_pending', '1');
+      }
       
       console.log('[Auth] Guest session created successfully');
+      await seedDevGuestTasks();
       return { success: true };
     } catch (error) {
       console.error('[Auth] Guest creation error:', error);
-      return { success: false, error: 'Guest sign in failed. Please try again.' };
+      return activateLocalGuestFallback();
     }
   }
 
@@ -621,6 +792,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return { isGuest: false };
     }
 
+    // If we know this is a guest user but token format is non-standard
+    // (or status endpoint is unavailable), prefer local session metadata
+    // over network polling to avoid repeated 401 noise.
+    const localExpiresAt = user?.expiresAt ? new Date(user.expiresAt).getTime() : NaN;
+    const hasLocalExpiry = Number.isFinite(localExpiresAt);
+    const localRemainingMs = hasLocalExpiry ? Math.max(0, localExpiresAt - Date.now()) : 0;
+    const localRemaining = hasLocalExpiry
+      ? {
+          days: Math.floor(localRemainingMs / (24 * 60 * 60 * 1000)),
+          hours: Math.floor((localRemainingMs % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000)),
+        }
+      : undefined;
+
+    // Guest status is now treated as local-session truth in the web app.
+    // This avoids noisy 401 polling from auth/guest/status during guest sessions.
+    if (user?.isGuest) {
+      return { isGuest: true, timeRemaining: localRemaining };
+    }
+
     // Only check guest status if the token looks like a guest token
     // Guest tokens start with 'gst_' (see guest-auth-routes.tsx)
     if (!accessToken.startsWith('gst_')) {
@@ -632,38 +822,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return { isGuest: false };
     }
 
-    try {
-      // Add timeout to prevent hanging on network issues
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
-      
-      const response = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-57781ad9/auth/guest/status`,
-        {
-          headers: {
-            'Authorization': `Bearer ${accessToken}`,
-            'Content-Type': 'application/json'
-          },
-          signal: controller.signal
-        }
-      );
-      
-      clearTimeout(timeoutId);
-
-      if (!response.ok) {
-        // Silently return false for non-guest sessions
-        return { isGuest: false };
-      }
-
-      const data = await response.json();
-      return data;
-    } catch (error) {
-      // Only log error for actual guest tokens that we expect to work
-      if (accessToken.startsWith('gst_') && user?.isGuest) {
-        console.warn('[Auth] Guest status check failed - server may be unavailable:', error instanceof Error ? error.message : 'Unknown error');
-      }
-      return { isGuest: false };
-    }
+    return { isGuest: false };
   }
 
   async function exportGuestData() {

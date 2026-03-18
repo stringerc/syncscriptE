@@ -25,6 +25,18 @@ import {
 } from '../utils/openclaw-websocket';
 import { useAuth } from './AuthContext';
 import { publicAnonKey } from '../utils/supabase/info';
+import { hotPathError, hotPathLog, hotPathWarn } from '../utils/hotpath-log';
+import { checklistTracking } from '../components/onboarding/checklist-tracking';
+import {
+  appendExecutionTrailEvent,
+  bindExecutionRunToProject,
+  getProjectIdForRun,
+} from '../utils/execution-trail';
+import {
+  normalizeImplementationRunStatus,
+  noteImplementationRunOperation,
+  upsertImplementationRun,
+} from '../utils/execution-runs';
 import type {
   ChatRequest,
   ChatResponse,
@@ -64,6 +76,24 @@ interface OpenClawContextValue {
   
   // Memory
   queryMemory: (query: MemoryQuery) => Promise<MemoryResponse>;
+  queryLayeredMemory: (query: MemoryQuery) => Promise<MemoryResponse>;
+  promoteThoughtToGoal: (payload: {
+    userId: string;
+    thoughtMemoryId?: string;
+    thoughtContent?: string;
+    goalTitle?: string;
+    confirmed: boolean;
+    cooldownMinutes?: number;
+    declineReason?: string;
+  }) => Promise<{ promoted: boolean; goalMemoryId?: string; cooldownUntil?: number }>;
+  storeExecutionArtifactMemory: (payload: {
+    userId: string;
+    runId: string;
+    content: string;
+    importance?: number;
+    metadata?: Record<string, any>;
+    projectId?: string;
+  }) => Promise<{ memoryId: string }>;
   getMemories: () => Promise<MemoryResponse>;
   
   // Suggestions & Insights (Phase 1)
@@ -85,6 +115,89 @@ interface OpenClawContextValue {
   analyzeImageEnhanced: (image: any, analysisType?: string, extractionOptions?: any) => Promise<any>;
   processVoiceEnhanced: (audio: any, language?: string, processingOptions?: any) => Promise<any>;
   generateProactiveInsights: (userContext: any, insightTypes?: string[]) => Promise<any>;
+
+  // Enterprise Mission Control
+  getEnterpriseMissionControl: (userId: string, workspaceId?: string) => Promise<any>;
+  getEnterprisePolicy: (userId: string, workspaceId?: string) => Promise<any>;
+  updateEnterprisePolicy: (userId: string, policy: any, workspaceId?: string) => Promise<any>;
+  getEnterpriseMemory: (userId: string, limit?: number, workspaceId?: string) => Promise<any>;
+  runEnterpriseOperation: (userId: string, operation: string, payload: Record<string, unknown>, workspaceId?: string) => Promise<any>;
+  getEnterpriseRuntimeStatus: (userId: string, workspaceId?: string) => Promise<any>;
+  createEnterpriseRuntimePairingCode: (userId: string, connectorName: string, capabilities?: string[], workspaceId?: string) => Promise<any>;
+  dispatchEnterpriseRuntimeAction: (userId: string, action: Record<string, unknown>, targetConnectorId?: string, workspaceId?: string) => Promise<any>;
+  getEnterpriseTelemetry: (userId: string, limit?: number, workspaceId?: string) => Promise<any>;
+  getEnterpriseWorkspaces: (userId: string, workspaceId?: string) => Promise<any>;
+  createEnterpriseWorkspace: (userId: string, name: string) => Promise<any>;
+  getEnterpriseOrg: (userId: string, workspaceId?: string) => Promise<any>;
+  getEnterpriseTasks: (userId: string, workspaceId?: string) => Promise<any>;
+  getEnterpriseScheduler: (userId: string, workspaceId?: string) => Promise<any>;
+  updateEnterpriseTaskStatus: (
+    userId: string,
+    taskId: string,
+    status: 'do' | 'doing' | 'done',
+    workspaceId?: string,
+    doneRetentionHours?: number
+  ) => Promise<any>;
+  createEnterpriseTask: (
+    userId: string,
+    payload: {
+      title: string;
+      description?: string;
+      milestones?: string[];
+      steps?: string[];
+      smart?: boolean;
+      team?: string;
+      agentId?: string;
+      source?: string;
+    },
+    workspaceId?: string
+  ) => Promise<any>;
+  createEnterpriseGoal: (userId: string, title: string, workspaceId?: string, progress?: number) => Promise<any>;
+  createEnterpriseSmartItem: (
+    userId: string,
+    payload: {
+      title: string;
+      description?: string;
+      milestones?: string[];
+      steps?: string[];
+      type?: 'task' | 'goal';
+    },
+    workspaceId?: string
+  ) => Promise<any>;
+  generateEnterpriseOrg: (userId: string, prompt: string, workspaceId?: string) => Promise<any>;
+  addEnterpriseTeamMember: (
+    userId: string,
+    payload: {
+      team: string;
+      prompt?: string;
+      name?: string;
+      role?: string;
+      capabilities?: string[];
+    },
+    workspaceId?: string
+  ) => Promise<any>;
+  getEnterpriseRuns: (userId: string, workspaceId?: string) => Promise<any>;
+  createEnterpriseRun: (
+    userId: string,
+    payload: {
+      objective: string;
+      title?: string;
+      checkpoints?: string;
+      riskBudget?: number;
+      requireConfirmation?: boolean;
+      maxActionsPerHour?: number;
+      projectId?: string;
+      taskId?: string;
+      agentId?: string;
+      agentName?: string;
+    },
+    workspaceId?: string
+  ) => Promise<any>;
+  controlEnterpriseRun: (
+    userId: string,
+    payload: { runId: string; command: 'pause' | 'resume' | 'complete' },
+    workspaceId?: string
+  ) => Promise<any>;
   
   // Real-time updates
   onRealtimeMessage: (type: WSMessage['type'], handler: (message: WSMessage) => void) => () => void;
@@ -137,7 +250,7 @@ export function OpenClawProvider({
   useEffect(() => {
     accessTokenRef.current = accessToken;
     if (accessToken) {
-      console.log('[OpenClaw] Auth token updated (available for next request)');
+      hotPathLog('[OpenClaw] Auth token updated (available for next request)');
     }
   }, [accessToken]);
 
@@ -164,9 +277,9 @@ export function OpenClawProvider({
       }, tokenGetter);
       setClient(openclawClient);
       setIsInitialized(true);
-      console.log('[OpenClaw] Client initialized with dynamic token getter');
+      hotPathLog('[OpenClaw] Client initialized with dynamic token getter');
     } catch (error) {
-      console.error('[OpenClaw] Failed to initialize client:', error);
+      hotPathError('[OpenClaw] Failed to initialize client:', error);
       toast.error('Failed to initialize AI assistant');
     }
 
@@ -179,10 +292,10 @@ export function OpenClawProvider({
         // Connect
         webSocket.connect().then(() => {
           setIsConnected(true);
-          console.log('[OpenClaw] Real-time connection established');
-        }).catch((error) => {
+          hotPathLog('[OpenClaw] Real-time connection established');
+        }).catch(() => {
           // WebSocket connection failed - this is OK, we'll use polling fallback
-          console.log('[OpenClaw] Using polling mode (real-time unavailable)');
+          hotPathLog('[OpenClaw] Using polling mode (real-time unavailable)');
           setIsConnected(false);
           // Don't show error toast - fallback to polling is seamless
         });
@@ -202,7 +315,7 @@ export function OpenClawProvider({
         };
       } catch (error) {
         // WebSocket is optional - continue without it
-        console.log('[OpenClaw] Real-time updates unavailable, using standard mode');
+        hotPathLog('[OpenClaw] Real-time updates unavailable, using standard mode');
         // Continue without WebSocket - not critical
       }
     }
@@ -220,7 +333,7 @@ export function OpenClawProvider({
     setIsProcessing(true);
     try {
       const response = await client.chat(request);
-      try { const { checklistTracking } = await import('../components/onboarding/OnboardingChecklist'); checklistTracking.completeItem('ai'); } catch {}
+      checklistTracking.completeItem('ai');
       return response;
     } catch (error) {
       console.error('[OpenClaw] Chat error:', error);
@@ -313,6 +426,99 @@ export function OpenClawProvider({
     } catch (error) {
       console.error('[OpenClaw] Memory query error:', error);
       toast.error('Failed to query memory');
+      throw error;
+    } finally {
+      setIsProcessing(false);
+    }
+  }, [client]);
+
+  const queryLayeredMemory = useCallback(async (query: MemoryQuery): Promise<MemoryResponse> => {
+    if (!client) {
+      throw new Error('OpenClaw not initialized');
+    }
+
+    setIsProcessing(true);
+    try {
+      return await client.queryLayeredMemory(query);
+    } catch (error) {
+      console.error('[OpenClaw] Layered memory query error:', error);
+      toast.error('Failed to query layered memory');
+      throw error;
+    } finally {
+      setIsProcessing(false);
+    }
+  }, [client]);
+
+  const promoteThoughtToGoal = useCallback(async (payload: {
+    userId: string;
+    thoughtMemoryId?: string;
+    thoughtContent?: string;
+    goalTitle?: string;
+    confirmed: boolean;
+    cooldownMinutes?: number;
+    declineReason?: string;
+  }): Promise<{ promoted: boolean; goalMemoryId?: string; cooldownUntil?: number }> => {
+    if (!client) {
+      throw new Error('OpenClaw not initialized');
+    }
+
+    setIsProcessing(true);
+    try {
+      const response = await client.promoteThoughtToGoal(payload);
+      appendExecutionTrailEvent({
+        type: 'memory_promoted',
+        title: payload.confirmed ? 'Thought promoted to goal memory' : 'Thought promotion deferred',
+        detail: payload.goalTitle || payload.thoughtContent || payload.thoughtMemoryId || 'memory promotion',
+        actor: 'OpenClaw',
+        metadata: {
+          confirmed: payload.confirmed,
+          cooldownMinutes: payload.cooldownMinutes,
+        },
+      });
+      return response;
+    } catch (error) {
+      console.error('[OpenClaw] Promote thought to goal error:', error);
+      toast.error('Failed to promote thought to goal memory');
+      throw error;
+    } finally {
+      setIsProcessing(false);
+    }
+  }, [client]);
+
+  const storeExecutionArtifactMemory = useCallback(async (payload: {
+    userId: string;
+    runId: string;
+    content: string;
+    importance?: number;
+    metadata?: Record<string, any>;
+    projectId?: string;
+  }): Promise<{ memoryId: string }> => {
+    if (!client) {
+      throw new Error('OpenClaw not initialized');
+    }
+
+    setIsProcessing(true);
+    try {
+      const response = await client.storeExecutionArtifactMemory({
+        userId: payload.userId,
+        runId: payload.runId,
+        content: payload.content,
+        importance: payload.importance,
+        metadata: payload.metadata,
+      });
+      appendExecutionTrailEvent({
+        type: 'artifact_stored',
+        title: 'Execution artifact captured',
+        detail: payload.content.slice(0, 120),
+        actor: 'OpenClaw',
+        runId: payload.runId,
+        projectId: payload.projectId || getProjectIdForRun(payload.runId),
+        metadata: payload.metadata,
+      });
+      return response;
+    } catch (error) {
+      console.error('[OpenClaw] Store execution artifact error:', error);
+      toast.error('Failed to store execution artifact memory');
       throw error;
     } finally {
       setIsProcessing(false);
@@ -430,7 +636,7 @@ export function OpenClawProvider({
     handler: (message: WSMessage) => void
   ): (() => void) => {
     if (!ws) {
-      console.warn('[OpenClaw] WebSocket not available');
+      hotPathWarn('[OpenClaw] WebSocket not available');
       return () => {}; // No-op unsubscribe
     }
 
@@ -680,6 +886,370 @@ export function OpenClawProvider({
   }, [client]);
 
   // ==========================================================================
+  // ENTERPRISE MISSION CONTROL
+  // ==========================================================================
+
+  const getEnterpriseMissionControl = useCallback(async (userId: string, workspaceId?: string): Promise<any> => {
+    if (!client) {
+      throw new Error('OpenClaw not initialized');
+    }
+    return client.getEnterpriseMissionControl(userId, workspaceId);
+  }, [client]);
+
+  const getEnterprisePolicy = useCallback(async (userId: string, workspaceId?: string): Promise<any> => {
+    if (!client) {
+      throw new Error('OpenClaw not initialized');
+    }
+    return client.getEnterprisePolicy(userId, workspaceId);
+  }, [client]);
+
+  const updateEnterprisePolicy = useCallback(async (userId: string, policy: any, workspaceId?: string): Promise<any> => {
+    if (!client) {
+      throw new Error('OpenClaw not initialized');
+    }
+    return client.updateEnterprisePolicy(userId, workspaceId, policy);
+  }, [client]);
+
+  const getEnterpriseMemory = useCallback(async (userId: string, limit: number = 40, workspaceId?: string): Promise<any> => {
+    if (!client) {
+      throw new Error('OpenClaw not initialized');
+    }
+    return client.getEnterpriseMemory(userId, limit, workspaceId);
+  }, [client]);
+
+  const runEnterpriseOperation = useCallback(async (
+    userId: string,
+    operation: string,
+    payload: Record<string, unknown>,
+    workspaceId?: string
+  ): Promise<any> => {
+    if (!client) {
+      throw new Error('OpenClaw not initialized');
+    }
+    setIsProcessing(true);
+    try {
+      const response = await client.runEnterpriseOperation(userId, operation, payload, workspaceId);
+      const runId = String((response as any)?.runId || (payload as any)?.runId || '').trim() || undefined;
+      const projectId = String((payload as any)?.projectId || '').trim() || (runId ? getProjectIdForRun(runId) : undefined);
+      appendExecutionTrailEvent({
+        type: 'operation_executed',
+        title: `Enterprise operation: ${operation}`,
+        detail: String((response as any)?.message || (response as any)?.status || 'operation completed'),
+        actor: 'OpenClaw',
+        runId,
+        projectId,
+        metadata: { workspaceId: workspaceId || 'default' },
+      });
+      if (runId) {
+        noteImplementationRunOperation(
+          runId,
+          `Operation executed: ${operation}`,
+        );
+      }
+      return response;
+    } finally {
+      setIsProcessing(false);
+    }
+  }, [client]);
+
+  const getEnterpriseRuntimeStatus = useCallback(async (userId: string, workspaceId?: string): Promise<any> => {
+    if (!client) {
+      throw new Error('OpenClaw not initialized');
+    }
+    return client.getEnterpriseRuntimeStatus(userId, workspaceId);
+  }, [client]);
+
+  const createEnterpriseRuntimePairingCode = useCallback(async (
+    userId: string,
+    connectorName: string,
+    capabilities: string[] = [],
+    workspaceId?: string
+  ): Promise<any> => {
+    if (!client) {
+      throw new Error('OpenClaw not initialized');
+    }
+    return client.createEnterpriseRuntimePairingCode(userId, connectorName, capabilities, workspaceId);
+  }, [client]);
+
+  const dispatchEnterpriseRuntimeAction = useCallback(async (
+    userId: string,
+    action: Record<string, unknown>,
+    targetConnectorId?: string,
+    workspaceId?: string
+  ): Promise<any> => {
+    if (!client) {
+      throw new Error('OpenClaw not initialized');
+    }
+    return client.dispatchEnterpriseRuntimeAction(userId, action, targetConnectorId, workspaceId);
+  }, [client]);
+
+  const getEnterpriseTelemetry = useCallback(async (
+    userId: string,
+    limit: number = 60,
+    workspaceId?: string
+  ): Promise<any> => {
+    if (!client) {
+      throw new Error('OpenClaw not initialized');
+    }
+    return client.getEnterpriseTelemetry(userId, limit, workspaceId);
+  }, [client]);
+
+  const getEnterpriseWorkspaces = useCallback(async (userId: string, workspaceId?: string): Promise<any> => {
+    if (!client) {
+      throw new Error('OpenClaw not initialized');
+    }
+    return client.getEnterpriseWorkspaces(userId, workspaceId);
+  }, [client]);
+
+  const createEnterpriseWorkspace = useCallback(async (userId: string, name: string): Promise<any> => {
+    if (!client) {
+      throw new Error('OpenClaw not initialized');
+    }
+    return client.createEnterpriseWorkspace(userId, name);
+  }, [client]);
+
+  const getEnterpriseOrg = useCallback(async (userId: string, workspaceId?: string): Promise<any> => {
+    if (!client) {
+      throw new Error('OpenClaw not initialized');
+    }
+    return client.getEnterpriseOrg(userId, workspaceId);
+  }, [client]);
+
+  const getEnterpriseTasks = useCallback(async (userId: string, workspaceId?: string): Promise<any> => {
+    if (!client) {
+      throw new Error('OpenClaw not initialized');
+    }
+    return client.getEnterpriseTasks(userId, workspaceId);
+  }, [client]);
+
+  const getEnterpriseScheduler = useCallback(async (userId: string, workspaceId?: string): Promise<any> => {
+    if (!client) {
+      throw new Error('OpenClaw not initialized');
+    }
+    return client.getEnterpriseScheduler(userId, workspaceId);
+  }, [client]);
+
+  const updateEnterpriseTaskStatus = useCallback(async (
+    userId: string,
+    taskId: string,
+    status: 'do' | 'doing' | 'done',
+    workspaceId?: string,
+    doneRetentionHours?: number
+  ): Promise<any> => {
+    if (!client) {
+      throw new Error('OpenClaw not initialized');
+    }
+    return client.updateEnterpriseTaskStatus(userId, taskId, status, workspaceId, doneRetentionHours);
+  }, [client]);
+
+  const createEnterpriseGoal = useCallback(async (
+    userId: string,
+    title: string,
+    workspaceId?: string,
+    progress?: number
+  ): Promise<any> => {
+    if (!client) {
+      throw new Error('OpenClaw not initialized');
+    }
+    return client.createEnterpriseGoal(userId, title, workspaceId, progress);
+  }, [client]);
+
+  const createEnterpriseTask = useCallback(async (
+    userId: string,
+    payload: {
+      title: string;
+      description?: string;
+      milestones?: string[];
+      steps?: string[];
+      smart?: boolean;
+      team?: string;
+      agentId?: string;
+      source?: string;
+    },
+    workspaceId?: string
+  ): Promise<any> => {
+    if (!client) {
+      throw new Error('OpenClaw not initialized');
+    }
+    const response = await client.createEnterpriseTask(userId, payload, workspaceId);
+    const taskId = String(response?.task?.id || response?.id || '').trim() || undefined;
+    const projectId = String((payload as any)?.projectId || '').trim() || undefined;
+    appendExecutionTrailEvent({
+      type: 'task_created',
+      title: `Enterprise task created: ${payload.title}`,
+      detail: payload.description || payload.source || 'created by enterprise mission control',
+      actor: 'OpenClaw',
+      taskId,
+      projectId,
+      agentId: payload.agentId,
+      metadata: { workspaceId: workspaceId || 'default' },
+    });
+    return response;
+  }, [client]);
+
+  const createEnterpriseSmartItem = useCallback(async (
+    userId: string,
+    payload: {
+      title: string;
+      description?: string;
+      milestones?: string[];
+      steps?: string[];
+      type?: 'task' | 'goal';
+    },
+    workspaceId?: string
+  ): Promise<any> => {
+    if (!client) {
+      throw new Error('OpenClaw not initialized');
+    }
+    return client.createEnterpriseSmartItem(userId, payload, workspaceId);
+  }, [client]);
+
+  const generateEnterpriseOrg = useCallback(async (
+    userId: string,
+    prompt: string,
+    workspaceId?: string
+  ): Promise<any> => {
+    if (!client) {
+      throw new Error('OpenClaw not initialized');
+    }
+    return client.generateEnterpriseOrg(userId, prompt, workspaceId);
+  }, [client]);
+
+  const addEnterpriseTeamMember = useCallback(async (
+    userId: string,
+    payload: {
+      team: string;
+      prompt?: string;
+      name?: string;
+      role?: string;
+      capabilities?: string[];
+    },
+    workspaceId?: string
+  ): Promise<any> => {
+    if (!client) {
+      throw new Error('OpenClaw not initialized');
+    }
+    return client.addEnterpriseTeamMember(userId, payload, workspaceId);
+  }, [client]);
+
+  const getEnterpriseRuns = useCallback(async (userId: string, workspaceId?: string): Promise<any> => {
+    if (!client) {
+      throw new Error('OpenClaw not initialized');
+    }
+    const response = await client.getEnterpriseRuns(userId, workspaceId);
+    const runs = Array.isArray((response as any)?.runs) ? (response as any).runs : [];
+    for (const run of runs) {
+      const runId = String(run?.id || run?.runId || '').trim();
+      if (!runId) continue;
+      upsertImplementationRun({
+        runId,
+        title: String(run?.title || 'Implementation run'),
+        objective: String(run?.objective || run?.goal || ''),
+        status: normalizeImplementationRunStatus(run?.status || run?.state || 'queued'),
+        projectId: String(run?.projectId || '').trim() || getProjectIdForRun(runId),
+        taskId: String(run?.taskId || '').trim() || undefined,
+        workspaceId: workspaceId || 'default',
+        userId,
+        agentId: String(run?.agentId || '').trim() || undefined,
+        agentName: String(run?.agentName || '').trim() || undefined,
+        lastEvent: String(run?.lastEvent || run?.status || '').trim() || undefined,
+      });
+    }
+    return response;
+  }, [client]);
+
+  const createEnterpriseRun = useCallback(async (
+    userId: string,
+    payload: {
+      objective: string;
+      title?: string;
+      checkpoints?: string;
+      riskBudget?: number;
+      requireConfirmation?: boolean;
+      maxActionsPerHour?: number;
+      projectId?: string;
+      taskId?: string;
+      agentId?: string;
+      agentName?: string;
+    },
+    workspaceId?: string
+  ): Promise<any> => {
+    if (!client) {
+      throw new Error('OpenClaw not initialized');
+    }
+    const response = await client.createEnterpriseRun(userId, { ...payload, workspaceId: workspaceId || 'default' });
+    const run = response?.run || response;
+    const runId = String(run?.id || run?.runId || '').trim() || undefined;
+    const projectId = String(payload.projectId || '').trim() || undefined;
+    if (runId && projectId) {
+      bindExecutionRunToProject(runId, projectId);
+    }
+    appendExecutionTrailEvent({
+      type: 'run_created',
+      title: payload.title || 'Enterprise run created',
+      detail: payload.objective,
+      actor: 'OpenClaw',
+      runId,
+      projectId,
+      taskId: payload.taskId,
+      agentId: payload.agentId,
+      agentName: payload.agentName,
+      metadata: { workspaceId: workspaceId || 'default' },
+    });
+    if (runId) {
+      upsertImplementationRun({
+        runId,
+        title: payload.title || 'Implementation run',
+        objective: payload.objective,
+        status: normalizeImplementationRunStatus(run?.status || 'queued'),
+        projectId,
+        taskId: payload.taskId,
+        workspaceId: workspaceId || 'default',
+        userId,
+        agentId: payload.agentId,
+        agentName: payload.agentName,
+        lastEvent: 'Run created',
+      });
+    }
+    return response;
+  }, [client]);
+
+  const controlEnterpriseRun = useCallback(async (
+    userId: string,
+    payload: { runId: string; command: 'pause' | 'resume' | 'complete' },
+    workspaceId?: string
+  ): Promise<any> => {
+    if (!client) {
+      throw new Error('OpenClaw not initialized');
+    }
+    const response = await client.controlEnterpriseRun(userId, { ...payload, workspaceId: workspaceId || 'default' });
+    const projectId = getProjectIdForRun(payload.runId);
+    appendExecutionTrailEvent({
+      type: 'run_control',
+      title: `Run ${payload.command}`,
+      detail: `Run ${payload.runId} ${payload.command}`,
+      actor: 'OpenClaw',
+      runId: payload.runId,
+      projectId,
+      metadata: { workspaceId: workspaceId || 'default' },
+    });
+    upsertImplementationRun({
+      runId: payload.runId,
+      status:
+        payload.command === 'complete'
+          ? 'completed'
+          : payload.command === 'pause'
+          ? 'waiting_approval'
+          : 'executing',
+      projectId,
+      workspaceId: workspaceId || 'default',
+      userId,
+      lastEvent: `Run ${payload.command}`,
+    });
+    return response;
+  }, [client]);
+
+  // ==========================================================================
   // HEALTH
   // ==========================================================================
 
@@ -708,6 +1278,9 @@ export function OpenClawProvider({
     analyzeDocument,
     analyzeImage,
     queryMemory,
+    queryLayeredMemory,
+    promoteThoughtToGoal,
+    storeExecutionArtifactMemory,
     getMemories,
     getTaskSuggestions,
     generateTaskSuggestions,
@@ -725,6 +1298,30 @@ export function OpenClawProvider({
     analyzeImageEnhanced,
     processVoiceEnhanced,
     generateProactiveInsights,
+    // Enterprise Mission Control
+    getEnterpriseMissionControl,
+    getEnterprisePolicy,
+    updateEnterprisePolicy,
+    getEnterpriseMemory,
+    runEnterpriseOperation,
+    getEnterpriseRuntimeStatus,
+    createEnterpriseRuntimePairingCode,
+    dispatchEnterpriseRuntimeAction,
+    getEnterpriseTelemetry,
+    getEnterpriseWorkspaces,
+    createEnterpriseWorkspace,
+    getEnterpriseOrg,
+    getEnterpriseTasks,
+    getEnterpriseScheduler,
+    updateEnterpriseTaskStatus,
+    createEnterpriseTask,
+    createEnterpriseGoal,
+    createEnterpriseSmartItem,
+    generateEnterpriseOrg,
+    addEnterpriseTeamMember,
+    getEnterpriseRuns,
+    createEnterpriseRun,
+    controlEnterpriseRun,
     onRealtimeMessage,
     healthCheck,
   };
@@ -751,7 +1348,7 @@ export function useOpenClaw(): OpenClawContextValue {
   if (!context) {
     // During hot reload, provider might not be available
     // Return a safe fallback to prevent crashes
-    console.warn('[OpenClaw] Context not available - using fallback (this may occur during hot reload)');
+    hotPathWarn('[OpenClaw] Context not available - using fallback (this may occur during hot reload)');
     
     return {
       isInitialized: false,
@@ -781,6 +1378,13 @@ export function useOpenClaw(): OpenClawContextValue {
         memories: [], 
         relevance: [] 
       }),
+      queryLayeredMemory: async () => ({
+        memories: [],
+        grouped: { thought_memory: [], goal_memory: [], execution_memory: [] },
+        counts: { total: 0, thought_memory: 0, goal_memory: 0, execution_memory: 0 },
+      }),
+      promoteThoughtToGoal: async () => ({ promoted: false }),
+      storeExecutionArtifactMemory: async () => ({ memoryId: '' }),
       getMemories: async () => ({ 
         memories: [], 
         relevance: [] 
@@ -805,6 +1409,29 @@ export function useOpenClaw(): OpenClawContextValue {
       analyzeImageEnhanced: async () => ({ analysis: { tasks: [], extractedText: '' } }),
       processVoiceEnhanced: async () => ({ voice: { transcription: { text: '', language: 'en' }, tasks: [] } }),
       generateProactiveInsights: async () => ({ insights: [], summary: { total: 0, highPriority: 0, categories: [] } }),
+      getEnterpriseMissionControl: async () => ({}),
+      getEnterprisePolicy: async () => ({}),
+      updateEnterprisePolicy: async () => ({}),
+      getEnterpriseMemory: async () => ({ memories: [], tasks: [], counts: { memories: 0, tasks: 0, highPriorityTasks: 0, completedTasks: 0 } }),
+      runEnterpriseOperation: async () => ({}),
+      getEnterpriseRuntimeStatus: async () => ({ mode: 'cloud-only', connectors: [], queue: { pending: 0, lastUpdated: null } }),
+      createEnterpriseRuntimePairingCode: async () => ({ pairingCode: '', expiresInSeconds: 0 }),
+      dispatchEnterpriseRuntimeAction: async () => ({ id: '', status: 'queued' }),
+      getEnterpriseTelemetry: async () => ({ events: [], summary: { total: 0, byType: {} } }),
+      getEnterpriseWorkspaces: async () => ({ currentWorkspaceId: 'default', workspaces: [] }),
+      createEnterpriseWorkspace: async () => ({ id: 'default', name: 'Enterprise Mission Control' }),
+      getEnterpriseOrg: async () => ({ agents: [] }),
+      getEnterpriseTasks: async () => ({ tasks: [] }),
+      getEnterpriseScheduler: async () => ({ timeline: [] }),
+      updateEnterpriseTaskStatus: async () => ({ tasks: [], board: { do: [], doing: [], done: [] } }),
+      createEnterpriseTask: async () => ({ task: null, tasks: [], board: { do: [], doing: [], done: [] } }),
+      createEnterpriseGoal: async () => ({ goals: [] }),
+      createEnterpriseSmartItem: async () => ({ type: 'task', tasks: [], board: { do: [], doing: [], done: [] } }),
+      generateEnterpriseOrg: async () => ({ agents: [] }),
+      addEnterpriseTeamMember: async () => ({ agent: null, agents: [] }),
+      getEnterpriseRuns: async () => ({ runs: [] }),
+      createEnterpriseRun: async () => ({ run: null, runs: [] }),
+      controlEnterpriseRun: async () => ({ runs: [] }),
       onRealtimeMessage: () => () => {},
       healthCheck: async () => false,
     };
@@ -855,8 +1482,20 @@ export function useOpenClawImage() {
  * Hook for memory
  */
 export function useOpenClawMemory() {
-  const { queryMemory, getMemories } = useOpenClaw();
-  return { queryMemory, getMemories };
+  const {
+    queryMemory,
+    queryLayeredMemory,
+    promoteThoughtToGoal,
+    storeExecutionArtifactMemory,
+    getMemories,
+  } = useOpenClaw();
+  return {
+    queryMemory,
+    queryLayeredMemory,
+    promoteThoughtToGoal,
+    storeExecutionArtifactMemory,
+    getMemories,
+  };
 }
 
 /**

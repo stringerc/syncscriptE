@@ -33,6 +33,7 @@ import {
 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { useNavigate } from 'react-router';
+import { checklistTracking } from './checklist-tracking';
 
 interface ChecklistItem {
   id: string;
@@ -105,10 +106,24 @@ export function OnboardingChecklist() {
     };
     
     loadCompletionState();
-    
-    // Check for completion periodically
-    const interval = setInterval(loadCompletionState, 2000);
-    return () => clearInterval(interval);
+
+    const handleStorageUpdate = (event: StorageEvent) => {
+      if (!event.key || event.key === 'syncscript_onboarding_progress') {
+        loadCompletionState();
+      }
+    };
+
+    const handleChecklistUpdate = () => {
+      loadCompletionState();
+    };
+
+    window.addEventListener('storage', handleStorageUpdate);
+    window.addEventListener('syncscript:onboarding-progress', handleChecklistUpdate);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageUpdate);
+      window.removeEventListener('syncscript:onboarding-progress', handleChecklistUpdate);
+    };
   }, []);
   
   // Load dismissed state
@@ -168,7 +183,7 @@ export function OnboardingChecklist() {
         animate={{ opacity: 1, y: 0, scale: 1 }}
         exit={{ opacity: 0, y: 20, scale: 0.9 }}
         transition={{ duration: 0.3 }}
-        className="fixed bottom-6 right-6 z-[9998] w-80 md:w-96"
+        className="fixed top-20 right-4 md:right-6 z-40 w-80 md:w-96"
       >
         <div className="bg-gradient-to-br from-gray-900 to-gray-800 border border-purple-500/30 rounded-xl shadow-2xl overflow-hidden">
           {/* Celebration Overlay */}
@@ -319,58 +334,4 @@ export function OnboardingChecklist() {
   );
 }
 
-/**
- * HELPER FUNCTIONS FOR TRACKING COMPLETION
- */
-
-export const checklistTracking = {
-  /**
-   * Mark an item as completed
-   */
-  completeItem: (itemId: string): void => {
-    const savedProgress = localStorage.getItem('syncscript_onboarding_progress');
-    const completed: Record<string, boolean> = savedProgress 
-      ? JSON.parse(savedProgress) 
-      : {};
-    
-    completed[itemId] = true;
-    localStorage.setItem('syncscript_onboarding_progress', JSON.stringify(completed));
-    
-    console.log(`✅ Onboarding item completed: ${itemId}`);
-  },
-  
-  /**
-   * Check if an item is completed
-   */
-  isItemCompleted: (itemId: string): boolean => {
-    const savedProgress = localStorage.getItem('syncscript_onboarding_progress');
-    if (!savedProgress) return false;
-    
-    const completed: Record<string, boolean> = JSON.parse(savedProgress);
-    return completed[itemId] || false;
-  },
-  
-  /**
-   * Get completion count
-   */
-  getCompletionCount: (): { completed: number; total: number } => {
-    const savedProgress = localStorage.getItem('syncscript_onboarding_progress');
-    const completed: Record<string, boolean> = savedProgress 
-      ? JSON.parse(savedProgress) 
-      : {};
-    
-    const completedCount = Object.values(completed).filter(Boolean).length;
-    const totalCount = CHECKLIST_ITEMS.length;
-    
-    return { completed: completedCount, total: totalCount };
-  },
-  
-  /**
-   * Reset checklist (for testing)
-   */
-  reset: (): void => {
-    localStorage.removeItem('syncscript_onboarding_progress');
-    localStorage.removeItem('syncscript_onboarding_dismissed');
-    localStorage.removeItem('syncscript_onboarding_collapsed');
-  }
-};
+export { checklistTracking } from './checklist-tracking';

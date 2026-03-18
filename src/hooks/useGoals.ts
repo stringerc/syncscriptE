@@ -15,9 +15,25 @@
  * - Comprehensive error handling
  */
 
-import { useState, useCallback, useEffect } from 'react';
+import {
+  createContext,
+  createElement,
+  useContext,
+  useState,
+  useCallback,
+  useEffect,
+  useMemo,
+  type ReactNode,
+} from 'react';
 import { enhancedGoalsData } from '../utils/enhanced-goals-data';
 import { toast } from 'sonner@2.0.3';
+import { useAuth } from '../contexts/AuthContext';
+import { checklistTracking } from '../components/onboarding/checklist-tracking';
+import { LocalGoalCommandAdapter } from '../contracts/adapters/local-goal-command-adapter';
+import { commandFailure, commandSuccess, type ContractCommandContext } from '../contracts/core/command-contract';
+import { emitContractDomainEvent } from '../contracts/runtime/contract-runtime';
+import { syncShadowGoalProjection } from '../contracts/runtime/backend-projection-mirror';
+import { executeAuthorityRoutedCommand } from '../contracts/runtime/backend-authority-routing';
 
 export type UserRole = 'creator' | 'admin' | 'collaborator' | 'viewer';
 
@@ -65,6 +81,8 @@ export interface UseGoalsReturn {
   toggleStepCompletion: (goalId: string, milestoneId: string, stepId: string) => Promise<void>;
 }
 
+const GoalsContext = createContext<UseGoalsReturn | undefined>(undefined);
+
 /**
  * Permission Check Helper
  * Based on Google's RBAC and principle of least privilege
@@ -109,10 +127,28 @@ export const canPerformAction = (
   return permissions[role][action] || false;
 };
 
-export function useGoals(): UseGoalsReturn {
+function useGoalsState(): UseGoalsReturn {
+  const { user } = useAuth();
   const [goals, setGoals] = useState<Goal[]>(enhancedGoalsData as Goal[]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const goalCommandAdapter = useMemo(() => new LocalGoalCommandAdapter(() => goals), [goals]);
+
+  useEffect(() => {
+    void syncShadowGoalProjection(goals as Array<Record<string, unknown>>).catch(() => {
+      // Shadow reads are non-authoritative in Batch 1; never block goal state updates.
+    });
+  }, [goals]);
+
+  const buildCommandContext = useCallback(
+    (workspaceId = 'workspace-main'): ContractCommandContext => ({
+      workspaceId,
+      actorType: 'human',
+      actorId: String(user?.id || user?.email || 'anonymous-user'),
+      routeContext: 'goals',
+    }),
+    [user?.email, user?.id],
+  );
 
   /**
    * Create Goal
@@ -121,30 +157,74 @@ export function useGoals(): UseGoalsReturn {
   const createGoal = useCallback(async (goalData: Partial<Goal>): Promise<Goal> => {
     try {
       setLoading(true);
-      
-      const newGoal: Goal = {
-        id: `goal-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-        title: goalData.title || 'Untitled Goal',
-        category: goalData.category || 'Personal',
-        progress: 0,
-        deadline: goalData.deadline || '',
-        status: 'on-track',
-        currentUserRole: 'creator',
-        isPrivate: goalData.isPrivate ?? false,
-        confidenceScore: 5,
-        completed: false,
-        archived: false,
-        collaborators: [],
-        milestones: [],
-        ...goalData,
-      };
+      let createdGoal: Goal | null = null;
+      const routed = await executeAuthorityRoutedCommand<{ goalId: string }>({
+        domain: 'goal',
+        commandType: 'goal.create',
+        workspaceId: 'workspace-main',
+        payload: {
+          title: goalData.title || 'Untitled Goal',
+          category: goalData.category || 'Personal',
+          deadline: goalData.deadline || '',
+        },
+        runLocal: async () => {
+          const commandResult = await goalCommandAdapter.createGoal(buildCommandContext('workspace-main'), {
+            title: goalData.title || 'Untitled Goal',
+            description: goalData.description,
+            category: goalData.category,
+            deadline: goalData.deadline,
+          });
+          if (!commandResult.ok || !commandResult.data?.goalId) {
+            return commandFailure(
+              commandResult.commandId || `goal-create-failed-${Date.now()}`,
+              [commandResult.errors[0] || 'Goal create command failed'],
+            );
+          }
 
-      setGoals(prev => [newGoal, ...prev]);
-      
-      try { const { checklistTracking } = await import('../components/onboarding/OnboardingChecklist'); checklistTracking.completeItem('goal'); } catch {}
+          const newGoal: Goal = {
+            id: commandResult.data.goalId,
+            title: goalData.title || 'Untitled Goal',
+            category: goalData.category || 'Personal',
+            progress: 0,
+            deadline: goalData.deadline || '',
+            status: 'on-track',
+            currentUserRole: 'creator',
+            isPrivate: goalData.isPrivate ?? false,
+            confidenceScore: 5,
+            completed: false,
+            archived: false,
+            collaborators: [],
+            milestones: [],
+            ...goalData,
+          };
+
+          setGoals((prev) => [newGoal, ...prev]);
+          createdGoal = newGoal;
+          emitContractDomainEvent(
+            'goal.created',
+            'goal',
+            newGoal.id,
+            {
+              title: newGoal.title,
+              category: newGoal.category,
+              progress: newGoal.progress,
+              status: newGoal.status,
+            },
+            { workspaceId: 'workspace-main' },
+          );
+          return commandSuccess(commandResult.commandId || `goal-create-${newGoal.id}`, {
+            goalId: newGoal.id,
+          });
+        },
+      });
+      if (!routed.ok || !createdGoal) {
+        throw new Error(routed.errors[0] || 'Goal create command failed');
+      }
+
+      checklistTracking.completeItem('goal');
       
       toast.success('Goal created successfully! 🎯');
-      return newGoal;
+      return createdGoal;
     } catch (err) {
       setError('Failed to create goal');
       toast.error('Failed to create goal');
@@ -152,7 +232,7 @@ export function useGoals(): UseGoalsReturn {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [buildCommandContext, goalCommandAdapter]);
 
   /**
    * Update Goal
@@ -163,15 +243,52 @@ export function useGoals(): UseGoalsReturn {
     
     try {
       setLoading(true);
-      
-      // Optimistic update
-      setGoals(prev => prev.map(goal => 
-        goal.id === goalId ? { ...goal, ...updates } : goal
-      ));
-      
-      // In production, this would call API
-      // await api.updateGoal(goalId, updates);
-      
+      const routed = await executeAuthorityRoutedCommand({
+        domain: 'goal',
+        commandType: 'goal.update',
+        workspaceId: 'workspace-main',
+        payload: {
+          goalId,
+          updates,
+        },
+        runLocal: async () => {
+          const commandResult = await goalCommandAdapter.updateGoal(buildCommandContext('workspace-main'), {
+            goalId,
+            title: updates.title,
+            description: updates.description,
+            category: updates.category,
+            progress: updates.progress,
+            status: updates.status,
+            completed: updates.completed,
+            archived: updates.archived,
+          });
+          if (!commandResult.ok) {
+            return commandFailure(
+              commandResult.commandId || `goal-update-failed-${Date.now()}`,
+              [commandResult.errors[0] || 'Goal update command failed'],
+            );
+          }
+
+          // Optimistic update
+          setGoals(prev => prev.map(goal => 
+            goal.id === goalId ? { ...goal, ...updates } : goal
+          ));
+          
+          emitContractDomainEvent(
+            'goal.updated',
+            'goal',
+            goalId,
+            {
+              updates,
+            },
+            { workspaceId: 'workspace-main' },
+          );
+          return commandSuccess(commandResult.commandId || `goal-update-${goalId}`);
+        },
+      });
+      if (!routed.ok) {
+        throw new Error(routed.errors[0] || 'Goal update command failed');
+      }
       toast.success('Goal updated successfully');
     } catch (err) {
       // Rollback on error
@@ -182,7 +299,7 @@ export function useGoals(): UseGoalsReturn {
     } finally {
       setLoading(false);
     }
-  }, [goals]);
+  }, [buildCommandContext, goalCommandAdapter, goals]);
 
   /**
    * Delete Goal
@@ -193,13 +310,40 @@ export function useGoals(): UseGoalsReturn {
     
     try {
       setLoading(true);
-      
-      // Optimistic update
-      setGoals(prev => prev.filter(goal => goal.id !== goalId));
-      
-      // In production, this would call API
-      // await api.deleteGoal(goalId);
-      
+      const routed = await executeAuthorityRoutedCommand({
+        domain: 'goal',
+        commandType: 'goal.delete',
+        workspaceId: 'workspace-main',
+        payload: {
+          goalId,
+        },
+        runLocal: async () => {
+          const commandResult = await goalCommandAdapter.deleteGoal(buildCommandContext('workspace-main'), {
+            goalId,
+          });
+          if (!commandResult.ok) {
+            return commandFailure(
+              commandResult.commandId || `goal-delete-failed-${Date.now()}`,
+              [commandResult.errors[0] || 'Goal delete command failed'],
+            );
+          }
+          
+          // Optimistic update
+          setGoals(prev => prev.filter(goal => goal.id !== goalId));
+          
+          emitContractDomainEvent(
+            'goal.deleted',
+            'goal',
+            goalId,
+            {},
+            { workspaceId: 'workspace-main' },
+          );
+          return commandSuccess(commandResult.commandId || `goal-delete-${goalId}`);
+        },
+      });
+      if (!routed.ok) {
+        throw new Error(routed.errors[0] || 'Goal delete command failed');
+      }
       toast.success('Goal deleted successfully');
     } catch (err) {
       // Rollback on error
@@ -210,7 +354,7 @@ export function useGoals(): UseGoalsReturn {
     } finally {
       setLoading(false);
     }
-  }, [goals]);
+  }, [buildCommandContext, goalCommandAdapter, goals]);
 
   /**
    * Toggle Goal Completion
@@ -226,6 +370,35 @@ export function useGoals(): UseGoalsReturn {
       if (!goal) throw new Error('Goal not found');
       
       const newCompleted = !goal.completed;
+      const routed = await executeAuthorityRoutedCommand({
+        domain: 'goal',
+        commandType: 'goal.update',
+        workspaceId: 'workspace-main',
+        payload: {
+          goalId,
+          updates: {
+            completed: newCompleted,
+            progress: newCompleted ? 100 : goal.progress,
+          },
+        },
+        runLocal: async () => {
+          const commandResult = await goalCommandAdapter.updateGoal(buildCommandContext('workspace-main'), {
+            goalId,
+            completed: newCompleted,
+            progress: newCompleted ? 100 : goal.progress,
+          });
+          if (!commandResult.ok) {
+            return commandFailure(
+              commandResult.commandId || `goal-toggle-failed-${Date.now()}`,
+              [commandResult.errors[0] || 'Goal completion command failed'],
+            );
+          }
+          return commandSuccess(commandResult.commandId || `goal-toggle-${goalId}`);
+        },
+      });
+      if (!routed.ok) {
+        throw new Error(routed.errors[0] || 'Goal completion command failed');
+      }
       
       // Optimistic update
       setGoals(prev => prev.map(g => 
@@ -238,6 +411,16 @@ export function useGoals(): UseGoalsReturn {
       // await api.updateGoal(goalId, { completed: newCompleted });
       // await awardEnergyPoints(goalId, 'goal_completion');
       
+      emitContractDomainEvent(
+        'goal.updated',
+        'goal',
+        goalId,
+        {
+          completed: newCompleted,
+          progress: newCompleted ? 100 : goal.progress,
+        },
+        { workspaceId: 'workspace-main' },
+      );
       if (newCompleted) {
         toast.success('🎉 Goal completed! Amazing work!', {
           description: goal.title,
@@ -253,7 +436,7 @@ export function useGoals(): UseGoalsReturn {
     } finally {
       setLoading(false);
     }
-  }, [goals]);
+  }, [buildCommandContext, goalCommandAdapter, goals]);
 
   /**
    * Archive Goal
@@ -264,8 +447,33 @@ export function useGoals(): UseGoalsReturn {
     
     try {
       setLoading(true);
+      const routed = await executeAuthorityRoutedCommand({
+        domain: 'goal',
+        commandType: 'goal.update',
+        workspaceId: 'workspace-main',
+        payload: {
+          goalId,
+          updates: { archived: true },
+        },
+        runLocal: async () => {
+          const commandResult = await goalCommandAdapter.updateGoal(buildCommandContext('workspace-main'), {
+            goalId,
+            archived: true,
+          });
+          if (!commandResult.ok) {
+            return commandFailure(
+              commandResult.commandId || `goal-archive-failed-${Date.now()}`,
+              [commandResult.errors[0] || 'Goal archive command failed'],
+            );
+          }
+          return commandSuccess(commandResult.commandId || `goal-archive-${goalId}`);
+        },
+      });
+      if (!routed.ok) {
+        throw new Error(routed.errors[0] || 'Goal archive command failed');
+      }
       
-      const currentUser = 'Jordan Smith'; // In production, get from auth context
+      const currentUser = user?.name?.trim() || user?.email?.trim() || 'You';
       
       setGoals(prev => prev.map(goal => 
         goal.id === goalId 
@@ -277,6 +485,13 @@ export function useGoals(): UseGoalsReturn {
             }
           : goal
       ));
+      emitContractDomainEvent(
+        'goal.updated',
+        'goal',
+        goalId,
+        { archived: true },
+        { workspaceId: 'workspace-main' },
+      );
       
       toast.success('Goal archived successfully');
     } catch (err) {
@@ -287,7 +502,7 @@ export function useGoals(): UseGoalsReturn {
     } finally {
       setLoading(false);
     }
-  }, [goals]);
+  }, [buildCommandContext, goalCommandAdapter, goals, user?.email, user?.name]);
 
   /**
    * Restore Goal
@@ -297,12 +512,44 @@ export function useGoals(): UseGoalsReturn {
     
     try {
       setLoading(true);
+      const routed = await executeAuthorityRoutedCommand({
+        domain: 'goal',
+        commandType: 'goal.update',
+        workspaceId: 'workspace-main',
+        payload: {
+          goalId,
+          updates: { archived: false },
+        },
+        runLocal: async () => {
+          const commandResult = await goalCommandAdapter.updateGoal(buildCommandContext('workspace-main'), {
+            goalId,
+            archived: false,
+          });
+          if (!commandResult.ok) {
+            return commandFailure(
+              commandResult.commandId || `goal-restore-failed-${Date.now()}`,
+              [commandResult.errors[0] || 'Goal restore command failed'],
+            );
+          }
+          return commandSuccess(commandResult.commandId || `goal-restore-${goalId}`);
+        },
+      });
+      if (!routed.ok) {
+        throw new Error(routed.errors[0] || 'Goal restore command failed');
+      }
       
       setGoals(prev => prev.map(goal => 
         goal.id === goalId 
           ? { ...goal, archived: false, archivedAt: undefined, archivedBy: undefined }
           : goal
       ));
+      emitContractDomainEvent(
+        'goal.updated',
+        'goal',
+        goalId,
+        { archived: false },
+        { workspaceId: 'workspace-main' },
+      );
       
       toast.success('Goal restored successfully');
     } catch (err) {
@@ -313,7 +560,7 @@ export function useGoals(): UseGoalsReturn {
     } finally {
       setLoading(false);
     }
-  }, [goals]);
+  }, [buildCommandContext, goalCommandAdapter, goals]);
 
   /**
    * Update Progress
@@ -324,10 +571,42 @@ export function useGoals(): UseGoalsReturn {
     
     try {
       setLoading(true);
+      const routed = await executeAuthorityRoutedCommand({
+        domain: 'goal',
+        commandType: 'goal.update',
+        workspaceId: 'workspace-main',
+        payload: {
+          goalId,
+          updates: { progress },
+        },
+        runLocal: async () => {
+          const commandResult = await goalCommandAdapter.updateGoal(buildCommandContext('workspace-main'), {
+            goalId,
+            progress,
+          });
+          if (!commandResult.ok) {
+            return commandFailure(
+              commandResult.commandId || `goal-progress-failed-${Date.now()}`,
+              [commandResult.errors[0] || 'Goal progress command failed'],
+            );
+          }
+          return commandSuccess(commandResult.commandId || `goal-progress-${goalId}`);
+        },
+      });
+      if (!routed.ok) {
+        throw new Error(routed.errors[0] || 'Goal progress command failed');
+      }
       
       setGoals(prev => prev.map(goal => 
         goal.id === goalId ? { ...goal, progress } : goal
       ));
+      emitContractDomainEvent(
+        'goal.updated',
+        'goal',
+        goalId,
+        { progress },
+        { workspaceId: 'workspace-main' },
+      );
       
       toast.success(`Progress updated to ${progress}%`);
     } catch (err) {
@@ -338,7 +617,7 @@ export function useGoals(): UseGoalsReturn {
     } finally {
       setLoading(false);
     }
-  }, [goals]);
+  }, [buildCommandContext, goalCommandAdapter, goals]);
 
   /**
    * Add Check-In
@@ -521,4 +800,17 @@ export function useGoals(): UseGoalsReturn {
     toggleMilestoneCompletion,
     toggleStepCompletion,
   };
+}
+
+export function GoalsProvider({ children }: { children: ReactNode }) {
+  const value = useGoalsState();
+  return createElement(GoalsContext.Provider, { value }, children);
+}
+
+export function useGoals(): UseGoalsReturn {
+  const context = useContext(GoalsContext);
+  if (!context) {
+    throw new Error('useGoals must be used within GoalsProvider');
+  }
+  return context;
 }

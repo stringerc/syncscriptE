@@ -19,6 +19,67 @@ import { Task, CreateTaskInput, UpdateTaskInput, TaskFilters, CreateTeamTaskInpu
 import { taskRepository } from '../services';
 import { toast } from 'sonner@2.0.3';
 import { useEnergy } from './EnergyContext';
+import { checklistTracking } from '../components/onboarding/checklist-tracking';
+import { ensureExecutionProjectForTask } from '../utils/work-operating-model';
+import { emitContractDomainEvent } from '../contracts/runtime/contract-runtime';
+import { TaskRepositoryCommandAdapter } from '../contracts/adapters/task-repository-command-adapter';
+import type { ContractCommandContext } from '../contracts/core/command-contract';
+import { syncShadowTaskProjection } from '../contracts/runtime/backend-projection-mirror';
+import {
+  executeAuthorityRoutedCommand,
+} from '../contracts/runtime/backend-authority-routing';
+
+function extractPrimaryAgent(assignees: any[], collaborators: any[]): { id?: string; name: string } | null {
+  const entries = [...(Array.isArray(assignees) ? assignees : []), ...(Array.isArray(collaborators) ? collaborators : [])];
+  for (const entry of entries) {
+    const role = String(entry?.role || '').toLowerCase().trim();
+    const type = String(entry?.type || '').toLowerCase().trim();
+    const collaboratorType = String(entry?.collaboratorType || '').toLowerCase().trim();
+    const looksAgent =
+      role === 'agent'
+      || type === 'agent'
+      || collaboratorType === 'agent'
+      || Boolean(entry?.assignmentDirective)
+      || Boolean(entry?.roleMission)
+      || Boolean(entry?.roleDomain);
+    if (!looksAgent) continue;
+    const name = String(entry?.name || entry?.agentName || '').trim();
+    if (!name) continue;
+    const id = String(entry?.id || entry?.agentId || '').trim() || undefined;
+    return { id, name };
+  }
+  return null;
+}
+
+function resolveTaskWorkspaceId(taskLike: Partial<Task> | null | undefined): string {
+  const projectId = String((taskLike as any)?.projectId || '').trim();
+  return projectId || 'workspace-main';
+}
+
+const taskCommandAdapter = new TaskRepositoryCommandAdapter();
+
+function resolveActorId(): string {
+  if (typeof window === 'undefined') return 'system';
+  return (
+    window.localStorage.getItem('syncscript_auth_user_id') ||
+    window.localStorage.getItem('auth_user_id') ||
+    'system'
+  );
+}
+
+function buildCommandContext(workspaceId: string): ContractCommandContext {
+  return {
+    workspaceId: workspaceId || 'workspace-main',
+    actorType: 'human',
+    actorId: resolveActorId(),
+    routeContext: 'tasks-context',
+  };
+}
+
+function canUseContractTaskUpdate(updates: UpdateTaskInput): boolean {
+  const allowed = new Set(['title', 'description', 'status', 'priority', 'dueDate', 'scheduledTime', 'projectId']);
+  return Object.keys((updates || {}) as Record<string, unknown>).every((key) => allowed.has(key));
+}
 
 interface TasksContextValue {
   // State
@@ -60,6 +121,7 @@ interface TasksProviderProps {
 }
 
 export function TasksProvider({ children }: TasksProviderProps) {
+  const TASKS_REFRESH_TIMEOUT_MS = 12000;
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -75,14 +137,34 @@ export function TasksProvider({ children }: TasksProviderProps) {
   const awardTaskEnergy = energyContext?.completeTask || (() => {
     console.warn('⚠️ awardTaskEnergy called but energy context not available');
   });
+
+  const withTimeout = useCallback(async <T,>(promise: Promise<T>, timeoutMs: number): Promise<T> => {
+    return new Promise<T>((resolve, reject) => {
+      const timeoutId = window.setTimeout(() => {
+        reject(new Error('Task fetch timed out'));
+      }, timeoutMs);
+      promise
+        .then((value) => {
+          window.clearTimeout(timeoutId);
+          resolve(value);
+        })
+        .catch((err) => {
+          window.clearTimeout(timeoutId);
+          reject(err);
+        });
+    });
+  }, []);
   
   // Load tasks on mount
   const refreshTasks = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
-      const allTasks = await taskRepository.getTasks();
+      const allTasks = await withTimeout(taskRepository.getTasks(), TASKS_REFRESH_TIMEOUT_MS);
       setTasks(allTasks);
+      void syncShadowTaskProjection(allTasks as Array<Record<string, unknown>>).catch(() => {
+        // Shadow reads are non-authoritative in Batch 1; never block task refresh.
+      });
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to load tasks';
       setError(message);
@@ -90,7 +172,7 @@ export function TasksProvider({ children }: TasksProviderProps) {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [withTimeout]);
   
   useEffect(() => {
     refreshTasks();
@@ -100,11 +182,99 @@ export function TasksProvider({ children }: TasksProviderProps) {
   
   const createTask = useCallback(async (input: CreateTaskInput): Promise<Task> => {
     try {
-      const newTask = await taskRepository.createTask(input);
+      const workspaceId = String((input as any)?.projectId || 'workspace-main').trim() || 'workspace-main';
+      const commandResult = await executeAuthorityRoutedCommand({
+        domain: 'task',
+        commandType: 'task.create',
+        workspaceId,
+        payload: {
+          title: String(input?.title || '').trim() || 'Untitled Task',
+          description: input?.description || null,
+          priority: (input as any)?.priority || null,
+          projectId: (input as any)?.projectId || null,
+          goalId: (input as any)?.goalId || null,
+        },
+        runLocal: () =>
+          taskCommandAdapter.createTask(
+            buildCommandContext(workspaceId),
+            {
+              title: String(input?.title || '').trim() || 'Untitled Task',
+              description: input?.description,
+              priority: (input as any)?.priority,
+              projectId: (input as any)?.projectId,
+              goalId: (input as any)?.goalId,
+            },
+          ),
+      });
+
+      let createdTask: Task;
+      if (commandResult.ok && commandResult.data?.taskId) {
+        const taskId = String(commandResult.data.taskId);
+        const enrichedPatch = {
+          ...input,
+          title: undefined,
+          description: undefined,
+          priority: undefined,
+          projectId: undefined,
+          goalId: undefined,
+        } as Record<string, unknown>;
+        const hasEnrichment = Object.values(enrichedPatch).some((value) => value !== undefined);
+        if (hasEnrichment) {
+          await taskRepository.updateTask(taskId, enrichedPatch as UpdateTaskInput);
+        }
+        const hydrated = await taskRepository.getTaskById(taskId);
+        if (hydrated) {
+          createdTask = hydrated;
+        } else {
+          const allTasks = await taskRepository.getTasks();
+          const recovered = allTasks.find((task) => String(task.id) === taskId);
+          if (!recovered) throw new Error('Command created task but hydration failed');
+          createdTask = recovered;
+        }
+      } else {
+        createdTask = await taskRepository.createTask(input);
+      }
+      const createdAssignees = Array.isArray((createdTask as any)?.assignees) ? (createdTask as any).assignees : [];
+      const createdCollaborators = Array.isArray((createdTask as any)?.collaborators) ? (createdTask as any).collaborators : [];
+      const primaryAgent = extractPrimaryAgent(createdAssignees, createdCollaborators);
+      let newTask = createdTask;
+      if (!(newTask as any)?.projectId && primaryAgent) {
+        const projectId = ensureExecutionProjectForTask({
+          taskId: String(newTask.id),
+          taskTitle: String(newTask.title || 'Untitled Task'),
+          agentName: primaryAgent.name,
+          agentId: primaryAgent.id,
+        });
+        newTask = await taskRepository.updateTask(String(newTask.id), { projectId } as any);
+      }
+
       setTasks(prev => [...prev, newTask]);
+      emitContractDomainEvent('task.created', 'task', String(newTask.id), {
+        title: newTask.title,
+        status: (newTask as any)?.status || (newTask.completed ? 'done' : 'todo'),
+        priority: newTask.priority,
+        dueAt: newTask.dueDate || null,
+        scheduledAt: newTask.scheduledTime || null,
+      }, {
+        workspaceId: resolveTaskWorkspaceId(newTask),
+      });
       toast.success('Task created', { description: newTask.title });
 
-      try { const { checklistTracking } = await import('../components/onboarding/OnboardingChecklist'); checklistTracking.completeItem('task'); } catch {}
+      if (createdAssignees.length > 0 || createdCollaborators.length > 0) {
+        window.dispatchEvent(
+          new CustomEvent('syncscript:task-assignees-updated', {
+            detail: {
+              taskId: newTask.id,
+              taskTitle: newTask.title,
+              assignedAt: newTask.updatedAt || new Date().toISOString(),
+              assignees: createdAssignees,
+              collaborators: createdCollaborators,
+            },
+          }),
+        );
+      }
+
+      checklistTracking.completeItem('task');
 
       return newTask;
     } catch (err) {
@@ -116,8 +286,84 @@ export function TasksProvider({ children }: TasksProviderProps) {
   
   const updateTask = useCallback(async (id: string, updates: UpdateTaskInput): Promise<Task> => {
     try {
-      const updatedTask = await taskRepository.updateTask(id, updates);
+      const commandEligible = canUseContractTaskUpdate(updates);
+      let candidateTask: Task;
+      if (commandEligible) {
+        const workspaceId = String((updates as any)?.projectId || 'workspace-main');
+        const commandResult = await executeAuthorityRoutedCommand({
+          domain: 'task',
+          commandType: 'task.update',
+          workspaceId,
+          payload: {
+            taskId: id,
+            updates: updates as Record<string, unknown>,
+          },
+          runLocal: () =>
+            taskCommandAdapter.updateTask(
+              buildCommandContext(workspaceId),
+              {
+                taskId: id,
+                title: (updates as any)?.title,
+                description: (updates as any)?.description,
+                status: (updates as any)?.status,
+                priority: (updates as any)?.priority,
+                dueAt: (updates as any)?.dueDate,
+                scheduledAt: Object.prototype.hasOwnProperty.call(updates as Record<string, unknown>, 'scheduledTime')
+                  ? ((updates as any)?.scheduledTime ?? null)
+                  : undefined,
+                projectId: (updates as any)?.projectId,
+              },
+            ),
+        });
+        if (commandResult.ok) {
+          candidateTask = (await taskRepository.getTaskById(id)) || (await taskRepository.updateTask(id, updates));
+        } else {
+          candidateTask = await taskRepository.updateTask(id, updates);
+        }
+      } else {
+        candidateTask = await taskRepository.updateTask(id, updates);
+      }
+      const assigneesAfterUpdate = Array.isArray((candidateTask as any)?.assignees) ? (candidateTask as any).assignees : [];
+      const collaboratorsAfterUpdate = Array.isArray((candidateTask as any)?.collaborators) ? (candidateTask as any).collaborators : [];
+      const primaryAgent = extractPrimaryAgent(assigneesAfterUpdate, collaboratorsAfterUpdate);
+
+      let updatedTask = candidateTask;
+      if (!(updatedTask as any)?.projectId && primaryAgent) {
+        const projectId = ensureExecutionProjectForTask({
+          taskId: String(updatedTask.id),
+          taskTitle: String(updatedTask.title || 'Untitled Task'),
+          agentName: primaryAgent.name,
+          agentId: primaryAgent.id,
+        });
+        updatedTask = await taskRepository.updateTask(String(updatedTask.id), { projectId } as any);
+      }
+
       setTasks(prev => prev.map(t => t.id === id ? updatedTask : t));
+      emitContractDomainEvent('task.updated', 'task', String(updatedTask.id), {
+        patch: updates as Record<string, unknown>,
+        status: (updatedTask as any)?.status || (updatedTask.completed ? 'done' : 'todo'),
+        scheduledAt: updatedTask.scheduledTime || null,
+      }, {
+        workspaceId: resolveTaskWorkspaceId(updatedTask),
+      });
+      const includesAssigneeMutations =
+        Object.prototype.hasOwnProperty.call(updates as Record<string, unknown>, 'assignees')
+        || Object.prototype.hasOwnProperty.call(updates as Record<string, unknown>, 'collaborators');
+      if (includesAssigneeMutations) {
+        const assignees = Array.isArray((updatedTask as any)?.assignees) ? (updatedTask as any).assignees : [];
+        const collaborators = Array.isArray((updatedTask as any)?.collaborators) ? (updatedTask as any).collaborators : [];
+        window.dispatchEvent(
+          new CustomEvent('syncscript:task-assignees-updated', {
+            detail: {
+              taskId: updatedTask.id,
+              taskTitle: updatedTask.title,
+              assignedAt: updatedTask.updatedAt || new Date().toISOString(),
+              assignees,
+              collaborators,
+            },
+          }),
+        );
+      }
       const updateKeys = Object.keys((updates || {}) as Record<string, unknown>);
       const isMicroModalUpdate =
         updateKeys.length > 0 &&
@@ -125,6 +371,7 @@ export function TasksProvider({ children }: TasksProviderProps) {
       if (!isMicroModalUpdate) {
         toast.success('Task updated');
       }
+
       return updatedTask;
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to update task';
@@ -135,8 +382,18 @@ export function TasksProvider({ children }: TasksProviderProps) {
   
   const deleteTask = useCallback(async (id: string): Promise<void> => {
     try {
+      let deletedTaskSnapshot: Task | null = null;
+      setTasks(prev => {
+        deletedTaskSnapshot = prev.find(t => t.id === id) || null;
+        return prev;
+      });
       await taskRepository.deleteTask(id);
       setTasks(prev => prev.filter(t => t.id !== id));
+      emitContractDomainEvent('task.deleted', 'task', id, {
+        deletedAt: new Date().toISOString(),
+      }, {
+        workspaceId: resolveTaskWorkspaceId(deletedTaskSnapshot),
+      });
       toast.success('Task deleted');
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to delete task';
@@ -188,6 +445,13 @@ export function TasksProvider({ children }: TasksProviderProps) {
       
       const updatedTask = await taskRepository.toggleTaskCompletion(id);
       setTasks(prev => prev.map(t => t.id === id ? updatedTask : t));
+      emitContractDomainEvent('task.updated', 'task', String(updatedTask.id), {
+        status: updatedTask.completed ? 'done' : 'todo',
+        completed: updatedTask.completed,
+        completedAt: updatedTask.completedAt || null,
+      }, {
+        workspaceId: resolveTaskWorkspaceId(updatedTask),
+      });
       
       // Award energy if task was completed (not reopened)
       if (updatedTask.completed) {
@@ -213,6 +477,9 @@ export function TasksProvider({ children }: TasksProviderProps) {
               priority: currentTask.priority,
               resonance: currentTask.resonance,
               completedAt: updatedTask.completedAt ?? new Date().toISOString(),
+              dueDate: currentTask.dueDate,
+              assignees: Array.isArray((currentTask as any)?.assignees) ? (currentTask as any).assignees : [],
+              collaborators: Array.isArray((currentTask as any)?.collaborators) ? (currentTask as any).collaborators : [],
             },
           }),
         );
@@ -247,8 +514,39 @@ export function TasksProvider({ children }: TasksProviderProps) {
   
   const scheduleTask = useCallback(async (id: string, scheduledTime: string): Promise<Task> => {
     try {
-      const updatedTask = await taskRepository.scheduleTask(id, scheduledTime);
+      const commandResult = await executeAuthorityRoutedCommand({
+        domain: 'schedule',
+        commandType: 'schedule.task.bind',
+        workspaceId: 'workspace-main',
+        payload: {
+          taskId: id,
+          scheduledAt: scheduledTime,
+        },
+        runLocal: () =>
+          taskCommandAdapter.updateTask(
+            buildCommandContext('workspace-main'),
+            {
+              taskId: id,
+              scheduledAt: scheduledTime,
+            },
+          ),
+      });
+      const updatedTask = commandResult.ok
+        ? ((await taskRepository.getTaskById(id)) || (await taskRepository.scheduleTask(id, scheduledTime)))
+        : await taskRepository.scheduleTask(id, scheduledTime);
       setTasks(prev => prev.map(t => t.id === id ? updatedTask : t));
+      emitContractDomainEvent('task.updated', 'task', String(updatedTask.id), {
+        scheduledAt: scheduledTime,
+        scheduleAction: 'scheduled',
+      }, {
+        workspaceId: resolveTaskWorkspaceId(updatedTask),
+      });
+      emitContractDomainEvent('schedule.binding.created', 'task', String(updatedTask.id), {
+        taskId: updatedTask.id,
+        scheduledAt: scheduledTime,
+      }, {
+        workspaceId: resolveTaskWorkspaceId(updatedTask),
+      });
       toast.success('Task scheduled', { 
         description: new Date(scheduledTime).toLocaleString()
       });
@@ -262,8 +560,37 @@ export function TasksProvider({ children }: TasksProviderProps) {
   
   const unscheduleTask = useCallback(async (id: string): Promise<Task> => {
     try {
-      const updatedTask = await taskRepository.unscheduleTask(id);
+      const commandResult = await executeAuthorityRoutedCommand({
+        domain: 'schedule',
+        commandType: 'schedule.task.unbind',
+        workspaceId: 'workspace-main',
+        payload: {
+          taskId: id,
+        },
+        runLocal: () =>
+          taskCommandAdapter.updateTask(
+            buildCommandContext('workspace-main'),
+            {
+              taskId: id,
+              scheduledAt: null,
+            },
+          ),
+      });
+      const updatedTask = commandResult.ok
+        ? ((await taskRepository.getTaskById(id)) || (await taskRepository.unscheduleTask(id)))
+        : await taskRepository.unscheduleTask(id);
       setTasks(prev => prev.map(t => t.id === id ? updatedTask : t));
+      emitContractDomainEvent('task.updated', 'task', String(updatedTask.id), {
+        scheduledAt: null,
+        scheduleAction: 'unscheduled',
+      }, {
+        workspaceId: resolveTaskWorkspaceId(updatedTask),
+      });
+      emitContractDomainEvent('schedule.binding.deleted', 'task', String(updatedTask.id), {
+        taskId: updatedTask.id,
+      }, {
+        workspaceId: resolveTaskWorkspaceId(updatedTask),
+      });
       toast.success('Task unscheduled');
       return updatedTask;
     } catch (err) {
