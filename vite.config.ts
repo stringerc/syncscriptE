@@ -1,7 +1,9 @@
 
-  import { defineConfig, loadEnv, type Plugin } from 'vite';
-  import react from '@vitejs/plugin-react-swc';
-  import path from 'path';
+import { defineConfig, loadEnv, type Plugin } from 'vite';
+import react from '@vitejs/plugin-react-swc';
+import { VitePWA } from 'vite-plugin-pwa';
+import vitePrerender from 'vite-plugin-prerender';
+import path from 'path';
 
   /**
    * Vite dev-server middleware that proxies Vercel-style API routes
@@ -295,12 +297,129 @@ STRICT RULES:
             }
           });
         });
+
+        // ── STT proxy (local parity with production /api/ai/stt) ─────────
+        server.middlewares.use('/api/ai/stt', (req, res, next) => {
+          if (req.method === 'OPTIONS') {
+            res.writeHead(204, {
+              'Access-Control-Allow-Origin': '*',
+              'Access-Control-Allow-Methods': 'POST, OPTIONS',
+              'Access-Control-Allow-Headers': 'Content-Type',
+            });
+            return res.end();
+          }
+          if (req.method !== 'POST') return next();
+
+          let body = '';
+          req.on('data', (chunk: Buffer) => { body += chunk.toString(); });
+          req.on('end', async () => {
+            try {
+              const upstream = await fetch('https://syncscript.app/api/ai/stt', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body,
+              });
+
+              const payload = await upstream.text();
+              res.writeHead(upstream.status, {
+                'Content-Type': upstream.headers.get('content-type') || 'application/json',
+                'Access-Control-Allow-Origin': '*',
+              });
+              res.end(payload);
+            } catch (err: any) {
+              console.error('[dev-proxy] STT error:', err.message);
+              res.writeHead(503, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify({ error: 'STT service unreachable', code: 'UNREACHABLE' }));
+            }
+          });
+        });
       },
     };
   }
 
-  export default defineConfig({
-    plugins: [react(), apiProxyPlugin()],
+export default defineConfig({
+  plugins: [
+    react(),
+    apiProxyPlugin(),
+    VitePWA({
+      registerType: 'autoUpdate',
+      includeAssets: ['favicon.svg', 'robots.txt', 'audio/nexus-greeting.mp3'],
+      manifest: {
+        name: 'SyncScript',
+        short_name: 'SyncScript',
+        description: 'AI-powered productivity system that works with your energy and agent continuity.',
+        start_url: '/',
+        scope: '/',
+        display: 'standalone',
+        background_color: '#0b1020',
+        theme_color: '#06b6d4',
+        orientation: 'portrait-primary',
+        categories: ['productivity', 'business', 'utilities'],
+        icons: [
+          { src: '/favicon.svg', sizes: '192x192', type: 'image/svg+xml', purpose: 'any' },
+          { src: '/favicon.svg', sizes: '512x512', type: 'image/svg+xml', purpose: 'any' },
+          { src: '/favicon.svg', sizes: '512x512', type: 'image/svg+xml', purpose: 'maskable' },
+        ],
+      },
+      workbox: {
+        navigateFallback: '/index.html',
+        globPatterns: ['**/*.{js,css,html,svg,png,jpg,jpeg,webp,woff2,mp3}'],
+        globIgnores: ['**/images/blog/**', '**/*.map'],
+        maximumFileSizeToCacheInBytes: 8 * 1024 * 1024,
+        runtimeCaching: [
+          {
+            urlPattern: /^https:\/\/.*\.supabase\.co\/functions\/v1\/.*/i,
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'supabase-functions',
+              expiration: { maxEntries: 80, maxAgeSeconds: 60 * 60 * 24 },
+            },
+          },
+          {
+            urlPattern: /^https:\/\/.*\.supabase\.co\/rest\/v1\/.*/i,
+            handler: 'StaleWhileRevalidate',
+            options: {
+              cacheName: 'supabase-rest',
+              expiration: { maxEntries: 120, maxAgeSeconds: 60 * 60 * 24 },
+            },
+          },
+          {
+            urlPattern: /\/api\/ai\/.*/i,
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'ai-api',
+              networkTimeoutSeconds: 4,
+              expiration: { maxEntries: 40, maxAgeSeconds: 60 * 30 },
+            },
+          },
+        ],
+      },
+      devOptions: {
+        enabled: true,
+      },
+    }),
+    vitePrerender({
+      staticDir: path.join(__dirname, 'build'),
+      routes: ['/'],
+      postProcess(context) {
+        context.html = context.html.replace(
+          /<style type="text\/css">[\s\S]*?\[data-sonner-toaster][\s\S]*?<\/style>/,
+          '',
+        );
+        return context;
+      },
+      renderer: new vitePrerender.PuppeteerRenderer({
+        renderAfterDocumentEvent: 'syncscript-landing-ready',
+        renderAfterTime: 6000,
+        skipThirdPartyRequests: true,
+        inject: { prerender: true },
+        executablePath:
+          process.env.PUPPETEER_EXECUTABLE_PATH ||
+          '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+        args: ['--no-sandbox', '--disable-setuid-sandbox'],
+      }),
+    }),
+  ],
     resolve: {
       extensions: ['.js', '.jsx', '.ts', '.tsx', '.json'],
       alias: {
@@ -361,16 +480,50 @@ STRICT RULES:
       outDir: 'build',
       rollupOptions: {
         output: {
-          manualChunks: {
-            'vendor-react': ['react', 'react-dom', 'react-router'],
-            'vendor-ui': ['sonner', 'class-variance-authority', 'clsx', 'tailwind-merge'],
-            'vendor-charts': ['recharts'],
-            'vendor-supabase': ['@supabase/supabase-js'],
-            'vendor-three': ['three', '@react-three/fiber', '@react-three/drei', '@react-three/postprocessing'],
-            'vendor-gsap': ['gsap'],
+          manualChunks(id) {
+            // Vendor chunk policy
+            if (id.includes('node_modules')) {
+              if (id.includes('/lucide-react/')) return 'vendor-icons';
+              if (id.includes('/date-fns/')) return 'vendor-date';
+              if (id.includes('/@supabase/supabase-js/')) return 'vendor-supabase';
+              if (
+                id.includes('/three/') ||
+                id.includes('/@react-three/fiber/') ||
+                id.includes('/@react-three/drei/') ||
+                id.includes('/@react-three/postprocessing/')
+              ) {
+                return 'vendor-three';
+              }
+              if (id.includes('/gsap/')) return 'vendor-gsap';
+              if (id.includes('/@xyflow/react/') || id.includes('/@dagrejs/dagre/')) {
+                return 'vendor-flow';
+              }
+            }
+
+            // Feature chunk policy for heavy product surfaces
+            if (id.includes('/src/components/projects/WorkstreamFlowCanvas')) return 'feature-workstream-canvas';
+            if (id.includes('/src/components/projects/WorkstreamFlowNode')) return 'feature-workstream-node';
+            if (id.includes('/src/components/projects/WorkstreamFlowToolbar')) return 'feature-workstream-toolbar';
+            if (id.includes('/src/components/projects/ProjectsOperatingSystem')) return 'feature-projects-core';
+            if (id.includes('/src/contracts/projections/') || id.includes('/src/contracts/runtime/')) {
+              return 'feature-contract-runtime';
+            }
+            if (id.includes('/src/components/team/TaskTemplateLibrary')) return 'feature-task-template-library';
+            if (id.includes('/src/components/team/TaskTimelineView')) return 'feature-task-timeline';
+            if (id.includes('/src/components/team/AutomationRulesPanel')) return 'feature-task-automation';
+            if (id.includes('/src/components/team/RecurringTaskManager')) return 'feature-task-recurring';
+            if (
+              id.includes('/src/components/goals/GoalAnalyticsTab') ||
+              id.includes('/src/components/goals/GoalTimelineView') ||
+              id.includes('/src/components/goals/GoalTemplateLibrary')
+            ) {
+              return 'feature-goals-advanced';
+            }
+            return undefined;
           },
         },
       },
+      chunkSizeWarningLimit: 650,
       minify: 'terser',
       terserOptions: {
         compress: {
