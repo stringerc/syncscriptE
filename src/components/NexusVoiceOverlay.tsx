@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { PhoneOff, Mic, MicOff, Bot } from 'lucide-react';
-import { useNexusVoiceCall } from '../contexts/NexusVoiceCallContext';
+import { useNexusVoiceCall } from '../contexts/useNexusVoiceCall';
 
 function formatTime(seconds: number): string {
   const m = Math.floor(seconds / 60);
