@@ -1,5 +1,6 @@
 import {
   createContext,
+  useContext,
   useState,
   useRef,
   useCallback,
@@ -29,8 +30,10 @@ interface NexusVoiceCallState {
   callDuration: number;
   sessionId: string | null;
   interimText: string;
+  heardText: string;
   isSpeaking: boolean;
   isListening: boolean;
+  sttMode: 'browser' | 'fallback';
   micLevel: number;
   isProcessing: boolean;
   isVoiceLoading: boolean;
@@ -45,6 +48,12 @@ interface NexusVoiceCallContextValue extends NexusVoiceCallState {
 
 export const NexusVoiceCallContext = createContext<NexusVoiceCallContextValue | null>(null);
 
+export function useNexusVoiceCall(): NexusVoiceCallContextValue {
+  const ctx = useContext(NexusVoiceCallContext);
+  if (!ctx) throw new Error('useNexusVoiceCall must be used within NexusVoiceCallProvider');
+  return ctx;
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
 // Constants
 // ═══════════════════════════════════════════════════════════════════════════
@@ -54,16 +63,34 @@ const GOODBYE_LINGER_MS = 1800;
 const NEXUS_GUEST_API = '/api/ai/nexus-guest';
 
 const GREETING =
-  "Hi! I'm Nexus, SyncScript's AI assistant. What would you like to know about how SyncScript can help you?";
+  "Hi, I'm Nexus, your SyncScript guide. Ready when you are. What would you like to explore first?";
 const GOODBYE =
-  'Thanks for chatting! Feel free to sign up for a free trial anytime. Have a great day!';
+  "Thanks for chatting. I'd love to help again anytime. Have a wonderful day!";
 const TIME_LIMIT_MSG =
   "We've reached the 5-minute demo limit. Thanks for trying Nexus! Sign up for a free trial to get unlimited access.";
+const STATIC_GREETING_AUDIO_URL = '/audio/nexus-greeting.mp3';
+const ENABLE_STATIC_GREETING = false;
+const PRELOAD_VOICE_CACHE_ON_MOUNT = false;
 
 const END_CALL_PHRASES = [
   'end call', 'hang up', 'goodbye', 'bye', 'end voice chat',
   'stop call', 'end chat', 'stop talking', 'disconnect',
 ];
+
+const GREETING_PROFILE = { voice: 'nexus', speed: 0.98 } as const;
+const GOODBYE_PROFILE = { voice: 'nexus', speed: 0.97 } as const;
+const FUTURE_WARM_PROFILE = { voice: 'nexus', speed: 0.97 } as const;
+const FUTURE_BALANCED_PROFILE = { voice: 'nexus', speed: 0.99 } as const;
+const FUTURE_GUIDE_PROFILE = { voice: 'nexus', speed: 1.0 } as const;
+const FUTURE_WARM_TURNS = 2;
+const TTS_REQUEST_TIMEOUT_MS = 18_000;
+const TTS_MAX_RETRIES = 2;
+const TTS_RETRY_BACKOFF_MS = 450;
+const TTS_CIRCUIT_BREAKER_THRESHOLD = 3;
+const TTS_CIRCUIT_BREAKER_MS = 30_000;
+
+let ttsConsecutiveFailures = 0;
+let ttsCircuitOpenUntil = 0;
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Written → Spoken English Sanitizer
@@ -125,6 +152,11 @@ function sanitizeForTTS(raw: string): string {
   s = s.replace(/\.\s*\./g, '.');
   s = s.replace(/\s+([.,!?])/g, '$1');
   s = s.replace(/([.,!?])\1+/g, '$1');
+  // Pronunciation lexicon for brand and product names.
+  s = s.replace(/\bSyncScript's\b/gi, 'SyncScript');
+  s = s.replace(/\bSyncScripts\b/gi, 'SyncScript');
+  s = s.replace(/\bSync Script\b/gi, 'SyncScript');
+  s = s.replace(/\bSyncScript\b/gi, 'SyncScript');
   s = s.replace(/\s{2,}/g, ' ');
   s = s.trim();
   return s;
@@ -155,10 +187,14 @@ interface ProsodySegment {
   speed: number;
 }
 
+const ENERGETIC_CUE_RE =
+  /\b(ready|great|perfect|welcome|absolutely|let's|lets|start|launch|plan|optimize|focus)\b/i;
+
 const PROSODY_MAP: Record<SentenceKind, { voice: string; speed: number }> = {
-  exclamation: { voice: 'nexus_emphatic', speed: 0.97 },
-  question:    { voice: 'nexus_query',    speed: 1.0 },
-  statement:   { voice: 'nexus',          speed: 1.0 },
+  // Keep one consistent voice and gentler pacing for smoother, less abrupt delivery.
+  exclamation: { voice: 'nexus', speed: 0.99 },
+  question:    { voice: 'nexus', speed: 1.0 },
+  statement:   { voice: 'nexus', speed: 0.98 },
 };
 
 function classifySentence(text: string): SentenceKind {
@@ -169,10 +205,29 @@ function classifySentence(text: string): SentenceKind {
 }
 
 function toProsodySegment(sentence: string): ProsodySegment {
-  const sanitized = sanitizeForTTS(sentence);
+  const base = sanitizeForTTS(sentence);
+  const sanitized = /[.!?]$/.test(base) ? base : `${base}.`;
   const kind = classifySentence(sanitized);
   const { voice, speed } = PROSODY_MAP[kind];
   return { text: sanitized, kind, voice, speed };
+}
+
+function toProsodySegmentWithProfile(
+  sentence: string,
+  profile: { voice: string; speed: number },
+): ProsodySegment {
+  const seg = toProsodySegment(sentence);
+  const energetic = ENERGETIC_CUE_RE.test(seg.text);
+  // Keep futuristic confidence without sharp or aggressive emphasis.
+  const normalizedText = energetic ? seg.text.replace(/!+/g, '.').replace(/\?{2,}/g, '?') : seg.text;
+  const expressiveVoice = profile.voice;
+  const expressiveSpeed = energetic ? Math.min(1.02, profile.speed + 0.005) : profile.speed;
+  return {
+    ...seg,
+    text: normalizedText,
+    voice: expressiveVoice,
+    speed: Number((seg.speed * expressiveSpeed).toFixed(2)),
+  };
 }
 
 function splitToSentences(text: string): string[] {
@@ -183,6 +238,72 @@ function splitToSentences(text: string): string[] {
   const out = parts.map((s) => s.trim()).filter(Boolean);
   if (remainder) out.push(remainder);
   return out;
+}
+
+function buildSpeechChunks(text: string): string[] {
+  const sentences = splitToSentences(text);
+  if (sentences.length <= 1) return sentences;
+
+  const chunks: string[] = [];
+  let buffer = '';
+
+  const flush = () => {
+    if (!buffer.trim()) return;
+    chunks.push(buffer.trim());
+    buffer = '';
+  };
+
+  for (let i = 0; i < sentences.length; i++) {
+    const current = sentences[i].trim();
+    const candidate = buffer
+      ? `${buffer.replace(/[.!?]+$/, ',')} ${current}`
+      : current;
+
+    const wordCount = candidate.split(/\s+/).filter(Boolean).length;
+    const tooLong = wordCount > 22 || candidate.length > 140;
+
+    if (tooLong) {
+      flush();
+      buffer = current;
+      continue;
+    }
+
+    buffer = candidate;
+  }
+
+  flush();
+  return chunks.length ? chunks : sentences;
+}
+
+const GOLDEN_PHRASE_PATTERNS: Array<{ pattern: RegExp; replacement: string }> = [
+  {
+    pattern: /i['’]?d be happy to help you get a feel for how i can assist you with syncscript/gi,
+    replacement: "Great question. I can walk you through SyncScript, step by step.",
+  },
+  {
+    pattern: /so what['’]?s on your mind,? do you have any questions about getting started\??/gi,
+    replacement: 'What would you like to start with first?',
+  },
+  {
+    pattern: /\bnot much, just here to help you learn more about syncscript[^.?!]*/gi,
+    replacement: "I'm here to help you explore SyncScript and get value fast.",
+  },
+  {
+    pattern: /\b(i['’]?m so glad you['’]?re checking in)\b/gi,
+    replacement: "I'm really glad you're here",
+  },
+];
+
+function applyGoldenPhrasePack(raw: string): string {
+  let s = raw;
+  for (const rule of GOLDEN_PHRASE_PATTERNS) {
+    s = s.replace(rule.pattern, rule.replacement);
+  }
+  // Clean repeated filler joins that can make spoken delivery choppy.
+  s = s.replace(/,\s*and\s+and\s+/gi, ', and ');
+  s = s.replace(/\bso,\s+so\b/gi, 'so');
+  s = s.replace(/\s{2,}/g, ' ').trim();
+  return s;
 }
 
 function extractCompleteSentences(buffer: string): { sentences: string[]; remainder: string } {
@@ -224,7 +345,7 @@ class ProgressivePlayer {
 
   onFirstPlay: (() => void) | null = null;
 
-  private static readonly OVERLAP_SECS = 0.10;
+  private static readonly OVERLAP_SECS = 0;
 
   constructor(signal: AbortSignal) {
     this.ctx = new AudioContext();
@@ -271,10 +392,7 @@ class ProgressivePlayer {
       src.start(startAt);
       this.sources.push(src);
 
-      const effectiveDuration = Math.max(
-        audio.duration - ProgressivePlayer.OVERLAP_SECS,
-        audio.duration * 0.92,
-      );
+      const effectiveDuration = Math.max(audio.duration - ProgressivePlayer.OVERLAP_SECS, audio.duration);
       this.nextStartTime = startAt + effectiveDuration;
 
       src.onended = () => {
@@ -339,8 +457,8 @@ async function playCachedBuffers(
       src.start(when);
       sources.push(src);
       const isLast = i === buffers.length - 1;
-      const overlap = isLast ? 0 : 0.10;
-      when += Math.max(audio.duration - overlap, audio.duration * 0.92);
+      const overlap = isLast ? 0 : 0;
+      when += Math.max(audio.duration - overlap, audio.duration);
     } catch { /* skip */ }
   }
 
@@ -365,6 +483,41 @@ async function playCachedBuffers(
   });
 }
 
+async function playStaticAudioAsset(
+  url: string,
+  signal: AbortSignal,
+  onFirstPlay?: () => void,
+): Promise<boolean> {
+  return new Promise<boolean>((resolve) => {
+    const audio = new Audio(url);
+    audio.preload = 'auto';
+
+    const finish = (ok: boolean) => {
+      audio.onplay = null;
+      audio.onended = null;
+      audio.onerror = null;
+      signal.removeEventListener('abort', onAbort);
+      try {
+        audio.pause();
+      } catch {
+        // ignore
+      }
+      resolve(ok);
+    };
+
+    const onAbort = () => finish(false);
+    signal.addEventListener('abort', onAbort, { once: true });
+
+    audio.onplay = () => {
+      try { onFirstPlay?.(); } catch { /* ignore */ }
+    };
+    audio.onended = () => finish(true);
+    audio.onerror = () => finish(false);
+
+    audio.play().catch(() => finish(false));
+  });
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
 // Utility Helpers
 // ═══════════════════════════════════════════════════════════════════════════
@@ -378,6 +531,31 @@ function generateSessionId() {
 function isEndCallIntent(text: string): boolean {
   const lower = text.toLowerCase().trim();
   return END_CALL_PHRASES.some((p) => lower.includes(p));
+}
+
+function isLikelyNonEnglishMishear(text: string): boolean {
+  const trimmed = text.trim();
+  if (!trimmed) return false;
+
+  const latin = (trimmed.match(/[A-Za-z]/g) || []).length;
+  const cjk = (trimmed.match(/[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff]/g) || []).length;
+  const hangul = (trimmed.match(/[\uac00-\ud7af]/g) || []).length;
+  const nonLatinCjk = cjk + hangul;
+
+  return nonLatinCjk >= 2 && latin === 0;
+}
+
+function isLikelyLowQualityTranscript(text: string): boolean {
+  const cleaned = text.trim();
+  if (!cleaned) return true;
+
+  // Reject very short single-token captures (common false triggers).
+  const tokens = cleaned.split(/\s+/).filter(Boolean);
+  if (tokens.length === 1 && cleaned.length <= 4) return true;
+
+  // Reject transcript that contains no letters at all.
+  const letterCount = (cleaned.match(/[A-Za-z]/g) || []).length;
+  return letterCount === 0 && cleaned.length <= 8;
 }
 
 function playChime(type: 'connect' | 'disconnect') {
@@ -418,32 +596,113 @@ async function checkMicPermission(): Promise<{ ok: boolean; reason?: string }> {
     const status = await navigator.permissions.query({ name: 'microphone' as PermissionName });
     if (status.state === 'denied') return { ok: false, reason: 'Microphone blocked. Allow access in browser settings.' };
   } catch { /* ok */ }
+  try {
+    // Force permission prompt/verification in the same user-gesture flow.
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    stream.getTracks().forEach((track) => {
+      try { track.stop(); } catch { /* ignore */ }
+    });
+  } catch {
+    return { ok: false, reason: 'Microphone permission is required. Please allow mic access and try again.' };
+  }
   return { ok: true };
 }
 
+function isTransientTTSStatus(status: number): boolean {
+  return status === 408 || status === 425 || status === 429 || status === 500 || status === 502 || status === 503 || status === 504;
+}
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function registerTTSFailure(): void {
+  ttsConsecutiveFailures += 1;
+  if (ttsConsecutiveFailures >= TTS_CIRCUIT_BREAKER_THRESHOLD) {
+    ttsCircuitOpenUntil = Date.now() + TTS_CIRCUIT_BREAKER_MS;
+  }
+}
+
+function registerTTSSuccess(): void {
+  ttsConsecutiveFailures = 0;
+  ttsCircuitOpenUntil = 0;
+}
+
 function fetchTTSBuffer(seg: ProsodySegment, signal?: AbortSignal): Promise<ArrayBuffer | null> {
-  return fetch('/api/ai/tts', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ text: seg.text, voice: seg.voice, speed: seg.speed }),
-    signal,
-  })
-    .then((r) => (r.ok ? r.arrayBuffer() : null))
-    .catch(() => null);
+  if (Date.now() < ttsCircuitOpenUntil) {
+    return Promise.resolve(null);
+  }
+  return (async () => {
+    for (let attempt = 0; attempt <= TTS_MAX_RETRIES; attempt += 1) {
+      if (signal?.aborted) return null;
+      const timeoutController = new AbortController();
+      const timeoutId = setTimeout(() => timeoutController.abort(), TTS_REQUEST_TIMEOUT_MS);
+      const onAbort = () => timeoutController.abort();
+      if (signal) {
+        signal.addEventListener('abort', onAbort, { once: true });
+      }
+      try {
+        const response = await fetch('/api/ai/tts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: seg.text, voice: seg.voice, speed: seg.speed }),
+          signal: timeoutController.signal,
+        });
+        if (response.ok) {
+          const buffer = await response.arrayBuffer();
+          if (buffer.byteLength > 0) {
+            registerTTSSuccess();
+            return buffer;
+          }
+        }
+        if (!isTransientTTSStatus(response.status) || attempt >= TTS_MAX_RETRIES) {
+          break;
+        }
+      } catch {
+        if (signal?.aborted) return null;
+        if (attempt >= TTS_MAX_RETRIES) break;
+      } finally {
+        clearTimeout(timeoutId);
+        if (signal) {
+          signal.removeEventListener('abort', onAbort);
+        }
+      }
+      await delay(TTS_RETRY_BACKOFF_MS * (attempt + 1));
+    }
+    registerTTSFailure();
+    return null;
+  })();
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Audio Cache — preloads greeting & goodbye on mount so they play instantly
 // ═══════════════════════════════════════════════════════════════════════════
 
-type AudioCacheEntry = { buffers: ArrayBuffer[]; ready: boolean };
+type AudioCacheEntry = { buffers: ArrayBuffer[]; ready: boolean; readyPromise: Promise<void> };
 
-function preloadPhrase(text: string): AudioCacheEntry {
-  const entry: AudioCacheEntry = { buffers: [], ready: false };
-  const sentences = splitToSentences(text);
-  const segments = sentences.map((s) => toProsodySegment(s));
+function preloadPhrase(
+  text: string,
+  options?: { voice?: string; speed?: number },
+): AudioCacheEntry {
+  const entry: AudioCacheEntry = {
+    buffers: [],
+    ready: false,
+    readyPromise: Promise.resolve(),
+  };
+  const sentences = buildSpeechChunks(text);
+  const segments = sentences.map((s) => {
+    if (options?.voice || options?.speed) {
+      return {
+        text: sanitizeForTTS(s),
+        kind: classifySentence(sanitizeForTTS(s)),
+        voice: options?.voice || 'nexus',
+        speed: options?.speed ?? 1.0,
+      } as ProsodySegment;
+    }
+    return toProsodySegment(s);
+  });
 
-  Promise.all(segments.map((seg) => fetchTTSBuffer(seg)))
+  entry.readyPromise = Promise.all(segments.map((seg) => fetchTTSBuffer(seg)))
     .then((results) => {
       entry.buffers = results.filter(Boolean) as ArrayBuffer[];
       entry.ready = true;
@@ -451,6 +710,10 @@ function preloadPhrase(text: string): AudioCacheEntry {
     .catch(() => { entry.ready = true; });
 
   return entry;
+}
+
+function wait(ms: number) {
+  return new Promise<void>((resolve) => setTimeout(resolve, ms));
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -466,6 +729,7 @@ export function NexusVoiceCallProvider({ children }: { children: ReactNode }) {
   const [isSpeakingLocal, setIsSpeakingLocal] = useState(false);
   const [isVoiceLoading, setIsVoiceLoading] = useState(false);
   const [voiceError, setVoiceError] = useState<string | null>(null);
+  const [heardText, setHeardText] = useState('');
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const processingRef = useRef(false);
@@ -475,18 +739,32 @@ export function NexusVoiceCallProvider({ children }: { children: ReactNode }) {
   const abortRef = useRef<AbortController | null>(null);
   const lastProcessedRef = useRef<{ text: string; time: number }>({ text: '', time: 0 });
   const processUserMessageRef = useRef<(text: string) => void>(() => {});
+  const heardTextClearTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const endCallInProgressRef = useRef(false);
+  const assistantTurnsRef = useRef(0);
 
   // Preload caches
   const greetingCacheRef = useRef<AudioCacheEntry | null>(null);
   const goodbyeCacheRef = useRef<AudioCacheEntry | null>(null);
+  const warmVoiceCaches = useCallback(() => {
+    if (ENABLE_STATIC_GREETING) {
+      const warm = new Audio(STATIC_GREETING_AUDIO_URL);
+      warm.preload = 'auto';
+      warm.load();
+      void fetch(STATIC_GREETING_AUDIO_URL, { cache: 'force-cache' }).catch(() => {});
+    }
+    greetingCacheRef.current = preloadPhrase(GREETING, GREETING_PROFILE);
+    goodbyeCacheRef.current = preloadPhrase(GOODBYE, GOODBYE_PROFILE);
+  }, []);
 
   useEffect(() => { messagesRef.current = messages; }, [messages]);
 
-  // Preload greeting + goodbye TTS on mount (invisible network request)
+  // Preload greeting + goodbye once at provider mount, regardless of route.
+  // This keeps greeting fast even after navigation or restarting a call.
   useEffect(() => {
-    greetingCacheRef.current = preloadPhrase(GREETING);
-    goodbyeCacheRef.current = preloadPhrase(GOODBYE);
-  }, []);
+    if (!PRELOAD_VOICE_CACHE_ON_MOUNT) return;
+    warmVoiceCaches();
+  }, [warmVoiceCaches]);
 
   // ── Transcript handler ─────────────────────────────────────────────────
   // Uses processUserMessageRef so the closure is never stale.
@@ -497,7 +775,23 @@ export function NexusVoiceCallProvider({ children }: { children: ReactNode }) {
 
     const text = result.text.trim();
     if (!text) return;
+    if (isLikelyNonEnglishMishear(text)) {
+      setVoiceError('I may have misheard you. Please repeat in English, slightly closer to your microphone.');
+      return;
+    }
+    if (isLikelyLowQualityTranscript(text)) {
+      setVoiceError('I caught only a partial phrase. Please try that again clearly.');
+      return;
+    }
     setVoiceError(null);
+    setHeardText(text);
+    if (heardTextClearTimerRef.current) {
+      clearTimeout(heardTextClearTimerRef.current);
+    }
+    heardTextClearTimerRef.current = setTimeout(() => {
+      setHeardText('');
+      heardTextClearTimerRef.current = null;
+    }, 5000);
 
     const last = lastProcessedRef.current;
     if (text === last.text && Date.now() - last.time < 8000) return;
@@ -508,6 +802,8 @@ export function NexusVoiceCallProvider({ children }: { children: ReactNode }) {
   const voiceStream = useVoiceStream({
     continuous: true,
     interimResults: true,
+    preferServerStt: false,
+    enableServerSttFallback: true,
     onTranscript: handleTranscript,
     onStatusChange: (status) => {
       if (status === 'listening') {
@@ -568,13 +864,32 @@ export function NexusVoiceCallProvider({ children }: { children: ReactNode }) {
           player.onFirstPlay = () => {
             try { opts?.onFirstAudioStart?.(); } catch { /* silent */ }
           };
-          for (const s of splitToSentences(text)) {
-            const seg = toProsodySegment(s);
+          for (const s of buildSpeechChunks(text)) {
+            const seg = toProsodySegmentWithProfile(s, FUTURE_WARM_PROFILE);
             player.feed(fetchTTSBuffer(seg, ac.signal));
           }
           player.seal();
           await player.waitUntilDone();
         }
+      } finally {
+        speakingRef.current = false;
+        setIsSpeakingLocal(false);
+        if (abortRef.current === ac) abortRef.current = null;
+      }
+    },
+    [voiceStream],
+  );
+
+  const speakStaticGreeting = useCallback(
+    async (opts?: { onFirstAudioStart?: () => void }): Promise<boolean> => {
+      speakingRef.current = true;
+      setIsSpeakingLocal(true);
+      voiceStream.stopListening();
+
+      const ac = new AbortController();
+      abortRef.current = ac;
+      try {
+        return await playStaticAudioAsset(STATIC_GREETING_AUDIO_URL, ac.signal, opts?.onFirstAudioStart);
       } finally {
         speakingRef.current = false;
         setIsSpeakingLocal(false);
@@ -673,7 +988,9 @@ export function NexusVoiceCallProvider({ children }: { children: ReactNode }) {
       };
 
       const feedSentence = (sentence: string) => {
-        const seg = toProsodySegment(sentence);
+        const styleProfile =
+          assistantTurnsRef.current < FUTURE_WARM_TURNS ? FUTURE_GUIDE_PROFILE : FUTURE_BALANCED_PROFILE;
+        const seg = toProsodySegmentWithProfile(sentence, styleProfile);
         // Queue TTS fetches to avoid burst-parallel requests that can trigger 504s upstream.
         const queued = ttsFetchChain.then(() => fetchTTSBuffer(seg, ac.signal));
         ttsFetchChain = queued.then(() => undefined, () => undefined);
@@ -690,7 +1007,7 @@ export function NexusVoiceCallProvider({ children }: { children: ReactNode }) {
 
         if (!res.ok) {
           const data = await res.json().catch(() => ({}));
-          fullText = data.content || "I'm sorry, could you ask again?";
+          fullText = applyGoldenPhrasePack(data.content || "I'm sorry, could you ask again?");
           ensureNexusBubble();
           showNexusText(fullText);
           clearProcessingOnce();
@@ -701,7 +1018,7 @@ export function NexusVoiceCallProvider({ children }: { children: ReactNode }) {
         }
 
         if (!res.body) {
-          fullText = "I'm sorry, could you ask again?";
+          fullText = applyGoldenPhrasePack("I'm sorry, could you ask again?");
           ensureNexusBubble();
           showNexusText(fullText);
           clearProcessingOnce();
@@ -718,7 +1035,7 @@ export function NexusVoiceCallProvider({ children }: { children: ReactNode }) {
         const firstRead = await reader.read();
 
         if (firstRead.done) {
-          fullText = "I'm sorry, could you ask again?";
+          fullText = applyGoldenPhrasePack("I'm sorry, could you ask again?");
           ensureNexusBubble();
           showNexusText(fullText);
           clearProcessingOnce();
@@ -750,6 +1067,7 @@ export function NexusVoiceCallProvider({ children }: { children: ReactNode }) {
           } catch { /* not valid JSON */ }
 
           if (!fullText) fullText = "I'm sorry, could you ask again?";
+          fullText = applyGoldenPhrasePack(fullText);
 
           const display = cleanForDisplay(fullText);
           ensureNexusBubble();
@@ -762,7 +1080,7 @@ export function NexusVoiceCallProvider({ children }: { children: ReactNode }) {
           };
 
           // Fire TTS in parallel — audio starts while text is still typing
-          const sentences = splitToSentences(fullText);
+          const sentences = buildSpeechChunks(fullText);
           for (const s of sentences) feedSentence(s);
           player.seal();
 
@@ -831,6 +1149,7 @@ export function NexusVoiceCallProvider({ children }: { children: ReactNode }) {
         }
 
         if (textBuffer.trim()) feedSentence(textBuffer.trim());
+        fullText = applyGoldenPhrasePack(fullText);
         if (fullText && canRevealText) showNexusText(fullText);
         player.seal();
         await player.waitUntilDone();
@@ -839,7 +1158,7 @@ export function NexusVoiceCallProvider({ children }: { children: ReactNode }) {
       } catch (err: any) {
         if (err?.name === 'AbortError') { /* normal cancellation */ }
         else if (!fullText) {
-          fullText = "I'm having a little trouble right now. You can reach us at support@syncscript.app!";
+          fullText = applyGoldenPhrasePack("I'm having a little trouble right now. You can reach us at support@syncscript.app!");
           showNexusText(fullText);
           clearProcessingOnce();
           feedSentence(fullText);
@@ -860,36 +1179,57 @@ export function NexusVoiceCallProvider({ children }: { children: ReactNode }) {
 
   // ── End call ───────────────────────────────────────────────────────────
 
-  const endCallInternal = useCallback(async () => {
-    if (!activeRef.current) return;
-    activeRef.current = false;
-    setCallStatus('ending');
-    setIsProcessing(false);
-    setIsVoiceLoading(false);
-    setVoiceError(null);
-    processingRef.current = false;
+  const endCallInternal = useCallback(async (options?: { playGoodbye?: boolean }) => {
+    if ((!activeRef.current && callStatus === 'idle') || endCallInProgressRef.current) return;
+    endCallInProgressRef.current = true;
 
-    voiceStream.stopListening();
-    voiceStream.stopSpeaking();
-    abortRef.current?.abort();
+    const playGoodbye = options?.playGoodbye ?? false;
+    try {
+      activeRef.current = false;
+      processingRef.current = false;
+      setIsProcessing(false);
+      setIsVoiceLoading(false);
+      setVoiceError(null);
+      setHeardText('');
+      if (heardTextClearTimerRef.current) {
+        clearTimeout(heardTextClearTimerRef.current);
+        heardTextClearTimerRef.current = null;
+      }
 
-    if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
 
-    addMessage('nexus', GOODBYE);
-    await speakPhrase(GOODBYE, goodbyeCacheRef.current);
+      // Stop capture/audio immediately so end-call click can return quickly.
+      voiceStream.stopListening();
+      voiceStream.stopSpeaking();
+      abortRef.current?.abort();
 
-    playChime('disconnect');
-    await new Promise((r) => setTimeout(r, GOODBYE_LINGER_MS));
+      // Fast UI exit: collapse the call shell right away.
+      setCallStatus('idle');
+      setMessages([]);
+      setCallDuration(0);
+      setSessionId(null);
 
-    setCallStatus('idle');
-    setMessages([]);
-    setCallDuration(0);
-    setSessionId(null);
+      if (playGoodbye) {
+        try {
+          await speakPhrase(GOODBYE, goodbyeCacheRef.current);
+          playChime('disconnect');
+          await new Promise((r) => setTimeout(r, GOODBYE_LINGER_MS));
+        } catch {
+          // Ignore farewell failures during teardown.
+        }
+      } else {
+        playChime('disconnect');
+      }
 
-    // Re-preload for next call
-    greetingCacheRef.current = preloadPhrase(GREETING);
-    goodbyeCacheRef.current = preloadPhrase(GOODBYE);
-  }, [voiceStream, addMessage, speakPhrase]);
+      // Re-preload for next call to keep restart starts fast.
+      warmVoiceCaches();
+    } finally {
+      endCallInProgressRef.current = false;
+    }
+  }, [voiceStream, speakPhrase, callStatus, warmVoiceCaches]);
 
   // ── Process user message ───────────────────────────────────────────────
 
@@ -903,7 +1243,7 @@ export function NexusVoiceCallProvider({ children }: { children: ReactNode }) {
 
       lastProcessedRef.current = { text, time: Date.now() };
 
-      if (isEndCallIntent(text)) { endCallInternal(); return; }
+      if (isEndCallIntent(text)) { endCallInternal({ playGoodbye: false }); return; }
 
       processingRef.current = true;
       setIsProcessing(true);
@@ -914,11 +1254,17 @@ export function NexusVoiceCallProvider({ children }: { children: ReactNode }) {
       voiceStream.clearTranscript();
 
       addMessage('user', text);
+      setHeardText('');
+      if (heardTextClearTimerRef.current) {
+        clearTimeout(heardTextClearTimerRef.current);
+        heardTextClearTimerRef.current = null;
+      }
 
       try {
         const sid = sessionId || generateSessionId();
         if (!sessionId) setSessionId(sid);
         await fetchAndSpeakStreaming(text, sid);
+        assistantTurnsRef.current += 1;
       } catch (err) {
         console.error('[Nexus] processUserMessage error:', err);
       } finally {
@@ -943,6 +1289,11 @@ export function NexusVoiceCallProvider({ children }: { children: ReactNode }) {
 
   const startCall = useCallback(async () => {
     if (activeRef.current) return;
+    endCallInProgressRef.current = false;
+    // Warm caches lazily to avoid background TTS request storms when voice isn't used.
+    if (!greetingCacheRef.current || !goodbyeCacheRef.current) {
+      warmVoiceCaches();
+    }
     const mic = await checkMicPermission();
     if (!mic.ok) { alert(mic.reason); return; }
 
@@ -954,10 +1305,17 @@ export function NexusVoiceCallProvider({ children }: { children: ReactNode }) {
     setMessages([]);
     setCallDuration(0);
     setIsProcessing(false);
+    setHeardText('');
+    assistantTurnsRef.current = 0;
     processingRef.current = false;
 
     playChime('connect');
-    await new Promise((r) => setTimeout(r, 400));
+
+    const greetingCache = greetingCacheRef.current;
+    if (greetingCache && !greetingCache.ready) {
+      // Wait briefly for preloaded greeting audio to complete and avoid first-turn cold starts.
+      await Promise.race([greetingCache.readyPromise, wait(350)]);
+    }
 
     const greetingDisplay = cleanForDisplay(GREETING);
     addMessage('nexus', greetingDisplay);
@@ -971,7 +1329,7 @@ export function NexusVoiceCallProvider({ children }: { children: ReactNode }) {
           setTimeout(() => {
             if (activeRef.current) {
               addMessage('nexus', TIME_LIMIT_MSG);
-              speakPhrase(TIME_LIMIT_MSG, null).then(() => endCallInternal());
+              speakPhrase(TIME_LIMIT_MSG, null).then(() => endCallInternal({ playGoodbye: false }));
             }
           }, 0);
           if (timerRef.current) clearInterval(timerRef.current);
@@ -980,18 +1338,29 @@ export function NexusVoiceCallProvider({ children }: { children: ReactNode }) {
       });
     }, 1000);
 
-    // Greeting text is shown immediately; audio is still preloaded and starts as soon as available.
-    await speakPhrase(GREETING, greetingCacheRef.current, {
-      onFirstAudioStart: () => {
-        setIsVoiceLoading(false);
-      },
-    });
+    // Prefer a deterministic handoff:
+    // play greeting fully, then begin one stable listening session.
+    const staticPlayed = ENABLE_STATIC_GREETING
+      ? await speakStaticGreeting({
+          onFirstAudioStart: () => {
+            setIsVoiceLoading(false);
+          },
+        })
+      : false;
+    if (!staticPlayed && activeRef.current) {
+      await speakPhrase(GREETING, greetingCacheRef.current, {
+        onFirstAudioStart: () => {
+          setIsVoiceLoading(false);
+        },
+      });
+    }
 
     if (activeRef.current) {
+      setIsVoiceLoading(false);
       voiceStream.clearTranscript();
       voiceStream.startListening();
     }
-  }, [voiceStream, addMessage, endCallInternal, speakPhrase, startTypewriter, stopTypewriter]);
+  }, [voiceStream, addMessage, endCallInternal, speakPhrase, speakStaticGreeting, startTypewriter, stopTypewriter]);
 
   // ── sendTextMessage ────────────────────────────────────────────────────
 
@@ -1003,7 +1372,9 @@ export function NexusVoiceCallProvider({ children }: { children: ReactNode }) {
     [processUserMessage],
   );
 
-  const endCall = useCallback(() => endCallInternal(), [endCallInternal]);
+  const endCall = useCallback(() => {
+    void endCallInternal({ playGoodbye: false });
+  }, [endCallInternal]);
 
   // ── Cleanup ────────────────────────────────────────────────────────────
 
@@ -1013,6 +1384,7 @@ export function NexusVoiceCallProvider({ children }: { children: ReactNode }) {
       abortRef.current?.abort();
       if (timerRef.current) clearInterval(timerRef.current);
       if (typewriterRef.current) clearInterval(typewriterRef.current);
+      if (heardTextClearTimerRef.current) clearTimeout(heardTextClearTimerRef.current);
       voiceStream.stopListening();
       voiceStream.stopSpeaking();
     };
@@ -1027,8 +1399,10 @@ export function NexusVoiceCallProvider({ children }: { children: ReactNode }) {
     callDuration,
     sessionId,
     interimText: voiceStream.interimText,
+    heardText,
     isSpeaking: voiceStream.isSpeaking || isSpeakingLocal,
     isListening: voiceStream.isListening,
+    sttMode: voiceStream.sttMode || 'browser',
     micLevel: voiceStream.audioLevel,
     isProcessing,
     isVoiceLoading,
