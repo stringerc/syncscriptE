@@ -10,6 +10,8 @@ const explicitPuppeteerPath = process.env.PUPPETEER_EXECUTABLE_PATH;
 const useLocalChromePath = process.platform === 'darwin' && !process.env.CI;
 const resolvedPuppeteerExecutablePath =
   explicitPuppeteerPath || (useLocalChromePath ? localChromePath : undefined);
+const shouldEnablePrerender =
+  process.env.ENABLE_PRERENDER === 'true' || (!process.env.VERCEL && process.env.CI !== 'true');
 
   /**
    * Vite dev-server middleware that proxies Vercel-style API routes
@@ -404,25 +406,29 @@ export default defineConfig({
         enabled: true,
       },
     }),
-    vitePrerender({
-      staticDir: path.join(__dirname, 'build'),
-      routes: ['/'],
-      postProcess(context) {
-        context.html = context.html.replace(
-          /<style type="text\/css">[\s\S]*?\[data-sonner-toaster][\s\S]*?<\/style>/,
-          '',
-        );
-        return context;
-      },
-      renderer: new vitePrerender.PuppeteerRenderer({
-        renderAfterDocumentEvent: 'syncscript-landing-ready',
-        renderAfterTime: 6000,
-        skipThirdPartyRequests: true,
-        inject: { prerender: true },
-        executablePath: resolvedPuppeteerExecutablePath,
-        args: ['--no-sandbox', '--disable-setuid-sandbox'],
-      }),
-    }),
+    ...(shouldEnablePrerender
+      ? [
+          vitePrerender({
+            staticDir: path.join(__dirname, 'build'),
+            routes: ['/'],
+            postProcess(context) {
+              context.html = context.html.replace(
+                /<style type="text\/css">[\s\S]*?\[data-sonner-toaster][\s\S]*?<\/style>/,
+                '',
+              );
+              return context;
+            },
+            renderer: new vitePrerender.PuppeteerRenderer({
+              renderAfterDocumentEvent: 'syncscript-landing-ready',
+              renderAfterTime: 6000,
+              skipThirdPartyRequests: true,
+              inject: { prerender: true },
+              executablePath: resolvedPuppeteerExecutablePath,
+              args: ['--no-sandbox', '--disable-setuid-sandbox'],
+            }),
+          }),
+        ]
+      : []),
   ],
     resolve: {
       extensions: ['.js', '.jsx', '.ts', '.tsx', '.json'],
