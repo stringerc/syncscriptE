@@ -82,6 +82,27 @@ export interface UseGoalsReturn {
 }
 
 const GoalsContext = createContext<UseGoalsReturn | undefined>(undefined);
+let hasLoggedMissingGoalsProvider = false;
+
+const goalsContextFallback: UseGoalsReturn = {
+  goals: [],
+  loading: false,
+  error: null,
+  createGoal: async () => {
+    throw new Error('GoalsProvider is unavailable for createGoal');
+  },
+  updateGoal: async () => {},
+  deleteGoal: async () => {},
+  toggleGoalCompletion: async () => {},
+  archiveGoal: async () => {},
+  restoreGoal: async () => {},
+  updateProgress: async () => {},
+  addCheckIn: async () => {},
+  addRisk: async () => {},
+  updateKeyResult: async () => {},
+  toggleMilestoneCompletion: async () => {},
+  toggleStepCompletion: async () => {},
+};
 
 /**
  * Permission Check Helper
@@ -810,7 +831,11 @@ export function GoalsProvider({ children }: { children: ReactNode }) {
 export function useGoals(): UseGoalsReturn {
   const context = useContext(GoalsContext);
   if (!context) {
-    throw new Error('useGoals must be used within GoalsProvider');
+    if (!hasLoggedMissingGoalsProvider && typeof console !== 'undefined') {
+      hasLoggedMissingGoalsProvider = true;
+      console.warn('useGoals called outside GoalsProvider; returning safe fallback state');
+    }
+    return goalsContextFallback;
   }
   return context;
 }

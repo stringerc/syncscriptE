@@ -86,6 +86,7 @@ export async function readBackendProjection<TData = Record<string, unknown>>(
   workspaceId = 'workspace-main',
 ): Promise<BackendProjectionEnvelope<TData> | null> {
   if (typeof window === 'undefined') return null;
+  if (!isBackendProjectionShadowEnabled()) return null;
   const query = new URLSearchParams({
     resource: 'contract-runtime-projection',
     domain,
@@ -110,6 +111,7 @@ export async function writeBackendProjection(
   workspaceId = 'workspace-main',
 ): Promise<BackendProjectionEnvelope<{ domain: ContractDomain; entities: Array<Record<string, unknown>> }> | null> {
   if (typeof window === 'undefined') return null;
+  if (!isBackendProjectionShadowEnabled()) return null;
   const query = new URLSearchParams({
     resource: 'contract-runtime-projection',
   });
