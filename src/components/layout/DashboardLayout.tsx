@@ -1,5 +1,5 @@
 import { useState, ReactNode, useEffect, useRef } from 'react';
-import { useLocation } from 'react-router';
+import { useLocation, useNavigate } from 'react-router';
 import { Sidebar } from '../Sidebar';
 import { MobileNav } from '../MobileNav';
 import { DashboardHeader } from '../DashboardHeader';
@@ -8,68 +8,69 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { hasContextualInsights } from '../../utils/ai-context-config';
 import { AIAssistantPanel } from '../AIAssistantPanel';
 import { OnboardingChecklist } from '../onboarding/OnboardingChecklist';
-import { NexusPlannerModal } from '../NexusPlannerModal';
-import { useAIInsightsRouting } from '../../contexts/AIInsightsRoutingContext';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface DashboardLayoutProps {
   children: ReactNode;
 }
 
+function readChatHubAlwaysVisibleSetting(): boolean {
+  try {
+    const raw = localStorage.getItem('syncscript_settings');
+    if (!raw) return false;
+    const parsed = JSON.parse(raw);
+    return Boolean(parsed?.chatHubAlwaysVisible);
+  } catch {
+    return false;
+  }
+}
+
 export function DashboardLayout({ children }: DashboardLayoutProps) {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const [chatHubAlwaysVisible, setChatHubAlwaysVisible] = useState<boolean>(() => readChatHubAlwaysVisibleSetting());
   // RESEARCH: Nielsen Norman Group (2024) - "Remembering user preferences 
   // increases satisfaction by 73% and reduces cognitive load"
   // Store AI panel state in localStorage to persist user preference
   const [isAIInsightsOpen, setIsAIInsightsOpen] = useState(() => {
+    if (readChatHubAlwaysVisibleSetting()) return true;
     // Check if user has a saved preference
     const saved = localStorage.getItem('ai-insights-open');
     if (saved !== null) {
       return saved === 'true';
     }
-    // Default: Open on desktop, closed on mobile
-    return window.innerWidth >= 1280;
+    // PERF: default closed unless explicitly enabled by user preference.
+    return false;
   });
-  const [isNexusPlannerOpen, setIsNexusPlannerOpen] = useState(false);
   
   const location = useLocation();
-  const { openRequestedAt } = useAIInsightsRouting();
+  const [isWorkstreamCanvasView, setIsWorkstreamCanvasView] = useState<boolean>(() => {
+    if (!location.pathname.includes('/tasks')) return false;
+    return new URLSearchParams(location.search).get('tab') === 'workstream';
+  });
   const mainRef = useRef<HTMLElement>(null);
   const scrollPositions = useRef<{ [key: string]: number }>({});
   
+  const effectiveAIInsightsOpen = (isAIInsightsOpen || chatHubAlwaysVisible) && !isWorkstreamCanvasView;
+  const hasGuestBannerOffset = Boolean(user?.isGuest);
+
   // Check if AI has contextual insights for notification dot
   const hasInsights = hasContextualInsights(location.pathname);
 
-  // RESEARCH: Apple Human Interface Guidelines (2024) - "Responsive layouts 
-  // should adapt to screen size changes, not route changes"
-  // Only run on mount and actual window resize, NOT on route change
+  // Keep AI panel state user-driven; only enforce hard pinned setting.
   useEffect(() => {
-    const handleResize = () => {
-      // Only auto-adjust if user hasn't manually toggled
-      const hasManualPreference = localStorage.getItem('ai-insights-manual-toggle');
-      if (hasManualPreference) {
-        // User has manually toggled - respect their choice
-        return;
-      }
-      
-      // Auto-adjust based on screen size for first-time users
-      if (window.innerWidth >= 1280) {
-        setIsAIInsightsOpen(true);
-        localStorage.setItem('ai-insights-open', 'true');
-      } else {
-        setIsAIInsightsOpen(false);
-        localStorage.setItem('ai-insights-open', 'false');
-      }
-    };
-
-    // Set initial state (ONLY on mount, not on route change)
-    handleResize();
-
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []); // Empty dependency array = runs only once on mount
+    if (readChatHubAlwaysVisibleSetting()) {
+      setIsAIInsightsOpen(true);
+      localStorage.setItem('ai-insights-open', 'true');
+    }
+  }, []);
 
   // RESEARCH: Google Material Design (2024) - "Save user preferences 
   // immediately to prevent loss from navigation or crashes"
   const handleToggleAIInsights = () => {
+    if (chatHubAlwaysVisible && effectiveAIInsightsOpen) {
+      return;
+    }
     const newState = !isAIInsightsOpen;
     setIsAIInsightsOpen(newState);
     // Save preference
@@ -79,27 +80,75 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   };
 
   useEffect(() => {
-    const handlePlannerOpen = () => setIsNexusPlannerOpen(true);
     const handleOpenInsights = () => {
       setIsAIInsightsOpen(true);
       localStorage.setItem('ai-insights-open', 'true');
     };
-    window.addEventListener('syncscript:nexus-planner-open', handlePlannerOpen);
+    const handleSettingsUpdated = () => {
+      const pinned = readChatHubAlwaysVisibleSetting();
+      setChatHubAlwaysVisible(pinned);
+      if (pinned) {
+        setIsAIInsightsOpen(true);
+        localStorage.setItem('ai-insights-open', 'true');
+      }
+    };
     window.addEventListener('syncscript:open-ai-insights', handleOpenInsights);
+    window.addEventListener('syncscript:settings-updated', handleSettingsUpdated);
     return () => {
-      window.removeEventListener('syncscript:nexus-planner-open', handlePlannerOpen);
       window.removeEventListener('syncscript:open-ai-insights', handleOpenInsights);
+      window.removeEventListener('syncscript:settings-updated', handleSettingsUpdated);
     };
   }, []);
 
   useEffect(() => {
-    if (!openRequestedAt) return;
-    setIsAIInsightsOpen(true);
-    localStorage.setItem('ai-insights-open', 'true');
-  }, [openRequestedAt]);
+    if (!user?.isGuest) return;
+    if (location.pathname !== '/dashboard') return;
+    const params = new URLSearchParams(location.search);
+    // Only deep-link redirect immediately after guest boot.
+    // Without this guard, stale session redirect hints can hijack normal Dashboard navigation.
+    if (params.get('guest_boot') !== '1') return;
+    const pendingRedirect = sessionStorage.getItem('syncscript_post_guest_redirect');
+    sessionStorage.removeItem('syncscript_post_guest_redirect');
+    sessionStorage.removeItem('syncscript_guest_boot_pending');
+    if (pendingRedirect && pendingRedirect.startsWith('/') && pendingRedirect !== '/dashboard') {
+      navigate(pendingRedirect, { replace: true });
+      return;
+    }
+    params.delete('guest_boot');
+    const cleaned = params.toString();
+    navigate(cleaned ? `/dashboard?${cleaned}` : '/dashboard', { replace: true });
+  }, [location.pathname, location.search, navigate, user?.isGuest]);
+
+  useEffect(() => {
+    if (chatHubAlwaysVisible) {
+      setIsAIInsightsOpen(true);
+      localStorage.setItem('ai-insights-open', 'true');
+    }
+  }, [chatHubAlwaysVisible, location.pathname]);
+
+  useEffect(() => {
+    if (!location.pathname.includes('/tasks')) {
+      setIsWorkstreamCanvasView(false);
+      return;
+    }
+    const urlWantsWorkstream = new URLSearchParams(location.search).get('tab') === 'workstream';
+    if (urlWantsWorkstream) {
+      setIsWorkstreamCanvasView(true);
+    }
+  }, [location.pathname, location.search]);
+
+  useEffect(() => {
+    const handleWorkspaceMode = (event: Event) => {
+      const custom = event as CustomEvent<{ mode?: string }>;
+      setIsWorkstreamCanvasView(custom.detail?.mode === 'workstream');
+    };
+    window.addEventListener('syncscript:workspace-mode', handleWorkspaceMode as EventListener);
+    return () => window.removeEventListener('syncscript:workspace-mode', handleWorkspaceMode as EventListener);
+  }, []);
 
   // Safety guard: recover from rare stuck "pointer-events: none" states
   // caused by modal/overlay teardown races, which can make the dashboard unclickable.
+  // PERF: keep this event-driven (not interval polling) to avoid constant main-thread churn.
   useEffect(() => {
     const hasOpenModal = () =>
       Boolean(
@@ -117,12 +166,30 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       }
     };
 
-    // Run immediately on mount and keep a light watchdog while on dashboard routes.
+    const scheduleEnsure = () => {
+      requestAnimationFrame(() => {
+        ensurePointerInteractivity();
+      });
+      window.setTimeout(ensurePointerInteractivity, 120);
+    };
+
     ensurePointerInteractivity();
-    const interval = window.setInterval(ensurePointerInteractivity, 1200);
+    const observer = new MutationObserver(() => scheduleEnsure());
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ['style', 'data-state'],
+    });
+    document.addEventListener('visibilitychange', scheduleEnsure);
+    window.addEventListener('focus', scheduleEnsure);
+    window.addEventListener('pageshow', scheduleEnsure);
 
     return () => {
-      window.clearInterval(interval);
+      observer.disconnect();
+      document.removeEventListener('visibilitychange', scheduleEnsure);
+      window.removeEventListener('focus', scheduleEnsure);
+      window.removeEventListener('pageshow', scheduleEnsure);
       ensurePointerInteractivity();
     };
   }, []);
@@ -157,7 +224,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       <Sidebar />
 
       {/* Main Content */}
-      <div className="relative z-10 flex-1 flex flex-col overflow-hidden bg-gradient-to-br from-[#161a22]/90 via-[#151920]/90 to-[#12151b]/90 shadow-[inset_0_0_120px_rgba(45,212,191,0.05)]">
+      <div className={`relative z-10 flex-1 flex flex-col overflow-hidden bg-gradient-to-br from-[#161a22]/90 via-[#151920]/90 to-[#12151b]/90 shadow-[inset_0_0_120px_rgba(45,212,191,0.05)] ${hasGuestBannerOffset ? 'pt-14' : ''}`}>
         {/* Header with toggle function */}
         <DashboardHeader
           isAIInsightsOpen={isAIInsightsOpen}
@@ -169,10 +236,18 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           {/* Page Content */}
           <main
             id="main-content"
-            className="flex-1 overflow-y-auto hide-scrollbar transition-all duration-300 bg-[radial-gradient(circle_at_10%_0%,rgba(45,212,191,0.05),transparent_30%),radial-gradient(circle_at_85%_5%,rgba(168,85,247,0.05),transparent_28%)]"
+            className={`flex-1 hide-scrollbar transition-all duration-300 bg-[radial-gradient(circle_at_10%_0%,rgba(45,212,191,0.05),transparent_30%),radial-gradient(circle_at_85%_5%,rgba(168,85,247,0.05),transparent_28%)] ${
+              isWorkstreamCanvasView ? 'flex min-h-0 flex-col overflow-hidden' : 'overflow-y-auto'
+            }`}
             ref={mainRef}
           >
-            <div className="p-4 md:p-6 pb-20 md:pb-6">
+            <div
+              className={
+                isWorkstreamCanvasView
+                  ? 'flex min-h-0 flex-1 flex-col p-0'
+                  : 'p-4 md:p-6 pb-20 md:pb-6'
+              }
+            >
               {children}
             </div>
           </main>
@@ -180,19 +255,19 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           {/* AI Assistant Sidebar with Tab */}
           <div
             className={`transition-all duration-300 ease-in-out flex-shrink-0 relative ${
-              isAIInsightsOpen ? 'w-[42rem] xl:w-[46rem]' : 'w-0'
+              effectiveAIInsightsOpen ? 'w-[42rem] xl:w-[46rem]' : 'w-0'
             }`}
           >
             {/* Vertical Tab */}
             <button
               onClick={handleToggleAIInsights}
-              className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-full bg-[#1a1c20]/80 backdrop-blur-sm border-l border-t border-b border-gray-800/50 rounded-l-md px-1.5 py-4 hover:bg-[#1e2128]/90 hover:px-2 transition-all group shadow-md opacity-60 hover:opacity-100 z-10"
+              className={`absolute left-0 top-1/2 -translate-y-1/2 -translate-x-full bg-[#1a1c20]/80 backdrop-blur-sm border-l border-t border-b border-gray-800/50 rounded-l-md px-1.5 py-4 hover:bg-[#1e2128]/90 hover:px-2 transition-all group shadow-md opacity-60 hover:opacity-100 z-10 ${chatHubAlwaysVisible ? 'pointer-events-none opacity-35' : ''}`}
               data-nav="ai-insights-toggle"
-              aria-label={isAIInsightsOpen ? 'Close Chat Assistant' : 'Open Chat Assistant'}
+              aria-label={effectiveAIInsightsOpen ? 'Close Chat Assistant' : 'Open Chat Assistant'}
             >
               <div className="flex flex-col items-center gap-1.5 relative">
                 {/* Icon */}
-                {isAIInsightsOpen ? (
+                {effectiveAIInsightsOpen ? (
                   <ChevronRight className="w-3 h-3 text-purple-400/80 group-hover:text-purple-300 transition-colors" />
                 ) : (
                   <>
@@ -219,15 +294,15 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             {/* Panel Content */}
             <div
               className={`h-full bg-gradient-to-b from-[#1b1f27] to-[#171b22] border-l border-gray-700/70 shadow-[inset_0_0_50px_rgba(45,212,191,0.05)] overflow-hidden transition-all duration-300 ${
-                isAIInsightsOpen ? 'opacity-100' : 'opacity-0'
+                effectiveAIInsightsOpen ? 'opacity-100' : 'opacity-0'
               }`}
             >
               {/* PERF-002: Avoid hidden panel work when closed */}
-              {isAIInsightsOpen && (
+              {effectiveAIInsightsOpen && (
                 <AIAssistantPanel 
-                  isOpen={isAIInsightsOpen} 
+                  isOpen={effectiveAIInsightsOpen} 
                   onOpenAIInsights={() => {
-                    if (!isAIInsightsOpen) {
+                    if (!effectiveAIInsightsOpen) {
                       handleToggleAIInsights();
                     }
                   }}
@@ -242,12 +317,8 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       <MobileNav />
 
       {/* Onboarding Checklist (auto-hides when complete or dismissed) */}
-      <OnboardingChecklist />
+      {!isWorkstreamCanvasView ? <OnboardingChecklist /> : null}
 
-      <NexusPlannerModal
-        open={isNexusPlannerOpen}
-        onClose={() => setIsNexusPlannerOpen(false)}
-      />
     </div>
   );
 }
