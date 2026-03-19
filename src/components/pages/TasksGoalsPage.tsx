@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef, useEffect, useMemo, Suspense, lazy } from 'react';
 import { 
   CheckCircle2, Circle, Clock, Target, Zap, Brain, 
   Plus, Filter, Calendar, Tag, TrendingUp, Star,
@@ -18,26 +18,23 @@ import { Progress } from '../ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '../ui/dropdown-menu';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../ui/dialog';
-import { DashboardLayout } from '../layout/DashboardLayout';
 import { AIInsightsContent } from '../AIInsightsSection';
 import { ResonanceBadge } from '../ResonanceBadge';
 import { NewTaskDialog, NewGoalDialog, VoiceToTaskDialog, AITaskGenerationDialog, AIGoalGenerationDialog, StartFocusDialog } from '../QuickActionsDialogs';
 import { AnimatedAvatar } from '../AnimatedAvatar';
-import { CURRENT_USER } from '../../utils/user-constants';
 import { TaskDetailModal } from '../TaskDetailModal';
 import { GoalDetailModal } from '../GoalDetailModal';
 import { EditTaskDialog } from '../EditTaskDialog';
 import { EditGoalDialog } from '../EditGoalDialog';
 import { DocumentUploadModal } from '../DocumentUploadModal'; // PHASE 2: Document upload
 import { UserAvatar } from '../user/UserAvatar';
-import { useUserProfile } from '../../utils/user-profile';
+import { getUserInitials, useUserProfile } from '../../utils/user-profile';
 import { copyToClipboard } from '../../utils/clipboard';
 // PHASE 1: Removed static data import - now using useGoals() hook
 // import { enhancedGoalsData } from '../../utils/enhanced-goals-data';
 import { EnhancedGoalCard } from '../EnhancedGoalCard';
 import { SuccessMetricsDashboard } from '../SuccessMetricsDashboard';
 import { useResonance } from '../../hooks/useResonance';
-import { calendarEvents } from '../../data/calendar-mock';
 import { ErrorBoundary } from '../ErrorBoundary';
 import { useTasks } from '../../hooks/useTasks';
 // PHASE 1: Unified system imports
@@ -57,21 +54,66 @@ import type { Priority } from '../../types/task'; // PHASE 1.7: Task types
 // Nielsen Norman Group (2024): "Progressive disclosure reduces cognitive load by 52%"
 // Atlassian Study (2023): "Feature parity increases adoption by 67%"
 import { TaskAnalyticsTab } from '../team/TaskAnalyticsTab';
-import { TaskTemplateLibrary } from '../team/TaskTemplateLibrary';
-import { TaskTimelineView } from '../team/TaskTimelineView';
-import { AutomationRulesPanel } from '../team/AutomationRulesPanel';
-import { RecurringTaskManager } from '../team/RecurringTaskManager';
+// Heavy feature modules are lazy-loaded to keep tasks/dashboard hot paths lighter.
+import {
+  recordTaskSurfaceSnapshot,
+  SURFACE_PARITY_REFRESH_REQUEST_EVENT,
+} from '../../contracts/projections/surface-parity-runtime';
 import type { TaskDependency, AutomationRule, RecurringTaskConfig } from '../../types/task';
 import { BarChart3, ListChecks, Repeat } from 'lucide-react';
 import { EnhancedMilestoneItem } from '../EnhancedMilestoneItem';
 import { DateStatusBadge } from '../DateStatusBadge';
-// PHASE 2: Advanced Goal components
-import { GoalAnalyticsTab } from '../goals/GoalAnalyticsTab';
-import { GoalTemplateLibrary } from '../goals/GoalTemplateLibrary';
-import { GoalTimelineView } from '../goals/GoalTimelineView';
+import { getAssignmentProjectionForUser } from '../../utils/assignment-propagation';
+// PHASE 2: Advanced Goal components (lazy-loaded below)
 // PHASE 3: AI Suggestions Cards
 import { AISuggestionsCard } from '../AISuggestionsCard';
 import { AIGoalSuggestionsCard } from '../AIGoalSuggestionsCard';
+import {
+  createAgentCollaborator,
+  hasAgentDragPayload,
+  parseAgentDragPayload,
+} from '../../utils/agent-dnd';
+
+const ProjectsOperatingSystem = lazy(() =>
+  import('../projects/ProjectsOperatingSystem').then((module) => ({
+    default: module.ProjectsOperatingSystem,
+  })),
+);
+const TaskTemplateLibrary = lazy(() =>
+  import('../team/TaskTemplateLibrary').then((module) => ({
+    default: module.TaskTemplateLibrary,
+  })),
+);
+const TaskTimelineView = lazy(() =>
+  import('../team/TaskTimelineView').then((module) => ({
+    default: module.TaskTimelineView,
+  })),
+);
+const AutomationRulesPanel = lazy(() =>
+  import('../team/AutomationRulesPanel').then((module) => ({
+    default: module.AutomationRulesPanel,
+  })),
+);
+const RecurringTaskManager = lazy(() =>
+  import('../team/RecurringTaskManager').then((module) => ({
+    default: module.RecurringTaskManager,
+  })),
+);
+const GoalAnalyticsTab = lazy(() =>
+  import('../goals/GoalAnalyticsTab').then((module) => ({
+    default: module.GoalAnalyticsTab,
+  })),
+);
+const GoalTemplateLibrary = lazy(() =>
+  import('../goals/GoalTemplateLibrary').then((module) => ({
+    default: module.GoalTemplateLibrary,
+  })),
+);
+const GoalTimelineView = lazy(() =>
+  import('../goals/GoalTimelineView').then((module) => ({
+    default: module.GoalTimelineView,
+  })),
+);
 
 // Helper function to format date/time in a user-friendly way with enhanced context
 const formatDueDate = (dueDate: string): string => {
@@ -168,23 +210,27 @@ const getDateStatus = (dueDate: string): 'overdue' | 'due-soon' | 'upcoming' | '
 export function TasksGoalsPage() {
   const location = useLocation();
   const { profile } = useUserProfile(); // Get current user from context
+  const currentUserName = profile?.name || 'You';
+  const currentUserId = profile?.id || localStorage.getItem('syncscript_auth_user_id') || 'anonymous-user';
+  const currentUserAvatar = profile?.avatar || '/favicon.svg';
+  const currentUserInitials = getUserInitials(currentUserName);
   
   // Check URL parameter for initial tab
   const searchParams = new URLSearchParams(location.search);
   const urlTab = searchParams.get('tab');
   
-  const [activeView, setActiveView] = useState<'tasks' | 'goals'>(
-    urlTab === 'goals' ? 'goals' : 'tasks'
+  const [activeView, setActiveView] = useState<'goals' | 'tasks' | 'workstream' | 'projects'>(
+    urlTab === 'goals' || urlTab === 'tasks' || urlTab === 'workstream' || urlTab === 'projects'
+      ? (urlTab as 'goals' | 'tasks' | 'workstream' | 'projects')
+      : 'goals'
   );
   
   // Update activeView when URL changes
   useEffect(() => {
     const searchParams = new URLSearchParams(location.search);
     const urlTab = searchParams.get('tab');
-    if (urlTab === 'goals') {
-      setActiveView('goals');
-    } else if (urlTab === 'tasks') {
-      setActiveView('tasks');
+    if (urlTab === 'goals' || urlTab === 'tasks' || urlTab === 'workstream' || urlTab === 'projects') {
+      setActiveView(urlTab as 'goals' | 'tasks' | 'workstream' | 'projects');
     }
   }, [location.search]);
   const [isNewTaskDialogOpen, setIsNewTaskDialogOpen] = useState(false);
@@ -197,6 +243,7 @@ export function TasksGoalsPage() {
   const [isDocumentUploadOpen, setIsDocumentUploadOpen] = useState(false);
   const [isFocusModeOpen, setIsFocusModeOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState<string | null>(null);
+  const [hasAutoOpenedEvidenceTask, setHasAutoOpenedEvidenceTask] = useState(false);
   const [selectedGoal, setSelectedGoal] = useState<any>(null);
   const [isFilterDialogOpen, setIsFilterDialogOpen] = useState(false);
   const [isEditTaskOpen, setIsEditTaskOpen] = useState(false);
@@ -208,12 +255,71 @@ export function TasksGoalsPage() {
   const [activeTagFilter, setActiveTagFilter] = useState<string>('all');
   const [activeGoalCategoryFilter, setActiveGoalCategoryFilter] = useState<string>('all');
   const [activeGoalStatusFilter, setActiveGoalStatusFilter] = useState<string>('all');
-  const [activeViewFilter, setActiveViewFilter] = useState<'all' | 'personal' | 'team'>('all');
+  const [activeViewFilter, setActiveViewFilter] = useState<'all' | 'personal' | 'team' | 'assigned'>('all');
   const [showArchivedTasks, setShowArchivedTasks] = useState(false); // PHASE 5D: Archive toggle
   const [showArchivedGoals, setShowArchivedGoals] = useState(false); // PHASE 5D: Archive toggle
   
   // PHASE 1: Use centralized state management for both tasks and goals
-  const { tasks, loading, updateTask, deleteTask, toggleTaskCompletion } = useTasks();
+  const { tasks, loading, updateTask, deleteTask, toggleTaskCompletion, createTask } = useTasks();
+
+  useEffect(() => {
+    recordTaskSurfaceSnapshot(
+      'tasks_tab',
+      (tasks || []).map((task: any) => String(task?.id || '')).filter(Boolean),
+      'workspace-main',
+    );
+  }, [tasks]);
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const handler = (event: Event) => {
+      const detail = (event as CustomEvent)?.detail as any;
+      const targetSurface = String(detail?.surface || '');
+      if (targetSurface !== 'all' && targetSurface !== 'tasks_tab') return;
+      recordTaskSurfaceSnapshot(
+        'tasks_tab',
+        (tasks || []).map((task: any) => String(task?.id || '')).filter(Boolean),
+        'workspace-main',
+      );
+    };
+    window.addEventListener(SURFACE_PARITY_REFRESH_REQUEST_EVENT, handler as EventListener);
+    return () =>
+      window.removeEventListener(SURFACE_PARITY_REFRESH_REQUEST_EVENT, handler as EventListener);
+  }, [tasks]);
+
+  useEffect(() => {
+    if (activeView !== 'goals') return;
+    recordTaskSurfaceSnapshot(
+      'goals',
+      (tasks || []).map((task: any) => String(task?.id || '')).filter(Boolean),
+      'workspace-main',
+    );
+  }, [activeView, tasks]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const handler = (event: Event) => {
+      const detail = (event as CustomEvent)?.detail as any;
+      const targetSurface = String(detail?.surface || '');
+      if (targetSurface !== 'all' && targetSurface !== 'goals') return;
+      recordTaskSurfaceSnapshot(
+        'goals',
+        (tasks || []).map((task: any) => String(task?.id || '')).filter(Boolean),
+        'workspace-main',
+      );
+    };
+    window.addEventListener(SURFACE_PARITY_REFRESH_REQUEST_EVENT, handler as EventListener);
+    return () =>
+      window.removeEventListener(SURFACE_PARITY_REFRESH_REQUEST_EVENT, handler as EventListener);
+  }, [tasks]);
+
+  useEffect(() => {
+    const searchParams = new URLSearchParams(location.search);
+    const shouldAutoOpenEvidenceTask = searchParams.get('ex036_evidence') === '1';
+    if (!shouldAutoOpenEvidenceTask || hasAutoOpenedEvidenceTask) return;
+    if (!Array.isArray(tasks) || tasks.length === 0) return;
+    setSelectedTask(tasks[0].id);
+    setHasAutoOpenedEvidenceTask(true);
+  }, [location.search, tasks, hasAutoOpenedEvidenceTask]);
   
   // PHASE 1.7: Debug logging to verify context is properly loaded
   console.log('🔍 [TasksGoalsPage] Context loaded:', {
@@ -223,6 +329,7 @@ export function TasksGoalsPage() {
   const { 
     goals, 
     loading: goalsLoading, 
+    createGoal,
     updateGoal, 
     deleteGoal, 
     toggleGoalCompletion,
@@ -238,12 +345,12 @@ export function TasksGoalsPage() {
   console.log('🔍 useTasks returned toggleTaskCompletion:', typeof toggleTaskCompletion, toggleTaskCompletion);
   
   // Initialize resonance engine
-  const resonance = useResonance(tasks, calendarEvents, 'individual');
+  const resonance = useResonance(tasks, [], 'individual');
   
   // PHASE 1.5: Energy system integration
   // NOTE: We don't need awardEnergy directly - toggleTaskCompletion handles it
   const { awardEnergy } = useEnergy();
-  
+
   // ═══════════════════════════════════════════════════════════════════════════
   // ⚡ BULLETPROOF FIX: Eliminate Closure Scope Issues with useRef Pattern
   // ═══════════════════════════════════════════════════════════════════════════
@@ -336,15 +443,15 @@ export function TasksGoalsPage() {
       dueDate: 'Today, 3:00 PM',
       aiSuggestion: 'Best time: 9:00 AM - 11:30 AM (Peak energy)',
       completed: false,
-      currentUserRole: 'creator', // Jordan Smith is the creator
+      currentUserRole: 'creator', // Sample User is the creator
       isPrivate: false,
       resources: [
-        { id: 'r1', type: 'link', name: 'Budget Guidelines', url: 'https://example.com/budget-guidelines', addedBy: 'Jordan Smith', addedAt: 'Jan 5' },
+        { id: 'r1', type: 'link', name: 'Budget Guidelines', url: 'https://example.com/budget-guidelines', addedBy: 'Sample User', addedAt: 'Jan 5' },
         { id: 'r2', type: 'file', name: 'Q4_Budget_Template.xlsx', url: '#', fileName: 'Q4_Budget_Template.xlsx', fileSize: '1.8 MB', addedBy: 'Sarah Chen', addedAt: 'Jan 5' },
         { id: 'r3', type: 'file', name: 'Department_Requests.pdf', url: '#', fileName: 'Department_Requests.pdf', fileSize: '3.2 MB', addedBy: 'Marcus Johnson', addedAt: 'Jan 4' },
       ],
       collaborators: [
-        { name: 'Jordan Smith', image: 'https://images.unsplash.com/photo-1576558656222-ba66febe3dec?w=100', fallback: 'JS', progress: 85, animationType: 'glow', status: 'online', role: 'creator' },
+        { name: 'Sample User', image: 'https://images.unsplash.com/photo-1576558656222-ba66febe3dec?w=100', fallback: 'JS', progress: 85, animationType: 'glow', status: 'online', role: 'creator' },
         { name: 'Sarah Chen', image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100', fallback: 'SC', progress: 72, animationType: 'pulse', status: 'online', role: 'admin' },
         { name: 'Marcus Johnson', image: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100', fallback: 'MJ', progress: 68, animationType: 'heartbeat', status: 'online', role: 'collaborator' },
         { name: 'Elena Rodriguez', image: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100', fallback: 'ER', progress: 78, animationType: 'wiggle', status: 'away', role: 'collaborator' },
@@ -417,12 +524,12 @@ export function TasksGoalsPage() {
       dueDate: 'Tomorrow',
       aiSuggestion: 'Schedule during afternoon energy dip for routine work',
       completed: false,
-      currentUserRole: 'collaborator', // Jordan Smith is a regular collaborator
+      currentUserRole: 'collaborator', // Sample User is a regular collaborator
       isPrivate: true,
       collaborators: [
         { name: 'David Kim', image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100', fallback: 'DK', progress: 80, animationType: 'bounce', status: 'online', role: 'creator' },
         { name: 'Elena Rodriguez', image: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100', fallback: 'ER', progress: 78, animationType: 'wiggle', status: 'away', role: 'admin' },
-        { name: 'Jordan Smith', image: 'https://images.unsplash.com/photo-1576558656222-ba66febe3dec?w=100', fallback: 'JS', progress: 85, animationType: 'glow', status: 'online', role: 'collaborator' },
+        { name: 'Sample User', image: 'https://images.unsplash.com/photo-1576558656222-ba66febe3dec?w=100', fallback: 'JS', progress: 85, animationType: 'glow', status: 'online', role: 'collaborator' },
       ],
       subtasks: [
         { id: 's1', title: 'Read executive summary', completed: true, completedBy: 'David Kim', completedAt: '1 day ago', assignedTo: [{ name: 'David Kim', image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100', fallback: 'DK' }], steps: [
@@ -463,11 +570,11 @@ export function TasksGoalsPage() {
       tags: ['Meetings', 'Team'],
       dueDate: 'Today, 2:00 PM',
       completed: false,
-      currentUserRole: 'admin', // Jordan Smith is an admin
+      currentUserRole: 'admin', // Sample User is an admin
       isPrivate: false,
       collaborators: [
         { name: 'Marcus Johnson', image: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100', fallback: 'MJ', progress: 68, animationType: 'heartbeat', status: 'online', role: 'creator' },
-        { name: 'Jordan Smith', image: 'https://images.unsplash.com/photo-1576558656222-ba66febe3dec?w=100', fallback: 'JS', progress: 85, animationType: 'glow', status: 'online', role: 'admin' },
+        { name: 'Sample User', image: 'https://images.unsplash.com/photo-1576558656222-ba66febe3dec?w=100', fallback: 'JS', progress: 85, animationType: 'glow', status: 'online', role: 'admin' },
         { name: 'David Kim', image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100', fallback: 'DK', progress: 80, animationType: 'bounce', status: 'online', role: 'collaborator' },
         { name: 'Sarah Chen', image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100', fallback: 'SC', progress: 72, animationType: 'pulse', status: 'online', role: 'collaborator' },
       ],
@@ -581,18 +688,26 @@ export function TasksGoalsPage() {
     setIsEditGoalOpen(true);
   };
 
-  const handleCreateGoal = (newGoal: any) => {
-    setGoals([newGoal, ...goals]);
-    toast.success('Goal created!', { description: `"${newGoal.title}" has been added to your goals` });
+  const handleCreateGoal = async (newGoal: any) => {
+    try {
+      await createGoal(newGoal);
+      toast.success('Goal created!', { description: `"${newGoal.title}" has been added to your goals` });
+    } catch (error) {
+      toast.error('Failed to create goal');
+    }
   };
 
-  const handleSaveGoal = (updatedGoal: any) => {
-    setGoals(goals.map(g => g.id === updatedGoal.id ? updatedGoal : g));
-    toast.success('Goal updated', { description: 'Your goal has been successfully updated' });
+  const handleSaveGoal = async (updatedGoal: any) => {
+    try {
+      await updateGoal(String(updatedGoal.id), updatedGoal);
+      toast.success('Goal updated', { description: 'Your goal has been successfully updated' });
+    } catch (error) {
+      toast.error('Failed to save goal');
+    }
   };
 
   // PHASE 1.5: Handle goal completion with energy rewards
-  const handleCompleteGoal = (goalId: string) => {
+  const handleCompleteGoal = async (goalId: string) => {
     const goal = goals.find(g => g.id === goalId);
     if (!goal) return;
     
@@ -606,21 +721,24 @@ export function TasksGoalsPage() {
       goalSize = 'small';
     }
     
-    // Award energy
-    const energyResult = awardEnergy({
-      source: 'goal',
-      goalSize,
-      goalTitle: goal.title,
-    });
-    
-    // Update goal to completed
-    const updatedGoal = { ...goal, completed: true, progress: 100 };
-    setGoals(goals.map(g => g.id === goalId ? updatedGoal : g));
-    
-    // Show toast with energy reward
-    toast.success('🎯 Goal Completed!', { 
-      description: `${goal.title} +${energyResult.energy} energy earned!`,
-    });
+    try {
+      // Update goal to completed through centralized goal authority path first.
+      await toggleGoalCompletion(goalId);
+
+      // Award energy after persistence succeeds.
+      const energyResult = awardEnergy({
+        source: 'goal',
+        goalSize,
+        goalTitle: goal.title,
+      });
+
+      // Show toast with energy reward
+      toast.success('🎯 Goal Completed!', {
+        description: `${goal.title} +${energyResult.energy} energy earned!`,
+      });
+    } catch (error) {
+      toast.error('Failed to complete goal');
+    }
   };
 
   const handleViewResource = (resource: any) => {
@@ -641,9 +759,15 @@ export function TasksGoalsPage() {
     }
   };
 
-  const handleSaveTask = (updatedTask: any) => {
-    setTasks(tasks.map(t => t.id === updatedTask.id ? updatedTask : t));
-    toast.success('Task updated', { description: 'Your changes have been saved' });
+  const handleSaveTask = async (updatedTask: any) => {
+    try {
+      const { id, ...updates } = updatedTask || {};
+      if (!id) return;
+      await updateTask(id, updates);
+      toast.success('Task updated', { description: 'Your changes have been saved' });
+    } catch (error) {
+      toast.error('Failed to save task changes');
+    }
   };
 
   // AI Insights specific to Tasks tab - Research-backed visualizations + AI Suggestions
@@ -851,45 +975,62 @@ export function TasksGoalsPage() {
   };
 
   // Select AI insights based on active view
-  const aiInsightsContent = activeView === 'tasks' ? tasksAIInsightsContent : goalsAIInsightsContent;
+  const aiInsightsContent = activeView === 'goals' ? goalsAIInsightsContent : tasksAIInsightsContent;
+
+  useEffect(() => {
+    window.dispatchEvent(
+      new CustomEvent('syncscript:workspace-mode', {
+        detail: { mode: activeView === 'workstream' ? 'workstream' : 'default' },
+      }),
+    );
+    return () => {
+      window.dispatchEvent(
+        new CustomEvent('syncscript:workspace-mode', {
+          detail: { mode: 'default' },
+        }),
+      );
+    };
+  }, [activeView]);
 
   return (
-    <DashboardLayout aiInsightsContent={aiInsightsContent}>
       <motion.div 
-        className="flex-1 overflow-auto hide-scrollbar p-6 space-y-6"
+        className={`flex-1 hide-scrollbar ${activeView === 'workstream' ? 'flex h-full min-h-0 flex-col overflow-hidden p-2' : 'overflow-auto p-6 space-y-6'}`}
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3 }}
       >
         {/* Header */}
+        {activeView !== 'workstream' ? (
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-white mb-2 bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent">Tasks & Goals</h1>
-            <p className="text-gray-400 text-sm">AI-powered task management and goal tracking</p>
+            <h1 className="text-2xl font-bold text-white mb-2 bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent">Projects OS</h1>
+            <p className="text-gray-400 text-sm">Goals, tasks, workstream graph, and project portfolio in one operating system</p>
           </div>
           <div className="flex gap-3">
-            <Button 
-              variant="outline" 
-              className="gap-2 hover:scale-[1.02] hover:bg-gray-800/50 hover:border-teal-600/50 transition-all duration-200 active:scale-95 focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900" 
-              data-nav="filter-tasks"
-              onClick={() => setIsFilterDialogOpen(true)}
-            >
-              <Filter className="w-4 h-4" />
-              Filter
-              {activeView === 'tasks' ? (
-                (activePriorityFilter !== 'all' || activeEnergyFilter !== 'all' || activeTagFilter !== 'all') && (
-                  <span className="ml-1 px-1.5 py-0.5 bg-teal-600 text-white text-xs rounded-full">
-                    {[activePriorityFilter !== 'all' ? 1 : 0, activeEnergyFilter !== 'all' ? 1 : 0, activeTagFilter !== 'all' ? 1 : 0].reduce((a, b) => a + b, 0)}
-                  </span>
-                )
-              ) : (
-                (activeGoalCategoryFilter !== 'all' || activeGoalStatusFilter !== 'all') && (
-                  <span className="ml-1 px-1.5 py-0.5 bg-purple-600 text-white text-xs rounded-full">
-                    {[activeGoalCategoryFilter !== 'all' ? 1 : 0, activeGoalStatusFilter !== 'all' ? 1 : 0].reduce((a, b) => a + b, 0)}
-                  </span>
-                )
-              )}
-            </Button>
+            {(activeView === 'tasks' || activeView === 'goals') ? (
+              <Button 
+                variant="outline" 
+                className="gap-2 hover:scale-[1.02] hover:bg-gray-800/50 hover:border-teal-600/50 transition-all duration-200 active:scale-95 focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900" 
+                data-nav="filter-tasks"
+                onClick={() => setIsFilterDialogOpen(true)}
+              >
+                <Filter className="w-4 h-4" />
+                Filter
+                {activeView === 'tasks' ? (
+                  (activePriorityFilter !== 'all' || activeEnergyFilter !== 'all' || activeTagFilter !== 'all') && (
+                    <span className="ml-1 px-1.5 py-0.5 bg-teal-600 text-white text-xs rounded-full">
+                      {[activePriorityFilter !== 'all' ? 1 : 0, activeEnergyFilter !== 'all' ? 1 : 0, activeTagFilter !== 'all' ? 1 : 0].reduce((a, b) => a + b, 0)}
+                    </span>
+                  )
+                ) : (
+                  (activeGoalCategoryFilter !== 'all' || activeGoalStatusFilter !== 'all') && (
+                    <span className="ml-1 px-1.5 py-0.5 bg-purple-600 text-white text-xs rounded-full">
+                      {[activeGoalCategoryFilter !== 'all' ? 1 : 0, activeGoalStatusFilter !== 'all' ? 1 : 0].reduce((a, b) => a + b, 0)}
+                    </span>
+                  )
+                )}
+              </Button>
+            ) : null}
             {/* PHASE 2: Document Upload Button (Tasks view only) */}
             {activeView === 'tasks' && (
               <Button 
@@ -903,32 +1044,46 @@ export function TasksGoalsPage() {
               </Button>
             )}
             
-            <Button 
-              className={`gap-2 hover:scale-[1.02] hover:shadow-xl transition-all duration-200 active:scale-95 text-white font-medium ${
-                activeView === 'tasks'
-                  ? 'bg-gradient-to-r from-teal-600 to-teal-500 hover:from-teal-500 hover:to-teal-400 hover:shadow-teal-500/30 focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900'
-                  : 'bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-500 hover:to-purple-400 hover:shadow-purple-500/30 focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900'
-              }`}
-              data-nav="create-task"
-              onClick={() => {
-                if (activeView === 'tasks') {
-                  setIsNewTaskDialogOpen(true);
-                } else {
-                  setIsNewGoalDialogOpen(true);
-                }
-              }}
-            >
-              <Plus className="w-4 h-4" />
-              {activeView === 'tasks' ? 'New Task' : 'New Goal'}
-            </Button>
+            {(activeView === 'tasks' || activeView === 'goals') ? (
+              <Button 
+                className={`gap-2 hover:scale-[1.02] hover:shadow-xl transition-all duration-200 active:scale-95 text-white font-medium ${
+                  activeView === 'tasks'
+                    ? 'bg-gradient-to-r from-teal-600 to-teal-500 hover:from-teal-500 hover:to-teal-400 hover:shadow-teal-500/30 focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900'
+                    : 'bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-500 hover:to-purple-400 hover:shadow-purple-500/30 focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900'
+                }`}
+                data-nav="create-task"
+                onClick={() => {
+                  if (activeView === 'tasks') {
+                    setIsNewTaskDialogOpen(true);
+                  } else {
+                    setIsNewGoalDialogOpen(true);
+                  }
+                }}
+              >
+                <Plus className="w-4 h-4" />
+                {activeView === 'tasks' ? 'New Task' : 'New Goal'}
+              </Button>
+            ) : null}
           </div>
         </div>
+        ) : null}
 
 
 
         {/* Main Tabs */}
-        <Tabs value={activeView} onValueChange={(v) => setActiveView(v as 'tasks' | 'goals')} className="w-full">
-          <TabsList className="grid w-full max-w-md grid-cols-2 bg-[#2a2d35]/50 border border-gray-700/50 p-1 rounded-lg shadow-lg backdrop-blur-sm">
+        <Tabs
+          value={activeView}
+          onValueChange={(v) => setActiveView(v as 'goals' | 'tasks' | 'workstream' | 'projects')}
+          className={`w-full ${activeView === 'workstream' ? 'flex h-full min-h-0 flex-1 flex-col' : ''}`}
+        >
+          <TabsList className="grid w-full max-w-2xl grid-cols-4 bg-[#2a2d35]/50 border border-gray-700/50 p-1 rounded-lg shadow-lg backdrop-blur-sm">
+            <TabsTrigger
+              value="goals"
+              className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600 data-[state=active]:to-pink-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/30 transition-all duration-200 flex items-center gap-2 font-medium"
+            >
+              <Target className="w-4 h-4" />
+              <span>Goals</span>
+            </TabsTrigger>
             <TabsTrigger 
               value="tasks" 
               className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-teal-600 data-[state=active]:to-blue-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-teal-500/30 transition-all duration-200 flex items-center gap-2 font-medium"
@@ -937,11 +1092,18 @@ export function TasksGoalsPage() {
               <span>Tasks</span>
             </TabsTrigger>
             <TabsTrigger 
-              value="goals" 
-              className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600 data-[state=active]:to-pink-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/30 transition-all duration-200 flex items-center gap-2 font-medium"
+              value="workstream" 
+              className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-indigo-600 data-[state=active]:to-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-indigo-500/30 transition-all duration-200 flex items-center gap-2 font-medium"
             >
-              <Target className="w-4 h-4" />
-              <span>Goals</span>
+              <Activity className="w-4 h-4" />
+              <span>Workstream</span>
+            </TabsTrigger>
+            <TabsTrigger
+              value="projects"
+              className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-600 data-[state=active]:to-teal-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-emerald-500/30 transition-all duration-200 flex items-center gap-2 font-medium"
+            >
+              <MapPin className="w-4 h-4" />
+              <span>Projects</span>
             </TabsTrigger>
           </TabsList>
 
@@ -1001,7 +1163,40 @@ export function TasksGoalsPage() {
               setActiveGoalCategoryFilter={setActiveGoalCategoryFilter}
               setActiveGoalStatusFilter={setActiveGoalStatusFilter}
               goals={goals}
+              onUpdateGoal={updateGoal}
+              onDeleteGoalItem={deleteGoal}
             />
+          </TabsContent>
+
+          <TabsContent value="workstream" className="!mt-2 !flex-1 overflow-hidden">
+            <div
+              className="h-full min-h-0 overflow-hidden"
+              style={{ height: 'calc(100dvh - 150px)', minHeight: '760px' }}
+            >
+              <Suspense fallback={<div className="p-4 text-sm text-gray-400">Loading workstream...</div>}>
+                <ProjectsOperatingSystem
+                  mode="workstream"
+                  tasks={tasks as any[]}
+                  goals={goals as any[]}
+                  updateTask={updateTask as any}
+                  createTask={createTask as any}
+                  deleteTask={deleteTask as any}
+                />
+              </Suspense>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="projects" className="space-y-6 mt-6">
+            <Suspense fallback={<div className="p-4 text-sm text-gray-400">Loading projects...</div>}>
+              <ProjectsOperatingSystem
+                mode="projects"
+                tasks={tasks as any[]}
+                goals={goals as any[]}
+                updateTask={updateTask as any}
+                createTask={createTask as any}
+                deleteTask={deleteTask as any}
+              />
+            </Suspense>
           </TabsContent>
         </Tabs>
 
@@ -1237,6 +1432,7 @@ export function TasksGoalsPage() {
                         {selectedDocument?.name?.replace(/\.[^/.]+$/, "")}
                       </h1>
                       
+                      {/* EX-046-MOCK-ALLOWED: Document preview panel is a flagged placeholder surface. */}
                       {/* Mock document content */}
                       <p className="text-gray-700 leading-relaxed">
                         This is a mock document viewer showing a preview of the file. In a production environment, 
@@ -1644,7 +1840,6 @@ export function TasksGoalsPage() {
           </DialogContent>
         </Dialog>
       </motion.div>
-    </DashboardLayout>
   );
 }
 
@@ -1683,8 +1878,8 @@ interface TaskManagementSectionProps {
   setActiveEnergyFilter: (filter: string) => void;
   activeTagFilter: string;
   setActiveTagFilter: (filter: string) => void;
-  activeViewFilter: 'all' | 'personal' | 'team';
-  setActiveViewFilter: (filter: 'all' | 'personal' | 'team') => void;
+  activeViewFilter: 'all' | 'personal' | 'team' | 'assigned';
+  setActiveViewFilter: (filter: 'all' | 'personal' | 'team' | 'assigned') => void;
   expandedMilestones: Record<string, boolean>;
   setExpandedMilestones: (value: Record<string, boolean> | ((prev: Record<string, boolean>) => Record<string, boolean>)) => void;
   expandedCollaborators: Record<string, boolean>;
@@ -1747,8 +1942,101 @@ function TaskManagementSection({
   taskDependencies,
   updateTask,
 }: TaskManagementSectionProps) {
+  const [activeAgentDropTaskId, setActiveAgentDropTaskId] = useState<string | null>(null);
   // Get current user profile for avatar consistency
   const { profile } = useUserProfile();
+  const { goals } = useGoals();
+  const goalTitleById = useMemo(() => {
+    const entries = goals.map((goal: any) => [String(goal.id), String(goal.title || 'Untitled Goal')]);
+    return new Map<string, string>(entries);
+  }, [goals]);
+  const currentProfileUserId =
+    profile?.id ||
+    (typeof window !== 'undefined'
+      ? localStorage.getItem('syncscript_auth_user_id') ||
+        localStorage.getItem('auth_user_id') ||
+        localStorage.getItem('supabase.auth.user_id')
+      : null) ||
+    'anonymous-user';
+  const currentProfileName = String(profile?.name || '').trim().toLowerCase();
+
+  const propagatedAssignedTaskIds = useMemo(() => {
+    const projection = getAssignmentProjectionForUser(currentProfileUserId);
+    return new Set(projection.activeTaskIds.map((id) => String(id).trim()).filter(Boolean));
+  }, [currentProfileUserId, tasks]);
+
+  const isAssignedToCurrentUser = useCallback((task: any) => {
+    if (!task) return false;
+    if (propagatedAssignedTaskIds.has(String(task.id || ''))) return true;
+
+    const candidateIds = new Set<string>();
+    const candidateNames = new Set<string>();
+
+    const pushCandidate = (value: any) => {
+      const id = String(value?.id || value?.userId || '').trim().toLowerCase();
+      const name = String(value?.name || value || '').trim().toLowerCase();
+      if (id) candidateIds.add(id);
+      if (name) candidateNames.add(name);
+    };
+
+    (task.assignees || []).forEach((entry: any) => pushCandidate(entry));
+    (task.subtasks || []).forEach((milestone: any) => {
+      (milestone?.assignedTo || []).forEach((entry: any) => pushCandidate(entry));
+      (milestone?.steps || []).forEach((step: any) => pushCandidate(step?.assignedTo));
+    });
+
+    const normalizedUserId = String(currentProfileUserId || '').trim().toLowerCase();
+    if (normalizedUserId && candidateIds.has(normalizedUserId)) return true;
+    if (currentProfileName && candidateNames.has(currentProfileName)) return true;
+    if (!currentProfileName && candidateNames.has('you')) return true;
+    return false;
+  }, [currentProfileName, currentProfileUserId, propagatedAssignedTaskIds]);
+
+  const handleTaskAgentDrop = useCallback(
+    async (task: any, event: React.DragEvent<HTMLDivElement>) => {
+      event.preventDefault();
+      event.stopPropagation();
+      setActiveAgentDropTaskId(null);
+      const payload = parseAgentDragPayload(event.nativeEvent);
+      if (!payload) return;
+
+      const droppedAgent = {
+        ...createAgentCollaborator(payload),
+        assignmentDirective: `Execute "${task.title}" with ${payload.name}'s role specialization and produce checkable outputs.`,
+      };
+      const existingCollaborators = Array.isArray(task.collaborators) ? task.collaborators : [];
+      const existingAssignees = Array.isArray(task.assignees) ? task.assignees : [];
+      const alreadyCollaborator = existingCollaborators.some(
+        (member: any) => member?.id === droppedAgent.id || member?.name === droppedAgent.name,
+      );
+      const alreadyAssignee = existingAssignees.some(
+        (member: any) => member?.id === droppedAgent.id || member?.name === droppedAgent.name,
+      );
+
+      if (alreadyCollaborator && alreadyAssignee) {
+        toast.info(`${droppedAgent.name} is already on this task team.`);
+        return;
+      }
+
+      const nextCollaborators = alreadyCollaborator
+        ? existingCollaborators
+        : [...existingCollaborators, droppedAgent];
+      const nextAssignees = alreadyAssignee ? existingAssignees : [...existingAssignees, droppedAgent];
+
+      try {
+        await Promise.resolve(
+          updateTask(task.id, {
+            collaborators: nextCollaborators,
+            assignees: nextAssignees,
+          } as any),
+        );
+        toast.success(`Added ${droppedAgent.name} to ${task.title}`);
+      } catch {
+        toast.error(`Could not assign ${droppedAgent.name} to ${task.title}`);
+      }
+    },
+    [updateTask],
+  );
   
   // Keyboard shortcuts for priority filtering (Phase 2)
   useEffect(() => {
@@ -1814,7 +2102,7 @@ function TaskManagementSection({
           ? { 
               ...m, 
               completed: !m.completed,
-              completedBy: !m.completed ? CURRENT_USER.name : null,
+              completedBy: !m.completed ? currentUserName : null,
               completedAt: !m.completed ? 'Just now' : null
             }
           : m
@@ -1884,9 +2172,9 @@ function TaskManagementSection({
                   title: newStepTitle,
                   completed: false,
                   assignedTo: { 
-                    name: CURRENT_USER.name, 
-                    image: CURRENT_USER.image, 
-                    fallback: CURRENT_USER.initials 
+                    name: currentUserName,
+                    image: currentUserAvatar,
+                    fallback: currentUserInitials
                   }
                 }
               ]
@@ -1916,12 +2204,25 @@ function TaskManagementSection({
       viewMatch = !task.team;
     } else if (activeViewFilter === 'team') {
       viewMatch = Boolean(task.team);
+    } else if (activeViewFilter === 'assigned') {
+      viewMatch = isAssignedToCurrentUser(task);
     }
     
     // PHASE 5D: Archive filter
     const archiveMatch = showArchivedTasks || !task.archived;
     
     return priorityMatch && energyMatch && tagMatch && viewMatch && archiveMatch;
+  });
+
+  const activeFilteredTasks = filteredTasks.filter((task) => !task.completed);
+  const doingFilteredTasks = activeFilteredTasks.filter((task: any) => {
+    const status = String(task.status || '').toLowerCase().trim();
+    return ['doing', 'in_progress', 'in-progress', 'active', 'started'].includes(status);
+  });
+  const doFilteredTasks = activeFilteredTasks.filter((task: any) => {
+    const status = String(task.status || '').toLowerCase().trim();
+    if (!status) return true;
+    return !['doing', 'in_progress', 'in-progress', 'active', 'started'].includes(status);
   });
 
   // Count tasks by priority
@@ -2018,6 +2319,19 @@ function TaskManagementSection({
             >
               Team ({tasks.filter(t => t.team).length})
             </button>
+            <button
+              onClick={() => {
+                setActiveViewFilter('assigned');
+                toast.info('Showing tasks assigned to you');
+              }}
+              className={`px-3 py-1.5 text-sm rounded-md transition-all ${
+                activeViewFilter === 'assigned'
+                  ? 'bg-teal-600 text-white'
+                  : 'text-gray-400 hover:text-white hover:bg-gray-700'
+              }`}
+            >
+              Assigned to Me ({tasks.filter((t) => isAssignedToCurrentUser(t)).length})
+            </button>
           </div>
         </div>
         
@@ -2090,11 +2404,18 @@ function TaskManagementSection({
         </div>
 
         {/* Active Tasks */}
-        <div className="space-y-3">
-          <h4 className="text-sm text-gray-400 font-medium mb-3">
-            Active Tasks ({filteredTasks.filter(t => !t.completed).length})
+        <div className="space-y-4">
+          <h4 className="text-sm text-gray-400 font-medium mb-1">
+            Active Tasks ({activeFilteredTasks.length})
           </h4>
-          {filteredTasks.filter(task => !task.completed).map((task) => {
+
+          <div className="rounded-xl border border-blue-500/20 bg-blue-500/5 p-3">
+            <div className="mb-3 flex items-center justify-between">
+              <p className="text-xs uppercase tracking-wide text-blue-300">Doing</p>
+              <span className="text-xs text-blue-200/80">{doingFilteredTasks.length}</span>
+            </div>
+            <div className="space-y-3">
+              {doingFilteredTasks.map((task) => {
             // Get priority left accent styling (research-backed design)
             const priorityLeftAccent = getPriorityLeftAccent(task.priority);
             
@@ -2103,15 +2424,27 @@ function TaskManagementSection({
               ? 'opacity-50 bg-gray-900/50 border-purple-500/30' 
               : '';
             
-            return (
+                return (
               <motion.div
                 key={task.id}
                 className={`bg-[#1e2128] border border-gray-800/60 rounded-xl p-5 hover:shadow-xl hover:shadow-teal-500/5 hover:border-teal-600/30 hover:bg-gray-900/30 transition-all duration-200 cursor-pointer ${
                   task.completed ? 'opacity-60' : ''
-                } ${priorityLeftAccent} ${archivedStyle}`}
+                } ${priorityLeftAccent} ${archivedStyle} ${
+                  activeAgentDropTaskId === task.id ? 'ring-2 ring-teal-400/70 border-teal-400/60 bg-teal-500/10' : ''
+                }`}
                 data-nav={`task-${task.id}`}
                 whileHover={{ scale: 1.01, y: -2 }}
                 transition={{ duration: 0.2, ease: "easeOut" }}
+                onDragOver={(event) => {
+                  if (!hasAgentDragPayload(event.nativeEvent)) return;
+                  event.preventDefault();
+                  event.dataTransfer.dropEffect = 'copy';
+                  if (activeAgentDropTaskId !== task.id) setActiveAgentDropTaskId(task.id);
+                }}
+                onDragLeave={() => {
+                  if (activeAgentDropTaskId === task.id) setActiveAgentDropTaskId(null);
+                }}
+                onDrop={(event) => void handleTaskAgentDrop(task, event)}
                 onClick={() => onViewTask(task.id)}
               >
                 <div className="flex items-start gap-4">
@@ -2147,6 +2480,12 @@ function TaskManagementSection({
                       <h3 className={`text-white ${task.completed ? 'line-through' : ''}`}>
                         {task.title}
                       </h3>
+                      {task.goalId && (
+                        <Badge variant="outline" className="text-[10px] border-purple-500/40 text-purple-300 bg-purple-500/10">
+                          <Target className="w-3 h-3 mr-1" />
+                          {goalTitleById.get(String(task.goalId)) || 'Linked Goal'}
+                        </Badge>
+                      )}
                       {task.team && <TeamBadge team={task.team} />}
                       {/* PHASE 2: Role Badge Integration */}
                       {task.currentUserRole && (() => {
@@ -2615,8 +2954,106 @@ function TaskManagementSection({
                 </div>
               </div>
             </motion.div>
-            );
-          })}
+                );
+              })}
+              {doingFilteredTasks.length === 0 && (
+                <p className="text-xs text-gray-500">No tasks in progress yet.</p>
+              )}
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-teal-500/20 bg-teal-500/5 p-3">
+            <div className="mb-3 flex items-center justify-between">
+              <p className="text-xs uppercase tracking-wide text-teal-300">Do</p>
+              <span className="text-xs text-teal-200/80">{doFilteredTasks.length}</span>
+            </div>
+            <div className="space-y-3">
+              {doFilteredTasks.map((task) => {
+                // Get priority left accent styling (research-backed design)
+                const priorityLeftAccent = getPriorityLeftAccent(task.priority);
+                
+                // PHASE 5D: Archived task styling
+                const archivedStyle = task.archived 
+                  ? 'opacity-50 bg-gray-900/50 border-purple-500/30' 
+                  : '';
+                
+                return (
+                  <motion.div
+                    key={task.id}
+                    className={`bg-[#1e2128] border border-gray-800/60 rounded-xl p-5 hover:shadow-xl hover:shadow-teal-500/5 hover:border-teal-600/30 hover:bg-gray-900/30 transition-all duration-200 cursor-pointer ${
+                      task.completed ? 'opacity-60' : ''
+                    } ${priorityLeftAccent} ${archivedStyle} ${
+                      activeAgentDropTaskId === task.id ? 'ring-2 ring-teal-400/70 border-teal-400/60 bg-teal-500/10' : ''
+                    }`}
+                    data-nav={`task-${task.id}`}
+                    whileHover={{ scale: 1.01, y: -2 }}
+                    transition={{ duration: 0.2, ease: "easeOut" }}
+                    onDragOver={(event) => {
+                      if (!hasAgentDragPayload(event.nativeEvent)) return;
+                      event.preventDefault();
+                      event.dataTransfer.dropEffect = 'copy';
+                      if (activeAgentDropTaskId !== task.id) setActiveAgentDropTaskId(task.id);
+                    }}
+                    onDragLeave={() => {
+                      if (activeAgentDropTaskId === task.id) setActiveAgentDropTaskId(null);
+                    }}
+                    onDrop={(event) => void handleTaskAgentDrop(task, event)}
+                    onClick={() => onViewTask(task.id)}
+                  >
+                    <div className="flex items-start gap-4">
+                    {/* Checkbox */}
+                    <motion.button
+                      className="mt-1 text-gray-400 hover:text-teal-400 transition-all duration-200 focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900 rounded"
+                      data-nav={`task-complete-${task.id}`}
+                      onClick={async (e) => {
+                        e.stopPropagation();
+                        await onToggleTaskCompletion(task.id);
+                      }}
+                      whileHover={{ scale: 1.1 }}
+                      whileTap={{ scale: 0.95 }}
+                      transition={{ type: "spring", stiffness: 400, damping: 17 }}
+                    >
+                      {task.completed ? (
+                        <motion.div
+                          initial={{ scale: 0 }}
+                          animate={{ scale: 1 }}
+                          transition={{ type: "spring", stiffness: 500, damping: 15 }}
+                        >
+                          <CheckCircle2 className="w-6 h-6 text-teal-400" />
+                        </motion.div>
+                      ) : (
+                        <Circle className="w-6 h-6" />
+                      )}
+                    </motion.button>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start justify-between gap-4 mb-3">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h3 className={`text-white ${task.completed ? 'line-through' : ''}`}>
+                            {task.title}
+                          </h3>
+                          {task.team && <TeamBadge team={task.team} />}
+                        </div>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        {task.tags?.slice(0, 3).map((tag: string) => (
+                          <Badge key={tag} variant="secondary" className="text-xs">{tag}</Badge>
+                        ))}
+                        <DateStatusBadge 
+                          dueDate={task.dueDate}
+                          formatDueDate={formatDueDate}
+                          getDateStatus={getDateStatus}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </motion.div>
+                );
+              })}
+              {doFilteredTasks.length === 0 && (
+                <p className="text-xs text-gray-500">No queued tasks in Do.</p>
+              )}
+            </div>
+          </div>
         </div>
 
         {/* Completed Tasks Section */}
@@ -2633,10 +3070,22 @@ function TaskManagementSection({
               return (
                 <motion.div
                   key={task.id}
-                  className={`bg-[#1e2128] border border-gray-800 rounded-xl p-5 hover:shadow-lg hover:border-gray-700 transition-all cursor-pointer opacity-60 ${priorityLeftAccent}`}
+                  className={`bg-[#1e2128] border border-gray-800 rounded-xl p-5 hover:shadow-lg hover:border-gray-700 transition-all cursor-pointer opacity-60 ${priorityLeftAccent} ${
+                    activeAgentDropTaskId === task.id ? 'ring-2 ring-teal-400/70 border-teal-400/60 bg-teal-500/10' : ''
+                  }`}
                   data-nav={`task-${task.id}`}
                   whileHover={{ scale: 1.01 }}
                   transition={{ duration: 0.2 }}
+                  onDragOver={(event) => {
+                    if (!hasAgentDragPayload(event.nativeEvent)) return;
+                    event.preventDefault();
+                    event.dataTransfer.dropEffect = 'copy';
+                    if (activeAgentDropTaskId !== task.id) setActiveAgentDropTaskId(task.id);
+                  }}
+                  onDragLeave={() => {
+                    if (activeAgentDropTaskId === task.id) setActiveAgentDropTaskId(null);
+                  }}
+                  onDrop={(event) => void handleTaskAgentDrop(task, event)}
                   onClick={() => onViewTask(task.id)}
                 >
                   <div className="flex items-start gap-4">
@@ -2655,7 +3104,15 @@ function TaskManagementSection({
                     {/* Task Content */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between gap-4 mb-2">
-                        <h3 className="text-white line-through">{task.title}</h3>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h3 className="text-white line-through">{task.title}</h3>
+                          {task.goalId && (
+                            <Badge variant="outline" className="text-[10px] border-purple-500/40 text-purple-300 bg-purple-500/10">
+                              <Target className="w-3 h-3 mr-1" />
+                              {goalTitleById.get(String(task.goalId)) || 'Linked Goal'}
+                            </Badge>
+                          )}
+                        </div>
                       </div>
                       
                       {task.description && (
@@ -2688,7 +3145,7 @@ function TaskManagementSection({
         )}
       </div>
 
-      {/* Sidebar - Quick Actions & AI Insights */}
+      {/* Sidebar - Quick Actions & Chat Insights */}
       <div className="space-y-4">
         {/* Quick Actions */}
         <div className="bg-[#1e2128] border border-gray-800 rounded-xl p-5">
@@ -2798,28 +3255,30 @@ function TaskManagementSection({
         {/* TAB 2: Timeline - Gantt chart view (45% usage)
             Research: Linear Project View (2024) - "Timeline views increase project clarity by 68%" */}
         <TabsContent value="timeline" className="space-y-4">
-          <TaskTimelineView
-            tasks={filteredTasks.map(task => ({
-              id: task.id,
-              title: task.title,
-              startDate: task.dueDate ? new Date(new Date(task.dueDate).setDate(new Date(task.dueDate).getDate() - 14)).toISOString() : new Date().toISOString(),
-              endDate: task.dueDate || new Date().toISOString(),
-              duration: 14,
-              progress: task.progress || 0,
-              priority: task.priority,
-              completed: task.completed,
-              dependencies: [],
-              assignedTo: task.collaborators || [],
-            }))}
-            dependencies={taskDependencies}
-            onTaskClick={(taskId) => {
-              onViewTask(taskId);
-            }}
-            onTaskUpdate={(taskId, updates) => {
-              updateTask(taskId, updates);
-              toast.success('Task updated from timeline');
-            }}
-          />
+          <Suspense fallback={<div className="p-4 text-sm text-gray-400">Loading timeline...</div>}>
+            <TaskTimelineView
+              tasks={filteredTasks.map(task => ({
+                id: task.id,
+                title: task.title,
+                startDate: task.dueDate ? new Date(new Date(task.dueDate).setDate(new Date(task.dueDate).getDate() - 14)).toISOString() : new Date().toISOString(),
+                endDate: task.dueDate || new Date().toISOString(),
+                duration: 14,
+                progress: task.progress || 0,
+                priority: task.priority,
+                completed: task.completed,
+                dependencies: [],
+                assignedTo: task.collaborators || [],
+              }))}
+              dependencies={taskDependencies}
+              onTaskClick={(taskId) => {
+                onViewTask(taskId);
+              }}
+              onTaskUpdate={(taskId, updates) => {
+                updateTask(taskId, updates);
+                toast.success('Task updated from timeline');
+              }}
+            />
+          </Suspense>
         </TabsContent>
         
         {/* TAB 3: Analytics - Charts & insights (30% usage)
@@ -2834,9 +3293,10 @@ function TaskManagementSection({
         {/* TAB 4: Templates - Quick start (25% usage)
             Research: Notion Templates (2024) - "Templates reduce task creation time by 73%" */}
         <TabsContent value="templates" className="space-y-4">
-          <TaskTemplateLibrary
-            teamId="personal"
-            onCreateFromTemplate={(template) => {
+          <Suspense fallback={<div className="p-4 text-sm text-gray-400">Loading templates...</div>}>
+            <TaskTemplateLibrary
+              teamId="personal"
+              onCreateFromTemplate={(template) => {
               // Create task from template
               const newTask = {
                 id: `task-${Date.now()}`,
@@ -2868,71 +3328,76 @@ function TaskManagementSection({
               toast.success('Task created from template!', {
                 description: `Created "${newTask.title}"`,
               });
-            }}
-            onClose={() => {
+              }}
+              onClose={() => {
               // Template library is inline, no close needed
-            }}
-          />
+              }}
+            />
+          </Suspense>
         </TabsContent>
         
         {/* TAB 5: Automation - Rule builder (15% usage)
             Research: Monday.com Workflows (2023) - "Automation saves 16 hours/week per user" */}
         <TabsContent value="automation" className="space-y-4">
-          <AutomationRulesPanel
-            teamId="personal"
-            rules={automationRules}
-            onCreateRule={(rule) => {
+          <Suspense fallback={<div className="p-4 text-sm text-gray-400">Loading automation...</div>}>
+            <AutomationRulesPanel
+              teamId="personal"
+              rules={automationRules}
+              onCreateRule={(rule) => {
               const newRule: AutomationRule = {
                 ...rule,
                 id: `rule-${Date.now()}`,
-                createdBy: CURRENT_USER.id,
+                createdBy: currentUserId,
                 createdAt: new Date().toISOString(),
                 triggerCount: 0,
               };
               setAutomationRules(prev => [...prev, newRule]);
               toast.success('Automation rule created!');
-            }}
-            onUpdateRule={(ruleId, updates) => {
+              }}
+              onUpdateRule={(ruleId, updates) => {
               setAutomationRules(prev => prev.map(r => 
                 r.id === ruleId ? { ...r, ...updates } : r
               ));
               toast.success('Rule updated');
-            }}
-            onDeleteRule={(ruleId) => {
+              }}
+              onDeleteRule={(ruleId) => {
               setAutomationRules(prev => prev.filter(r => r.id !== ruleId));
               toast.success('Rule deleted');
-            }}
-          />
+              }}
+            />
+          </Suspense>
         </TabsContent>
         
         {/* TAB 6: Recurring - Recurring tasks (20% usage)
             Research: Todoist Recurring (2024) - "Recurring tasks reduce setup time by 82%" */}
         <TabsContent value="recurring" className="space-y-4">
-          <RecurringTaskManager
-            teamId="personal"
-            recurringConfigs={recurringConfigs}
-            onCreateConfig={(config) => {
+          <Suspense fallback={<div className="p-4 text-sm text-gray-400">Loading recurring tasks...</div>}>
+            <RecurringTaskManager
+              teamId="personal"
+              recurringConfigs={recurringConfigs}
+              onCreateConfig={(config) => {
               const newConfig: RecurringTaskConfig = {
                 ...config,
                 id: `config-${Date.now()}`,
-                createdBy: CURRENT_USER.id,
+                createdBy: currentUserId,
                 createdAt: new Date().toISOString(),
                 nextOccurrence: new Date().toISOString(),
               };
               setRecurringConfigs(prev => [...prev, newConfig]);
               toast.success('Recurring task created!');
-            }}
-            onUpdateConfig={(configId, updates) => {
+              }}
+              onUpdateConfig={(configId, updates) => {
               setRecurringConfigs(prev => prev.map(c => 
                 c.id === configId ? { ...c, ...updates } : c
               ));
               toast.success('Recurring task updated');
-            }}
-            onDeleteConfig={(configId) => {
+              }}
+              onDeleteConfig={(configId) => {
               setRecurringConfigs(prev => prev.filter(c => c.id !== configId));
               toast.success('Recurring task deleted');
-            }}
-          />
+              }}
+            />
+          </Suspense>
         </TabsContent>
       </Tabs>
     </div>
@@ -2950,19 +3415,18 @@ interface GoalManagementSectionProps {
   setActiveGoalCategoryFilter: (filter: string) => void;
   setActiveGoalStatusFilter: (filter: string) => void;
   goals: any[];
+  onUpdateGoal: (goalId: string, updates: any) => Promise<void>;
+  onDeleteGoalItem: (goalId: string) => Promise<void>;
 }
 
-function GoalManagementSection({ onCreateGoal, setIsVoiceToGoalOpen, setIsAIGoalGenOpen, onViewGoal, onEditGoal, activeGoalCategoryFilter, activeGoalStatusFilter, setActiveGoalCategoryFilter, setActiveGoalStatusFilter, goals }: GoalManagementSectionProps) {
-  // PHASE 1: Use useGoals hook for goal operations
-  const { deleteGoal, updateGoal } = useGoals();
-  
+function GoalManagementSection({ onCreateGoal, setIsVoiceToGoalOpen, setIsAIGoalGenOpen, onViewGoal, onEditGoal, activeGoalCategoryFilter, activeGoalStatusFilter, setActiveGoalCategoryFilter, setActiveGoalStatusFilter, goals, onUpdateGoal, onDeleteGoalItem }: GoalManagementSectionProps) {
   // PHASE 2: State for advanced features tabs
   const [activeGoalView, setActiveGoalView] = useState<'list' | 'analytics' | 'timeline' | 'templates'>('list');
 
   // Goal handler functions - Updated to use useGoals hook
   const handleDeleteGoal = async (goalId: string) => {
     try {
-      await deleteGoal(goalId);
+      await onDeleteGoalItem(goalId);
       toast.success('Goal archived', { description: 'Goal moved to archive' });
     } catch (error) {
       console.error('Failed to delete goal:', error);
@@ -2980,7 +3444,7 @@ function GoalManagementSection({ onCreateGoal, setIsVoiceToGoalOpen, setIsAIGoal
         progress: 0,
       };
       try {
-        await updateGoal(newGoal.id, newGoal);
+        await onUpdateGoal(newGoal.id, newGoal);
         toast.success('Goal duplicated', { description: 'A copy has been added to your list' });
       } catch (error) {
         console.error('Failed to duplicate goal:', error);
@@ -3000,6 +3464,35 @@ function GoalManagementSection({ onCreateGoal, setIsVoiceToGoalOpen, setIsAIGoal
           toast.error('Copy failed', { description: 'Please try selecting and copying manually' });
         }
       });
+    }
+  };
+
+  const handleGoalAgentDrop = async (
+    goal: any,
+    payload: { id: string; name: string; sourceTab?: string; workspaceId?: string },
+  ) => {
+    const droppedAgent = {
+      ...createAgentCollaborator(payload),
+      assignmentDirective: `Advance goal "${goal.title}" with milestone-first execution and measurable progress updates.`,
+    };
+    const currentCollaborators = Array.isArray(goal?.collaborators) ? goal.collaborators : [];
+    const alreadyExists = currentCollaborators.some(
+      (member: any) => member?.id === droppedAgent.id || member?.name === droppedAgent.name,
+    );
+    if (alreadyExists) {
+      toast.info(`${droppedAgent.name} is already on this goal team.`);
+      return;
+    }
+    const nextGoal = {
+      ...goal,
+      collaborators: [...currentCollaborators, droppedAgent],
+    };
+    try {
+      await onUpdateGoal(goal.id, nextGoal);
+      toast.success(`Added ${droppedAgent.name} to ${goal.title}`);
+    } catch (error) {
+      console.error('Failed to add dropped agent to goal:', error);
+      toast.error(`Could not assign ${droppedAgent.name} to ${goal.title}`);
     }
   };
 
@@ -3253,6 +3746,7 @@ function GoalManagementSection({ onCreateGoal, setIsVoiceToGoalOpen, setIsAIGoal
                       onShareGoal={handleShareGoal}
                       onDeleteGoal={handleDeleteGoal}
                       onQuickAction={handleQuickAction}
+                      onAgentDrop={handleGoalAgentDrop}
                     />
                   ))
                 )}
@@ -3303,7 +3797,7 @@ function GoalManagementSection({ onCreateGoal, setIsVoiceToGoalOpen, setIsAIGoal
         <div className="bg-[#1e2128] border border-gray-800 rounded-xl p-5">
           <h3 className="text-white mb-4 flex items-center gap-2">
             <Brain className="w-5 h-5 text-teal-400" />
-            AI Insights
+            Chat Insights
           </h3>
           <div className="space-y-3">
             <div className="flex items-start gap-2 text-sm">
@@ -3360,9 +3854,10 @@ function GoalManagementSection({ onCreateGoal, setIsVoiceToGoalOpen, setIsAIGoal
 
         {/* TAB 2: Analytics - PHASE 2 NEW */}
         <TabsContent value="analytics" className="space-y-4 mt-4">
-          <GoalAnalyticsTab 
-            goals={goals}
-            onNavigateToFiltered={(filters) => {
+          <Suspense fallback={<div className="p-4 text-sm text-gray-400">Loading goal analytics...</div>}>
+            <GoalAnalyticsTab 
+              goals={goals}
+              onNavigateToFiltered={(filters) => {
               // Switch to list view
               setActiveGoalView('list');
               
@@ -3422,32 +3917,37 @@ function GoalManagementSection({ onCreateGoal, setIsVoiceToGoalOpen, setIsAIGoal
                   goalsList.scrollIntoView({ behavior: 'smooth', block: 'start' });
                 }
               }, 300);
-            }}
-          />
+              }}
+            />
+          </Suspense>
         </TabsContent>
 
         {/* TAB 3: Timeline - PHASE 2 NEW */}
         <TabsContent value="timeline" className="space-y-4 mt-4">
-          <GoalTimelineView 
-            goals={goals}
-            onViewGoal={(goalId) => {
+          <Suspense fallback={<div className="p-4 text-sm text-gray-400">Loading goal timeline...</div>}>
+            <GoalTimelineView 
+              goals={goals}
+              onViewGoal={(goalId) => {
               const goal = goals.find(g => g.id === goalId);
               if (goal) onViewGoal(goal);
-            }}
-            onEditGoal={(goalId) => {
+              }}
+              onEditGoal={(goalId) => {
               const goal = goals.find(g => g.id === goalId);
               if (goal) handleEditGoal(goal);
-            }}
-            onDeleteGoal={handleDeleteGoal}
-          />
+              }}
+              onDeleteGoal={handleDeleteGoal}
+            />
+          </Suspense>
         </TabsContent>
 
         {/* TAB 4: Templates - PHASE 2 NEW */}
         <TabsContent value="templates" className="space-y-4 mt-4">
-          <GoalTemplateLibrary 
-            onSelectTemplate={handleSelectTemplate}
-            onClose={() => setActiveGoalView('list')}
-          />
+          <Suspense fallback={<div className="p-4 text-sm text-gray-400">Loading goal templates...</div>}>
+            <GoalTemplateLibrary 
+              onSelectTemplate={handleSelectTemplate}
+              onClose={() => setActiveGoalView('list')}
+            />
+          </Suspense>
         </TabsContent>
       </Tabs>
     </div>
