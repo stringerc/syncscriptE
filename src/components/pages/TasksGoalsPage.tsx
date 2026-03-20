@@ -43,7 +43,7 @@ import { usePermissions } from '../../hooks/usePermissions';
 import type { UserRole } from '../../types/unified-types';
 import { getPriorityBorderClass, getPriorityLabel, getPriorityLeftAccent, PRIORITY_SHORTCUTS } from '../../utils/priority-colors';
 import { PriorityTooltip } from '../ui/tooltip';
-import { useLocation } from 'react-router';
+import { useLocation, useNavigate } from 'react-router';
 import { TeamBadge } from '../TeamBadge';
 import { ArchiveToggle } from '../ArchiveToggle'; // PHASE 5D: Archive toggle component
 import { EnergyBadge } from '../EnergyBadge'; // PHASE 1.4: Energy reward badges
@@ -209,6 +209,7 @@ const getDateStatus = (dueDate: string): 'overdue' | 'due-soon' | 'upcoming' | '
 
 export function TasksGoalsPage() {
   const location = useLocation();
+  const navigate = useNavigate();
   const { profile } = useUserProfile(); // Get current user from context
   const currentUserName = profile?.name || 'You';
   const currentUserId = profile?.id || localStorage.getItem('syncscript_auth_user_id') || 'anonymous-user';
@@ -223,6 +224,26 @@ export function TasksGoalsPage() {
     urlTab === 'goals' || urlTab === 'tasks' || urlTab === 'workstream' || urlTab === 'projects'
       ? (urlTab as 'goals' | 'tasks' | 'workstream' | 'projects')
       : 'goals'
+  );
+
+  const handleTabChange = useCallback(
+    (nextTab: 'goals' | 'tasks' | 'workstream' | 'projects') => {
+      setActiveView(nextTab);
+
+      const nextParams = new URLSearchParams(location.search);
+      nextParams.set('tab', nextTab);
+      const nextSearch = `?${nextParams.toString()}`;
+      if (nextSearch !== location.search) {
+        navigate(
+          {
+            pathname: location.pathname,
+            search: nextSearch,
+          },
+          { replace: true },
+        );
+      }
+    },
+    [location.pathname, location.search, navigate],
   );
   
   // Update activeView when URL changes
@@ -1073,7 +1094,7 @@ export function TasksGoalsPage() {
         {/* Main Tabs */}
         <Tabs
           value={activeView}
-          onValueChange={(v) => setActiveView(v as 'goals' | 'tasks' | 'workstream' | 'projects')}
+          onValueChange={(v) => handleTabChange(v as 'goals' | 'tasks' | 'workstream' | 'projects')}
           className={`w-full ${activeView === 'workstream' ? 'flex h-full min-h-0 flex-1 flex-col' : ''}`}
         >
           <TabsList className="grid w-full max-w-2xl grid-cols-4 bg-[#2a2d35]/50 border border-gray-700/50 p-1 rounded-lg shadow-lg backdrop-blur-sm">

@@ -3569,6 +3569,9 @@ function WorkstreamFlowCanvasInner({
           }}
           onMoveEnd={() => persist(nodes, edges)}
           fitView
+          fitViewOptions={{ padding: 0.26, minZoom: 0.14 }}
+          minZoom={0.12}
+          maxZoom={2}
           nodesDraggable
           nodesConnectable
           elementsSelectable
