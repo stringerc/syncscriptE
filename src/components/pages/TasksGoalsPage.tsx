@@ -232,16 +232,13 @@ export function TasksGoalsPage() {
 
       const nextParams = new URLSearchParams(location.search);
       nextParams.set('tab', nextTab);
-      const nextSearch = `?${nextParams.toString()}`;
-      if (nextSearch !== location.search) {
-        navigate(
-          {
-            pathname: location.pathname,
-            search: nextSearch,
-          },
-          { replace: true },
-        );
-      }
+      navigate(
+        {
+          pathname: location.pathname,
+          search: `?${nextParams.toString()}`,
+        },
+        { replace: true },
+      );
     },
     [location.pathname, location.search, navigate],
   );
