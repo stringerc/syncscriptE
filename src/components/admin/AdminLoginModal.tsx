@@ -242,6 +242,7 @@ export function AdminLoginModal({ isOpen, onClose, onSuccess }: AdminLoginModalP
                 onChange={(e) => setPassword(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
                 placeholder="Enter password"
+                autoComplete="current-password"
                 disabled={isLocked}
                 className="pr-10 bg-gray-800/50 border-gray-700 text-white placeholder:text-gray-500"
                 autoFocus

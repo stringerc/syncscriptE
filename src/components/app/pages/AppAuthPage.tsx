@@ -135,6 +135,7 @@ export function AppAuthPage() {
                     value={formData.password}
                     onChange={handleInputChange}
                     placeholder="Enter your password"
+                    autoComplete={isLogin ? 'current-password' : 'new-password'}
                     required
                   />
                   <Button
