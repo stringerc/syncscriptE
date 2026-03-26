@@ -27,7 +27,8 @@ const VOICE_PRESETS: Record<string, string> = {
 };
 
 const MAX_TEXT_LENGTH = 2000;
-const KOKORO_TIMEOUT_MS = 15_000;
+/** Cold path via Cloudflare quick tunnel + ONNX load can exceed 15s on first hit. */
+const KOKORO_TIMEOUT_MS = 45_000;
 
 type SynthBody = {
   model: string;

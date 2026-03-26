@@ -58,7 +58,7 @@
   "functions": {
     "api/**/*.ts": {
       "memory": 256,
-      "maxDuration": 30,
+      "maxDuration": 60,
       "includeFiles": "api/ai/_lib/nexus-brain/**"
     }
   },
