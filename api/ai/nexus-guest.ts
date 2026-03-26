@@ -341,6 +341,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const decoder = new TextDecoder();
       let carry = '';
       let fullContent = '';
+      let emittedStreamToken = false;
 
       while (true) {
         const { done, value } = await reader.read();
@@ -367,6 +368,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             const token = parsed.choices?.[0]?.delta?.content;
             if (token) {
               fullContent += token;
+              emittedStreamToken = true;
               res.write(`data: ${JSON.stringify({ token })}\n\n`);
               if (typeof (res as any).flush === 'function') (res as any).flush();
             }
@@ -379,7 +381,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
 
       if (!res.writableEnded) {
-        if (fullContent.trim()) {
+        // Client already builds audio from token deltas; finalContent duplicates every sentence in TTS.
+        if (fullContent.trim() && !emittedStreamToken) {
           res.write(`data: ${JSON.stringify({ finalContent: fullContent })}\n\n`);
         }
         res.write('data: [DONE]\n\n');

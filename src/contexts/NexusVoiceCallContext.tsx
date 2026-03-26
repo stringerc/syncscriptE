@@ -1176,12 +1176,15 @@ export function NexusVoiceCallProvider({ children }: { children: ReactNode }) {
 
         // ─── Path B: SSE streaming ──────────────────────────────────────
         // First chunk already in hand — process it, then continue reading.
+        // Server sends token deltas AND a trailing finalContent duplicate; feeding both doubles TTS.
         ensureNexusBubble();
         player.onFirstPlay = () => {
           canRevealText = true;
           clearProcessingOnce();
           if (fullText.trim()) showNexusText(fullText);
         };
+
+        let ttsQueuedFromTokens = false;
 
         const processSSEChunk = (chunk: string) => {
           const lines = chunk.split('\n');
@@ -1197,9 +1200,20 @@ export function NexusVoiceCallProvider({ children }: { children: ReactNode }) {
               const bulk =
                 parsed.content ?? parsed.finalContent;
               if (bulk && !parsed.token) {
-                fullText = typeof bulk === 'string' ? bulk : String(bulk);
-                textBuffer = '';
+                const next = typeof bulk === 'string' ? bulk : String(bulk);
+                fullText = next;
                 if (canRevealText) showNexusText(fullText);
+
+                if (ttsQueuedFromTokens) {
+                  // Already queued TTS from token stream; only flush any trailing clause without re-speaking full reply.
+                  if (textBuffer.trim()) {
+                    feedSentence(textBuffer.trim());
+                    textBuffer = '';
+                  }
+                  return false;
+                }
+
+                textBuffer = '';
                 for (const s of splitToSentences(fullText)) feedSentence(s);
                 return true;
               }
@@ -1207,6 +1221,7 @@ export function NexusVoiceCallProvider({ children }: { children: ReactNode }) {
               const token = parsed.token;
               if (!token) continue;
 
+              ttsQueuedFromTokens = true;
               fullText += token;
               textBuffer += token;
               if (canRevealText) showNexusText(fullText);
