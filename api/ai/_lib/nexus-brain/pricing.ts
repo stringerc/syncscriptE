@@ -1,4 +1,4 @@
-import type { PublicPlan } from './load-brain';
+import type { PublicPlan } from './load-brain.types';
 import { loadNexusBrain } from './load-brain';
 
 export const PRICING_INTENT_RE =
