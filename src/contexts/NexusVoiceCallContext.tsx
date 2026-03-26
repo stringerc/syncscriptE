@@ -77,8 +77,10 @@ const GOODBYE =
 const TIME_LIMIT_MSG =
   "We've reached the 5-minute demo limit. Thanks for trying Nexus! Sign up for a free trial to get unlimited access.";
 const STATIC_GREETING_AUDIO_URL = '/audio/nexus-greeting.mp3';
-const ENABLE_STATIC_GREETING = false;
-const PRELOAD_VOICE_CACHE_ON_MOUNT = false;
+/** Bundled MP3 matches GREETING + GREETING_PROFILE — instant first line after mic (no TTS round-trip). */
+const ENABLE_STATIC_GREETING = true;
+/** Pre-fetch Kokoro buffers for greeting/goodbye on provider mount (smooth first line when API is healthy). */
+const PRELOAD_VOICE_CACHE_ON_MOUNT = true;
 
 const END_CALL_PHRASES = [
   'end call', 'hang up', 'goodbye', 'bye', 'end voice chat',
@@ -1375,12 +1377,17 @@ export function NexusVoiceCallProvider({ children }: { children: ReactNode }) {
     if (!greetingCacheRef.current || !goodbyeCacheRef.current) {
       warmVoiceCaches();
     }
-    const mic = await checkMicPermission();
-    if (!mic.ok) { alert(mic.reason); return; }
-
     setCallStatus('connecting');
     setIsVoiceLoading(true);
     setVoiceError(null);
+
+    const mic = await checkMicPermission();
+    if (!mic.ok) {
+      setCallStatus('idle');
+      setIsVoiceLoading(false);
+      alert(mic.reason);
+      return;
+    }
     const sid = generateSessionId();
     setSessionId(sid);
     setMessages([]);
@@ -1393,9 +1400,9 @@ export function NexusVoiceCallProvider({ children }: { children: ReactNode }) {
     playChime('connect');
 
     const greetingCache = greetingCacheRef.current;
-    if (greetingCache && !greetingCache.ready) {
-      // Wait briefly for preloaded greeting audio to complete and avoid first-turn cold starts.
-      await Promise.race([greetingCache.readyPromise, wait(350)]);
+    if (!ENABLE_STATIC_GREETING && greetingCache && !greetingCache.ready) {
+      // Wait for Kokoro preload (mount + click) so the first line plays from cache, not a cold TTS fetch.
+      await Promise.race([greetingCache.readyPromise, wait(12_000)]);
     }
 
     const greetingDisplay = cleanForDisplay(GREETING);
