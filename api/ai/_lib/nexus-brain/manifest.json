@@ -1,0 +1,6 @@
+{
+  "brainId": "syncscript-nexus",
+  "version": "2025-03-25.1",
+  "schema": 1,
+  "description": "Versioned shared knowledge and policy pointers for Nexus guest + user surfaces. Mission Control can sync this directory as the source of truth."
+}

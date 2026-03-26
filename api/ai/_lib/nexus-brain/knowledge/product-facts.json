@@ -1,0 +1,16 @@
+{
+  "facts": [
+    {
+      "id": "syncscript-elevator",
+      "text": "SyncScript is AI-powered productivity that works with your natural energy rhythms and schedules harder work during peak hours."
+    },
+    {
+      "id": "key-features",
+      "text": "Key features include energy-aware scheduling, voice-first Nexus assistant, tasks, calendar intelligence, team collaboration, gamification, Google Calendar and Slack integrations."
+    },
+    {
+      "id": "support-contact",
+      "text": "For issues or bugs, direct users to support at syncscript dot app."
+    }
+  ]
+}

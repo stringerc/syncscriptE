@@ -1,0 +1,40 @@
+{
+  "schema": 1,
+  "tools": [
+    {
+      "id": "calendar.read_range",
+      "title": "Read calendar in range",
+      "description": "Future: server-executed read of user calendar with OAuth scope. Nexus proposes; backend validates and executes.",
+      "riskClass": "low",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "startIso": { "type": "string" },
+          "endIso": { "type": "string" }
+        },
+        "required": ["startIso", "endIso"]
+      }
+    },
+    {
+      "id": "tasks.create",
+      "title": "Create task",
+      "description": "Future: create task with title, due, project id. Requires user confirmation for high-risk workspaces.",
+      "riskClass": "medium",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "title": { "type": "string" },
+          "dueIso": { "type": "string" }
+        },
+        "required": ["title"]
+      }
+    },
+    {
+      "id": "nexus.get_public_pricing",
+      "title": "Canonical public pricing",
+      "description": "Deterministic path: pricing strings are served from nexus-brain knowledge without LLM for matched intents (guest surface).",
+      "riskClass": "low",
+      "inputSchema": { "type": "object", "properties": {} }
+    }
+  ]
+}

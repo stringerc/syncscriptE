@@ -1194,8 +1194,10 @@ export function NexusVoiceCallProvider({ children }: { children: ReactNode }) {
             try {
               const parsed = JSON.parse(payload);
 
-              if (parsed.content && !parsed.token) {
-                fullText = parsed.content;
+              const bulk =
+                parsed.content ?? parsed.finalContent;
+              if (bulk && !parsed.token) {
+                fullText = typeof bulk === 'string' ? bulk : String(bulk);
                 textBuffer = '';
                 if (canRevealText) showNexusText(fullText);
                 for (const s of splitToSentences(fullText)) feedSentence(s);

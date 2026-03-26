@@ -1,20 +1,9 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { callAI, callAIStream, isAIConfigured, type AIMessage } from '../_lib/ai-service';
 import { sanitizePublicContext, serializePromptContext } from './_lib/nexus-context-firewall';
-
-type PublicPlan = {
-  name: string;
-  price: number;
-  priceAnnual?: number;
-};
-
-// Keep API-side pricing in CJS-compatible runtime code to avoid ESM/CJS boundary issues.
-const PLANS: PublicPlan[] = [
-  { name: 'Free', price: 0 },
-  { name: 'Starter', price: 19, priceAnnual: 15 },
-  { name: 'Professional', price: 49, priceAnnual: 39 },
-  { name: 'Enterprise', price: 99, priceAnnual: 79 },
-];
+import { loadNexusBrain } from './_lib/nexus-brain/load-brain';
+import { buildPricingKnowledge, buildPricingReply, PRICING_INTENT_RE } from './_lib/nexus-brain/pricing';
+import { emitNexusTrace, newNexusRequestId, hashSessionKey } from './_lib/nexus-brain/telemetry';
 
 const MAX_SESSIONS_PER_IP_PER_HOUR = 5;
 const MAX_MESSAGES_PER_SESSION = 15;
@@ -67,50 +56,8 @@ function cleanupStaleEntries() {
   }
 }
 
-const PRICING_INTENT_RE =
-  /\b(price|pricing|plan|plans|cost|how much|monthly|annual|annually|billing|subscription|starter|professional|enterprise|free|pro|team)\b/i;
-
-function buildPricingKnowledge(): string {
-  const free = PLANS.find((p) => p.name.toLowerCase() === 'free');
-  const starter = PLANS.find((p) => p.name.toLowerCase() === 'starter');
-  const professional = PLANS.find((p) => p.name.toLowerCase() === 'professional');
-  const enterprise = PLANS.find((p) => p.name.toLowerCase() === 'enterprise');
-
-  return `PRICING (single source of truth from the live pricing config):
-Free is ${free?.price ?? 0} dollars.
-Starter is ${starter?.price ?? 19} dollars per month, or ${starter?.priceAnnual ?? 15} dollars per month billed annually.
-Professional is ${professional?.price ?? 49} dollars per month, or ${professional?.priceAnnual ?? 39} dollars per month billed annually.
-Enterprise is ${enterprise?.price ?? 99} dollars per month, or ${enterprise?.priceAnnual ?? 79} dollars per month billed annually.
-All paid plans include a fourteen day free trial, no credit card needed.`;
-}
-
-function buildPricingReply(userText: string): string {
-  const q = userText.toLowerCase();
-  if (/\bstarter\b/.test(q)) {
-    const starter = PLANS.find((p) => p.name.toLowerCase() === 'starter');
-    return `Starter is ${starter?.price ?? 19} dollars per month, or ${starter?.priceAnnual ?? 15} dollars per month billed annually. All paid plans include a fourteen day free trial with no credit card needed.`;
-  }
-  if (/\bprofessional\b|\bpro\b/.test(q)) {
-    const professional = PLANS.find((p) => p.name.toLowerCase() === 'professional');
-    return `Professional is ${professional?.price ?? 49} dollars per month, or ${professional?.priceAnnual ?? 39} dollars per month billed annually. All paid plans include a fourteen day free trial with no credit card needed.`;
-  }
-  if (/\benterprise\b/.test(q)) {
-    const enterprise = PLANS.find((p) => p.name.toLowerCase() === 'enterprise');
-    return `Enterprise is ${enterprise?.price ?? 99} dollars per month, or ${enterprise?.priceAnnual ?? 79} dollars per month billed annually. All paid plans include a fourteen day free trial with no credit card needed.`;
-  }
-  if (/\bteam\b/.test(q)) {
-    const enterprise = PLANS.find((p) => p.name.toLowerCase() === 'enterprise');
-    return `We no longer list a separate Team tier. The current top tier is Enterprise at ${enterprise?.price ?? 99} dollars per month, or ${enterprise?.priceAnnual ?? 79} dollars per month billed annually.`;
-  }
-
-  const free = PLANS.find((p) => p.name.toLowerCase() === 'free');
-  const starter = PLANS.find((p) => p.name.toLowerCase() === 'starter');
-  const professional = PLANS.find((p) => p.name.toLowerCase() === 'professional');
-  const enterprise = PLANS.find((p) => p.name.toLowerCase() === 'enterprise');
-  return `Current pricing is: Free is ${free?.price ?? 0} dollars. Starter is ${starter?.price ?? 19} dollars per month, or ${starter?.priceAnnual ?? 15} dollars per month billed annually. Professional is ${professional?.price ?? 49} dollars per month, or ${professional?.priceAnnual ?? 39} dollars per month billed annually. Enterprise is ${enterprise?.price ?? 99} dollars per month, or ${enterprise?.priceAnnual ?? 79} dollars per month billed annually. All paid plans include a fourteen day free trial with no credit card needed.`;
-}
-
 function buildNexusSystemPrompt(publicContextBlock: string): string {
+  const brain = loadNexusBrain();
   return `You are Nexus, SyncScript's AI assistant on a live voice call. Every word you write is read aloud through text-to-speech, so you must write exactly the way a human speaks.
 
 CRITICAL OUTPUT FORMAT (your text goes directly to a TTS engine):
@@ -135,7 +82,10 @@ CRITICAL OUTPUT FORMAT (your text goes directly to a TTS engine):
 YOUR PERSONALITY:
 Warm, confident, and genuinely enthusiastic about SyncScript. You're like the best customer service rep who truly loves their product. Be empathetic when someone mentions stress or burnout. Never pushy or salesy.
 
-ABOUT SYNCSCRIPT:
+CANONICAL PRODUCT FACTS (from nexus-brain; do not contradict):
+${brain.productFactsText}
+
+ABOUT SYNCSCRIPT (align with facts above):
 SyncScript is AI-powered productivity that works with your natural energy rhythms. It learns when you're at your best and schedules your hardest work during peak hours automatically.
 
 KEY FEATURES: Energy-based AI scheduling, voice-first AI assistant, smart task management, calendar intelligence with conflict detection, team collaboration, gamification with XP and streaks, Google Calendar and Slack integrations.
@@ -168,9 +118,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method === 'OPTIONS') return res.status(204).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
+  const requestId = newNexusRequestId();
+  const t0 = Date.now();
+  const brain = loadNexusBrain();
+  res.setHeader('X-Nexus-Brain-Version', brain.manifest.version);
+  res.setHeader('X-Nexus-Request-Id', requestId);
+
   cleanupStaleEntries();
 
   if (!isAIConfigured()) {
+    emitNexusTrace({
+      surface: 'guest',
+      requestId,
+      outcome: 'ai_unconfigured',
+      pathway: 'llm',
+      brainVersion: brain.manifest.version,
+      latencyMs: Date.now() - t0,
+      httpStatus: 500,
+      errorCode: 'ai_unconfigured',
+    });
     return res.status(500).json({ error: 'AI service not configured' });
   }
 
@@ -178,26 +144,58 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const { messages, sessionId, context } = req.body || {};
 
   if (!sessionId || typeof sessionId !== 'string') {
+    emitNexusTrace({
+      surface: 'guest',
+      requestId,
+      outcome: 'validation_error',
+      pathway: 'llm',
+      brainVersion: brain.manifest.version,
+      latencyMs: Date.now() - t0,
+      httpStatus: 400,
+      errorCode: 'missing_session',
+    });
     return res.status(400).json({ error: 'sessionId is required' });
   }
 
   if (!messages || !Array.isArray(messages) || messages.length === 0) {
+    emitNexusTrace({
+      surface: 'guest',
+      requestId,
+      outcome: 'validation_error',
+      pathway: 'llm',
+      brainVersion: brain.manifest.version,
+      latencyMs: Date.now() - t0,
+      sessionKey: hashSessionKey(sessionId),
+      httpStatus: 400,
+      errorCode: 'missing_messages',
+    });
     return res.status(400).json({ error: 'messages array is required' });
   }
 
   const publicContextResult = sanitizePublicContext(context);
   if (!publicContextResult.valid) {
+    emitNexusTrace({
+      surface: 'guest',
+      requestId,
+      outcome: 'validation_error',
+      pathway: 'llm',
+      brainVersion: brain.manifest.version,
+      latencyMs: Date.now() - t0,
+      sessionKey: hashSessionKey(sessionId),
+      httpStatus: 400,
+      errorCode: 'invalid_public_context',
+    });
     return res.status(400).json({ error: publicContextResult.reason || 'Invalid public context payload' });
   }
 
   const publicContext = {
     surface: 'landing',
     page: 'landing',
-    pricing: PLANS.map((plan) => ({
+    pricing: brain.publicPlans.map((plan) => ({
       name: plan.name,
       monthly: plan.price,
       annual: plan.priceAnnual ?? null,
-      trialDays: 14,
+      trialDays: brain.trialDays,
     })),
     ...publicContextResult.context,
   };
@@ -205,6 +203,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (messages.length <= 1) {
     const { allowed, remaining } = checkRateLimit(ip);
     if (!allowed) {
+      emitNexusTrace({
+        surface: 'guest',
+        requestId,
+        outcome: 'rate_limited',
+        pathway: 'llm',
+        brainVersion: brain.manifest.version,
+        latencyMs: Date.now() - t0,
+        sessionKey: hashSessionKey(sessionId),
+        httpStatus: 429,
+        errorCode: 'ip_rate_limit',
+      });
       return res.status(429).json({
         error: 'Rate limit exceeded. Please try again later.',
         retryAfter: 3600,
@@ -214,6 +223,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   if (!checkSessionLimit(sessionId)) {
+    emitNexusTrace({
+      surface: 'guest',
+      requestId,
+      outcome: 'rate_limited',
+      pathway: 'llm',
+      brainVersion: brain.manifest.version,
+      latencyMs: Date.now() - t0,
+      sessionKey: hashSessionKey(sessionId),
+      httpStatus: 429,
+      errorCode: 'session_message_limit',
+    });
     return res.status(429).json({
       error: 'This demo session has reached its message limit. Start a new call to continue!',
     });
@@ -236,8 +256,30 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       res.write(`data: ${JSON.stringify({ content })}\n\n`);
       res.write(`data: ${JSON.stringify({ finalContent: content })}\n\n`);
       res.write('data: [DONE]\n\n');
+      emitNexusTrace({
+        surface: 'guest',
+        requestId,
+        outcome: 'ok',
+        pathway: 'deterministic_pricing',
+        brainVersion: brain.manifest.version,
+        latencyMs: Date.now() - t0,
+        sessionKey: hashSessionKey(sessionId),
+        httpStatus: 200,
+        responseChars: content.length,
+      });
       return res.end();
     }
+    emitNexusTrace({
+      surface: 'guest',
+      requestId,
+      outcome: 'ok',
+      pathway: 'deterministic_pricing',
+      brainVersion: brain.manifest.version,
+      latencyMs: Date.now() - t0,
+      sessionKey: hashSessionKey(sessionId),
+      httpStatus: 200,
+      responseChars: content.length,
+    });
     return res.status(200).json({ content });
   }
 
@@ -248,7 +290,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   if (wantStream) {
     try {
-      const { stream } = await callAIStream(chatMessages, {
+      const { stream, provider, model } = await callAIStream(chatMessages, {
         maxTokens: 150,
         temperature: 0.3,
       });
@@ -266,6 +308,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         res.write(`data: ${JSON.stringify({ content: fallback.content })}\n\n`);
         res.write(`data: ${JSON.stringify({ finalContent: fallback.content })}\n\n`);
         res.write('data: [DONE]\n\n');
+        emitNexusTrace({
+          surface: 'guest',
+          requestId,
+          outcome: 'ok',
+          pathway: 'stream_fallback',
+          brainVersion: brain.manifest.version,
+          latencyMs: Date.now() - t0,
+          sessionKey: hashSessionKey(sessionId),
+          provider: fallback.provider,
+          model: fallback.model,
+          httpStatus: 200,
+          responseChars: fallback.content.length,
+        });
         return res.end();
       }
 
@@ -316,6 +371,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         res.write('data: [DONE]\n\n');
         res.end();
       }
+      emitNexusTrace({
+        surface: 'guest',
+        requestId,
+        outcome: 'ok',
+        pathway: 'stream',
+        brainVersion: brain.manifest.version,
+        latencyMs: Date.now() - t0,
+        sessionKey: hashSessionKey(sessionId),
+        provider,
+        model,
+        httpStatus: 200,
+        responseChars: fullContent.length,
+      });
     } catch (error: any) {
       console.error('Nexus streaming error, falling back:', error.message);
       try {
@@ -324,17 +392,65 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         res.write(`data: ${JSON.stringify({ content: result.content })}\n\n`);
         res.write(`data: ${JSON.stringify({ finalContent: result.content })}\n\n`);
         res.write('data: [DONE]\n\n');
+        emitNexusTrace({
+          surface: 'guest',
+          requestId,
+          outcome: 'ok',
+          pathway: 'stream_fallback',
+          brainVersion: brain.manifest.version,
+          latencyMs: Date.now() - t0,
+          sessionKey: hashSessionKey(sessionId),
+          provider: result.provider,
+          model: result.model,
+          httpStatus: 200,
+          responseChars: result.content.length,
+        });
         return res.end();
       } catch {
+        emitNexusTrace({
+          surface: 'guest',
+          requestId,
+          outcome: 'error',
+          pathway: 'stream',
+          brainVersion: brain.manifest.version,
+          latencyMs: Date.now() - t0,
+          sessionKey: hashSessionKey(sessionId),
+          httpStatus: 500,
+          errorCode: 'stream_and_fallback_failed',
+        });
         return res.status(500).json({ error: 'Something went wrong. Please try again.' });
       }
     }
   } else {
     try {
       const result = await callAI(chatMessages, { maxTokens: 150, temperature: 0.3 });
+      emitNexusTrace({
+        surface: 'guest',
+        requestId,
+        outcome: 'ok',
+        pathway: 'llm',
+        brainVersion: brain.manifest.version,
+        latencyMs: Date.now() - t0,
+        sessionKey: hashSessionKey(sessionId),
+        provider: result.provider,
+        model: result.model,
+        httpStatus: 200,
+        responseChars: result.content.length,
+      });
       return res.status(200).json({ content: result.content });
     } catch (error: any) {
       console.error('Nexus guest handler error:', error);
+      emitNexusTrace({
+        surface: 'guest',
+        requestId,
+        outcome: 'error',
+        pathway: 'llm',
+        brainVersion: brain.manifest.version,
+        latencyMs: Date.now() - t0,
+        sessionKey: hashSessionKey(sessionId),
+        httpStatus: 500,
+        errorCode: 'llm_failed',
+      });
       return res.status(500).json({ error: 'Something went wrong. Please try again.' });
     }
   }
