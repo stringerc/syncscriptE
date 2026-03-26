@@ -286,47 +286,48 @@ export function selectTopPriorityTask(tasks: Task[]): TaskScore | null {
   return scoredTasks[0] || null;
 }
 
+function scoreTaskForNow(task: Task, context: CurrentContext): TaskScore {
+  const breakdown = {
+    timeEnergy: scoreTimeEnergyAlignment(task, context),
+    deadlineUrgency: scoreDeadlineUrgency(task),
+    momentum: scoreMomentum(task),
+    priority: scorePriority(task.priority),
+    dependencies: scoreDependencies(task),
+  };
+
+  const totalScore =
+    breakdown.timeEnergy * 0.25 +
+    breakdown.deadlineUrgency * 0.3 +
+    breakdown.momentum * 0.15 +
+    breakdown.priority * 0.2 +
+    breakdown.dependencies * 0.1;
+
+  return {
+    task,
+    totalScore,
+    reasoning: generateReasoning(task, context, breakdown),
+    breakdown,
+  };
+}
+
 /**
- * Get top 2 priority tasks for "What should I be doing right now" card
+ * Get top N priority tasks for "What should I be doing right now" card.
+ * Prefers tasks with collaborators; falls back to all incomplete tasks (same as selectTopPriorityTask).
  */
 export function getTopPriorityTasks(tasks: Task[], count: number = 2): TaskScore[] {
   const context = getCurrentContext();
-  
-  // Filter: Only incomplete tasks with team members
-  const eligibleTasks = tasks.filter(task => 
-    !task.completed && 
-    task.collaborators && 
-    task.collaborators.length > 0
+
+  const incomplete = tasks.filter((task) => !task.completed);
+  if (incomplete.length === 0) return [];
+
+  const withCollaborators = incomplete.filter(
+    (task) => task.collaborators && task.collaborators.length > 0,
   );
-  
-  if (eligibleTasks.length === 0) return [];
-  
-  // Score all eligible tasks
-  const scoredTasks: TaskScore[] = eligibleTasks.map(task => {
-    const breakdown = {
-      timeEnergy: scoreTimeEnergyAlignment(task, context),
-      deadlineUrgency: scoreDeadlineUrgency(task),
-      momentum: scoreMomentum(task),
-      priority: scorePriority(task.priority),
-      dependencies: scoreDependencies(task),
-    };
-    
-    const totalScore = 
-      breakdown.timeEnergy * 0.25 +
-      breakdown.deadlineUrgency * 0.30 +
-      breakdown.momentum * 0.15 +
-      breakdown.priority * 0.20 +
-      breakdown.dependencies * 0.10;
-    
-    return {
-      task,
-      totalScore,
-      reasoning: generateReasoning(task, context, breakdown),
-      breakdown,
-    };
-  });
-  
-  // Sort by total score and return top N
+
+  const eligibleTasks = withCollaborators.length > 0 ? withCollaborators : incomplete;
+
+  const scoredTasks: TaskScore[] = eligibleTasks.map((task) => scoreTaskForNow(task, context));
+
   return scoredTasks
     .sort((a, b) => b.totalScore - a.totalScore)
     .slice(0, count);

@@ -145,7 +145,27 @@ export function AIFocusSection() {
           {loading ? (
             <div className="text-gray-400 text-center py-8">Analyzing your tasks...</div>
           ) : !primaryTask ? (
-            <div className="text-gray-400 text-center py-8">No priority tasks available</div>
+            <div className="text-gray-400 text-center py-8 space-y-4 px-2">
+              <p className="text-gray-300">
+                {tasks.some((t) => !t.completed)
+                  ? 'We could not rank your open tasks yet.'
+                  : 'No open tasks yet.'}
+              </p>
+              <p className="text-sm text-gray-500 max-w-md mx-auto">
+                This card picks your top one or two tasks from deadlines, priority, and energy fit. Add or reopen tasks to see suggestions here.
+              </p>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="border-teal-500/40 text-teal-300 hover:bg-teal-500/10"
+                onClick={() => {
+                  window.location.hash = '#/tasks';
+                }}
+              >
+                Go to tasks
+              </Button>
+            </div>
           ) : (
             <>
               <div>
