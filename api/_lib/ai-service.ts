@@ -94,7 +94,8 @@ export interface AICallResult {
 
 function getProviderChain(): string[] {
   // Primary provider from env, default to nvidia (FREE via build.nvidia.com)
-  const primary = (process.env.AI_PROVIDER || 'nvidia').toLowerCase();
+  const requested = (process.env.AI_PROVIDER || 'nvidia').toLowerCase().trim();
+  const primary = PROVIDERS[requested] ? requested : 'nvidia';
 
   // Fallback chain — every configured provider after the primary
   const chain: string[] = [primary];
@@ -248,7 +249,9 @@ export async function callAIStream(
  */
 export function isAIConfigured(): boolean {
   return getProviderChain().some((name) => {
-    const key = process.env[PROVIDERS[name].keyEnv];
-    return key && key.trim();
+    const cfg = PROVIDERS[name];
+    if (!cfg) return false;
+    const key = process.env[cfg.keyEnv];
+    return Boolean(key && String(key).trim());
   });
 }
