@@ -1,5 +1,8 @@
-import { readFileSync } from 'fs';
-import { join } from 'path';
+import manifestJson from './manifest.json';
+import plansFileJson from './knowledge/public-plans.json';
+import factsFileJson from './knowledge/product-facts.json';
+import boundariesJson from './policies/signed-in-boundaries.json';
+import toolRegistryJson from './tools/registry.json';
 
 export type PublicPlan = {
   name: string;
@@ -52,20 +55,15 @@ export type NexusBrainBundle = {
 
 let cache: NexusBrainBundle | null = null;
 
-function readBrainJson<T>(...segments: string[]): T {
-  const base = join(__dirname, ...segments);
-  return JSON.parse(readFileSync(base, 'utf8')) as T;
-}
-
-/** Load versioned Nexus brain from JSON on disk (cached per lambda cold start). */
+/** Brain JSON is statically imported so Vercel's bundled handler always has data (fs + __dirname breaks after bundle). */
 export function loadNexusBrain(): NexusBrainBundle {
   if (cache) return cache;
 
-  const manifest = readBrainJson<NexusManifest>('manifest.json');
-  const plansFile = readBrainJson<PublicPlansFile>('knowledge', 'public-plans.json');
-  const factsFile = readBrainJson<ProductFactsFile>('knowledge', 'product-facts.json');
-  const boundaries = readBrainJson<SignedInBoundariesFile>('policies', 'signed-in-boundaries.json');
-  const toolRegistry = readBrainJson<ToolRegistryFile>('tools', 'registry.json');
+  const manifest = manifestJson as NexusManifest;
+  const plansFile = plansFileJson as PublicPlansFile;
+  const factsFile = factsFileJson as ProductFactsFile;
+  const boundaries = boundariesJson as SignedInBoundariesFile;
+  const toolRegistry = toolRegistryJson as ToolRegistryFile;
 
   const productFactsText = factsFile.facts.map((f) => `- (${f.id}) ${f.text}`).join('\n');
 
