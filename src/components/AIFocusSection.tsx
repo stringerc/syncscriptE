@@ -13,6 +13,7 @@ import { calculateCollaboratorProgress, getROYGBIVProgress } from '../utils/prog
 import { useCurrentReadiness } from '../hooks/useCurrentReadiness';
 import { useWeatherRoute } from '../hooks/useWeatherRoute';
 import { WeatherRouteConflictModal } from './WeatherRouteConflictModal';
+import { defaultCollaboratorImage, resolveTaskCardAvatar } from '../utils/task-avatar-display';
 
 /**
  * 🧠 AI FOCUS SECTION WITH ENERGY ADAPTIVE AGENT
@@ -175,13 +176,11 @@ export function AIFocusSection() {
               </div>
 
               <div className="space-y-4">
-                {topPriorityTasks.map((taskScore, index) => {
+                {topPriorityTasks.map((taskScore) => {
                   const task = taskScore.task;
-                  const collaborator = task.collaborators?.[0];
-                  
-                  // Determine if this is the current user's task
-                  const isCurrentUser = collaborator?.name === profile.name;
-                  
+                  const { showAsSelf, peer } = resolveTaskCardAvatar(task, profile);
+                  const displayPeer = peer;
+
                   return (
                     <div 
                       key={task.id}
@@ -192,9 +191,13 @@ export function AIFocusSection() {
                           - Material Design (2024): "Information parity for all users in collaborative contexts"
                           - For current user, use 'none' animation to maintain consistency without distraction */}
                       <AnimatedAvatar
-                        name={isCurrentUser ? profile.name : (collaborator?.name || 'Task')}
-                        image={isCurrentUser ? profile.avatar : (collaborator?.image || 'https://images.unsplash.com/photo-1656313826909-1f89d1702a81?w=100&h=100&fit=crop')}
-                        fallback={isCurrentUser ? profile.name.split(' ').map(n => n[0]).join('').toUpperCase() : (collaborator?.fallback || task.title.substring(0, 2).toUpperCase())}
+                        name={showAsSelf ? profile.name : (displayPeer?.name || 'Task')}
+                        image={showAsSelf ? profile.avatar : (displayPeer?.image || defaultCollaboratorImage())}
+                        fallback={
+                          showAsSelf
+                            ? profile.name.split(' ').map((n) => n[0]).join('').toUpperCase()
+                            : (displayPeer?.fallback || task.title.substring(0, 2).toUpperCase())
+                        }
                         progress={
                           // ══════════════════════════════════════════════════════════════════════
                           // CRITICAL UX: Current user's avatar ALWAYS shows their ENERGY
@@ -205,14 +208,18 @@ export function AIFocusSection() {
                           // Current user → Energy (87%) - matches header & Energy tab
                           // Other collaborators → Task-specific progress
                           // ══════════════════════════════════════════════════════════════════════
-                          isCurrentUser 
-                            ? calculatedEnergy 
-                            : calculateCollaboratorProgress(task, collaborator?.id, collaborator?.name || '')
+                          showAsSelf
+                            ? calculatedEnergy
+                            : calculateCollaboratorProgress(
+                                task,
+                                displayPeer?.id,
+                                displayPeer?.name || '',
+                              )
                         }
-                        animationType={isCurrentUser ? 'none' : (collaborator?.animationType || 'pulse')}
+                        animationType={showAsSelf ? 'none' : (displayPeer?.animationType || 'pulse')}
                         className="w-20 h-20 transition-transform group-hover:scale-110"
                         size={80}
-                        status={isCurrentUser ? profile.status : (collaborator?.status || 'online')}
+                        status={showAsSelf ? profile.status : (displayPeer?.status || 'online')}
                       />
                       <div className="flex-1">
                         <p className="text-white">{task.title}</p>

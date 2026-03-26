@@ -192,6 +192,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { toast } from 'sonner@2.0.3';
 import { calculateCollaboratorProgress } from '../utils/progress-calculations';
 import { useUserProfile } from '../utils/user-profile';
+import { defaultCollaboratorImage, resolveTaskCardAvatar } from '../utils/task-avatar-display';
 import { useCurrentReadiness } from '../hooks/useCurrentReadiness';
 import { Task } from '../utils/event-task-types';
 
@@ -449,7 +450,7 @@ export function TodayScheduleRefined() {
   // RENDER TASK CARD
   // ══════════════════════════════════════════════════════════════════════════════
   const renderTaskCard = (task: TaskWithTime, isNextUp: boolean = false) => {
-    const avatar = task.collaborators?.[0];
+    const { showAsSelf, peer } = resolveTaskCardAvatar(task, profile);
     const isCompleting = completingTaskIds.has(task.id);
     const urgency = formatUrgency(task.urgencyMinutes);
     const energyFitDisplay = getEnergyFitDisplay(task.energyFit);
@@ -557,21 +558,25 @@ export function TodayScheduleRefined() {
               </div>
             </motion.div>
             
-            {/* Avatar - larger for Next Up, smaller for regular tasks */}
-            {avatar && (
+            {/* Avatar - larger for Next Up; solo tasks use header profile (not collaborators[0]) */}
+            {(showAsSelf || peer) && (
               <AnimatedAvatar
-                name={avatar.name}
-                image={avatar.image}
-                fallback={avatar.fallback}
-                progress={
-                  avatar.name === profile.name 
-                    ? currentUserEnergy 
-                    : calculateCollaboratorProgress(task, avatar.id, avatar.name)
+                name={showAsSelf ? profile.name : (peer?.name || 'Task')}
+                image={showAsSelf ? profile.avatar : (peer?.image || defaultCollaboratorImage())}
+                fallback={
+                  showAsSelf
+                    ? profile.name.split(' ').map((n) => n[0]).join('').toUpperCase()
+                    : (peer?.fallback || task.title.substring(0, 2).toUpperCase())
                 }
-                animationType={avatar.animationType}
+                progress={
+                  showAsSelf
+                    ? currentUserEnergy
+                    : calculateCollaboratorProgress(task, peer?.id, peer?.name || '')
+                }
+                animationType={showAsSelf ? 'none' : (peer?.animationType || 'pulse')}
                 className={isNextUp ? "w-8 h-8" : "w-7 h-7"}
                 size={isNextUp ? 32 : 28}
-                status={avatar.status || 'online'}
+                status={showAsSelf ? profile.status : (peer?.status || 'online')}
               />
             )}
             
