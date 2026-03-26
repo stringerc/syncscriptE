@@ -1,0 +1,49 @@
+# Kokoro TTS on EC2 — production path for SyncScript Vercel (KOKORO_TTS_URL).
+#
+# Recommended: named Cloudflare Tunnel (stable hostname). Enable with:
+#   docker compose --profile named-tunnel up -d
+#
+# Quick tunnel (ephemeral URL on every restart): --profile quick-tunnel
+#   Then update Vercel KOKORO_TTS_URL from cloudflared logs (see README).
+
+services:
+  kokoro:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: kokoro-tts
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8880:8880"
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "3"
+
+  # Zero Trust → Tunnels → your tunnel → Public hostname → http://kokoro:8880
+  cloudflared-named:
+    profiles: ["named-tunnel"]
+    image: cloudflare/cloudflared:latest
+    container_name: kokoro-cloudflared-named
+    restart: unless-stopped
+    depends_on:
+      kokoro:
+        condition: service_healthy
+    environment:
+      # Required when using profile named-tunnel; leave unset for kokoro-only / quick-tunnel
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN:-}
+    command: tunnel --no-autoupdate run
+    network_mode: service:kokoro
+
+  # Ephemeral *.trycloudflare.com — OK for dev; production should use named-tunnel.
+  cloudflared-quick:
+    profiles: ["quick-tunnel"]
+    image: cloudflare/cloudflared:latest
+    container_name: kokoro-cloudflared-quick
+    restart: unless-stopped
+    depends_on:
+      kokoro:
+        condition: service_healthy
+    command: tunnel --no-autoupdate --url http://127.0.0.1:8880
+    network_mode: service:kokoro

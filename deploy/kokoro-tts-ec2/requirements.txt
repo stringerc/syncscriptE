@@ -1,0 +1,5 @@
+# Pinned loosely for reproducible EC2/Docker builds (kokoro-onnx pulls onnxruntime).
+kokoro-onnx==0.4.7
+fastapi>=0.115.0,<1
+uvicorn[standard]>=0.30.0,<1
+numpy>=2.0.0,<3

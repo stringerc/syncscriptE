@@ -1,0 +1,15 @@
+[Unit]
+Description=Kokoro TTS Docker Compose (SyncScript)
+After=docker.service network-online.target
+Requires=docker.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=/opt/kokoro-tts-ec2
+ExecStart=/usr/bin/docker compose --profile named-tunnel up -d --build
+ExecStop=/usr/bin/docker compose --profile named-tunnel down
+TimeoutStartSec=0
+
+[Install]
+WantedBy=multi-user.target
