@@ -9,6 +9,7 @@ import {
 } from 'react';
 import { useVoiceStream } from '../hooks/useVoiceStream';
 import type { STTResult, TTSRequest } from '../types/voice-engine';
+import { disableTtsProxyForSession, isTtsProxyDisabled } from '../utils/tts-proxy-session';
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Types
@@ -62,6 +63,13 @@ const MAX_CALL_DURATION = 300;
 const GOODBYE_LINGER_MS = 1800;
 const NEXUS_GUEST_API = '/api/ai/nexus-guest';
 
+/**
+ * Kokoro voice id sent to /api/ai/tts — same preset as the desktop companion
+ * (`cortana` in nature-cortana-platform/desktop-shell). Custom-tuned on your
+ * Kokoro server for natural delivery; prefer over generic `nexus` preset.
+ */
+const KOKORO_VOICE_PRESET = 'cortana';
+
 const GREETING =
   "Hi, I'm Nexus, your SyncScript guide. Ready when you are. What would you like to explore first?";
 const GOODBYE =
@@ -77,11 +85,11 @@ const END_CALL_PHRASES = [
   'stop call', 'end chat', 'stop talking', 'disconnect',
 ];
 
-const GREETING_PROFILE = { voice: 'nexus', speed: 0.98 } as const;
-const GOODBYE_PROFILE = { voice: 'nexus', speed: 0.97 } as const;
-const FUTURE_WARM_PROFILE = { voice: 'nexus', speed: 0.97 } as const;
-const FUTURE_BALANCED_PROFILE = { voice: 'nexus', speed: 0.99 } as const;
-const FUTURE_GUIDE_PROFILE = { voice: 'nexus', speed: 1.0 } as const;
+const GREETING_PROFILE = { voice: KOKORO_VOICE_PRESET, speed: 0.98 } as const;
+const GOODBYE_PROFILE = { voice: KOKORO_VOICE_PRESET, speed: 0.97 } as const;
+const FUTURE_WARM_PROFILE = { voice: KOKORO_VOICE_PRESET, speed: 0.97 } as const;
+const FUTURE_BALANCED_PROFILE = { voice: KOKORO_VOICE_PRESET, speed: 0.99 } as const;
+const FUTURE_GUIDE_PROFILE = { voice: KOKORO_VOICE_PRESET, speed: 1.0 } as const;
 const FUTURE_WARM_TURNS = 2;
 const TTS_REQUEST_TIMEOUT_MS = 18_000;
 const TTS_MAX_RETRIES = 2;
@@ -192,9 +200,9 @@ const ENERGETIC_CUE_RE =
 
 const PROSODY_MAP: Record<SentenceKind, { voice: string; speed: number }> = {
   // Keep one consistent voice and gentler pacing for smoother, less abrupt delivery.
-  exclamation: { voice: 'nexus', speed: 0.99 },
-  question:    { voice: 'nexus', speed: 1.0 },
-  statement:   { voice: 'nexus', speed: 0.98 },
+  exclamation: { voice: KOKORO_VOICE_PRESET, speed: 0.99 },
+  question:    { voice: KOKORO_VOICE_PRESET, speed: 1.0 },
+  statement:   { voice: KOKORO_VOICE_PRESET, speed: 0.98 },
 };
 
 function classifySentence(text: string): SentenceKind {
@@ -345,6 +353,11 @@ class ProgressivePlayer {
 
   onFirstPlay: (() => void) | null = null;
 
+  /** True if any audio buffer actually started playing (for browser-TTS fallback). */
+  didAudioPlay(): boolean {
+    return this.firstPlayFired;
+  }
+
   private static readonly OVERLAP_SECS = 0;
 
   constructor(signal: AbortSignal) {
@@ -377,6 +390,8 @@ class ProgressivePlayer {
       let audio: AudioBuffer | null = null;
       try { audio = await decoded; } catch { /* swallow */ }
       if (!audio || this.aborted) { this.segmentDone(); return; }
+
+      await this.ctx.resume().catch(() => {});
 
       if (!this.firstPlayFired) {
         this.firstPlayFired = true;
@@ -443,6 +458,7 @@ async function playCachedBuffers(
   let when = ctx.currentTime + 0.02;
 
   let firstPlayFired = false;
+  await ctx.resume().catch(() => {});
   for (let i = 0; i < buffers.length; i++) {
     if (signal.aborted) { ctx.close().catch(() => {}); return false; }
     try {
@@ -454,6 +470,7 @@ async function playCachedBuffers(
         firstPlayFired = true;
         try { onFirstPlay?.(); } catch { /* silent */ }
       }
+      await ctx.resume().catch(() => {});
       src.start(when);
       sources.push(src);
       const isLast = i === buffers.length - 1;
@@ -628,46 +645,97 @@ function registerTTSSuccess(): void {
   ttsCircuitOpenUntil = 0;
 }
 
+/** Kokoro may not know `cortana` on every deploy; try stock voices before failing. */
+function ttsVoiceCandidates(primary: string): string[] {
+  const rest = ['natural', 'nexus', 'professional'].filter((v) => v !== primary);
+  return [primary, ...rest];
+}
+
+function isVoiceOrClientError(status: number): boolean {
+  return status === 400 || status === 404 || status === 422;
+}
+
+const MAX_TTS_BROWSER_CHARS = 2800;
+
+/** Last resort when Kokoro is down or all voices fail — user still hears something. */
+function speakBrowserUtterance(text: string): Promise<void> {
+  return new Promise((resolve) => {
+    if (typeof window === 'undefined' || !window.speechSynthesis) {
+      resolve();
+      return;
+    }
+    const clean = sanitizeForTTS(text).slice(0, MAX_TTS_BROWSER_CHARS);
+    if (!clean.trim()) {
+      resolve();
+      return;
+    }
+    const u = new SpeechSynthesisUtterance(clean);
+    u.rate = 0.95;
+    u.onend = () => resolve();
+    u.onerror = () => resolve();
+    try {
+      window.speechSynthesis.cancel();
+      window.speechSynthesis.speak(u);
+    } catch {
+      resolve();
+    }
+  });
+}
+
 function fetchTTSBuffer(seg: ProsodySegment, signal?: AbortSignal): Promise<ArrayBuffer | null> {
-  if (Date.now() < ttsCircuitOpenUntil) {
+  if (isTtsProxyDisabled() || Date.now() < ttsCircuitOpenUntil) {
     return Promise.resolve(null);
   }
   return (async () => {
-    for (let attempt = 0; attempt <= TTS_MAX_RETRIES; attempt += 1) {
-      if (signal?.aborted) return null;
-      const timeoutController = new AbortController();
-      const timeoutId = setTimeout(() => timeoutController.abort(), TTS_REQUEST_TIMEOUT_MS);
-      const onAbort = () => timeoutController.abort();
-      if (signal) {
-        signal.addEventListener('abort', onAbort, { once: true });
-      }
-      try {
-        const response = await fetch('/api/ai/tts', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ text: seg.text, voice: seg.voice, speed: seg.speed }),
-          signal: timeoutController.signal,
-        });
-        if (response.ok) {
-          const buffer = await response.arrayBuffer();
-          if (buffer.byteLength > 0) {
-            registerTTSSuccess();
-            return buffer;
+    const voices = ttsVoiceCandidates(seg.voice);
+    for (const voice of voices) {
+      for (let attempt = 0; attempt <= TTS_MAX_RETRIES; attempt += 1) {
+        if (signal?.aborted) return null;
+        const timeoutController = new AbortController();
+        const timeoutId = setTimeout(() => timeoutController.abort(), TTS_REQUEST_TIMEOUT_MS);
+        const onAbort = () => timeoutController.abort();
+        if (signal) {
+          signal.addEventListener('abort', onAbort, { once: true });
+        }
+        try {
+          const response = await fetch('/api/ai/tts', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text: seg.text, voice, speed: seg.speed }),
+            signal: timeoutController.signal,
+          });
+          if (response.ok) {
+            const buffer = await response.arrayBuffer();
+            if (buffer.byteLength > 0) {
+              registerTTSSuccess();
+              return buffer;
+            }
+            break;
+          } else {
+            const errData = (await response.json().catch(() => ({}))) as { code?: string };
+            if (errData.code === 'NO_TTS_URL') {
+              disableTtsProxyForSession();
+              registerTTSFailure();
+              return null;
+            }
+            if (isVoiceOrClientError(response.status)) {
+              break;
+            }
+            if (!isTransientTTSStatus(response.status) || attempt >= TTS_MAX_RETRIES) {
+              break;
+            }
+          }
+        } catch {
+          if (signal?.aborted) return null;
+          if (attempt >= TTS_MAX_RETRIES) break;
+        } finally {
+          clearTimeout(timeoutId);
+          if (signal) {
+            signal.removeEventListener('abort', onAbort);
           }
         }
-        if (!isTransientTTSStatus(response.status) || attempt >= TTS_MAX_RETRIES) {
-          break;
-        }
-      } catch {
-        if (signal?.aborted) return null;
-        if (attempt >= TTS_MAX_RETRIES) break;
-      } finally {
-        clearTimeout(timeoutId);
-        if (signal) {
-          signal.removeEventListener('abort', onAbort);
-        }
+        await delay(TTS_RETRY_BACKOFF_MS * (attempt + 1));
       }
-      await delay(TTS_RETRY_BACKOFF_MS * (attempt + 1));
     }
     registerTTSFailure();
     return null;
@@ -695,7 +763,7 @@ function preloadPhrase(
       return {
         text: sanitizeForTTS(s),
         kind: classifySentence(sanitizeForTTS(s)),
-        voice: options?.voice || 'nexus',
+        voice: options?.voice || KOKORO_VOICE_PRESET,
         speed: options?.speed ?? 1.0,
       } as ProsodySegment;
     }
@@ -802,8 +870,6 @@ export function NexusVoiceCallProvider({ children }: { children: ReactNode }) {
   const voiceStream = useVoiceStream({
     continuous: true,
     interimResults: true,
-    preferServerStt: false,
-    enableServerSttFallback: true,
     onTranscript: handleTranscript,
     onStatusChange: (status) => {
       if (status === 'listening') {
@@ -870,6 +936,9 @@ export function NexusVoiceCallProvider({ children }: { children: ReactNode }) {
           }
           player.seal();
           await player.waitUntilDone();
+          if (!player.didAudioPlay() && text.trim()) {
+            await speakBrowserUtterance(text);
+          }
         }
       } finally {
         speakingRef.current = false;
@@ -997,6 +1066,12 @@ export function NexusVoiceCallProvider({ children }: { children: ReactNode }) {
         player.feed(queued);
       };
 
+      const ensureSpokenOrBrowser = async () => {
+        if (fullText.trim() && !player.didAudioPlay()) {
+          await speakBrowserUtterance(fullText);
+        }
+      };
+
       try {
         const res = await fetch(NEXUS_GUEST_API, {
           method: 'POST',
@@ -1014,6 +1089,7 @@ export function NexusVoiceCallProvider({ children }: { children: ReactNode }) {
           for (const s of splitToSentences(fullText)) feedSentence(s);
           player.seal();
           await player.waitUntilDone();
+          await ensureSpokenOrBrowser();
           return fullText;
         }
 
@@ -1025,6 +1101,7 @@ export function NexusVoiceCallProvider({ children }: { children: ReactNode }) {
           feedSentence(fullText);
           player.seal();
           await player.waitUntilDone();
+          await ensureSpokenOrBrowser();
           return fullText;
         }
 
@@ -1042,6 +1119,7 @@ export function NexusVoiceCallProvider({ children }: { children: ReactNode }) {
           feedSentence(fullText);
           player.seal();
           await player.waitUntilDone();
+          await ensureSpokenOrBrowser();
           return fullText;
         }
 
@@ -1085,6 +1163,7 @@ export function NexusVoiceCallProvider({ children }: { children: ReactNode }) {
           player.seal();
 
           await player.waitUntilDone();
+          await ensureSpokenOrBrowser();
           if (!canRevealText) {
             showNexusText(display);
             clearProcessingOnce();
@@ -1153,6 +1232,7 @@ export function NexusVoiceCallProvider({ children }: { children: ReactNode }) {
         if (fullText && canRevealText) showNexusText(fullText);
         player.seal();
         await player.waitUntilDone();
+        await ensureSpokenOrBrowser();
         if (fullText && !canRevealText) showNexusText(fullText);
         clearProcessingOnce();
       } catch (err: any) {
@@ -1164,6 +1244,7 @@ export function NexusVoiceCallProvider({ children }: { children: ReactNode }) {
           feedSentence(fullText);
           player.seal();
           await player.waitUntilDone();
+          await ensureSpokenOrBrowser();
         }
       } finally {
         speakingRef.current = false;

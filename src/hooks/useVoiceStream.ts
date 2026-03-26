@@ -14,6 +14,7 @@
  */
 
 import { useState, useRef, useCallback, useEffect } from 'react';
+import { disableTtsProxyForSession, isTtsProxyDisabled } from '../utils/tts-proxy-session';
 import type {
   VoiceEngineState,
   VoiceEngineStatus,
@@ -191,6 +192,10 @@ export function useVoiceStream(options: UseVoiceStreamOptions = {}) {
     recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
       if (event.error === 'no-speech' || event.error === 'aborted') {
         return;
+      }
+      if (event.error === 'not-allowed') {
+        shouldRestartRef.current = false;
+        isListeningRef.current = false;
       }
       const errorMsg = `Speech recognition error: ${event.error}`;
       setState(prev => ({ ...prev, lastError: errorMsg }));
@@ -437,30 +442,35 @@ export function useVoiceStream(options: UseVoiceStreamOptions = {}) {
     const speed = request.config?.speed || 1.0;
 
     // --- Attempt 1: /api/ai/tts proxy (dev: Vite middleware, prod: Vercel function) ---
-    try {
-      console.info(`[TTS] Trying /api/ai/tts proxy (voice: ${voicePreset}, speed: ${speed})…`);
-      const res = await fetch('/api/ai/tts', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: request.text, voice: voicePreset, speed }),
-      });
+    if (!isTtsProxyDisabled()) {
+      try {
+        console.info(`[TTS] Trying /api/ai/tts proxy (voice: ${voicePreset}, speed: ${speed})…`);
+        const res = await fetch('/api/ai/tts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: request.text, voice: voicePreset, speed }),
+        });
 
-      if (res.ok) {
-        const ct = res.headers.get('content-type') || '';
-        if (ct.startsWith('audio/')) {
-          const blob = await res.blob();
-          if (blob.size > 100) {
-            console.info(`[TTS] ✅ Kokoro via proxy — ${blob.size} bytes, ${ct}`);
-            return playAudioBlob(blob);
+        if (res.ok) {
+          const ct = res.headers.get('content-type') || '';
+          if (ct.startsWith('audio/')) {
+            const blob = await res.blob();
+            if (blob.size > 100) {
+              console.info(`[TTS] ✅ Kokoro via proxy — ${blob.size} bytes, ${ct}`);
+              return playAudioBlob(blob);
+            }
           }
+          console.warn(`[TTS] Proxy returned OK but content-type="${ct}" — not audio`);
+        } else {
+          const errData = (await res.json().catch(() => ({}))) as { code?: string; error?: string };
+          if (errData.code === 'NO_TTS_URL') {
+            disableTtsProxyForSession();
+          }
+          console.warn(`[TTS] Proxy failed: HTTP ${res.status} — ${errData.code || errData.error || ''}`);
         }
-        console.warn(`[TTS] Proxy returned OK but content-type="${ct}" — not audio`);
-      } else {
-        const errData = await res.json().catch(() => ({ code: 'UNKNOWN' }));
-        console.warn(`[TTS] Proxy failed: HTTP ${res.status} — ${errData.code || errData.error || ''}`);
+      } catch (err: any) {
+        console.warn(`[TTS] Proxy unreachable: ${err.message}`);
       }
-    } catch (err: any) {
-      console.warn(`[TTS] Proxy unreachable: ${err.message}`);
     }
 
     // --- Attempt 2: Direct Kokoro (if VITE_KOKORO_TTS_URL is set, may face CORS) ---

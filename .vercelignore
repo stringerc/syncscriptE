@@ -1,3 +1,10 @@
+# Keep deploy uploads small — CLI uploads the working tree (not only git-tracked files).
+node_modules/
+build/
+dist/
+.git/
+.vercel/output/
+
 mission-control/
 sentinel/
 dashboard/
@@ -7,3 +14,16 @@ figma-make-latest/
 scripts/
 memory/
 api/phone/**
+
+nature-cortana-platform/
+ios/
+.tmp-playwright/
+.tmp-*/
+evidence/
+reports/
+*.log
+
+# Local-only API routes (not on origin/main) — keep CLI deploy ≤ Hobby function limit / match GitHub
+api/discord/
+api/ai/stt.ts
+api/ai/nexus-brain-manifest.ts

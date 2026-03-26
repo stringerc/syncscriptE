@@ -32,6 +32,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
   if (req.method === 'OPTIONS') return res.status(204).end();
+
+  /**
+   * GET — operator / CI check: whether Vercel has KOKORO_TTS_URL (no audio, no upstream call).
+   * POST still returns 503 + { code: 'NO_TTS_URL' } when unset; this avoids guessing from errors alone.
+   */
+  if (req.method === 'GET') {
+    res.setHeader('Cache-Control', 'no-store');
+    const kokoroConfigured = Boolean(KOKORO_URL);
+    return res.status(200).json({
+      service: 'kokoro-tts-proxy',
+      kokoroConfigured,
+      ...(kokoroConfigured ? {} : { hint: 'Set KOKORO_TTS_URL in Vercel project env (base URL for Kokoro; path /v1/audio/speech is appended).' }),
+    });
+  }
+
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   const { text, voice, speed } = req.body || {};
@@ -49,7 +64,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(503).json({ error: 'TTS service not configured', code: 'NO_TTS_URL' });
   }
 
-  const resolvedVoice = VOICE_PRESETS[voice] || voice || VOICE_PRESETS.nexus;
+  /** Default matches landing Nexus + desktop companion (custom Kokoro preset). */
+  const resolvedVoice = VOICE_PRESETS[voice] || voice || VOICE_PRESETS.cortana;
 
   try {
     const controller = new AbortController();
