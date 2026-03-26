@@ -4,6 +4,7 @@ build/
 .env
 .env.local
 .env.*.local
+.env.vercel*.pull
 .DS_Store
 *.log
 .vercel

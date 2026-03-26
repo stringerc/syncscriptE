@@ -9,7 +9,10 @@
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
-const KOKORO_URL = process.env.KOKORO_TTS_URL || '';
+/** Trim — Vercel/dashboard paste sometimes includes trailing \\n or whitespace. */
+const KOKORO_URL = (process.env.KOKORO_TTS_URL || '').trim().replace(/\\n$/g, '').trim();
+/** Optional second Kokoro base URL (must be Kokoro /v1 host, not this app’s /api/ai/tts). */
+const KOKORO_FALLBACK_URL = (process.env.KOKORO_TTS_FALLBACK_URL || '').trim().replace(/\\n$/g, '').trim();
 
 const VOICE_PRESETS: Record<string, string> = {
   nexus: 'nexus',
@@ -26,6 +29,49 @@ const VOICE_PRESETS: Record<string, string> = {
 const MAX_TEXT_LENGTH = 2000;
 const KOKORO_TIMEOUT_MS = 15_000;
 
+type SynthBody = {
+  model: string;
+  input: string;
+  voice: string;
+  speed: number;
+};
+
+async function fetchKokoroAudio(
+  baseUrl: string,
+  body: SynthBody,
+  timeoutMs: number,
+): Promise<
+  | { ok: true; buffer: Buffer; contentType: string }
+  | { ok: false; kind: 'http' | 'network'; status?: number; detail: string }
+> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const kokoroRes = await fetch(`${baseUrl.replace(/\/$/, '')}/v1/audio/speech`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
+    clearTimeout(timeout);
+
+    if (!kokoroRes.ok) {
+      const errText = await kokoroRes.text().catch(() => '');
+      return { ok: false, kind: 'http', status: kokoroRes.status, detail: errText.slice(0, 200) };
+    }
+
+    const audioBuffer = await kokoroRes.arrayBuffer();
+    const contentType = kokoroRes.headers.get('content-type') || 'audio/wav';
+    return { ok: true, buffer: Buffer.from(audioBuffer), contentType };
+  } catch (error: any) {
+    clearTimeout(timeout);
+    if (error.name === 'AbortError') {
+      return { ok: false, kind: 'network', detail: 'timeout' };
+    }
+    return { ok: false, kind: 'network', detail: error.message || 'fetch failed' };
+  }
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -39,11 +85,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
    */
   if (req.method === 'GET') {
     res.setHeader('Cache-Control', 'no-store');
-    const kokoroConfigured = Boolean(KOKORO_URL);
+    const kokoroConfigured = Boolean(KOKORO_URL || KOKORO_FALLBACK_URL);
     return res.status(200).json({
       service: 'kokoro-tts-proxy',
       kokoroConfigured,
-      ...(kokoroConfigured ? {} : { hint: 'Set KOKORO_TTS_URL in Vercel project env (base URL for Kokoro; path /v1/audio/speech is appended).' }),
+      ...(kokoroConfigured ? {} : { hint: 'Set KOKORO_TTS_URL (and optionally KOKORO_TTS_FALLBACK_URL) in Vercel env.' }),
     });
   }
 
@@ -59,51 +105,53 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(400).json({ error: `Text too long (max ${MAX_TEXT_LENGTH} chars)` });
   }
 
-  if (!KOKORO_URL) {
-    console.warn('[TTS] KOKORO_TTS_URL not configured');
+  if (!KOKORO_URL && !KOKORO_FALLBACK_URL) {
+    console.warn('[TTS] KOKORO_TTS_URL and KOKORO_TTS_FALLBACK_URL not configured');
     return res.status(503).json({ error: 'TTS service not configured', code: 'NO_TTS_URL' });
   }
 
   /** Default matches landing Nexus + desktop companion (custom Kokoro preset). */
   const resolvedVoice = VOICE_PRESETS[voice] || voice || VOICE_PRESETS.cortana;
+  const speedClamped = typeof speed === 'number' ? Math.max(0.5, Math.min(speed, 2.0)) : 1.0;
+  const synthBody: SynthBody = {
+    model: 'kokoro',
+    input: text,
+    voice: resolvedVoice,
+    speed: speedClamped,
+  };
 
-  try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), KOKORO_TIMEOUT_MS);
+  const urlsToTry = [KOKORO_URL, KOKORO_FALLBACK_URL].filter(Boolean);
+  let lastFailure: { code: string; message: string; httpStatus?: number } | null = null;
 
-    const kokoroRes = await fetch(`${KOKORO_URL}/v1/audio/speech`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'kokoro',
-        input: text,
-        voice: resolvedVoice,
-        speed: typeof speed === 'number' ? Math.max(0.5, Math.min(speed, 2.0)) : 1.0,
-      }),
-      signal: controller.signal,
-    });
+  for (let i = 0; i < urlsToTry.length; i += 1) {
+    const base = urlsToTry[i];
+    const label = i === 0 ? 'primary' : 'fallback';
+    const result = await fetchKokoroAudio(base, synthBody, KOKORO_TIMEOUT_MS);
 
-    clearTimeout(timeout);
-
-    if (!kokoroRes.ok) {
-      const errText = await kokoroRes.text().catch(() => '');
-      console.error(`[TTS] Kokoro returned ${kokoroRes.status}: ${errText.slice(0, 200)}`);
-      return res.status(503).json({ error: 'TTS synthesis failed', code: 'KOKORO_ERROR' });
+    if (result.ok) {
+      res.setHeader('Content-Type', result.contentType);
+      res.setHeader('Content-Length', result.buffer.byteLength.toString());
+      res.setHeader('Cache-Control', 'no-store');
+      return res.send(result.buffer);
     }
 
-    const audioBuffer = await kokoroRes.arrayBuffer();
-    const contentType = kokoroRes.headers.get('content-type') || 'audio/wav';
-
-    res.setHeader('Content-Type', contentType);
-    res.setHeader('Content-Length', audioBuffer.byteLength.toString());
-    res.setHeader('Cache-Control', 'no-store');
-    return res.send(Buffer.from(audioBuffer));
-  } catch (error: any) {
-    if (error.name === 'AbortError') {
-      console.error('[TTS] Kokoro request timed out');
-      return res.status(504).json({ error: 'TTS request timed out', code: 'TIMEOUT' });
+    if (result.kind === 'http') {
+      console.error(`[TTS] Kokoro (${label}) HTTP ${result.status}: ${result.detail}`);
+      lastFailure = { code: 'KOKORO_ERROR', message: 'TTS synthesis failed' };
+    } else {
+      const isTimeout = result.detail === 'timeout';
+      console.error(`[TTS] Kokoro (${label}) ${isTimeout ? 'timed out' : 'unreachable'}: ${result.detail}`);
+      lastFailure = isTimeout
+        ? { code: 'TIMEOUT', message: 'TTS request timed out' }
+        : { code: 'UNREACHABLE', message: 'TTS service unreachable' };
     }
-    console.error('[TTS] Kokoro unreachable:', error.message);
-    return res.status(503).json({ error: 'TTS service unreachable', code: 'UNREACHABLE' });
   }
+
+  if (lastFailure?.code === 'TIMEOUT') {
+    return res.status(504).json({ error: lastFailure.message, code: 'TIMEOUT' });
+  }
+  if (lastFailure?.code === 'KOKORO_ERROR') {
+    return res.status(503).json({ error: lastFailure.message, code: 'KOKORO_ERROR' });
+  }
+  return res.status(503).json({ error: 'TTS service unreachable', code: 'UNREACHABLE' });
 }
