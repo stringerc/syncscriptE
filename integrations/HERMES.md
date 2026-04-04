@@ -99,6 +99,14 @@ Optional: `VITE_HERMES_UI=1` shows the **Agent run** dock chrome by default (oth
 3. Verify: `ENGRAM_LIVE_USE_DEFAULT_PROJECT_URL=1 HERMES_REQUIRE_CONNECTED=1 npm run verify:hermes:edge-live`
 4. Vercel: **`VITE_HERMES_ENABLED=1`** (and optional **`VITE_HERMES_UI=1`**) then production deploy so the client bundle includes Hermes + dock.
 
-**Quick Tunnel dev path:** `npm run bringup:hermes:tunnel` (mock + `cloudflared` + secret + deploy). Hostname rotates when `cloudflared` restarts — update the secret or use a **named tunnel / stable host** for real ops.
+**Bringup script** (`npm run bringup:hermes:tunnel`):
+
+| Mode | When to use |
+|------|-------------|
+| Default | Dev: mock + **Quick Tunnel** + secret + deploy (hostname changes when `cloudflared` restarts). |
+| `HERMES_BASE_URL_TARGET=https://…` | Executor already on a **stable** URL — only secret + deploy + probe (no tunnel in this shell). |
+| `HERMES_NAMED_TUNNEL` + `HERMES_PUBLIC_BASE_URL` | This host runs **named** `cloudflared tunnel run …` with ingress to `127.0.0.1:18880`. |
+
+Step-by-step for named tunnels and VPS: [HERMES_STABLE_TUNNEL.md](./HERMES_STABLE_TUNNEL.md).
 
 **Invoke headers:** `GET …/hermes/health` from curl must send **`Authorization: Bearer <anon>`** and **`apikey: <anon>`** (Supabase Functions requirement), not bare `curl` without auth.
