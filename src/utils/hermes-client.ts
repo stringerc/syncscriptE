@@ -3,7 +3,8 @@
  * Set `HERMES_BASE_URL` on Edge; optional `VITE_HERMES_ENABLED=true` to enable client helpers.
  */
 
-import { publicAnonKey, supabaseUrl } from './supabase/info';
+import { supabaseUrl } from './supabase/info';
+import { supabaseFunctionsGatewayHeaders } from './supabase-functions-gateway';
 import {
   emitAgentRunCompleted,
   emitAgentRunFailed,
@@ -31,19 +32,10 @@ function requestIdHeader(requestId?: string): Record<string, string> {
   return { 'X-Request-ID': id };
 }
 
-/** Supabase Functions gateway requires Authorization + apikey (anon is public; same as verify-hermes-edge-live.mjs). */
-function supabaseGatewayHeaders(extra: Record<string, string> = {}): Record<string, string> {
-  return {
-    Authorization: `Bearer ${publicAnonKey}`,
-    apikey: publicAnonKey,
-    ...extra,
-  };
-}
-
 export async function fetchHermesBridgeHealth(requestId?: string): Promise<HermesBridgeHealth> {
   const r = await fetch(`${BRIDGE_BASE}/health`, {
     method: 'GET',
-    headers: supabaseGatewayHeaders(requestId ? requestIdHeader(requestId) : {}),
+    headers: supabaseFunctionsGatewayHeaders(requestId ? requestIdHeader(requestId) : {}),
     signal: AbortSignal.timeout(8000),
   });
   const data = (await r.json().catch(() => ({}))) as HermesBridgeHealth;
@@ -111,7 +103,7 @@ export async function invokeHermesTool(
   const r = await fetch(`${BRIDGE_BASE}/invoke`, {
     method: 'POST',
     headers: {
-      ...supabaseGatewayHeaders(),
+      ...supabaseFunctionsGatewayHeaders(),
       Authorization: `Bearer ${accessToken}`,
       Accept: 'application/json',
       'Content-Type': 'application/json',

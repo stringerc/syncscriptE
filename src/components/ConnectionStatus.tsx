@@ -12,6 +12,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Wifi, WifiOff, AlertTriangle } from 'lucide-react';
 import { supabaseUrl } from '../utils/supabase/info';
+import { supabaseFunctionsGatewayHeaders } from '../utils/supabase-functions-gateway';
 
 type ServiceStatus = 'connected' | 'degraded' | 'offline';
 
@@ -49,6 +50,7 @@ export function ConnectionStatus() {
       const response = await fetch(`${SUPABASE_URL}/functions/v1/make-server-57781ad9/health`, {
         signal: controller.signal,
         method: 'GET',
+        headers: supabaseFunctionsGatewayHeaders(),
       });
       clearTimeout(timeout);
       newHealth.supabase = response.ok ? 'connected' : 'degraded';
@@ -64,6 +66,7 @@ export function ConnectionStatus() {
       const response = await fetch(`${SUPABASE_URL}/functions/v1/make-server-57781ad9/openclaw/health`, {
         signal: controller.signal,
         method: 'GET',
+        headers: supabaseFunctionsGatewayHeaders(),
       });
       clearTimeout(timeout);
       newHealth.ai = response.ok ? 'connected' : 'degraded';
