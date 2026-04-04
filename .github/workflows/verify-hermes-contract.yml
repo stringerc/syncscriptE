@@ -1,0 +1,36 @@
+# Static contract: Hermes Edge bridge mount + client path + HERMES.md (no Docker, no live Edge).
+name: Verify Hermes contract
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'supabase/functions/make-server-57781ad9/hermes-bridge.tsx'
+      - 'supabase/functions/make-server-57781ad9/index.ts'
+      - 'supabase/functions/make-server-57781ad9/index.tsx'
+      - 'src/utils/hermes-client.ts'
+      - 'integrations/HERMES.md'
+      - 'tests/hermes-edge-contract.test.mjs'
+      - '.github/workflows/verify-hermes-contract.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'supabase/functions/make-server-57781ad9/hermes-bridge.tsx'
+      - 'supabase/functions/make-server-57781ad9/index.ts'
+      - 'supabase/functions/make-server-57781ad9/index.tsx'
+      - 'src/utils/hermes-client.ts'
+      - 'integrations/HERMES.md'
+      - 'tests/hermes-edge-contract.test.mjs'
+      - '.github/workflows/verify-hermes-contract.yml'
+
+jobs:
+  hermes-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Hermes Edge + client static contract
+        run: node --test tests/hermes-edge-contract.test.mjs

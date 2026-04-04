@@ -80,4 +80,10 @@ test-*.js
 # Temp directories
 lib/
 social/
-scripts/
+scripts/*
+!scripts/engram-public-supabase-url.mjs
+!scripts/bringup-hermes-tunnel-supabase.sh
+!scripts/verify-hermes-edge-live.mjs
+
+# Large optional clone (run integrations/setup-engram.sh)
+integrations/engram_translator/
