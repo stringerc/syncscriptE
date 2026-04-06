@@ -1,0 +1,18 @@
+---
+description: Use agent playbooks and gateway headers for Edge operations
+globs: ["src/utils/**/*client*.ts", "src/utils/supabase-functions-gateway.ts", "supabase/functions/**/*"]
+alwaysApply: false
+---
+
+AGENT WORKFLOWS
+- For git/PR, Edge deploy, Kokoro recovery, Hermes/Engram verify, and release gates: follow **`integrations/agent-playbooks/`** (start at `README.md`).
+- Do not copy upstream Claude Code workflows or copyrighted JSON settings files; patterns are summarized in **`integrations/CLAUDE_CODE_NONPYTHON_INVENTORY.md`**.
+
+SUPABASE FUNCTIONS (BROWSER)
+- Any `fetch` to `/functions/v1/make-server-57781ad9/...` from the app must send **`apikey` + `Authorization`** (public anon for gateway; user JWT when the route requires sign-in). Use **`src/utils/supabase-functions-gateway.ts`**; do not bare `fetch` without headers.
+
+PROTECTED SURFACES
+- Nexus/Energy/auth protected files: see **`02-protected-files-never-touch.mdc`**.
+
+VERIFICATION
+- After Edge or bridge edits: run contract tests (`tests/*-edge-contract.test.mjs`) and documented **`npm run verify:*`** scripts from the playbooks.

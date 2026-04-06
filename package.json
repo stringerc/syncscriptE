@@ -120,6 +120,7 @@
     "bringup:engram:tunnel": "bash ./scripts/bringup-engram-tunnel-supabase.sh",
     "bringup:hermes:tunnel": "bash ./scripts/bringup-hermes-tunnel-supabase.sh",
     "bringup:hermes:target": "bash -c 'test -n \"${HERMES_BASE_URL_TARGET:-}\" || { echo \"Set HERMES_BASE_URL_TARGET=https://… (stable executor URL)\"; exit 1; }; exec bash ./scripts/bringup-hermes-tunnel-supabase.sh'",
+    "doc:agent-playbooks": "node -e \"console.log(require('fs').readFileSync('integrations/agent-playbooks/README.md','utf8'))\"",
     "verify:hermes:edge-live": "node scripts/verify-hermes-edge-live.mjs",
     "hermes:mock": "node ./integrations/hermes-mock-server.mjs",
     "engram:register-agents": "bash ./integrations/register-openclaw-and-hermes.sh",
