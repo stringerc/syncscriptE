@@ -6,4 +6,6 @@
 
 **Live Engram:** `npm run verify:engram:edge-live` (with `.env` if needed).
 
+**CI / GitHub:** `.github/workflows/edge-bridges-live.yml` runs both live scripts on a schedule, on relevant pushes, and on manual dispatch. Tune behavior with repo **Variables** (see workflow file).
+
 **Browser → Functions:** use `src/utils/supabase-functions-gateway.ts` (`Authorization` + `apikey`).

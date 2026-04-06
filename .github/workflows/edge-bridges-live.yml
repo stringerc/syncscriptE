@@ -1,0 +1,68 @@
+# Automated live smoke: Supabase Edge Hermes + Engram bridges (no Anthropic / no Docker).
+# Uses public project URL + anon key from scripts/engram-public-supabase-url.mjs unless you set secrets.
+#
+# Triggers:
+#   - schedule: every 8 hours (UTC)
+#   - push main: when bridges or verify scripts change
+#   - workflow_dispatch: manual run from Actions tab
+#
+# Optional repository Variables (Settings → Secrets and variables → Actions → Variables):
+#   HERMES_LIVE_REQUIRE_CONNECTED — default "1". Set "0" to allow degraded Hermes (not recommended).
+#   ENGRAM_LIVE_REQUIRE_CONNECTED — default "0". Set "1" to fail if Engram upstream not connected.
+#   ENGRAM_LIVE_ALLOW_NOT_DEPLOYED — default "0". Set "1" to pass when Engram route returns 404.
+#
+# Optional repository Secrets (override public defaults):
+#   SUPABASE_URL — https://<project>.supabase.co
+#   VITE_SUPABASE_ANON_KEY or SUPABASE_ANON_KEY — if you do not want to rely on committed public anon fallback.
+
+name: Edge bridges live verify
+
+on:
+  workflow_dispatch:
+  schedule:
+    # 08:30, 16:30, 00:30 UTC (every 8 hours)
+    - cron: "30 0,8,16 * * *"
+  push:
+    branches: [main]
+    paths:
+      - "supabase/functions/make-server-57781ad9/**"
+      - "scripts/verify-hermes-edge-live.mjs"
+      - "scripts/verify-engram-edge-live.mjs"
+      - "scripts/engram-public-supabase-url.mjs"
+      - ".github/workflows/edge-bridges-live.yml"
+
+concurrency:
+  group: edge-bridges-live-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  live:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    env:
+      ENGRAM_LIVE_USE_DEFAULT_PROJECT_URL: "1"
+      # Repository Variables override; when unset, use defaults shown.
+      HERMES_REQUIRE_CONNECTED: ${{ vars.HERMES_LIVE_REQUIRE_CONNECTED != '' && vars.HERMES_LIVE_REQUIRE_CONNECTED || '1' }}
+      ENGRAM_REQUIRE_CONNECTED: ${{ vars.ENGRAM_LIVE_REQUIRE_CONNECTED != '' && vars.ENGRAM_LIVE_REQUIRE_CONNECTED || '0' }}
+      ENGRAM_LIVE_ALLOW_NOT_DEPLOYED: ${{ vars.ENGRAM_LIVE_ALLOW_NOT_DEPLOYED != '' && vars.ENGRAM_LIVE_ALLOW_NOT_DEPLOYED || '0' }}
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+      SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+      ENGRAM_LIVE_USER_JWT: ${{ secrets.ENGRAM_LIVE_USER_JWT }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Hermes Edge live (GET /hermes/health)
+        run: node scripts/verify-hermes-edge-live.mjs
+
+      - name: Engram Edge live (GET /engram/health [+ optional discover])
+        run: node scripts/verify-engram-edge-live.mjs
