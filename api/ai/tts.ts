@@ -1,12 +1,12 @@
 /**
  * Server-side TTS Proxy
  *
- * Synthesizes speech via Kokoro TTS on AWS EC2, tunneled through Cloudflare.
- * The browser calls this endpoint; it proxies to the Kokoro server.
- *
- * Flow: Browser → /api/ai/tts → Cloudflare Tunnel → Kokoro (EC2) → audio → Browser
+ * Browser → /api/ai/tts → Kokoro `{origin}/v1/audio/speech` → audio bytes.
+ * GET returns `kokoroDirectOrigin` so the client can call Kokoro directly if the proxy fails
+ * (same hostname as `KOKORO_TTS_URL` — no OpenAI, no extra billing).
  */
 
+import { lookup } from 'node:dns/promises';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
 /** Trim — Vercel/dashboard paste sometimes includes trailing \\n or whitespace. */
@@ -73,6 +73,44 @@ async function fetchKokoroAudio(
   }
 }
 
+const PROBE_TIMEOUT_MS = 8_000;
+
+async function dnsResolvable(hostname: string): Promise<{ ok: boolean; detail?: string }> {
+  try {
+    await lookup(hostname);
+    return { ok: true };
+  } catch (error: unknown) {
+    const code = error && typeof error === 'object' && 'code' in error ? String((error as { code?: string }).code) : '';
+    return { ok: false, detail: code ? `DNS ${code}` : 'DNS lookup failed' };
+  }
+}
+
+function hostnameFromOrigin(origin: string): string | null {
+  try {
+    return new URL(origin).hostname;
+  } catch {
+    return null;
+  }
+}
+
+async function probeKokoroHealth(baseUrl: string): Promise<{ ok: boolean; detail?: string }> {
+  const url = `${baseUrl.replace(/\/$/, '')}/health`;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), PROBE_TIMEOUT_MS);
+  try {
+    const r = await fetch(url, { method: 'GET', signal: controller.signal });
+    clearTimeout(timer);
+    if (r.ok) return { ok: true };
+    return { ok: false, detail: `HTTP ${r.status}` };
+  } catch (error: unknown) {
+    clearTimeout(timer);
+    const name = error && typeof error === 'object' && 'name' in error ? String((error as { name?: string }).name) : '';
+    if (name === 'AbortError') return { ok: false, detail: 'probe timeout' };
+    const msg = error instanceof Error ? error.message : 'fetch failed';
+    return { ok: false, detail: msg.slice(0, 120) };
+  }
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -81,16 +119,47 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method === 'OPTIONS') return res.status(204).end();
 
   /**
-   * GET — operator / CI check: whether Vercel has KOKORO_TTS_URL (no audio, no upstream call).
-   * POST still returns 503 + { code: 'NO_TTS_URL' } when unset; this avoids guessing from errors alone.
+   * GET — operator / CI check + **kokoroDirectOrigin** for browser direct fallback (no audio, no upstream call).
    */
   if (req.method === 'GET') {
     res.setHeader('Cache-Control', 'no-store');
     const kokoroConfigured = Boolean(KOKORO_URL || KOKORO_FALLBACK_URL);
+    const primary = KOKORO_URL.replace(/\/$/, '');
+    const q = req.query || {};
+    const wantProbe = q.probe === '1' || q.probe === 'true';
+
+    let kokoroUpstreamReachable: boolean | null = null;
+    let kokoroProbeDetail: string | undefined;
+    let kokoroFallbackReachable: boolean | null = null;
+
+    if (wantProbe) {
+      if (primary) {
+        const p = await probeKokoroHealth(primary);
+        kokoroUpstreamReachable = p.ok;
+        if (!p.ok) kokoroProbeDetail = p.detail;
+      }
+      const fb = KOKORO_FALLBACK_URL.replace(/\/$/, '');
+      if (fb) {
+        const p2 = await probeKokoroHealth(fb);
+        kokoroFallbackReachable = p2.ok;
+        if (!p2.ok && !kokoroProbeDetail) kokoroProbeDetail = p2.detail;
+      }
+    }
+
     return res.status(200).json({
       service: 'kokoro-tts-proxy',
       kokoroConfigured,
+      /** Same origin Vercel uses for POST proxy — client may call `/v1/audio/speech` directly if proxy fails. */
+      kokoroDirectOrigin: primary || null,
+      ...(wantProbe
+        ? {
+            kokoroUpstreamReachable,
+            ...(KOKORO_FALLBACK_URL ? { kokoroFallbackReachable } : {}),
+            ...(kokoroProbeDetail ? { kokoroProbeDetail } : {}),
+          }
+        : {}),
       ...(kokoroConfigured ? {} : { hint: 'Set KOKORO_TTS_URL (and optionally KOKORO_TTS_FALLBACK_URL) in Vercel env.' }),
+      ...(wantProbe ? {} : { probeHint: 'Add ?probe=1 to GET to check Kokoro /health from Vercel (see MEMORY.md).' }),
     });
   }
 
@@ -136,10 +205,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.send(result.buffer);
     }
 
-    if (result.kind === 'http') {
+    if (!result.ok && result.kind === 'http') {
       console.error(`[TTS] Kokoro (${label}) HTTP ${result.status}: ${result.detail}`);
       lastFailure = { code: 'KOKORO_ERROR', message: 'TTS synthesis failed' };
-    } else {
+    } else if (!result.ok) {
       const isTimeout = result.detail === 'timeout';
       console.error(`[TTS] Kokoro (${label}) ${isTimeout ? 'timed out' : 'unreachable'}: ${result.detail}`);
       lastFailure = isTimeout
