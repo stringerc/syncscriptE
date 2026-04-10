@@ -54,6 +54,8 @@ const helpersMore = read('api/phone/_helpers.ts');
 assert.match(helpersMore, /PHONE_CALLER_INDEX_PREFIX/);
 assert.match(helpersMore, /normalizeCallerE164/);
 assert.match(helpersMore, /resolvePhoneCallUserBinding/);
+assert.match(helpersMore, /isOurTwilioCallerNumber/);
+assert.match(helpersMore, /Ignoring caller-index mismatch \(outbound Twilio From/);
 assert.match(helpersMore, /registerCallerPhoneForUser/);
 
 const twiml = read('api/phone/_route-twiml.ts');
@@ -63,5 +65,8 @@ assert.match(twiml, /callerFrom/);
 const manage = read('api/phone/_route-manage.ts');
 assert.match(manage, /caller-index/);
 assert.match(manage, /registerCallerPhoneForUser/);
+
+const phonePanel = read('src/components/PhoneCallPanel.tsx');
+assert.match(phonePanel, /syncscript:nexus-tool-trace/);
 
 console.log('nexus-phone-tools-contract: ok');

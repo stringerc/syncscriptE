@@ -85,6 +85,7 @@
   },
   "devDependencies": {
     "@fullhuman/postcss-purgecss": "^8.0.0",
+    "@playwright/test": "^1.59.1",
     "@tailwindcss/vite": "^4.1.13",
     "@types/node": "^20.10.0",
     "@vercel/node": "^5.6.6",
@@ -100,12 +101,16 @@
     "lock:verify": "node scripts/lock-verify.mjs",
     "guard:mock-surfaces": "node scripts/mock-surface-guard.mjs",
     "guard:evidence-updates": "node scripts/evidence-update-guard.mjs",
-    "release:gate": "npm run lock:verify && npm run guard:mock-surfaces && npm run guard:evidence-updates && npm run test:email-linkage-smoke && npm run test:assignment-policy-smoke && npm run build",
+    "release:gate": "npm run lock:verify && npm run guard:mock-surfaces && npm run guard:dashboard-route-shell && npm run guard:evidence-updates && npm run test:email-linkage-smoke && npm run test:assignment-policy-smoke && npm run build",
     "release:gate:optimizer": "npm run test:optimization-runtime-foundation-smoke && npm run test:optimization-persistence-replay-smoke && npm run test:optimizer-release-gate-thresholds-smoke && node scripts/release-gate-optimizer.mjs && npm run build",
     "release:gate:frontier-complete": "npm run test:cap001-cap003-cap007-finance-governance-smoke && npm run test:cap002-backend-explainability-smoke && npm run test:cap004-cap009-financial-controls-smoke && npm run test:cap005-financial-outcomes-smoke && npm run test:cap006-scenario-engine-smoke && npm run test:cap008-partner-rail-readiness-smoke && npm run test:cap010-institutional-readiness-scorecard-smoke && npm run test:q002-q005-optimizer-adapters-shadow-smoke && npm run test:q004-q006-mission-optimizer-proof-smoke && npm run test:q008-optimization-health-dashboard-smoke && npm run test:q009-premium-optimizer-gate-smoke && npm run test:q010-schedule-assignment-entrypoints-smoke && npm run test:q011-quantum-adapter-sdk-docs-smoke && npm run release:gate:optimizer && npm run perf:budget",
     "release:gate:collab": "npm run test:collab-propagation-smoke && npm run test:collab-propagation-consistency && npm run test:collab-propagation-replay-soak && npm run test:collab-propagation-browser-evidence",
     "release:gate:monetization-collab": "npm run release:gate:collab && npm run guard:evidence-updates && npm run test:monetization-entitlement-smoke && npm run test:performance-guardrails-smoke && npm run test:mission-runtime-governance-smoke && npm run test:mission-delegation-lifecycle-smoke && npm run test:mission-approval-watch-smoke && npm run test:mission-memory-layering-smoke && npm run test:mission-now-panel-smoke",
-    "test": "node --test tests/nexus-context-firewall.test.mjs tests/nexus-brain-golden.test.mjs tests/landing-voice-pipeline-smoke.test.mjs tests/nexus-voice-pipeline-hardening.test.mjs tests/tts-infrastructure-contract.test.mjs tests/engram-edge-contract.test.mjs tests/hermes-edge-contract.test.mjs",
+    "test": "node --test tests/nexus-context-firewall.test.mjs tests/nexus-brain-golden.test.mjs tests/landing-voice-pipeline-smoke.test.mjs tests/nexus-voice-pipeline-hardening.test.mjs tests/nexus-phone-tools-contract.test.mjs tests/tts-infrastructure-contract.test.mjs tests/engram-edge-contract.test.mjs tests/hermes-edge-contract.test.mjs tests/dashboard-route-outlet-regression.test.mjs",
+    "test:nexus-phone-tools": "node --test tests/nexus-phone-tools-contract.test.mjs",
+    "test:e2e:dashboard-nav": "CI=true npm run build && npx playwright install chromium && CI=true npx playwright test e2e/dashboard-nav.spec.ts e2e/dashboard-nav-legacy-redirect.spec.ts",
+    "test:e2e:dashboard-nav:prod": "npx playwright install chromium && PLAYWRIGHT_BASE_URL=${PLAYWRIGHT_BASE_URL:-https://www.syncscript.app} CI=true npx playwright test e2e/dashboard-nav.spec.ts e2e/dashboard-nav-legacy-redirect.spec.ts",
+    "guard:dashboard-route-shell": "node scripts/guard-dashboard-route-shell.mjs",
     "verify:tts:contract": "node --test tests/tts-infrastructure-contract.test.mjs",
     "verify:engram": "bash ./integrations/verify-engram-docs.sh http://127.0.0.1:8000",
     "verify:engram:contract": "node --test tests/engram-edge-contract.test.mjs",
@@ -235,6 +240,8 @@
     "mission:smoke": "node scripts/mission-system-smoke.mjs",
     "native:sync": "npm run build && npx cap sync ios",
     "native:open:ios": "npx cap open ios",
-    "native:doctor": "npx cap doctor"
+    "native:doctor": "npx cap doctor",
+    "verify:nexus-tools-live": "npx --yes tsx scripts/verify-nexus-tools-live.ts",
+    "verify:phone-nexus-edge": "node scripts/verify-phone-nexus-edge-post.mjs"
   }
 }

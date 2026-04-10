@@ -2361,9 +2361,21 @@ export async function registerCallerPhoneForUser(userId: string, phoneRaw: strin
 export type PhoneUserBinding = { userId?: string; userIdForTwiml?: string };
 
 /**
+ * Outbound SyncScript calls use our Twilio DID as `From` on Gather webhooks. That number must never
+ * "win" over the app-passed `userId` in the TwiML URL — otherwise caller-index resolution can
+ * disagree with the query string and we return {} (no Nexus tools, no task writes).
+ */
+export function isOurTwilioCallerNumber(callerRaw: string): boolean {
+  const norm = normalizeCallerE164(callerRaw);
+  const ours = normalizeCallerE164(getTwilioConfig().phoneNumber || '');
+  return norm.length >= 8 && ours.length >= 8 && norm === ours;
+}
+
+/**
  * Decide which Supabase user owns tool side-effects for this Twilio leg.
  * - Inbound: resolve From → KV index.
- * - Outbound: query userId must match caller index when an index exists (stops wrong-account writes).
+ * - Outbound: TwiML `userId` query (app account) is authoritative when `From` is our Twilio line.
+ * - When From is the user's mobile, query userId must match caller index if both exist (stops wrong-account writes).
  */
 export async function resolvePhoneCallUserBinding(
   queryUserId: string | undefined,
@@ -2374,6 +2386,12 @@ export async function resolvePhoneCallUserBinding(
   const fromIdx = callerFrom ? await resolveUserIdFromCallerPhone(callerFrom) : null;
 
   if (q && fromIdx && q !== fromIdx) {
+    if (isOurTwilioCallerNumber(callerFrom)) {
+      console.warn(
+        `[PhoneAI] Ignoring caller-index mismatch (outbound Twilio From=${normalizeCallerE164(callerFrom).slice(0, 6)}…); using query userId ${q.slice(0, 8)}… (callSid=${callSid})`,
+      );
+      return { userId: q, userIdForTwiml: q };
+    }
     console.warn(
       `[PhoneAI] Tool use blocked: Twilio From maps to ${fromIdx.slice(0, 8)}… but TwiML had userId ${q.slice(0, 8)}… (callSid=${callSid})`,
     );

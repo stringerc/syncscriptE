@@ -205,6 +205,18 @@ export function PhoneCallPanel({ voiceContext, userEmail, userId: propUserId, on
           toast.info('Call ended', {
             description: [nexusDesc, `Duration: ${formatDuration(callDuration)}`].filter(Boolean).join('\n'),
           });
+          if (nexusLines.length > 0) {
+            window.dispatchEvent(
+              new CustomEvent('syncscript:nexus-tool-trace', {
+                detail: {
+                  toolTrace: nexusLines.map((l) => ({
+                    ok: !l.line.includes('not saved'),
+                    tool: /\bnote\b/i.test(l.line) ? 'add_note' : 'create_task',
+                  })),
+                },
+              }),
+            );
+          }
           syncCalendarEvents(status.callId);
         }
       }
