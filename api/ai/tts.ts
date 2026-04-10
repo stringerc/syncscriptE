@@ -205,15 +205,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.send(result.buffer);
     }
 
-    if (!result.ok && result.kind === 'http') {
-      console.error(`[TTS] Kokoro (${label}) HTTP ${result.status}: ${result.detail}`);
-      lastFailure = { code: 'KOKORO_ERROR', message: 'TTS synthesis failed' };
-    } else if (!result.ok) {
-      const isTimeout = result.detail === 'timeout';
-      console.error(`[TTS] Kokoro (${label}) ${isTimeout ? 'timed out' : 'unreachable'}: ${result.detail}`);
-      lastFailure = isTimeout
-        ? { code: 'TIMEOUT', message: 'TTS request timed out' }
-        : { code: 'UNREACHABLE', message: 'TTS service unreachable' };
+    if (!result.ok) {
+      if (result.kind === 'http') {
+        console.error(`[TTS] Kokoro (${label}) HTTP ${result.status}: ${result.detail}`);
+        lastFailure = { code: 'KOKORO_ERROR', message: 'TTS synthesis failed' };
+      } else {
+        const isTimeout = result.detail === 'timeout';
+        console.error(`[TTS] Kokoro (${label}) ${isTimeout ? 'timed out' : 'unreachable'}: ${result.detail}`);
+        lastFailure = isTimeout
+          ? { code: 'TIMEOUT', message: 'TTS request timed out' }
+          : { code: 'UNREACHABLE', message: 'TTS service unreachable' };
+      }
     }
   }
 
