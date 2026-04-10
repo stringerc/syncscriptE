@@ -1938,6 +1938,16 @@ export async function generatePhoneAIResponseWithTools(
     });
 
     const rating = getContentRating();
+    let spoken = filterResponse(result.content, rating);
+
+    const persistFail = result.toolTrace.find(
+      (t) => (t.tool === 'create_task' || t.tool === 'add_note') && !t.ok,
+    );
+    if (persistFail) {
+      spoken =
+        "I couldn't save that to your task list from this call. Add it in the SyncScript app, or try again later.";
+    }
+
     const toolResults = result.toolTrace.map((t) => ({
       action: t.tool,
       ok: t.ok,
@@ -1946,7 +1956,7 @@ export async function generatePhoneAIResponseWithTools(
     }));
 
     return {
-      spoken: filterResponse(result.content, rating),
+      spoken,
       toolResults,
     };
   } catch (error) {

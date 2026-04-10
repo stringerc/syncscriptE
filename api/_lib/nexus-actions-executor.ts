@@ -2,7 +2,20 @@ import type { AuthenticatedSupabaseUser } from './auth';
 import { recordNexusToolAudit } from './nexus-audit';
 import type { NexusToolTraceEntry } from './nexus-tools';
 
-const SUPABASE_URL = process.env.SUPABASE_URL || `https://${process.env.SUPABASE_PROJECT_ID || 'kwhnrlzibgfedtxpkbgb'}.supabase.co`;
+/** Vercel often exposes the project URL as VITE_* only; phone tools must hit the real Edge. */
+function supabaseFunctionsBase(): string {
+  const raw =
+    process.env.SUPABASE_URL ||
+    process.env.VITE_SUPABASE_URL ||
+    process.env.NEXT_PUBLIC_SUPABASE_URL ||
+    '';
+  const trimmed = raw.replace(/\/$/, '');
+  if (trimmed) return trimmed;
+  const ref = process.env.SUPABASE_PROJECT_ID || process.env.VITE_SUPABASE_PROJECT_ID || 'kwhnrlzibgfedtxpkbgb';
+  return `https://${ref}.supabase.co`;
+}
+
+const SUPABASE_URL = supabaseFunctionsBase();
 
 export type NexusActor =
   | { kind: 'jwt'; user: AuthenticatedSupabaseUser }
