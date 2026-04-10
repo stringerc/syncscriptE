@@ -2,7 +2,7 @@
  * Phone Call Panel - Premium Feature
  *
  * Briefing persistence: saves to localStorage (instant UI) + Supabase KV (cron pickup).
- * The Vercel cron at /api/phone/scheduled-briefing reads KV every minute and fires calls.
+ * One-shot schedules: /api/cron/phone-dispatch (every minute) reads Supabase KV queue and dials via Twilio.
  */
 
 import { useState, useCallback, useEffect, useRef } from 'react';
@@ -20,7 +20,9 @@ import {
   endCall,
   scheduleBriefing,
   fetchPendingCalendarEvents,
+  fetchPendingNexusCallSummary,
   isPhoneServiceConfigured,
+  registerCallerPhoneIndex,
 } from '../utils/phone-service';
 import type { PhoneCallStatus, VoiceContextSnapshot } from '../types/voice-engine';
 import { useAuth } from '../contexts/AuthContext';
@@ -92,15 +94,36 @@ export function PhoneCallPanel({ voiceContext, userEmail, userId: propUserId, on
   const [isCallActive, setIsCallActive] = useState(false);
   const [callStatus, setCallStatus] = useState<PhoneCallStatus | null>(null);
   const [callDuration, setCallDuration] = useState(0);
+  const [scheduleAtLocal, setScheduleAtLocal] = useState('');
+  const [scheduleSubmitting, setScheduleSubmitting] = useState(false);
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const durationIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const localRingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const isConfigured = isPhoneServiceConfigured();
+
+  useEffect(() => {
+    const d = new Date();
+    d.setMinutes(d.getMinutes() + 4);
+    const pad = (n: number) => String(n).padStart(2, '0');
+    setScheduleAtLocal(
+      `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`,
+    );
+  }, []);
 
   // Persist phone number on change
   useEffect(() => {
     if (phoneNumber) localStorage.setItem(LS_PHONE_KEY, phoneNumber);
   }, [phoneNumber]);
+
+  /** KV index: Twilio caller ID → your account (required for inbound + tool writes). */
+  useEffect(() => {
+    if (!userId || !phoneNumber.trim() || !isPhoneServiceConfigured()) return;
+    const t = setTimeout(() => {
+      registerCallerPhoneIndex(phoneNumber.trim(), userId);
+    }, 600);
+    return () => clearTimeout(t);
+  }, [userId, phoneNumber]);
 
   // ── Call Management ─────────────────────────────────────────────────────
 
@@ -176,7 +199,12 @@ export function PhoneCallPanel({ voiceContext, userEmail, userId: propUserId, on
           setIsCallActive(false);
           if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
           if (durationIntervalRef.current) clearInterval(durationIntervalRef.current);
-          toast.info('Call ended', { description: `Duration: ${formatDuration(callDuration)}` });
+          const nexusLines = await fetchPendingNexusCallSummary(status.callId);
+          const nexusDesc =
+            nexusLines.length > 0 ? nexusLines.map((l) => l.line).join(' · ') : undefined;
+          toast.info('Call ended', {
+            description: [nexusDesc, `Duration: ${formatDuration(callDuration)}`].filter(Boolean).join('\n'),
+          });
           syncCalendarEvents(status.callId);
         }
       }
@@ -200,7 +228,7 @@ export function PhoneCallPanel({ voiceContext, userEmail, userId: propUserId, on
 
   // ── Briefing Scheduling ─────────────────────────────────────────────────
 
-  const toggleBriefing = useCallback(async (type: 'morning' | 'evening') => {
+  const toggleBriefing = useCallback(async (type: 'morning' | 'evening'): Promise<void> => {
     const current = type === 'morning' ? morningBriefing : eveningBriefing;
     const next = !current;
 
@@ -234,12 +262,26 @@ export function PhoneCallPanel({ voiceContext, userEmail, userId: propUserId, on
         if (scheduledTime.getTime() < Date.now()) scheduledTime.setDate(scheduledTime.getDate() + 1);
       }
 
-      scheduleBriefing({
+      const sched = await scheduleBriefing({
         phoneNumber: phoneNumber.trim(),
         scheduledTime,
         briefingType: type,
         context: voiceContext,
+        userEmail: userEmail || user?.email || undefined,
+        userId,
       });
+
+      if (!sched.scheduled) {
+        toast.error('Could not schedule briefing', { description: sched.error || 'Try again.' });
+        if (type === 'morning') {
+          setMorningBriefing(false);
+          localStorage.setItem(LS_MORNING_KEY, 'false');
+        } else {
+          setEveningBriefing(false);
+          localStorage.setItem(LS_EVENING_KEY, 'false');
+        }
+        return;
+      }
 
       toast.success(`${type === 'morning' ? 'Morning' : 'Evening'} briefing enabled`, {
         description: `Will call daily at ${type === 'morning' ? '8:00 AM' : '6:00 PM'}`,
@@ -247,7 +289,84 @@ export function PhoneCallPanel({ voiceContext, userEmail, userId: propUserId, on
     } else {
       toast.info(`${type === 'morning' ? 'Morning' : 'Evening'} briefing disabled`);
     }
-  }, [phoneNumber, voiceContext, userId, morningBriefing, eveningBriefing]);
+  }, [phoneNumber, voiceContext, userId, userEmail, user?.email, morningBriefing, eveningBriefing]);
+
+  const handleScheduleNexusCall = useCallback(async () => {
+    if (!phoneNumber.trim()) {
+      toast.error('Please enter a phone number first');
+      return;
+    }
+    if (!isConfigured) {
+      toast.error('Phone service not configured');
+      return;
+    }
+    if (!scheduleAtLocal) {
+      toast.error('Pick a date and time');
+      return;
+    }
+    const when = new Date(scheduleAtLocal);
+    if (Number.isNaN(when.getTime())) {
+      toast.error('Invalid date/time');
+      return;
+    }
+    if (when.getTime() <= Date.now() + 60_000) {
+      toast.error('Choose at least ~1 minute from now', {
+        description: 'Leave a little buffer so the timer can arm.',
+      });
+      return;
+    }
+
+    const msUntil = when.getTime() - Date.now();
+    /** Hobby Vercel crons are daily-only; same-session rings use this tab’s timer (keep panel open). */
+    const CLIENT_ONLY_MAX_MS = 3 * 60 * 60 * 1000; // 3h — covers “call me later tonight” without external cron
+
+    if (msUntil <= CLIENT_ONLY_MAX_MS) {
+      if (localRingTimerRef.current) clearTimeout(localRingTimerRef.current);
+      localRingTimerRef.current = setTimeout(async () => {
+        localRingTimerRef.current = null;
+        const status = await initiateCall({
+          phoneNumber: phoneNumber.trim(),
+          callType: 'outbound-briefing',
+          context: voiceContext,
+          userEmail,
+          userId,
+        });
+        if (status.status === 'failed') {
+          toast.error('Scheduled call could not start', { description: 'Try Call me now or check Twilio.' });
+        } else {
+          toast.success('Nexus is calling you now');
+        }
+      }, msUntil);
+      toast.success(`Nexus will call around ${when.toLocaleTimeString()}`, {
+        description: 'Keep this phone panel open until then (browser tab must stay open).',
+        duration: 10_000,
+      });
+      return;
+    }
+
+    setScheduleSubmitting(true);
+    try {
+      const result = await scheduleBriefing({
+        phoneNumber: phoneNumber.trim(),
+        scheduledTime: when,
+        briefingType: 'custom',
+        context: voiceContext,
+        userEmail: userEmail || user?.email || undefined,
+        userId,
+      });
+      if (!result.scheduled) {
+        toast.error('Could not schedule call', { description: result.error || 'Try again.' });
+        return;
+      }
+      toast.success('Nexus call queued in the cloud', {
+        description:
+          'This time is more than 3 hours away. Add a once-per-minute ping to /api/cron/phone-dispatch (Bearer CRON_SECRET), or use Vercel Pro minute crons in vercel.json.',
+        duration: 14_000,
+      });
+    } finally {
+      setScheduleSubmitting(false);
+    }
+  }, [phoneNumber, scheduleAtLocal, voiceContext, userEmail, user?.email, userId, isConfigured]);
 
   // ── Render ──────────────────────────────────────────────────────────────
 
@@ -342,6 +461,33 @@ export function PhoneCallPanel({ voiceContext, userEmail, userId: propUserId, on
             </Button>
           </div>
         )}
+
+        {/* One-time scheduled call */}
+        <div className="border-t border-white/5 pt-3 space-y-2">
+          <h4 className="text-xs font-medium text-slate-300 flex items-center gap-1.5">
+            <Clock className="w-3.5 h-3.5 text-cyan-400" />
+            Schedule a Nexus call
+          </h4>
+          <p className="text-[10px] text-slate-500">
+            Within the next few hours: rings while this panel stays open. Farther out: stored in the cloud — use a 1‑minute ping to /api/cron/phone-dispatch (Bearer CRON_SECRET) or Vercel Pro minute crons.
+          </p>
+          <input
+            type="datetime-local"
+            value={scheduleAtLocal}
+            onChange={(e) => setScheduleAtLocal(e.target.value)}
+            className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-cyan-500/50"
+            disabled={isCallActive || scheduleSubmitting}
+          />
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full border-cyan-500/40 text-cyan-200 hover:bg-cyan-500/10"
+            onClick={handleScheduleNexusCall}
+            disabled={!phoneNumber.trim() || !isConfigured || isCallActive || scheduleSubmitting}
+          >
+            {scheduleSubmitting ? 'Scheduling…' : 'Schedule call'}
+          </Button>
+        </div>
 
         {/* Scheduled Briefings */}
         <div className="border-t border-white/5 pt-3">

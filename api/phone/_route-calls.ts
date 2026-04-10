@@ -20,6 +20,7 @@ import {
   twilioUpdateCall,
   getTwilioConfig,
   getPendingCalendarEvents,
+  getPendingNexusCallLines,
   twiml,
   twimlSay,
   twimlGather,
@@ -112,6 +113,11 @@ export async function routePhoneCalls(req: VercelRequest, res: VercelResponse) {
   if (req.method === 'GET' && action === 'pending-events' && callId) {
     const events = getPendingCalendarEvents(callId);
     return res.status(200).json({ callId, events });
+  }
+
+  if (req.method === 'GET' && action === 'pending-nexus' && callId) {
+    const lines = getPendingNexusCallLines(callId);
+    return res.status(200).json({ callId, lines });
   }
 
   if (req.method === 'GET' && callId) {

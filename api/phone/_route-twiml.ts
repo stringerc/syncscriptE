@@ -33,6 +33,9 @@ import {
   twimlSay,
   twimlGather,
   twimlPause,
+  appendPendingNexusCallLines,
+  formatNexusToolResultsForUi,
+  truncateForTwilioSay,
 } from './_helpers';
 import type { LiveContext, CallMemory, MoodState } from './_helpers';
 
@@ -359,11 +362,21 @@ function handleInbound(req: VercelRequest, res: VercelResponse) {
   return res.status(200).send(xml);
 }
 
+function twimlConfigurationErrorSay(): string {
+  return twiml(
+    twimlSay(
+      'Sorry — SyncScript could not verify this phone connection. If this keeps happening, confirm your app uses the production domain and Twilio credentials are set.',
+      'Polly.Joanna-Neural',
+    ) + '<Hangup/>',
+  );
+}
+
 export async function routePhoneTwiml(req: VercelRequest, res: VercelResponse) {
   try {
     if (process.env.NODE_ENV === 'production' && !validateTwilioWebhook(req)) {
-      console.error('[TwiML] Rejected request — invalid Twilio signature');
-      return res.status(403).json({ error: 'Invalid Twilio signature' });
+      console.error('[TwiML] Rejected request — invalid Twilio signature (returning TwiML so Twilio does not play generic application error)');
+      res.setHeader('Content-Type', 'text/xml');
+      return res.status(200).send(twimlConfigurationErrorSay());
     }
 
     const handlerType = (req.query.handler as string) || 'conversation';
@@ -377,8 +390,13 @@ export async function routePhoneTwiml(req: VercelRequest, res: VercelResponse) {
         return await handleStatusCallback(req, res);
       case 'inbound':
         return handleInbound(req, res);
-      default:
-        return res.status(400).json({ error: `Unknown handler: ${handlerType}` });
+      default: {
+        const fallbackXml = twiml(
+          twimlSay('Sorry, that phone menu request was not recognized. Goodbye!', 'Polly.Joanna-Neural') + '<Hangup/>',
+        );
+        res.setHeader('Content-Type', 'text/xml');
+        return res.status(200).send(fallbackXml);
+      }
     }
   } catch (error) {
     console.error('[TwiML] Unhandled error in handler:', error);

@@ -45,6 +45,32 @@ export function isPhoneServiceConfigured(): boolean {
   return !!(serviceConfig.apiUrl && serviceConfig.apiKey);
 }
 
+/**
+ * Map this phone number → Supabase user id in KV (Twilio From resolution for Nexus tools).
+ * Call when the signed-in user saves their callback number in the app.
+ */
+export async function registerCallerPhoneIndex(phoneNumber: string, userId: string): Promise<void> {
+  if (!isPhoneServiceConfigured() || !userId?.trim() || !phoneNumber?.trim()) return;
+  try {
+    const response = await fetch(`${serviceConfig.apiUrl}/manage?resource=caller-index`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${serviceConfig.apiKey}`,
+      },
+      body: JSON.stringify({
+        phoneNumber: phoneNumber.trim(),
+        userId: userId.trim(),
+      }),
+    });
+    if (!response.ok) {
+      console.warn('[PhoneService] caller-index register failed:', response.status);
+    }
+  } catch (e) {
+    console.warn('[PhoneService] caller-index register error:', e);
+  }
+}
+
 // ============================================================================
 // CALL MANAGEMENT
 // ============================================================================
@@ -186,6 +212,34 @@ export async function fetchPendingCalendarEvents(callId: string): Promise<Array<
   }
 }
 
+/**
+ * One-time fetch of Nexus tool outcomes from a phone call (tasks, notes, calendar proposals).
+ * Clears server-side buffer after read (same pattern as calendar events).
+ */
+export async function fetchPendingNexusCallSummary(
+  callId: string,
+): Promise<Array<{ line: string; at: string }>> {
+  if (!isPhoneServiceConfigured() || !callId) return [];
+
+  try {
+    const response = await fetch(
+      `${serviceConfig.apiUrl}/calls?action=pending-nexus&id=${encodeURIComponent(callId)}`,
+      {
+        headers: {
+          Authorization: `Bearer ${serviceConfig.apiKey}`,
+        },
+      },
+    );
+
+    if (!response.ok) return [];
+
+    const data = await response.json();
+    return Array.isArray(data.lines) ? data.lines : [];
+  } catch {
+    return [];
+  }
+}
+
 // ============================================================================
 // SCHEDULE BRIEFING
 // ============================================================================
@@ -198,9 +252,11 @@ export async function scheduleBriefing(params: {
   scheduledTime: Date;
   briefingType: 'morning' | 'evening' | 'custom';
   context?: VoiceContextSnapshot;
-}): Promise<{ scheduled: boolean; briefingId?: string }> {
+  userEmail?: string;
+  userId?: string;
+}): Promise<{ scheduled: boolean; briefingId?: string; error?: string }> {
   if (!isPhoneServiceConfigured()) {
-    return { scheduled: false };
+    return { scheduled: false, error: 'Phone service not configured' };
   }
 
   try {
@@ -215,11 +271,20 @@ export async function scheduleBriefing(params: {
         scheduledTime: params.scheduledTime.toISOString(),
         briefingType: params.briefingType,
         context: params.context,
+        userEmail: params.userEmail,
+        userId: params.userId,
       }),
     });
 
     if (!response.ok) {
-      throw new Error(`Scheduling failed: ${response.status}`);
+      let detail = '';
+      try {
+        const j = (await response.json()) as { error?: string };
+        detail = j.error || '';
+      } catch {
+        /* ignore */
+      }
+      throw new Error(detail || `Scheduling failed (${response.status})`);
     }
 
     const data = await response.json();
@@ -227,8 +292,9 @@ export async function scheduleBriefing(params: {
       scheduled: true,
       briefingId: data.briefingId,
     };
-  } catch {
-    return { scheduled: false };
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : 'Schedule request failed';
+    return { scheduled: false, error: msg };
   }
 }
 

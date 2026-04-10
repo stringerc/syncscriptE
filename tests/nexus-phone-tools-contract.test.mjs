@@ -41,6 +41,15 @@ assert.match(routes, /\/phone\/nexus-execute/);
 assert.match(routes, /x-nexus-internal-secret/);
 assert.match(routes, /saveTasks\(/);
 
+const callsRoute = read('api/phone/_route-calls.ts');
+assert.match(callsRoute, /pending-nexus/);
+assert.match(callsRoute, /getPendingNexusCallLines/);
+
+const twimlRoute = read('api/phone/_route-twiml.ts');
+assert.match(twimlRoute, /formatNexusToolResultsForUi/);
+assert.match(twimlRoute, /truncateForTwilioSay/);
+assert.match(twimlRoute, /invalid Twilio signature \(returning TwiML/);
+
 const helpersMore = read('api/phone/_helpers.ts');
 assert.match(helpersMore, /PHONE_CALLER_INDEX_PREFIX/);
 assert.match(helpersMore, /normalizeCallerE164/);

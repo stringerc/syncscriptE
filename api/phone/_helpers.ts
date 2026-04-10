@@ -1701,6 +1701,84 @@ export function getPendingCalendarEvents(callSid: string): Array<{
   return [];
 }
 
+/** Twilio <Say> / Polly: very long replies can fail the Voice webhook — keep TwiML safe. */
+export const MAX_TWIML_SAY_CHARS = 3500;
+
+export function truncateForTwilioSay(text: string, max = MAX_TWIML_SAY_CHARS): string {
+  const t = String(text || '').trim();
+  if (t.length <= max) return t;
+  return `${t.slice(0, Math.max(0, max - 1))}…`;
+}
+
+export type PendingNexusCallLine = { line: string; at: string };
+
+/**
+ * Human-readable lines for the app toast after a call (tasks, notes, calendar proposals).
+ */
+export function formatNexusToolResultsForUi(
+  toolResults: Array<{ action?: string; ok?: boolean; detail?: unknown; error?: string; event?: unknown }> | undefined,
+): string[] {
+  if (!Array.isArray(toolResults)) return [];
+  const lines: string[] = [];
+  for (const tr of toolResults) {
+    const action = String(tr.action || '');
+    const ok = tr.ok === true;
+    const detail =
+      tr.detail && typeof tr.detail === 'object' && !Array.isArray(tr.detail)
+        ? (tr.detail as Record<string, unknown>)
+        : {};
+    if (action === 'create_task') {
+      if (ok && detail.title) lines.push(`Added task: ${String(detail.title)}`);
+      else if (!ok) lines.push('Task was not saved — add it in the app.');
+    } else if (action === 'add_note') {
+      if (ok && detail.title) {
+        const raw = String(detail.title).replace(/^\[Note\]\s*/i, '').trim();
+        lines.push(`Saved note: ${raw || 'Note'}`);
+      }
+    } else if (action === 'propose_calendar_hold' && ok) {
+      lines.push('Proposed a calendar time — confirm in the app.');
+    }
+  }
+  return lines;
+}
+
+export function appendPendingNexusCallLines(callSid: string, lines: string[]): void {
+  if (!callSid || !lines.length) return;
+  ensureEventsDir();
+  const filePath = `${EVENTS_DIR}/${callSid}_nexus_summary.json`;
+  const prev: PendingNexusCallLine[] = [];
+  try {
+    if (existsSync(filePath)) {
+      const raw = JSON.parse(readFileSync(filePath, 'utf-8'));
+      if (Array.isArray(raw)) prev.push(...raw);
+    }
+  } catch {
+    /* start fresh */
+  }
+  const at = new Date().toISOString();
+  for (const line of lines) prev.push({ line, at });
+  writeFileSync(filePath, JSON.stringify(prev));
+}
+
+export function getPendingNexusCallLines(callSid: string): PendingNexusCallLine[] {
+  ensureEventsDir();
+  const filePath = `${EVENTS_DIR}/${callSid}_nexus_summary.json`;
+  try {
+    if (existsSync(filePath)) {
+      const raw = JSON.parse(readFileSync(filePath, 'utf-8'));
+      try {
+        unlinkSync(filePath);
+      } catch {
+        /* ok */
+      }
+      return Array.isArray(raw) ? raw : [];
+    }
+  } catch {
+    /* none */
+  }
+  return [];
+}
+
 export async function generatePhoneAIResponse(
   userSpeech: string,
   conversationHistory?: string,
