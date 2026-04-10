@@ -9,7 +9,9 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { readFileSync, writeFileSync, existsSync, mkdirSync, unlinkSync } from 'fs';
 import { createHmac } from 'crypto';
 import { callAI, isAIConfigured } from '../_lib/ai-service';
-import type { AIMessage } from '../_lib/ai-service';
+import type { AIMessage, ChatCompletionMessage } from '../_lib/ai-service';
+import { runNexusToolLoop } from '../_lib/nexus-tool-loop';
+import { NEXUS_PHONE_TOOLS_APPEND } from '../_lib/nexus-tools';
 
 // ============================================================================
 // ENVIRONMENT
@@ -254,8 +256,8 @@ export async function twilioBuyNumber(phoneNumber: string): Promise<{
 
   const body = new URLSearchParams({
     PhoneNumber: phoneNumber,
-    VoiceUrl: `${config.appUrl}/api/phone/twiml/inbound`,
-    StatusCallback: `${config.appUrl}/api/phone/twiml/status-callback`,
+    VoiceUrl: `${config.appUrl}/api/phone/twiml?handler=inbound`,
+    StatusCallback: `${config.appUrl}/api/phone/twiml?handler=status-callback`,
   });
 
   try {
@@ -1621,7 +1623,12 @@ PERSONALITY RULES:
 - You're CONFIDENT. You don't hedge or apologize unnecessarily. You KNOW schedules.
 - You have OPINIONS. "I'd skip the afternoon meeting — your energy data says 3pm is your zombie hour."
 - You're SELF-AWARE as an AI. You make jokes about being digital. "I don't sleep, so I had all night to optimize your calendar."
-- You create SHAREABLE MOMENTS. Say things people would screenshot and post. "Your productivity score today was 94. That's top 3% of all users. You absolute legend."
+- You can celebrate real wins when the CONTEXT below includes verified stats — never invent numbers, rankings, or "what you did today."
+
+TRUTHFULNESS (non-negotiable):
+- Only describe tasks, completions, streaks, or "what you got done" using facts explicitly given in this session's context (especially SYNCSCRIPT_GROUNDING).
+- If SYNCSCRIPT_GROUNDING says zero tasks were completed today in SyncScript, say that honestly. Do not fill the silence with made-up accomplishments or last week's work framed as today.
+- Rolling weekly or streak stats are not the same as "today" — say so if you mention them.
 
 CRITICAL PHONE RULES:
 - Keep responses SHORT (1-3 sentences max). Phone calls need brevity.
@@ -1755,32 +1762,17 @@ export async function generatePhoneAIResponse(
 }
 
 // ============================================================================
-// PHONE AI WITH FULL TOOL ACCESS (via OpenClaw Bridge)
+// PHONE AI WITH TOOLS — canonical Nexus executor (default) or OpenClaw bridge
 // ============================================================================
 
-/**
- * Generate a phone AI response using the same OpenClaw bridge that powers
- * the chat AI, giving the phone AI access to all 20+ tools (tasks, calendar,
- * integrations, email drafts, SMS, schedule optimization, etc.).
- */
-export async function generatePhoneAIResponseWithTools(
+async function generatePhoneAIResponseWithOpenClawBridge(
   userSpeech: string,
   userId: string,
-  conversationHistory?: string,
-  callContext?: string,
-  liveContext?: LiveContext,
-  callMemory?: CallMemory | null,
+  conversationHistory: string | undefined,
+  callContext: string | undefined,
+  liveContext: LiveContext | undefined,
+  callMemory: CallMemory | null | undefined,
 ): Promise<{ spoken: string; toolResults?: any[] }> {
-  if (detectProfanity(userSpeech)) {
-    console.log(`[PhoneAI+Tools] Profanity detected`);
-    return { spoken: getProfanityResponse() };
-  }
-
-  const easterEgg = checkEasterEggs(userSpeech);
-  if (easterEgg) {
-    return { spoken: easterEgg };
-  }
-
   const SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '';
   const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 
@@ -1858,6 +1850,107 @@ export async function generatePhoneAIResponseWithTools(
     };
   } catch (error) {
     console.error('[PhoneAI+Tools] Bridge call failed:', error);
+    const fallback = await generatePhoneAIResponse(userSpeech, conversationHistory, callContext, liveContext);
+    return { spoken: fallback };
+  }
+}
+
+/**
+ * Phone AI with tools. Default: same allowlisted Nexus tools as in-app (tasks, notes, calendar proposal).
+ * Set NEXUS_PHONE_USE_OPENCLAW=true to use the OpenClaw bridge (20+ tools) instead.
+ */
+export async function generatePhoneAIResponseWithTools(
+  userSpeech: string,
+  userId: string,
+  conversationHistory?: string,
+  callContext?: string,
+  liveContext?: LiveContext,
+  callMemory?: CallMemory | null,
+  callSid?: string,
+): Promise<{ spoken: string; toolResults?: any[] }> {
+  if (detectProfanity(userSpeech)) {
+    console.log(`[PhoneAI+Tools] Profanity detected`);
+    return { spoken: getProfanityResponse() };
+  }
+
+  const easterEgg = checkEasterEggs(userSpeech);
+  if (easterEgg) {
+    return { spoken: easterEgg };
+  }
+
+  if (process.env.NEXUS_PHONE_USE_OPENCLAW === 'true') {
+    return generatePhoneAIResponseWithOpenClawBridge(
+      userSpeech,
+      userId,
+      conversationHistory,
+      callContext,
+      liveContext,
+      callMemory,
+    );
+  }
+
+  if (!isAIConfigured()) {
+    const fallback = await generatePhoneAIResponse(userSpeech, conversationHistory, callContext, liveContext);
+    return { spoken: fallback };
+  }
+
+  const today = new Date().toISOString().split('T')[0];
+  const contextBlock = callContext && CALL_PERSONALITY[callContext]
+    ? CALL_PERSONALITY[callContext]
+    : '';
+  const liveContextBlock = liveContext ? buildLiveContextBlock(liveContext) : '';
+
+  let systemPrompt = PHONE_SYSTEM_PROMPT
+    .replace('{{TODAY_DATE}}', today)
+    .replace('{{CALL_CONTEXT}}', contextBlock)
+    .replace('{{LIVE_CONTEXT}}', liveContextBlock);
+  systemPrompt += `\n\n${NEXUS_PHONE_TOOLS_APPEND}`;
+
+  let memoryBlock = '';
+  if (callMemory) {
+    memoryBlock = `\nPREVIOUS CALL MEMORY (from ${callMemory.lastCallDate}):\n` +
+      `Summary: ${callMemory.summary}\n` +
+      `Key topics: ${callMemory.keyTopics.join(', ')}\n` +
+      `Actions taken: ${callMemory.actionsTaken.join(', ')}\n`;
+    systemPrompt += memoryBlock;
+  }
+
+  const messages: ChatCompletionMessage[] = [
+    { role: 'system', content: systemPrompt },
+  ];
+
+  if (conversationHistory) {
+    messages.push({
+      role: 'system',
+      content: `Previous conversation context:\n${conversationHistory}`,
+    });
+  }
+
+  messages.push({ role: 'user', content: userSpeech });
+
+  try {
+    const result = await runNexusToolLoop({
+      messages,
+      actor: { kind: 'phone', userId },
+      meta: { surface: 'phone', requestId: callSid || `phone_${userId}` },
+      maxTokens: 280,
+      temperature: 0.35,
+    });
+
+    const rating = getContentRating();
+    const toolResults = result.toolTrace.map((t) => ({
+      action: t.tool,
+      ok: t.ok,
+      detail: t.detail,
+      error: t.error,
+    }));
+
+    return {
+      spoken: filterResponse(result.content, rating),
+      toolResults,
+    };
+  } catch (error) {
+    console.error('[PhoneAI+Tools] Canonical Nexus tool loop failed:', error);
     const fallback = await generatePhoneAIResponse(userSpeech, conversationHistory, callContext, liveContext);
     return { spoken: fallback };
   }
@@ -1998,7 +2091,7 @@ export async function sendTwilioSms(to: string, body: string): Promise<{ success
         },
         body: new URLSearchParams({
           To: to,
-          From: config.twilioNumber,
+          From: config.phoneNumber,
           Body: body,
         }),
       }
@@ -2135,6 +2228,170 @@ async function kvSet(key: string, value: any): Promise<void> {
   } catch (e) { console.warn('[KV] Set failed:', e); }
 }
 
+/** KV: `phone_caller_index:+15551234567` → Supabase user id (for Twilio From → account). */
+export const PHONE_CALLER_INDEX_PREFIX = 'phone_caller_index:';
+
+/**
+ * Normalize Twilio/user-entered numbers to E.164-ish `+` + digits (US: 10 digits → +1…).
+ */
+export function normalizeCallerE164(raw: string): string {
+  if (!raw || typeof raw !== 'string') return '';
+  const t = raw.trim();
+  const digits = t.replace(/\D/g, '');
+  if (!digits) return '';
+  if (t.startsWith('+')) return `+${digits}`;
+  if (digits.length === 10) return `+1${digits}`;
+  if (digits.length === 11 && digits.startsWith('1')) return `+${digits}`;
+  return `+${digits}`;
+}
+
+export async function resolveUserIdFromCallerPhone(callerRaw: string): Promise<string | null> {
+  const norm = normalizeCallerE164(callerRaw);
+  if (!norm || norm.length < 8) return null;
+  const data = await kvGet(`${PHONE_CALLER_INDEX_PREFIX}${norm}`);
+  if (typeof data === 'string' && data.length > 10) return data;
+  if (data && typeof (data as { userId?: string }).userId === 'string') return (data as { userId: string }).userId;
+  return null;
+}
+
+/** Map this handset to a SyncScript user (outbound, scheduled call, or app “sync my number”). */
+export async function registerCallerPhoneForUser(userId: string, phoneRaw: string): Promise<void> {
+  const uid = userId?.trim();
+  if (!uid) return;
+  const norm = normalizeCallerE164(phoneRaw);
+  if (!norm || norm.length < 8) return;
+  await kvSet(`${PHONE_CALLER_INDEX_PREFIX}${norm}`, uid);
+  console.log(`[PhoneAI] Registered caller index ${norm.slice(0, 6)}… → user ${uid.slice(0, 8)}…`);
+}
+
+export type PhoneUserBinding = { userId?: string; userIdForTwiml?: string };
+
+/**
+ * Decide which Supabase user owns tool side-effects for this Twilio leg.
+ * - Inbound: resolve From → KV index.
+ * - Outbound: query userId must match caller index when an index exists (stops wrong-account writes).
+ */
+export async function resolvePhoneCallUserBinding(
+  queryUserId: string | undefined,
+  callerFrom: string,
+  callSid: string,
+): Promise<PhoneUserBinding> {
+  const q = queryUserId?.trim() || '';
+  const fromIdx = callerFrom ? await resolveUserIdFromCallerPhone(callerFrom) : null;
+
+  if (q && fromIdx && q !== fromIdx) {
+    console.warn(
+      `[PhoneAI] Tool use blocked: Twilio From maps to ${fromIdx.slice(0, 8)}… but TwiML had userId ${q.slice(0, 8)}… (callSid=${callSid})`,
+    );
+    return {};
+  }
+  if (q) {
+    return { userId: q, userIdForTwiml: q };
+  }
+  if (fromIdx) {
+    return { userId: fromIdx, userIdForTwiml: fromIdx };
+  }
+  return {};
+}
+
+// ── One-shot scheduled outbound calls (Vercel cron dispatches; setTimeout in serverless is unreliable) ──
+
+const PHONE_SCHEDULE_QUEUE_KEY = 'nexus_scheduled_phone_calls';
+
+export type ScheduledPhoneCallJob = {
+  id: string;
+  phoneNumber: string;
+  scheduledAt: string;
+  briefingType: string;
+  userEmail?: string;
+  userId?: string;
+};
+
+export async function enqueueScheduledPhoneCall(job: ScheduledPhoneCallJob): Promise<void> {
+  const raw = await kvGet(PHONE_SCHEDULE_QUEUE_KEY);
+  const list: ScheduledPhoneCallJob[] = Array.isArray(raw) ? raw : [];
+  list.push(job);
+  await kvSet(PHONE_SCHEDULE_QUEUE_KEY, list);
+  console.log(`[PhoneQueue] Enqueued ${job.id} for ${job.scheduledAt} → ${job.phoneNumber}`);
+}
+
+export async function removeScheduledPhoneCallById(id: string): Promise<boolean> {
+  const raw = await kvGet(PHONE_SCHEDULE_QUEUE_KEY);
+  const list: ScheduledPhoneCallJob[] = Array.isArray(raw) ? raw : [];
+  const next = list.filter((j) => j.id !== id);
+  if (next.length === list.length) return false;
+  await kvSet(PHONE_SCHEDULE_QUEUE_KEY, next);
+  return true;
+}
+
+/**
+ * Invoked by GET/POST /api/cron/phone-dispatch (see api/cron/[job].ts) every minute.
+ * Fires Twilio for jobs whose scheduledAt <= now, with a grace window for slow cron ticks.
+ */
+export async function dispatchDueScheduledPhoneCalls(): Promise<{
+  processed: number;
+  errors: string[];
+}> {
+  const raw = await kvGet(PHONE_SCHEDULE_QUEUE_KEY);
+  let list: ScheduledPhoneCallJob[] = Array.isArray(raw) ? raw : [];
+  const now = Date.now();
+  /** Still ring if cron runs a few minutes late; drop if hopelessly stale */
+  const MAX_LATE_MS = 20 * 60 * 1000;
+  const remaining: ScheduledPhoneCallJob[] = [];
+  const errors: string[] = [];
+  let processed = 0;
+  const config = getTwilioConfig();
+
+  for (const job of list) {
+    const due = new Date(job.scheduledAt).getTime();
+    if (Number.isNaN(due)) {
+      console.warn(`[PhoneQueue] Bad scheduledAt on job ${job.id}, dropping`);
+      continue;
+    }
+    if (due > now) {
+      remaining.push(job);
+      continue;
+    }
+    if (now - due > MAX_LATE_MS) {
+      console.warn(`[PhoneQueue] Dropped stale job ${job.id} (${job.scheduledAt})`);
+      continue;
+    }
+
+    const twimlType =
+      job.briefingType === 'morning' ? 'morning-briefing' :
+      job.briefingType === 'evening' ? 'evening-review' :
+      'outbound-briefing';
+
+    const convParams = new URLSearchParams({
+      handler: 'conversation',
+      type: twimlType,
+    });
+    if (job.userId) convParams.set('userId', job.userId);
+    if (job.userEmail) convParams.set('email', job.userEmail);
+    const twimlUrl = `${config.appUrl}/api/phone/twiml?${convParams.toString()}`;
+    const statusUrl = `${config.appUrl}/api/phone/twiml?handler=status-callback`;
+
+    const result = await twilioCreateCall({
+      to: job.phoneNumber,
+      twimlUrl,
+      statusCallbackUrl: statusUrl,
+      machineDetection: 'DetectMessageEnd',
+      timeout: 60,
+    });
+
+    if (result.success) {
+      processed++;
+      console.log(`[PhoneQueue] Dialed ${job.id} sid=${result.callSid}`);
+    } else {
+      errors.push(`${job.id}: ${result.error || 'Twilio error'}`);
+      console.error(`[PhoneQueue] Failed ${job.id}:`, result.error);
+    }
+  }
+
+  await kvSet(PHONE_SCHEDULE_QUEUE_KEY, remaining);
+  return { processed, errors };
+}
+
 export async function loadUserProfile(userId: string): Promise<UserProfile | null> {
   return kvGet(`user_profile:${userId}`);
 }
@@ -2243,6 +2500,37 @@ export async function loadUserStats(userId: string): Promise<UserStats> {
     totalCallMinutes: 0,
     lastUpdated: new Date().toISOString(),
   };
+}
+
+/**
+ * Injected ahead of mood/insights on phone calls so Nexus does not conflate "this week" with "today"
+ * or invent completions when the user did not use the app.
+ */
+export async function buildPhoneSessionGroundingBlock(userId: string): Promise<string> {
+  const stats = await loadUserStats(userId);
+  const todayKey = new Date().toISOString().split('T')[0];
+  const todayDone = stats.dailyTasksCompleted[todayKey] || 0;
+  const last7 = Array.from({ length: 7 }, (_, i) =>
+    new Date(Date.now() - i * 86400000).toISOString().split('T')[0]
+  );
+  const weekDone = last7.reduce((sum, d) => sum + (stats.dailyTasksCompleted[d] || 0), 0);
+
+  const lines = [
+    'SYNCSCRIPT_GROUNDING (follow exactly for factual claims):',
+    `- Calendar day for these counters (UTC date key): ${todayKey}.`,
+    `- Tasks marked complete in SyncScript today: ${todayDone}.`,
+    `- Tasks marked complete in the last 7 days (rolling, not "today"): ${weekDone}.`,
+  ];
+  if (todayDone === 0) {
+    lines.push(
+      '- If the user asks what they accomplished today: say you see no tasks marked done in SyncScript today. Offer to help plan the rest of the day or ask what they did outside the app — do not list fake or old items as today.',
+    );
+  } else {
+    lines.push(
+      '- For "today" you may only claim up to the count above unless the user tells you about work outside SyncScript.',
+    );
+  }
+  return lines.join('\n');
 }
 
 export async function recordTaskCompletion(userId: string, count: number): Promise<void> {
@@ -2562,7 +2850,11 @@ export async function buildBriefingContext(userId: string): Promise<string> {
     parts.push(`WEATHER: ${weather.temp}°F, ${weather.description}.${weather.alerts.length ? ' ALERT: ' + weather.alerts.join(', ') : ''}`);
   }
 
-  parts.push(`TODAY'S STATS: ${recap.tasksCompleted} tasks completed this week. ${recap.streak > 0 ? `${recap.streak}-day streak.` : ''}`);
+  parts.push(
+    `ROLLING_7_DAY (not "today"): ${recap.tasksCompleted} tasks marked complete in SyncScript in the last 7 days. ` +
+      `${recap.streak > 0 ? `${recap.streak}-day streak (based on app data).` : ''} ` +
+      'Do not describe this as what happened today unless today is explicitly included.',
+  );
 
   if (insights.length > 0) {
     const topInsights = insights.slice(0, 3);

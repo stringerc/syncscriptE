@@ -13,6 +13,7 @@
  */
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useLocation } from 'react-router-dom';
 import {
   Mic, MicOff, Volume2, VolumeX, Phone, PhoneOff,
   Brain, Sparkles, Activity, MessageSquare, X, Minimize2,
@@ -39,6 +40,8 @@ import { voiceMemory } from '../utils/voice-memory';
 import { getTTSConfig } from '../utils/tts-router';
 import { evaluateCheckIns, shouldNotify, markNotified } from '../utils/proactive-checkins';
 import { PhoneCallPanel } from './PhoneCallPanel';
+import { useAuth } from '../contexts/AuthContext';
+import { initiateCall, isPhoneServiceConfigured, registerCallerPhoneIndex } from '../utils/phone-service';
 import type {
   VoiceMessage,
   VoiceSession,
@@ -49,6 +52,8 @@ import type {
 // ============================================================================
 // PROPS
 // ============================================================================
+
+const LS_SAVED_PHONE = 'syncscript_phone_number';
 
 interface VoiceConversationEngineProps {
   mode?: 'panel' | 'fullscreen' | 'compact';
@@ -67,6 +72,9 @@ export function VoiceConversationEngine({
   onMinimize,
   userName,
 }: VoiceConversationEngineProps) {
+  const location = useLocation();
+  /** AI Assistant “Call Nexus” opens this overlay fullscreen on /ai or /agents only (see App + DashboardApp routes). */
+  const autoDialSavedPhone = mode === 'fullscreen' && (location.pathname === '/ai' || location.pathname === '/agents');
   // Session state
   const [session, setSession] = useState<VoiceSession | null>(null);
   const [messages, setMessages] = useState<VoiceMessage[]>([]);
@@ -80,11 +88,21 @@ export function VoiceConversationEngine({
   // Refs
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const pendingUserTextRef = useRef('');
+  const autoDialAttemptedRef = useRef(false);
 
   // Hooks
   const { tasks } = useTasks();
   const { events } = useCalendarEvents();
+  const { user } = useAuth();
   const { sendMessage: sendOpenClawMessage } = useOpenClaw();
+
+  useEffect(() => {
+    if (!user?.id || !isPhoneServiceConfigured()) return;
+    const saved = (typeof localStorage !== 'undefined' && localStorage.getItem(LS_SAVED_PHONE)?.trim()) || '';
+    if (!saved) return;
+    const t = setTimeout(() => registerCallerPhoneIndex(saved, user.id), 800);
+    return () => clearTimeout(t);
+  }, [user?.id]);
   const {
     currentEmotion, detectFromText, getEmotionColor, getEmotionEmoji,
     startAudioAnalysis, stopAudioAnalysis, getEmotionTrend,
@@ -168,6 +186,56 @@ export function VoiceConversationEngine({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Call Nexus (AI tab): PSTN ring — same path as Phone panel / Twilio outbound, without “Call me now”.
+  useEffect(() => {
+    if (!autoDialSavedPhone) return;
+    if (autoDialAttemptedRef.current) return;
+
+    const saved = (typeof localStorage !== 'undefined' && localStorage.getItem(LS_SAVED_PHONE)?.trim()) || '';
+    if (!saved) {
+      autoDialAttemptedRef.current = true;
+      toast.info('To ring your phone from Call Nexus', {
+        description: 'Open the phone icon once, enter your number — it saves. Next time Call Nexus will dial you automatically.',
+        duration: 8000,
+      });
+      return;
+    }
+    if (!isPhoneServiceConfigured()) {
+      autoDialAttemptedRef.current = true;
+      toast.error('Phone service not configured', {
+        description: 'Set VITE_PHONE_API_URL and VITE_PHONE_API_KEY for this build.',
+      });
+      return;
+    }
+
+    // Avoid duplicate Twilio dials when React StrictMode runs effects twice in dev.
+    try {
+      const k = 'syncscript_nexus_autodial_ts';
+      const last = Number(sessionStorage.getItem(k) || '0');
+      if (Date.now() - last < 10_000) return;
+      sessionStorage.setItem(k, String(Date.now()));
+    } catch { /* ignore */ }
+
+    autoDialAttemptedRef.current = true;
+    void (async () => {
+      const status = await initiateCall({
+        phoneNumber: saved,
+        callType: 'outbound-briefing',
+        context: voiceContext,
+        userEmail: user?.email ?? undefined,
+        userId: user?.id,
+      });
+      if (status.status === 'failed') {
+        toast.error('Could not start the phone call', {
+          description: 'Check Twilio, verified numbers (trial), and API keys.',
+        });
+        return;
+      }
+      toast.success('Calling your phone…', { description: 'Answer to talk with Nexus.' });
+      setShowPhonePanel(true);
+    })();
+  }, [autoDialSavedPhone, voiceContext, user?.email, user?.id]);
 
   // ==========================================================================
   // SESSION MANAGEMENT
@@ -407,9 +475,11 @@ export function VoiceConversationEngine({
 
   return (
     <div className={`flex flex-col bg-gradient-to-b from-slate-900/95 to-slate-950/95 backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden shadow-2xl ${
-      mode === 'fullscreen' ? 'fixed inset-4 z-50' : 
-      mode === 'panel' ? 'w-full h-full min-h-[500px]' : 
-      'w-80 h-[420px]'
+      mode === 'fullscreen'
+        ? 'fixed z-[410] top-4 right-4 bottom-4 left-4 md:left-[calc(1rem+3.5rem)] lg:left-[calc(1rem+100px)]'
+        : mode === 'panel'
+          ? 'w-full h-full min-h-[500px]'
+          : 'w-80 h-[420px]'
     }`}>
       
       {/* Header */}

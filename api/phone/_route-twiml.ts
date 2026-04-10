@@ -1,12 +1,12 @@
 /**
- * /api/phone/twiml — Consolidated TwiML handler for Twilio webhooks
- * 
+ * TwiML logic — mounted at /api/phone/twiml via [endpoint].ts.
+ *
  * Routes by ?handler= query param:
  *   ?handler=conversation      → Initial greeting when call connects
  *   ?handler=respond           → AI conversation loop (speech→AI→speech)
  *   ?handler=status-callback   → Call lifecycle events
  *   ?handler=inbound           → Handle incoming calls
- * 
+ *
  * NO Bearer auth — called by Twilio's servers directly.
  */
 
@@ -17,6 +17,7 @@ import {
   generatePhoneAIResponseWithTools,
   storePendingCalendarEvent,
   validateTwilioWebhook,
+  resolvePhoneCallUserBinding,
   fetchWeatherForCall,
   parseEmailForInsights,
   loadCallMemory,
@@ -27,17 +28,13 @@ import {
   generateProactiveInsights,
   getRelationshipReminders,
   generateViralStats,
-  buildBriefingContext,
+  buildPhoneSessionGroundingBlock,
   twiml,
   twimlSay,
   twimlGather,
   twimlPause,
 } from './_helpers';
 import type { LiveContext, CallMemory, MoodState } from './_helpers';
-
-// ============================================================================
-// CONVERSATION — Initial greeting when outbound call connects
-// ============================================================================
 
 function getGreeting(callType: string): string {
   switch (callType) {
@@ -65,9 +62,14 @@ function handleConversation(req: VercelRequest, res: VercelResponse) {
   const config = getTwilioConfig();
   const callType = (req.query.type as string) || 'general';
   const voiceId = resolveVoice(req.query.voice as string);
+  const convUserId = (req.query.userId as string) || '';
+  const convEmail = (req.query.email as string) || '';
 
   const greeting = getGreeting(callType);
-  const respondUrl = `${config.appUrl}/api/phone/twiml?handler=respond&voice=${encodeURIComponent(voiceId)}`;
+  const respondUrl =
+    `${config.appUrl}/api/phone/twiml?handler=respond&voice=${encodeURIComponent(voiceId)}` +
+    (convEmail ? `&email=${encodeURIComponent(convEmail)}` : '') +
+    (convUserId ? `&userId=${encodeURIComponent(convUserId)}` : '');
 
   const xml = twiml(
     twimlSay(greeting, voiceId) +
@@ -85,11 +87,6 @@ function handleConversation(req: VercelRequest, res: VercelResponse) {
   return res.status(200).send(xml);
 }
 
-// ============================================================================
-// RESPOND — AI conversation loop
-// ============================================================================
-
-// In-memory conversation store (per call)
 const conversations = new Map<string, string[]>();
 const callLiveContextCache = new Map<string, LiveContext>();
 const callMemoryCache = new Map<string, CallMemory | null>();
@@ -107,14 +104,27 @@ async function handleRespond(req: VercelRequest, res: VercelResponse) {
   const speechResult = body.SpeechResult || '';
   const confidence = parseFloat(body.Confidence || '0');
   const callSid = body.CallSid || 'unknown';
+  const callerFrom = String(body.From || '');
   const callContext = (req.query.context as string) || undefined;
   const userEmail = (req.query.email as string) || undefined;
-  const userId = (req.query.userId as string) || undefined;
-  const respondUrl = `${config.appUrl}/api/phone/twiml?handler=respond&voice=${encodeURIComponent(voiceId)}${callContext ? `&context=${encodeURIComponent(callContext)}` : ''}${userEmail ? `&email=${encodeURIComponent(userEmail)}` : ''}${userId ? `&userId=${encodeURIComponent(userId)}` : ''}`;
+  const queryUserId = (req.query.userId as string) || undefined;
 
-  console.log(`[PhoneAI] CallSid=${callSid} Speech="${speechResult}" Confidence=${confidence}`);
+  const binding = await resolvePhoneCallUserBinding(queryUserId, callerFrom, callSid);
+  const userId = binding.userId;
+  if (userId) {
+    callUserIdMap.set(callSid, userId);
+  }
 
-  // Handle no speech / low confidence
+  const respondUrl =
+    `${config.appUrl}/api/phone/twiml?handler=respond&voice=${encodeURIComponent(voiceId)}` +
+    (callContext ? `&context=${encodeURIComponent(callContext)}` : '') +
+    (userEmail ? `&email=${encodeURIComponent(userEmail)}` : '') +
+    (binding.userIdForTwiml ? `&userId=${encodeURIComponent(binding.userIdForTwiml)}` : '');
+
+  console.log(
+    `[PhoneAI] CallSid=${callSid} Speech="${speechResult}" Confidence=${confidence} From=${callerFrom || 'n/a'} boundUser=${userId ? `${userId.slice(0, 8)}…` : 'none'}`,
+  );
+
   if (!speechResult || confidence < 0.3) {
     const xml = twiml(
       twimlSay("Sorry, I didn't quite catch that. Could you say that again?", voiceId) +
@@ -131,11 +141,10 @@ async function handleRespond(req: VercelRequest, res: VercelResponse) {
     return res.status(200).send(xml);
   }
 
-  // Check for conversation-ending phrases
   const lower = speechResult.toLowerCase().trim();
   const endPhrases = ['goodbye', 'bye', 'hang up', 'end call', "that's all", "i'm done", 'thanks bye'];
   if (endPhrases.some((p) => lower.includes(p))) {
-    const uid = userId || callUserIdMap.get(callSid);
+    const uid = callUserIdMap.get(callSid) || userId;
     const hist = conversations.get(callSid);
     if (uid && hist && hist.length > 0) {
       saveCallMemory(uid, hist).catch(() => {});
@@ -156,12 +165,10 @@ async function handleRespond(req: VercelRequest, res: VercelResponse) {
     return res.status(200).send(xml);
   }
 
-  // Build conversation history
   let history = conversations.get(callSid) || [];
   if (history.length >= MAX_TURNS * 2) history = history.slice(-MAX_TURNS);
   const historyStr = history.join('\n').slice(-MAX_HISTORY);
 
-  // Fetch or retrieve cached live context (weather, email insights)
   let liveCtx = callLiveContextCache.get(callSid);
   if (!liveCtx) {
     const [weather, emailInsights] = await Promise.all([
@@ -175,15 +182,12 @@ async function handleRespond(req: VercelRequest, res: VercelResponse) {
     console.log(`[PhoneAI] Live context loaded for ${callSid}: weather=${!!weather}, email=${!!emailInsights}`);
   }
 
-  // Load persistent cross-call memory on first turn
   if (userId && !callMemoryCache.has(callSid)) {
-    callUserIdMap.set(callSid, userId);
     const mem = await loadCallMemory(userId);
     callMemoryCache.set(callSid, mem);
     if (mem) console.log(`[PhoneAI] Loaded cross-call memory for ${callSid} from ${mem.lastCallDate}`);
   }
 
-  // Mood detection (Feature 2)
   const detectedMood = detectMoodFromSpeech(speechResult, history);
   let moodState = callMoodCache.get(callSid) || { mood: 'neutral' as MoodState, negativeTurns: 0 };
   moodState.mood = detectedMood;
@@ -195,7 +199,6 @@ async function handleRespond(req: VercelRequest, res: VercelResponse) {
   callMoodCache.set(callSid, moodState);
   const moodOverride = getMoodPromptOverride(moodState.mood, moodState.negativeTurns);
 
-  // Build enriched context on first turn (insights, relationships, viral stats)
   if (userId && !callEnrichedContextCache.has(callSid)) {
     try {
       const [insights, relationships, viralStats] = await Promise.all([
@@ -218,7 +221,9 @@ async function handleRespond(req: VercelRequest, res: VercelResponse) {
       }
       if (viralStats.length > 0) {
         const vs = viralStats[0];
-        enrichedParts.push(`SHAREABLE STAT: ${vs.stat} — "${vs.wittyComment}"`);
+        enrichedParts.push(
+          `ROLLING STAT (may include prior days — not "today" unless grounding says so): ${vs.stat} — "${vs.wittyComment}"`,
+        );
       }
       const enrichedContext = enrichedParts.join('\n');
       callEnrichedContextCache.set(callSid, enrichedContext);
@@ -228,14 +233,16 @@ async function handleRespond(req: VercelRequest, res: VercelResponse) {
     }
   }
 
-  // Combine briefing context if passed via query param (scheduled calls)
   const briefingCtx = (req.query.briefingCtx as string) || '';
   const enrichedCtx = callEnrichedContextCache.get(callSid) || '';
-  const extraContext = [moodOverride, enrichedCtx, briefingCtx].filter(Boolean).join('\n');
+  let groundingBlock = '';
+  if (userId) {
+    groundingBlock = await buildPhoneSessionGroundingBlock(userId);
+  }
+  const extraContext = [groundingBlock, moodOverride, enrichedCtx, briefingCtx].filter(Boolean).join('\n');
 
   let spokenResponse: string;
 
-  // Use full OpenClaw bridge (with tools) when userId is available
   if (userId) {
     const callMem = callMemoryCache.get(callSid) || null;
     const enrichedLiveCtx: LiveContext = {
@@ -243,7 +250,7 @@ async function handleRespond(req: VercelRequest, res: VercelResponse) {
       ...(extraContext ? { moodAndInsights: extraContext } : {}),
     };
     const bridgeResult = await generatePhoneAIResponseWithTools(
-      speechResult, userId, historyStr || undefined, callContext, enrichedLiveCtx, callMem
+      speechResult, userId, historyStr || undefined, callContext, enrichedLiveCtx, callMem, callSid,
     );
     spokenResponse = bridgeResult.spoken;
 
@@ -264,11 +271,9 @@ async function handleRespond(req: VercelRequest, res: VercelResponse) {
       }
     }
   } else {
-    // Fallback: plain AI without tools
     const aiResponse = await generatePhoneAIResponse(speechResult, historyStr || undefined, callContext, liveCtx);
     spokenResponse = aiResponse;
 
-    // Legacy :::EVENT::: parsing for non-bridge path
     const eventMatch = aiResponse.match(/:::EVENT:::(.*?):::END:::/s);
     if (eventMatch) {
       spokenResponse = aiResponse.split(':::EVENT:::')[0].trim();
@@ -281,7 +286,6 @@ async function handleRespond(req: VercelRequest, res: VercelResponse) {
     }
   }
 
-  // Store in history
   history.push(`User: ${speechResult}`);
   history.push(`AI: ${spokenResponse}`);
   conversations.set(callSid, history);
@@ -303,55 +307,6 @@ async function handleRespond(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Content-Type', 'text/xml');
   return res.status(200).send(xml);
 }
-
-// ============================================================================
-// EXTERNAL CALENDAR SYNC — push phone-created events to Google/Outlook
-// ============================================================================
-
-async function syncEventToExternalCalendars(
-  userId: string,
-  eventData: { title: string; date: string; startHour: number; startMinute: number; endHour: number; endMinute: number }
-) {
-  const SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-  const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-
-  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-    console.warn('[PhoneAI] Cannot sync to external calendars — missing Supabase env vars');
-    return;
-  }
-
-  const pad = (n: number) => n.toString().padStart(2, '0');
-  const startTime = `${eventData.date}T${pad(eventData.startHour)}:${pad(eventData.startMinute)}:00`;
-  const endTime = `${eventData.date}T${pad(eventData.endHour)}:${pad(eventData.endMinute)}:00`;
-
-  const resp = await fetch(`${SUPABASE_URL}/functions/v1/make-server-57781ad9/integrations/sync-calendar-event`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-    },
-    body: JSON.stringify({
-      userId,
-      event: {
-        title: eventData.title,
-        startTime,
-        endTime,
-        description: 'Created during SyncScript phone call',
-      },
-    }),
-  });
-
-  if (resp.ok) {
-    const result = await resp.json();
-    console.log(`[PhoneAI] External calendar sync result: ${result.synced}/${result.total} calendars`);
-  } else {
-    console.error(`[PhoneAI] External calendar sync HTTP ${resp.status}:`, await resp.text());
-  }
-}
-
-// ============================================================================
-// STATUS CALLBACK — Twilio call lifecycle events
-// ============================================================================
 
 async function handleStatusCallback(req: VercelRequest, res: VercelResponse) {
   const body = req.body || {};
@@ -383,10 +338,6 @@ async function handleStatusCallback(req: VercelRequest, res: VercelResponse) {
   return res.status(200).send('OK');
 }
 
-// ============================================================================
-// INBOUND — Handle incoming calls to SyncScript number
-// ============================================================================
-
 function handleInbound(req: VercelRequest, res: VercelResponse) {
   const config = getTwilioConfig();
   const voiceId = 'Polly.Joanna-Neural';
@@ -408,13 +359,8 @@ function handleInbound(req: VercelRequest, res: VercelResponse) {
   return res.status(200).send(xml);
 }
 
-// ============================================================================
-// ROUTER
-// ============================================================================
-
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+export async function routePhoneTwiml(req: VercelRequest, res: VercelResponse) {
   try {
-    // Validate Twilio webhook signature (skip in development)
     if (process.env.NODE_ENV === 'production' && !validateTwilioWebhook(req)) {
       console.error('[TwiML] Rejected request — invalid Twilio signature');
       return res.status(403).json({ error: 'Invalid Twilio signature' });
@@ -436,7 +382,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
   } catch (error) {
     console.error('[TwiML] Unhandled error in handler:', error);
-    // Return a graceful TwiML response so the call doesn't just die
     const fallbackXml = twiml(
       twimlSay("Sorry, I hit a technical snag. Try calling back in a moment — I'll be ready!", 'Polly.Joanna-Neural')
     );

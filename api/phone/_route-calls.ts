@@ -1,11 +1,11 @@
 /**
- * /api/phone/calls — Consolidated call management handler
- * 
+ * Phone calls logic — mounted at /api/phone/calls via [endpoint].ts (single Hobby-tier function).
+ *
  * Routes by method + query params:
  *   POST  ?action=outbound    → Initiate an outbound call
  *   GET   ?id=CALL_SID        → Get call status
  *   POST  ?action=end&id=SID  → End an active call
- * 
+ *
  * Auth: Bearer token (PHONE_API_SECRET)
  */
 
@@ -24,9 +24,9 @@ import {
   twimlSay,
   twimlGather,
   twimlPause,
+  registerCallerPhoneForUser,
 } from './_helpers';
 
-// Map Twilio statuses to simplified statuses
 function mapStatus(s: string): string {
   const m: Record<string, string> = {
     queued: 'initiated', ringing: 'ringing', 'in-progress': 'in-progress',
@@ -36,7 +36,7 @@ function mapStatus(s: string): string {
   return m[s] || s;
 }
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+export async function routePhoneCalls(req: VercelRequest, res: VercelResponse) {
   if (handleOptions(req, res)) return;
   setCorsHeaders(res);
   if (!validateApiKey(req, res)) return;
@@ -45,7 +45,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const action = (req.query.action as string) || '';
   const callId = (req.query.id as string) || '';
 
-  // ── POST ?action=outbound ────────────────────────────────────────────
   if (req.method === 'POST' && action === 'outbound') {
     const { phoneNumber, callType, maxDuration, voiceId, userEmail, userId } = req.body || {};
 
@@ -56,7 +55,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const config = getTwilioConfig();
     const voice = (!voiceId || voiceId === 'default') ? 'Polly.Joanna-Neural' : voiceId;
 
-    // Build greeting based on call type
     const greetings: Record<string, string> = {
       'morning-briefing': "Good morning! I'm Nexus, your SyncScript AI. Let me give you a quick rundown of your day. What would you like to start with?",
       'evening-review': "Hey there! Time for your evening wrap-up. I can go over what you accomplished today and help you plan for tomorrow. What's on your mind?",
@@ -71,13 +69,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       'weekly-recap': "Hey! It's Nexus with your weekly recap. Ready to hear how your week went?",
     };
     const greeting = greetings[callType || ''] || "Hey! This is Nexus, your SyncScript AI assistant. I'm here to help with your tasks, goals, or anything you need. What's up?";
-    
+
     const callContext = ['post-purchase', 'payment-failed', 'trial-ending', 'cancellation-save', 'morning-briefing-auto', 'weekly-recap'].includes(callType) ? callType : '';
 
-    // Build the respond URL for the conversation loop (with context + email for personality engine)
     const respondUrl = `${config.appUrl}/api/phone/twiml?handler=respond&voice=${encodeURIComponent(voice)}${callContext ? `&context=${encodeURIComponent(callContext)}` : ''}${userEmail ? `&email=${encodeURIComponent(userEmail)}` : ''}${userId ? `&userId=${encodeURIComponent(userId)}` : ''}`;
 
-    // Use INLINE TwiML to avoid URL-fetch issues on Twilio trial
+    if (userId) {
+      await registerCallerPhoneForUser(String(userId), String(phoneNumber));
+    }
+
     const inlineTwiml = twiml(
       twimlSay(greeting, voice) +
       twimlGather({
@@ -109,13 +109,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
   }
 
-  // ── GET ?action=pending-events&id=CALL_SID ─────────────────────────
   if (req.method === 'GET' && action === 'pending-events' && callId) {
     const events = getPendingCalendarEvents(callId);
     return res.status(200).json({ callId, events });
   }
 
-  // ── GET ?id=CALL_SID (status) ────────────────────────────────────────
   if (req.method === 'GET' && callId) {
     const callData = await twilioGetCall(callId);
 
@@ -132,7 +130,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
   }
 
-  // ── POST ?action=end&id=CALL_SID ─────────────────────────────────────
   if (req.method === 'POST' && action === 'end' && callId) {
     const success = await twilioUpdateCall(callId, { Status: 'completed' });
 
