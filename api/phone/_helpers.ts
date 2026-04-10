@@ -10,7 +10,7 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync, unlinkSync } from '
 import { createHmac } from 'crypto';
 import { callAI, isAIConfigured } from '../_lib/ai-service';
 import type { AIMessage, ChatCompletionMessage } from '../_lib/ai-service';
-import { runNexusToolLoop } from '../_lib/nexus-tool-loop';
+import { runNexusToolLoop, phoneUserSoundsLikeTaskPersistIntent } from '../_lib/nexus-tool-loop';
 import { NEXUS_PHONE_TOOLS_APPEND } from '../_lib/nexus-tools';
 
 // ============================================================================
@@ -1943,9 +1943,15 @@ export async function generatePhoneAIResponseWithTools(
     const persistFail = result.toolTrace.find(
       (t) => (t.tool === 'create_task' || t.tool === 'add_note') && !t.ok,
     );
+    const createOk = result.toolTrace.some((t) => t.tool === 'create_task' && t.ok);
+    const noteOk = result.toolTrace.some((t) => t.tool === 'add_note' && t.ok);
+    const persistFailMsg =
+      "I couldn't save that to your task list from this call. Add it in the SyncScript app, or try again later.";
     if (persistFail) {
-      spoken =
-        "I couldn't save that to your task list from this call. Add it in the SyncScript app, or try again later.";
+      spoken = persistFailMsg;
+    } else if (phoneUserSoundsLikeTaskPersistIntent(userSpeech) && !createOk && !noteOk) {
+      // Model claimed success without running create_task / add_note (or tools were skipped).
+      spoken = persistFailMsg;
     }
 
     const toolResults = result.toolTrace.map((t) => ({

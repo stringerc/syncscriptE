@@ -109,6 +109,15 @@ function parseArgs(raw: string): Record<string, unknown> {
   }
 }
 
+/** KV /tasks and /phone/nexus-execute return a flat task object with `id`. */
+function assertTaskResponse(data: Record<string, unknown>, context: string): { id: string; title: string } {
+  const id = String(data?.id ?? '').trim();
+  if (!id) {
+    throw new Error(`${context}: task API response missing id`);
+  }
+  return { id, title: String(data?.title ?? '').trim() || 'Untitled' };
+}
+
 async function emitAudit(actor: NexusActor, meta: NexusExecMeta, trace: NexusToolTraceEntry): Promise<void> {
   await recordNexusToolAudit({
     userId: userIdFromActor(actor),
@@ -164,17 +173,18 @@ export async function executeNexusTool(
         tags: baseTags,
         source: src,
       });
+      const safe = assertTaskResponse(created as Record<string, unknown>, 'create_task');
 
       return await finish(
         {
           tool: 'create_task',
           ok: true,
-          detail: { taskId: created.id, title: created.title },
+          detail: { taskId: safe.id, title: safe.title },
         },
         JSON.stringify({
           ok: true,
-          task_id: created.id,
-          title: created.title,
+          task_id: safe.id,
+          title: safe.title,
         }),
       );
     } catch (e: any) {
@@ -206,17 +216,18 @@ export async function executeNexusTool(
         tags: [...baseTags, 'note'],
         source: `${src}_note`,
       });
+      const safe = assertTaskResponse(created as Record<string, unknown>, 'add_note');
 
       return await finish(
         {
           tool: 'add_note',
           ok: true,
-          detail: { taskId: created.id, title: created.title },
+          detail: { taskId: safe.id, title: safe.title },
         },
         JSON.stringify({
           ok: true,
-          note_item_id: created.id,
-          title: created.title,
+          note_item_id: safe.id,
+          title: safe.title,
         }),
       );
     } catch (e: any) {

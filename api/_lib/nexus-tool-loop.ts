@@ -60,7 +60,7 @@ const CREATE_TASK_INTENT_RE =
   /\b(create|add|put|make|set\s+up|remind|schedule|save|capture|log).{0,48}(task|todo|reminder|action\s+item|item)\b/i;
 
 /** Phrases like "wake up at 8" / "remind me to …" often omit the word "task" — still need create_task. */
-function userSoundsLikeTheyWantATaskSaved(lastUser: string): boolean {
+export function phoneUserSoundsLikeTaskPersistIntent(lastUser: string): boolean {
   const u = lastUser.trim();
   if (!u) return false;
   if (CREATE_TASK_INTENT_RE.test(u)) return true;
@@ -74,7 +74,7 @@ function userSoundsLikeTheyWantATaskSaved(lastUser: string): boolean {
 function shouldNudgeToolCall(toolTrace: NexusToolTraceEntry[], lastUser: string, round: number): boolean {
   if (round !== 0) return false;
   if (!lastUser.trim()) return false;
-  if (!userSoundsLikeTheyWantATaskSaved(lastUser)) return false;
+  if (!phoneUserSoundsLikeTaskPersistIntent(lastUser)) return false;
   if (toolTrace.some((t) => t.tool === 'create_task' && t.ok)) return false;
   return true;
 }
