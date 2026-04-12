@@ -6,6 +6,7 @@ import {
   ChevronRight, Check, X, Link2, Users, MapPin, Cloud,
   Camera, BookOpen, MessageSquare, CheckCircle2, Activity,
   CreditCard,
+  Monitor,
 } from 'lucide-react';
 import { StripeConnectSettings } from '../settings/StripeConnectSettings';
 import { motion } from 'motion/react';
@@ -30,6 +31,8 @@ import {
   SYNCSCRIPT_WEB_APP,
   SYNCSCRIPT_GITHUB_REPO,
   SYNCSCRIPT_INTEGRATIONS_TREE,
+  SYNCSCRIPT_GITHUB_RELEASES,
+  SYNCSCRIPT_DESKTOP_COMPANION_TREE,
 } from '../../config/public-links';
 
 // Default avatar URL
@@ -1362,32 +1365,69 @@ export function SettingsPage() {
                 <Download className="w-5 h-5 text-teal-400" />
                 App and resources
               </h2>
-              <p className="text-sm text-gray-400 mb-4">
-                Use the live web app on any device. On phone or desktop, use your browser&apos;s{' '}
-                <span className="text-gray-300">Install app</span> or{' '}
-                <span className="text-gray-300">Add to Home Screen</span> to pin SyncScript like an app.
-              </p>
-              <div className="flex flex-col sm:flex-row gap-3">
-                <Button
-                  className="gap-2 bg-teal-600 hover:bg-teal-700"
-                  asChild
-                >
-                  <a href={SYNCSCRIPT_WEB_APP} target="_blank" rel="noopener noreferrer">
-                    Open web app
-                    <ChevronRight className="w-4 h-4" />
-                  </a>
-                </Button>
-                <Button variant="outline" className="gap-2 border-gray-600" asChild>
-                  <a href={SYNCSCRIPT_INTEGRATIONS_TREE} target="_blank" rel="noopener noreferrer">
-                    Integrations folder (GitHub)
-                    <ChevronRight className="w-4 h-4" />
-                  </a>
-                </Button>
-                <Button variant="ghost" className="gap-2 text-gray-400 hover:text-white" asChild>
-                  <a href={SYNCSCRIPT_GITHUB_REPO} target="_blank" rel="noopener noreferrer">
-                    View repository
-                  </a>
-                </Button>
+
+              <div className="space-y-5">
+                <div>
+                  <h3 className="text-sm font-medium text-white mb-1.5 flex items-center gap-2">
+                    <Smartphone className="w-4 h-4 text-teal-400 shrink-0" />
+                    Web app (install or pin)
+                  </h3>
+                  <p className="text-sm text-gray-400 mb-3">
+                    Use SyncScript in the browser on any device. To add it like an app, use{' '}
+                    <span className="text-gray-300">Install app</span> (Chrome/Edge) or{' '}
+                    <span className="text-gray-300">Add to Home Screen</span> (Safari on iOS).
+                  </p>
+                  <Button className="gap-2 bg-teal-600 hover:bg-teal-700" asChild>
+                    <a href={SYNCSCRIPT_WEB_APP} target="_blank" rel="noopener noreferrer">
+                      Open web app
+                      <ChevronRight className="w-4 h-4" />
+                    </a>
+                  </Button>
+                </div>
+
+                <Separator className="bg-gray-800" />
+
+                <div>
+                  <h3 className="text-sm font-medium text-white mb-1.5 flex items-center gap-2">
+                    <Monitor className="w-4 h-4 text-teal-400 shrink-0" />
+                    Desktop companion (macOS)
+                  </h3>
+                  <p className="text-sm text-gray-400 mb-3">
+                    The <span className="text-gray-300">Nature Companion</span> shell adds an always-on-top
+                    desktop overlay, 3D presence, voice handoff, and trusted deep links into SyncScript (for
+                    example agents from the desktop surface). It is a separate Electron app from this repo,
+                    not the browser PWA. Build it locally, or check Releases when a packaged build is posted.
+                  </p>
+                  <div className="flex flex-col sm:flex-row flex-wrap gap-3">
+                    <Button variant="outline" className="gap-2 border-gray-600" asChild>
+                      <a href={SYNCSCRIPT_DESKTOP_COMPANION_TREE} target="_blank" rel="noopener noreferrer">
+                        Desktop setup (GitHub)
+                        <ChevronRight className="w-4 h-4" />
+                      </a>
+                    </Button>
+                    <Button variant="outline" className="gap-2 border-gray-600" asChild>
+                      <a href={SYNCSCRIPT_GITHUB_RELEASES} target="_blank" rel="noopener noreferrer">
+                        GitHub Releases
+                        <ChevronRight className="w-4 h-4" />
+                      </a>
+                    </Button>
+                  </div>
+                </div>
+
+                <Separator className="bg-gray-800" />
+
+                <div className="flex flex-col sm:flex-row flex-wrap gap-3">
+                  <Button variant="ghost" className="gap-2 text-gray-400 hover:text-white justify-start" asChild>
+                    <a href={SYNCSCRIPT_INTEGRATIONS_TREE} target="_blank" rel="noopener noreferrer">
+                      Integrations folder (GitHub)
+                    </a>
+                  </Button>
+                  <Button variant="ghost" className="gap-2 text-gray-400 hover:text-white justify-start" asChild>
+                    <a href={SYNCSCRIPT_GITHUB_REPO} target="_blank" rel="noopener noreferrer">
+                      View repository
+                    </a>
+                  </Button>
+                </div>
               </div>
             </Card>
 
