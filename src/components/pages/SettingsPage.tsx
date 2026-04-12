@@ -33,6 +33,8 @@ import {
   SYNCSCRIPT_INTEGRATIONS_TREE,
   SYNCSCRIPT_GITHUB_RELEASES,
   SYNCSCRIPT_DESKTOP_COMPANION_TREE,
+  SYNCSCRIPT_COMPANION_PROTOCOL_FOCUS,
+  SYNCSCRIPT_COMPANION_PROTOCOL_OPEN_WEB_SETTINGS,
   SYNCSCRIPT_NATURE_COMPANION_RELEASE_POC,
 } from '../../config/public-links';
 
@@ -112,7 +114,13 @@ export function SettingsPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { profile, updateProfile } = useUserProfile();
-  const { uploadPhoto } = useAuth();
+  const {
+    uploadPhoto,
+    user: authUser,
+    requestEmailChange,
+    resendVerificationEmail,
+    updateProfile: updateAuthProfile,
+  } = useAuth();
   
   // Read initial tab from URL (?tab=integrations etc.)
   const validTabs = ['general', 'account', 'energy', 'notifications', 'resonance', 'privacy', 'integrations', 'briefing', 'billing'];
@@ -122,7 +130,67 @@ export function SettingsPage() {
   const [showCropModal, setShowCropModal] = useState(false);
   const [tempImageSrc, setTempImageSrc] = useState<string>('');
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
-  
+  const [emailDraft, setEmailDraft] = useState(profile.email);
+  const [savingAccount, setSavingAccount] = useState(false);
+  const [resendingVerify, setResendingVerify] = useState(false);
+
+  useEffect(() => {
+    if (authUser?.email && !authUser.isGuest) {
+      setEmailDraft(authUser.email);
+    }
+  }, [authUser?.email, authUser?.isGuest]);
+
+  const handleSaveAccountProfile = async () => {
+    if (authUser && !authUser.isGuest) {
+      setSavingAccount(true);
+      try {
+        const nameRes = await updateAuthProfile({ name: profile.name });
+        if (!nameRes.success) {
+          toast.error(nameRes.error || 'Could not save your name.');
+          return;
+        }
+        updateProfile({ name: profile.name, email: authUser.email ?? profile.email });
+
+        const nextEmail = emailDraft.trim().toLowerCase();
+        const currentEmail = (authUser.email || '').toLowerCase();
+        if (nextEmail && nextEmail !== currentEmail) {
+          const er = await requestEmailChange(emailDraft.trim());
+          if (!er.success) {
+            toast.error(er.error || 'Could not start email change.');
+            return;
+          }
+          toast.success('Confirm your email', {
+            description:
+              'We sent a confirmation link. Your sign-in email updates after you confirm (check both inboxes if you use secure email change).',
+          });
+        } else {
+          toast.success('Profile updated', { description: 'Your name is saved.' });
+        }
+      } finally {
+        setSavingAccount(false);
+      }
+      return;
+    }
+
+    toast.success('Profile updated!', {
+      description: 'Your changes are saved locally. Create an account to sync across devices.',
+    });
+  };
+
+  const handleResendVerification = async () => {
+    setResendingVerify(true);
+    try {
+      const r = await resendVerificationEmail();
+      if (r.success) {
+        toast.success('Verification email sent', { description: 'Check your inbox and spam folder.' });
+      } else {
+        toast.error(r.error || 'Could not resend.');
+      }
+    } finally {
+      setResendingVerify(false);
+    }
+  };
+
   // Load persisted settings
   const [settings, setSettings] = useState<AppSettings>(loadSettings);
   
@@ -771,7 +839,9 @@ export function SettingsPage() {
                 <div className="flex-1 space-y-3">
                   <div>
                     <p className="text-white font-medium">{profile.name}</p>
-                    <p className="text-sm text-slate-400">{profile.email}</p>
+                    <p className="text-sm text-slate-400">
+                      {authUser?.email && !authUser.isGuest ? authUser.email : profile.email}
+                    </p>
                   </div>
                   
                   {/* RESEARCH: LinkedIn (2024) - "Both click-photo AND button reduces confusion 64%" */}
@@ -846,17 +916,57 @@ export function SettingsPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label className="text-white">Email</Label>
-                  <Input 
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Label className="text-white">Email</Label>
+                    {authUser && !authUser.isGuest && authUser.emailConfirmedAt && (
+                      <Badge variant="outline" className="text-xs border-emerald-600/60 text-emerald-400">
+                        Verified
+                      </Badge>
+                    )}
+                    {authUser && !authUser.isGuest && !authUser.emailConfirmedAt && (
+                      <Badge variant="outline" className="text-xs border-amber-600/60 text-amber-400">
+                        Unverified
+                      </Badge>
+                    )}
+                  </div>
+                  <Input
                     type="email"
-                    value={profile.email}
-                    onChange={(e) => updateProfile({ email: e.target.value })}
+                    value={authUser && !authUser.isGuest ? emailDraft : profile.email}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      if (authUser && !authUser.isGuest) {
+                        setEmailDraft(v);
+                      } else {
+                        updateProfile({ email: v });
+                      }
+                    }}
                     className="bg-[#1a1c20] border-gray-800 text-white placeholder:text-gray-500"
                     placeholder="your.email@example.com"
+                    autoComplete="email"
                   />
+                  {authUser && !authUser.isGuest && authUser.pendingEmail && (
+                    <p className="text-xs text-amber-400">
+                      Pending: confirm <span className="font-medium">{authUser.pendingEmail}</span> via the link we
+                      emailed you.
+                    </p>
+                  )}
                   <p className="text-xs text-gray-500">
-                    💡 Used for notifications and account recovery
+                    {authUser && !authUser.isGuest
+                      ? 'Changing your email sends a confirmation link from Supabase Auth. Your saved profile name still syncs separately.'
+                      : 'Used for notifications and account recovery. Sign in to verify a real address.'}
                   </p>
+                  {authUser && !authUser.isGuest && !authUser.emailConfirmedAt && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="border-amber-700/50 text-amber-200 hover:bg-amber-950/40"
+                      disabled={resendingVerify}
+                      onClick={handleResendVerification}
+                    >
+                      {resendingVerify ? 'Sending…' : 'Resend verification email'}
+                    </Button>
+                  )}
                 </div>
 
                 <div className="space-y-2">
@@ -872,13 +982,12 @@ export function SettingsPage() {
                   </p>
                 </div>
 
-                <Button 
-                  onClick={() => toast.success('Profile updated!', {
-                    description: 'Your changes are saved and visible everywhere'
-                  })}
+                <Button
+                  onClick={handleSaveAccountProfile}
+                  disabled={savingAccount}
                   className="bg-gradient-to-r from-teal-600 to-blue-600"
                 >
-                  Save Changes
+                  {savingAccount ? 'Saving…' : 'Save Changes'}
                 </Button>
               </div>
             </Card>
@@ -1397,17 +1506,33 @@ export function SettingsPage() {
                     The <span className="text-gray-300">Nature Companion</span> shell adds an always-on-top
                     desktop overlay, 3D presence, voice handoff, and trusted deep links into SyncScript (for
                     example agents from the desktop surface). It is a separate Electron app from this repo,
-                    not the browser PWA. Build it locally, open the POC release for a downloadable ZIP when it is
-                    attached, or browse all releases.
+                    not the browser PWA. After you install it, use the links below to wake the overlay or open
+                    SyncScript in your default browser through the same handoff path as the desktop surface.
                   </p>
                   <div className="flex flex-col sm:flex-row flex-wrap gap-3">
+                    <Button variant="outline" className="gap-2 border-teal-700/50 bg-teal-950/20" asChild>
+                      <a href={SYNCSCRIPT_COMPANION_PROTOCOL_FOCUS}>
+                        Wake desktop companion
+                      </a>
+                    </Button>
+                    <Button variant="outline" className="gap-2 border-teal-700/50 bg-teal-950/20" asChild>
+                      <a href={SYNCSCRIPT_COMPANION_PROTOCOL_OPEN_WEB_SETTINGS}>
+                        Open this page in browser (via companion)
+                      </a>
+                    </Button>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-2">
+                    If Nature Companion is not installed, those links may do nothing or show an error — use
+                    Desktop setup or the POC release to install first.
+                  </p>
+                  <div className="flex flex-col sm:flex-row flex-wrap gap-3 mt-4">
                     <Button variant="outline" className="gap-2 border-gray-600" asChild>
                       <a href={SYNCSCRIPT_DESKTOP_COMPANION_TREE} target="_blank" rel="noopener noreferrer">
                         Desktop setup (GitHub)
                         <ChevronRight className="w-4 h-4" />
                       </a>
                     </Button>
-                    <Button variant="outline" className="gap-2 border-teal-700/50 bg-teal-950/20" asChild>
+                    <Button variant="outline" className="gap-2 border-gray-600" asChild>
                       <a href={SYNCSCRIPT_NATURE_COMPANION_RELEASE_POC} target="_blank" rel="noopener noreferrer">
                         Companion POC (GitHub release)
                         <ChevronRight className="w-4 h-4" />

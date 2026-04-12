@@ -16,6 +16,13 @@ export const SYNCSCRIPT_GITHUB_RELEASES = `${SYNCSCRIPT_GITHUB_REPO}/releases`;
 /** Desktop presence shell (Electron): build instructions and runtime layout. */
 export const SYNCSCRIPT_DESKTOP_COMPANION_TREE = `${SYNCSCRIPT_GITHUB_REPO}/tree/main/nature-cortana-platform`;
 
-/** Published macOS arm64 POC release tag (ZIP attached when uploaded; always has notes + readme asset). */
+/** macOS/Windows custom URL scheme handled by Nature Companion (Electron). Requires the desktop app installed. */
+export const SYNCSCRIPT_COMPANION_PROTOCOL_FOCUS = 'syncscript-companion://focus';
+
+/** Opens SyncScript in the system browser at this path (via Companion when installed; same base URL as the web app). */
+export const SYNCSCRIPT_COMPANION_PROTOCOL_OPEN_WEB_SETTINGS =
+  'syncscript-companion://openweb?path=%2Fsettings%3Ftab%3Dintegrations';
+
+/** Published macOS arm64 POC release (ZIP when attached). */
 export const SYNCSCRIPT_NATURE_COMPANION_RELEASE_POC =
   `${SYNCSCRIPT_GITHUB_REPO}/releases/tag/v0.1.0-nature-companion-mac-arm64`;
