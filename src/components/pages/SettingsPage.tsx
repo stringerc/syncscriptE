@@ -4,8 +4,10 @@ import {
   Shield, Download, Trash2, Moon, Sun, Volume2, Mail,
   Smartphone, Calendar, Database, Code, HelpCircle,
   ChevronRight, Check, X, Link2, Users, MapPin, Cloud,
-  Camera, BookOpen, MessageSquare, CheckCircle2, Activity
+  Camera, BookOpen, MessageSquare, CheckCircle2, Activity,
+  CreditCard,
 } from 'lucide-react';
+import { StripeConnectSettings } from '../settings/StripeConnectSettings';
 import { motion } from 'motion/react';
 import { toast } from 'sonner';
 import { Button } from '../ui/button';
@@ -24,6 +26,11 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useUserProfile } from '../../utils/user-profile';
 import { useAuth } from '../../contexts/AuthContext';
 import { ImageCropModal } from '../ImageCropModal';
+import {
+  SYNCSCRIPT_WEB_APP,
+  SYNCSCRIPT_GITHUB_REPO,
+  SYNCSCRIPT_INTEGRATIONS_TREE,
+} from '../../config/public-links';
 
 // Default avatar URL
 const DEFAULT_AVATAR = 'https://images.unsplash.com/photo-1576558656222-ba66febe3dec?w=400&h=400&fit=crop&crop=face';
@@ -55,6 +62,8 @@ interface AppSettings {
   dateFormat: string;
   optimizationMode: string;
   phaseAnchorTime: string;
+  /** In-app Nexus tone; server default is `halo_inspired` when unset. */
+  nexusPersonaMode: 'standard' | 'halo_inspired';
 }
 
 const DEFAULT_SETTINGS: AppSettings = {
@@ -102,7 +111,7 @@ export function SettingsPage() {
   const { uploadPhoto } = useAuth();
   
   // Read initial tab from URL (?tab=integrations etc.)
-  const validTabs = ['general', 'account', 'energy', 'notifications', 'resonance', 'privacy', 'integrations', 'briefing'];
+  const validTabs = ['general', 'account', 'energy', 'notifications', 'resonance', 'privacy', 'integrations', 'briefing', 'billing'];
   const initialTab = validTabs.includes(searchParams.get('tab') || '') ? searchParams.get('tab')! : 'general';
   
   // Photo editing state
@@ -126,7 +135,7 @@ export function SettingsPage() {
     darkMode, notifications, emailDigest, soundEffects, autoSave,
     resonanceMode, phaseAlignment, resonanceOverlay, autoTaskMove,
     explainMoves, energyReminders, showTeamBadges, teamTasksInMyTasks,
-    showLocationWeather, clickableTeamBadges,
+    showLocationWeather, clickableTeamBadges, nexusPersonaMode,
   } = settings;
   
   // Setter shorthands that persist
@@ -533,6 +542,10 @@ export function SettingsPage() {
               <Smartphone className="w-4 h-4 mr-2" />
               Briefing Calls
             </TabsTrigger>
+            <TabsTrigger value="billing">
+              <CreditCard className="w-4 h-4 mr-2" />
+              Billing
+            </TabsTrigger>
           </TabsList>
 
           {/* General Settings */}
@@ -591,6 +604,33 @@ export function SettingsPage() {
                     </SelectContent>
                   </Select>
                 </div>
+              </div>
+            </Card>
+
+            <Card className="bg-[#1e2128] border-gray-800 p-6">
+              <h2 className="text-white text-xl mb-4 flex items-center gap-2">
+                <MessageSquare className="w-5 h-5" />
+                Nexus assistant
+              </h2>
+              <div className="space-y-2">
+                <Label className="text-white">Assistant tone</Label>
+                <p className="text-sm text-gray-400">
+                  Applies to in-app Nexus chat. Voice demos use the server default unless you change the environment flag.
+                </p>
+                <Select
+                  value={nexusPersonaMode}
+                  onValueChange={(v) =>
+                    updateSetting('nexusPersonaMode', v === 'standard' ? 'standard' : 'halo_inspired')
+                  }
+                >
+                  <SelectTrigger className="bg-[#1a1c20] border-gray-800">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="halo_inspired">Halo-inspired (tactical, warm, light wit)</SelectItem>
+                    <SelectItem value="standard">Standard (neutral professional)</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </Card>
 
@@ -1317,6 +1357,40 @@ export function SettingsPage() {
               </div>
             </Card>
 
+            <Card className="bg-[#1e2128] border-gray-800 p-6">
+              <h2 className="text-white text-xl mb-2 flex items-center gap-2">
+                <Download className="w-5 h-5 text-teal-400" />
+                App and resources
+              </h2>
+              <p className="text-sm text-gray-400 mb-4">
+                Use the live web app on any device. On phone or desktop, use your browser&apos;s{' '}
+                <span className="text-gray-300">Install app</span> or{' '}
+                <span className="text-gray-300">Add to Home Screen</span> to pin SyncScript like an app.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <Button
+                  className="gap-2 bg-teal-600 hover:bg-teal-700"
+                  asChild
+                >
+                  <a href={SYNCSCRIPT_WEB_APP} target="_blank" rel="noopener noreferrer">
+                    Open web app
+                    <ChevronRight className="w-4 h-4" />
+                  </a>
+                </Button>
+                <Button variant="outline" className="gap-2 border-gray-600" asChild>
+                  <a href={SYNCSCRIPT_INTEGRATIONS_TREE} target="_blank" rel="noopener noreferrer">
+                    Integrations folder (GitHub)
+                    <ChevronRight className="w-4 h-4" />
+                  </a>
+                </Button>
+                <Button variant="ghost" className="gap-2 text-gray-400 hover:text-white" asChild>
+                  <a href={SYNCSCRIPT_GITHUB_REPO} target="_blank" rel="noopener noreferrer">
+                    View repository
+                  </a>
+                </Button>
+              </div>
+            </Card>
+
             <Card className="bg-gradient-to-br from-teal-600/10 to-blue-600/10 border-teal-600/30 p-6">
               <h2 className="text-white text-xl mb-2 flex items-center gap-2">
                 <Code className="w-5 h-5 text-teal-400" />
@@ -1591,6 +1665,10 @@ export function SettingsPage() {
                 </Button>
               </div>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="billing" className="space-y-6">
+            <StripeConnectSettings />
           </TabsContent>
         </Tabs>
 
