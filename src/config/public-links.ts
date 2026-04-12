@@ -15,3 +15,7 @@ export const SYNCSCRIPT_GITHUB_RELEASES = `${SYNCSCRIPT_GITHUB_REPO}/releases`;
 
 /** Desktop presence shell (Electron): build instructions and runtime layout. */
 export const SYNCSCRIPT_DESKTOP_COMPANION_TREE = `${SYNCSCRIPT_GITHUB_REPO}/tree/main/nature-cortana-platform`;
+
+/** Published macOS arm64 POC release tag (ZIP attached when uploaded; always has notes + readme asset). */
+export const SYNCSCRIPT_NATURE_COMPANION_RELEASE_POC =
+  `${SYNCSCRIPT_GITHUB_REPO}/releases/tag/v0.1.0-nature-companion-mac-arm64`;

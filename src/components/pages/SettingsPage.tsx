@@ -33,6 +33,7 @@ import {
   SYNCSCRIPT_INTEGRATIONS_TREE,
   SYNCSCRIPT_GITHUB_RELEASES,
   SYNCSCRIPT_DESKTOP_COMPANION_TREE,
+  SYNCSCRIPT_NATURE_COMPANION_RELEASE_POC,
 } from '../../config/public-links';
 
 // Default avatar URL
@@ -1396,7 +1397,8 @@ export function SettingsPage() {
                     The <span className="text-gray-300">Nature Companion</span> shell adds an always-on-top
                     desktop overlay, 3D presence, voice handoff, and trusted deep links into SyncScript (for
                     example agents from the desktop surface). It is a separate Electron app from this repo,
-                    not the browser PWA. Build it locally, or check Releases when a packaged build is posted.
+                    not the browser PWA. Build it locally, open the POC release for a downloadable ZIP when it is
+                    attached, or browse all releases.
                   </p>
                   <div className="flex flex-col sm:flex-row flex-wrap gap-3">
                     <Button variant="outline" className="gap-2 border-gray-600" asChild>
@@ -1405,9 +1407,15 @@ export function SettingsPage() {
                         <ChevronRight className="w-4 h-4" />
                       </a>
                     </Button>
+                    <Button variant="outline" className="gap-2 border-teal-700/50 bg-teal-950/20" asChild>
+                      <a href={SYNCSCRIPT_NATURE_COMPANION_RELEASE_POC} target="_blank" rel="noopener noreferrer">
+                        Companion POC (GitHub release)
+                        <ChevronRight className="w-4 h-4" />
+                      </a>
+                    </Button>
                     <Button variant="outline" className="gap-2 border-gray-600" asChild>
                       <a href={SYNCSCRIPT_GITHUB_RELEASES} target="_blank" rel="noopener noreferrer">
-                        GitHub Releases
+                        All releases
                         <ChevronRight className="w-4 h-4" />
                       </a>
                     </Button>
