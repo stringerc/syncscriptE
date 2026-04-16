@@ -48,6 +48,8 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     if (!location.pathname.includes('/tasks')) return false;
     return new URLSearchParams(location.search).get('tab') === 'workstream';
   });
+  const isFullBleedView =
+    isWorkstreamCanvasView || location.pathname === '/ai' || location.pathname === '/app/ai-assistant';
   const mainRef = useRef<HTMLElement>(null);
   const scrollPositions = useRef<{ [key: string]: number }>({});
   
@@ -132,9 +134,8 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       return;
     }
     const urlWantsWorkstream = new URLSearchParams(location.search).get('tab') === 'workstream';
-    if (urlWantsWorkstream) {
-      setIsWorkstreamCanvasView(true);
-    }
+    // Must clear when leaving workstream; previously only set true and stayed stuck on other tabs.
+    setIsWorkstreamCanvasView(urlWantsWorkstream);
   }, [location.pathname, location.search]);
 
   useEffect(() => {
@@ -153,7 +154,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     const hasOpenModal = () =>
       Boolean(
         document.querySelector(
-          '[data-slot="dialog-overlay"][data-state="open"], [data-slot="sheet-overlay"][data-state="open"], [role="dialog"][data-state="open"]'
+          '[data-slot="dialog-overlay"][data-state="open"], [data-slot="sheet-overlay"][data-state="open"], [data-slot="drawer-overlay"][data-state="open"], [data-slot="alert-dialog-overlay"][data-state="open"], [role="dialog"][data-state="open"]'
         )
       );
 
@@ -224,7 +225,10 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       <Sidebar />
 
       {/* Main Content */}
-      <div className={`relative z-10 flex-1 flex flex-col overflow-hidden bg-gradient-to-br from-[#161a22]/90 via-[#151920]/90 to-[#12151b]/90 shadow-[inset_0_0_120px_rgba(45,212,191,0.05)] ${hasGuestBannerOffset ? 'pt-14' : ''}`}>
+      <div
+        data-syncscript-dashboard-main
+        className={`relative z-0 min-w-0 flex-1 flex flex-col overflow-hidden bg-gradient-to-br from-[#161a22]/90 via-[#151920]/90 to-[#12151b]/90 shadow-[inset_0_0_120px_rgba(45,212,191,0.05)] ${hasGuestBannerOffset ? 'pt-14' : ''}`}
+      >
         {/* Header with toggle function */}
         <DashboardHeader
           isAIInsightsOpen={isAIInsightsOpen}
@@ -237,13 +241,13 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           <main
             id="main-content"
             className={`flex-1 hide-scrollbar transition-all duration-300 bg-[radial-gradient(circle_at_10%_0%,rgba(45,212,191,0.05),transparent_30%),radial-gradient(circle_at_85%_5%,rgba(168,85,247,0.05),transparent_28%)] ${
-              isWorkstreamCanvasView ? 'flex min-h-0 flex-col overflow-hidden' : 'overflow-y-auto'
+              isFullBleedView ? 'flex min-h-0 flex-col overflow-hidden' : 'overflow-y-auto'
             }`}
             ref={mainRef}
           >
             <div
               className={
-                isWorkstreamCanvasView
+                isFullBleedView
                   ? 'flex min-h-0 flex-1 flex-col p-0'
                   : 'p-4 md:p-6 pb-20 md:pb-6'
               }
@@ -254,7 +258,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
           {/* AI Assistant Sidebar with Tab */}
           <div
-            className={`transition-all duration-300 ease-in-out flex-shrink-0 relative ${
+            className={`transition-all duration-300 ease-in-out flex-shrink-0 relative hidden md:block ${
               effectiveAIInsightsOpen ? 'w-[42rem] xl:w-[46rem]' : 'w-0'
             }`}
           >
@@ -317,7 +321,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       <MobileNav />
 
       {/* Onboarding Checklist (auto-hides when complete or dismissed) */}
-      {!isWorkstreamCanvasView ? <OnboardingChecklist /> : null}
+      {!isFullBleedView ? <OnboardingChecklist /> : null}
 
     </div>
   );

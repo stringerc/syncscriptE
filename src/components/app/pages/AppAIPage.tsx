@@ -515,7 +515,7 @@ export function AppAIPage() {
               <p className="text-gray-400 max-w-md mb-6">
                 Create documents, manage tasks, schedule events, or ask me anything. I can generate letters, invoices, spreadsheets, and more.
               </p>
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 flex-wrap justify-center">
                 <Button onClick={handleNewChat} className="bg-gradient-to-r from-purple-600 to-cyan-600 hover:from-purple-500 hover:to-cyan-500 text-white border-0">
                   <Plus className="w-4 h-4 mr-2" /> New Chat
                 </Button>
@@ -524,6 +524,40 @@ export function AppAIPage() {
                   className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-[#1e2128] border border-gray-700 text-gray-300 hover:text-white hover:border-gray-600 transition-colors"
                 >
                   <Users className="w-4 h-4" /> Group Chat
+                </button>
+              </div>
+              <p className="text-xs text-gray-500 max-w-md mt-6 text-center leading-snug">
+                The <span className="text-gray-400">orb</span> appears after you tap <span className="text-cyan-300/90">Voice</span> (full screen). <span className="text-gray-400">Call Nexus</span> uses the classic console. Sign in for Nexus tools.
+              </p>
+              <div className="flex flex-wrap items-center justify-center gap-2 mt-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setVoiceImmersiveArt(false)
+                    setShowVoiceEngine(true)
+                  }}
+                  aria-label="Call Nexus — full voice session"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-green-400 bg-green-500/10 border border-green-500/20 hover:bg-green-500/20 hover:border-green-400/30 transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-green-400/40"
+                >
+                  <Phone className="w-3.5 h-3.5 shrink-0" aria-hidden />
+                  Call Nexus
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setVoiceImmersiveArt(true)
+                    setShowVoiceEngine(true)
+                  }}
+                  aria-label="Voice — conversational AI (live speech and replies)"
+                  className={cn(
+                    'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-all',
+                    'text-cyan-100 bg-gradient-to-r from-violet-600/35 to-cyan-600/35 border-cyan-500/25',
+                    'hover:from-violet-500/45 hover:to-cyan-500/45 hover:border-cyan-400/35',
+                    'focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0c0d12]'
+                  )}
+                >
+                  <AudioWaveform className="w-3.5 h-3.5 shrink-0" aria-hidden />
+                  Voice
                 </button>
               </div>
             </div>

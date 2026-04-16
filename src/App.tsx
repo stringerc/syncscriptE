@@ -1,6 +1,6 @@
 import { lazy, Suspense } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router';
-import { AuthProvider } from './contexts/AuthContext';
+import { BrowserRouter as Router, Routes, Route, Navigate, Outlet } from 'react-router';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { EnergyProvider } from './contexts/EnergyContext';
 import { TasksProvider } from './contexts/TasksContext';
 import { TeamProvider } from './contexts/TeamContext';
@@ -12,6 +12,7 @@ import { UserProfileProvider } from './utils/user-profile';
 import { UserPreferencesProvider } from './utils/user-preferences';
 import { CalendarNavigationProvider } from './contexts/CalendarNavigationContext';
 import { PermissionProvider } from './hooks/usePermissions';
+import { ContinuityProvider } from './contexts/ContinuityContext';
 import { Toaster } from 'sonner';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { EmailQueueProcessor } from './components/EmailQueueProcessor';
@@ -26,9 +27,11 @@ import { ProtectedRoute } from './components/ProtectedRoute';
 import { AnalyticsTracker } from './components/analytics/AnalyticsTracker';
 import { CookieConsentBanner } from './components/CookieConsentBanner';
 
+import { BfcacheRouterSync } from './components/RouterStability';
 import { MarketingShell } from './components/layout/MarketingShell';
 import { AppLayout } from './components/app/AppLayout';
 import { AppToaster } from './components/ui/app-toaster';
+import { TaskCalendarSync } from './components/TaskCalendarSync';
 import type { ReactNode } from 'react';
 
 const PageLoading = () => (
@@ -62,6 +65,7 @@ const EnterpriseToolsPage = lazy(() => import('./components/pages/EnterpriseTool
 const ScriptsTemplatesPage = lazy(() => import('./components/pages/ScriptsTemplatesPage').then(m => ({ default: m.ScriptsTemplatesPage })));
 const TeamScriptsPage = lazy(() => import('./components/pages/TeamScriptsPage').then(m => ({ default: m.TeamScriptsPage })));
 const SettingsPage = lazy(() => import('./components/pages/SettingsPage').then(m => ({ default: m.SettingsPage })));
+const FilesLibraryPage = lazy(() => import('./components/pages/FilesLibraryPage').then(m => ({ default: m.FilesLibraryPage })));
 const OnboardingPage = lazy(() => import('./components/pages/OnboardingPage').then(m => ({ default: m.OnboardingPage })));
 const AuthCallbackPage = lazy(() => import('./components/pages/AuthCallbackPage').then(m => ({ default: m.AuthCallbackPage })));
 const OAuthCallbackPage = lazy(() => import('./components/pages/OAuthCallbackPage').then(m => ({ default: m.OAuthCallbackPage })));
@@ -115,10 +119,13 @@ function DashboardProviders({ children }: { children: ReactNode }) {
                     <UserPreferencesProvider>
                       <CalendarNavigationProvider>
                         <PermissionProvider>
-                          <EmailQueueProcessor />
-                          <NexusVoiceOverlay />
-                          <AppToaster />
-                          {children}
+                          <ContinuityProvider>
+                            <EmailQueueProcessor />
+                            <NexusVoiceOverlay />
+                            <TaskCalendarSync />
+                            <AppToaster />
+                            {children}
+                          </ContinuityProvider>
                         </PermissionProvider>
                       </CalendarNavigationProvider>
                     </UserPreferencesProvider>
@@ -134,66 +141,25 @@ function DashboardProviders({ children }: { children: ReactNode }) {
 }
 
 // ============================================================================
-// DASHBOARD ROUTES — wrapped in DashboardProviders
+// DASHBOARD SHELL — single Router tree (Outlet), NOT nested <Routes> under path="/*"
+// React Router 6/7: a second <Routes> inside a splat parent can strand navigation updates.
 // ============================================================================
 
-function DashboardRoutes() {
+function DashboardShell() {
   return (
     <DashboardProviders>
-      <Routes>
-        <Route path="/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
-        <Route path="/tasks" element={<ProtectedRoute><TasksGoalsPage /></ProtectedRoute>} />
-        <Route path="/calendar" element={
-          <ProtectedRoute><ErrorBoundary><CalendarEventsPage /></ErrorBoundary></ProtectedRoute>
-        } />
-        <Route path="/financials" element={
-          <ProtectedRoute><ErrorBoundary><FinancialsPage /></ErrorBoundary></ProtectedRoute>
-        } />
-        <Route path="/email" element={
-          <ProtectedRoute><ErrorBoundary><EmailHubPage /></ErrorBoundary></ProtectedRoute>
-        } />
-        <Route path="/ai" element={<ProtectedRoute><AIAssistantPage /></ProtectedRoute>} />
-        <Route path="/energy" element={<ProtectedRoute><EnergyFocusPage /></ProtectedRoute>} />
-        <Route path="/resonance-engine" element={<ProtectedRoute><ResonanceEnginePage /></ProtectedRoute>} />
-        <Route path="/team" element={
-          <ProtectedRoute><ErrorBoundary><TeamCollaborationPage /></ErrorBoundary></ProtectedRoute>
-        } />
-        <Route path="/analytics" element={
-          <ProtectedRoute><ErrorBoundary><AnalyticsInsightsPage /></ErrorBoundary></ProtectedRoute>
-        } />
-        <Route path="/gaming" element={<ProtectedRoute><GamificationHubPage /></ProtectedRoute>} />
-        <Route path="/gaming-v2" element={<ProtectedRoute><GamificationHubPageV2 /></ProtectedRoute>} />
-        <Route path="/integrations" element={
-          <ProtectedRoute><ErrorBoundary><IntegrationsPage /></ErrorBoundary></ProtectedRoute>
-        } />
-        <Route path="/enterprise" element={<ProtectedRoute><EnterpriseToolsPage /></ProtectedRoute>} />
-        <Route path="/scripts-templates" element={<ProtectedRoute><ScriptsTemplatesPage /></ProtectedRoute>} />
-        <Route path="/team-scripts" element={<ProtectedRoute><TeamScriptsPage /></ProtectedRoute>} />
-        <Route path="/settings" element={
-          <ProtectedRoute><DashboardLayout><SettingsPage /></DashboardLayout></ProtectedRoute>
-        } />
-        <Route path="/onboarding" element={<ProtectedRoute><OnboardingPage /></ProtectedRoute>} />
-        <Route path="/permission-testing" element={<PermissionTestingDashboard />} />
-        <Route path="/design-system" element={<DesignSystemShowcase />} />
-        <Route path="/showcase/progress" element={<ProgressAnimationShowcase />} />
-        <Route path="/showcase/profile-menu" element={<ProfileMenuExample />} />
-        <Route path="/showcase/event-task-system" element={<EventTaskSystemDemo />} />
-
-        {/* App Dashboard Routes — Railway API backend */}
-        <Route path="/app" element={<AppLayout><AppDashboardPage /></AppLayout>} />
-        <Route path="/app/tasks" element={<AppLayout><AppTasksPage /></AppLayout>} />
-        <Route path="/app/calendar" element={<AppLayout><AppCalendarPage /></AppLayout>} />
-        <Route path="/app/ai-assistant" element={<AppLayout><AppAIPage /></AppLayout>} />
-        <Route path="/app/financial" element={<AppLayout><AppFinancialPage /></AppLayout>} />
-        <Route path="/app/settings" element={<AppLayout><AppSettingsPage /></AppLayout>} />
-        <Route path="/app/profile" element={<AppLayout><AppProfilePage /></AppLayout>} />
-        <Route path="/app/google-calendar" element={<AppLayout><AppCalendarPage /></AppLayout>} />
-
-        {/* Catch-all for unmatched dashboard paths */}
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+      <Outlet />
     </DashboardProviders>
   );
+}
+
+/** Unknown paths under the dashboard shell: keep signed-in users in the app (avoid silent eject to `/`). */
+function DashboardCatchAll() {
+  const { user, loading } = useAuth();
+  if (loading) {
+    return <PageLoading />;
+  }
+  return <Navigate to={user ? '/dashboard' : '/'} replace />;
 }
 
 // ============================================================================
@@ -209,7 +175,8 @@ function DashboardRoutes() {
 function AppContent() {
   return (
     <AuthProvider>
-      <Router future={{ v7_startTransition: true }}>
+      <Router>
+        <BfcacheRouterSync />
         <AnalyticsTracker />
         <CookieConsentBanner />
         <FloatingFeedbackButton discordInviteUrl="https://discord.gg/2rq38UJrDJ" />
@@ -249,8 +216,74 @@ function AppContent() {
                 <Route path="/auth/callback" element={<AuthCallbackPage />} />
                 <Route path="/oauth-callback" element={<OAuthCallbackPage />} />
 
-                {/* ── Dashboard routes — full provider stack ── */}
-                <Route path="/*" element={<DashboardRoutes />} />
+                {/* ── Dashboard routes — pathless layout + Outlet (same tree as marketing/auth) */}
+                <Route element={<DashboardShell />}>
+                  <Route path="dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
+                  <Route path="tasks" element={<ProtectedRoute><TasksGoalsPage /></ProtectedRoute>} />
+                  <Route path="calendar" element={
+                    <ProtectedRoute><ErrorBoundary><CalendarEventsPage /></ErrorBoundary></ProtectedRoute>
+                  } />
+                  <Route path="financials" element={
+                    <ProtectedRoute><ErrorBoundary><FinancialsPage /></ErrorBoundary></ProtectedRoute>
+                  } />
+                  <Route path="email" element={
+                    <ProtectedRoute><ErrorBoundary><EmailHubPage /></ErrorBoundary></ProtectedRoute>
+                  } />
+                  <Route path="library" element={<ProtectedRoute><FilesLibraryPage /></ProtectedRoute>} />
+                  <Route path="ai" element={<ProtectedRoute><AppAIPage /></ProtectedRoute>} />
+                  <Route path="energy" element={<ProtectedRoute><EnergyFocusPage /></ProtectedRoute>} />
+                  <Route path="resonance-engine" element={<ProtectedRoute><ResonanceEnginePage /></ProtectedRoute>} />
+                  <Route path="team" element={
+                    <ProtectedRoute><ErrorBoundary><TeamCollaborationPage /></ErrorBoundary></ProtectedRoute>
+                  } />
+                  <Route path="analytics" element={
+                    <ProtectedRoute><ErrorBoundary><AnalyticsInsightsPage /></ErrorBoundary></ProtectedRoute>
+                  } />
+                  <Route path="gaming" element={<ProtectedRoute><GamificationHubPage /></ProtectedRoute>} />
+                  <Route path="gaming-v2" element={<ProtectedRoute><GamificationHubPageV2 /></ProtectedRoute>} />
+                  <Route path="integrations" element={
+                    <ProtectedRoute><ErrorBoundary><IntegrationsPage /></ErrorBoundary></ProtectedRoute>
+                  } />
+                  <Route path="enterprise" element={<ProtectedRoute><EnterpriseToolsPage /></ProtectedRoute>} />
+                  <Route path="scripts-templates" element={<ProtectedRoute><ScriptsTemplatesPage /></ProtectedRoute>} />
+                  <Route path="team-scripts" element={<ProtectedRoute><TeamScriptsPage /></ProtectedRoute>} />
+                  <Route path="settings" element={
+                    <ProtectedRoute><DashboardLayout><SettingsPage /></DashboardLayout></ProtectedRoute>
+                  } />
+                  <Route path="onboarding" element={<ProtectedRoute><OnboardingPage /></ProtectedRoute>} />
+                  <Route path="permission-testing" element={<PermissionTestingDashboard />} />
+                  <Route path="design-system" element={<DesignSystemShowcase />} />
+                  <Route path="showcase/progress" element={<ProgressAnimationShowcase />} />
+                  <Route path="showcase/profile-menu" element={<ProfileMenuExample />} />
+                  <Route path="showcase/event-task-system" element={<EventTaskSystemDemo />} />
+
+                  <Route path="app" element={<AppLayout><AppDashboardPage /></AppLayout>} />
+                  <Route path="app/tasks" element={<AppLayout><AppTasksPage /></AppLayout>} />
+                  <Route path="app/calendar" element={<AppLayout><AppCalendarPage /></AppLayout>} />
+                  <Route path="app/ai-assistant" element={<AppLayout><AppAIPage /></AppLayout>} />
+                  <Route path="app/financial" element={<AppLayout><AppFinancialPage /></AppLayout>} />
+                  <Route path="app/settings" element={<AppLayout><AppSettingsPage /></AppLayout>} />
+                  <Route path="app/profile" element={<AppLayout><AppProfilePage /></AppLayout>} />
+                  <Route path="app/google-calendar" element={<AppLayout><AppCalendarPage /></AppLayout>} />
+
+                  {/* Legacy /dashboard/* URLs (header search, bookmarks, old DashboardApp) → canonical routes */}
+                  <Route path="dashboard/tasks" element={<Navigate to="/tasks" replace />} />
+                  <Route path="dashboard/calendar" element={<Navigate to="/calendar" replace />} />
+                  <Route path="dashboard/analytics" element={<Navigate to="/analytics" replace />} />
+                  <Route path="dashboard/resonance" element={<Navigate to="/resonance-engine" replace />} />
+                  <Route path="dashboard/ai-assistant" element={<Navigate to="/ai" replace />} />
+                  <Route path="dashboard/team" element={<Navigate to="/team" replace />} />
+                  <Route path="dashboard/integrations" element={<Navigate to="/integrations" replace />} />
+                  <Route path="dashboard/scripts" element={<Navigate to="/scripts-templates" replace />} />
+                  <Route path="dashboard/settings" element={<Navigate to="/settings" replace />} />
+                  <Route path="dashboard/library" element={<Navigate to="/library" replace />} />
+                  <Route path="dashboard/gamification" element={<Navigate to="/gaming" replace />} />
+                  <Route path="dashboard/enterprise" element={<Navigate to="/enterprise" replace />} />
+                  <Route path="agents" element={<Navigate to="/ai" replace />} />
+
+                  <Route path="all-features" element={<Navigate to="/features" replace />} />
+                  <Route path="*" element={<DashboardCatchAll />} />
+                </Route>
               </Routes>
             </Suspense>
           </ParticleTransitionProvider>
