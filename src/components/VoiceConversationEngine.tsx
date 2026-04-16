@@ -223,12 +223,16 @@ export function VoiceConversationEngine({
   // Cleanup all resources on unmount to prevent memory leaks
   useEffect(() => {
     return () => {
-      voiceStream.stopListening();
-      voiceStream.stopSpeaking();
-      stopAudioAnalysis();
-      if (pendingUserTextFlushTimerRef.current) {
-        clearTimeout(pendingUserTextFlushTimerRef.current);
-        pendingUserTextFlushTimerRef.current = null;
+      try {
+        voiceStream.stopListening();
+        voiceStream.stopSpeaking();
+        stopAudioAnalysis();
+        if (pendingUserTextFlushTimerRef.current) {
+          clearTimeout(pendingUserTextFlushTimerRef.current);
+          pendingUserTextFlushTimerRef.current = null;
+        }
+      } catch {
+        /* Never throw from unmount cleanup — avoids a stuck modal / black overlay */
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
