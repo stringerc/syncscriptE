@@ -13,7 +13,7 @@
  */
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { useLocation } from 'react-router-dom';
+import { createPortal } from 'react-dom';
 import {
   Mic, MicOff, Volume2, VolumeX, Phone, PhoneOff,
   Brain, Sparkles, Activity, MessageSquare, X, Minimize2,
@@ -30,24 +30,36 @@ import { useCalendarEvents } from '../hooks/useCalendarEvents';
 import { useOpenClaw } from '../contexts/OpenClawContext';
 import {
   buildVoiceContext,
-  buildVoiceSystemPrompt,
   formatAIResponseForVoice,
   generateGreeting,
-  buildDeepContextPrompt,
   generateDeepInsights,
 } from '../utils/voice-context-builder';
 import { voiceMemory } from '../utils/voice-memory';
 import { getTTSConfig } from '../utils/tts-router';
+import { nexusLandingKokoroConfig } from '../utils/nexus-voice-tts';
 import { evaluateCheckIns, shouldNotify, markNotified } from '../utils/proactive-checkins';
 import { PhoneCallPanel } from './PhoneCallPanel';
+import { DocumentCanvas } from './DocumentCanvas';
 import { useAuth } from '../contexts/AuthContext';
-import { initiateCall, isPhoneServiceConfigured, registerCallerPhoneIndex } from '../utils/phone-service';
+import { useNexusPrivateContext } from '../hooks/useNexusPrivateContext';
+import { getStoredNexusPersonaMode } from '../utils/nexus-persona-preference';
+import { postNexusUserVoiceTurn } from '../utils/nexus-voice-user-client';
+import {
+  NexusVoiceArtifactRail,
+  toolTraceToVoiceChips,
+  type VoiceToolChip,
+} from './nexus/NexusVoiceArtifactRail';
+import { NexusVoiceTaskPeek } from './nexus/NexusVoiceTaskPeek';
+import { extractFirstMapUrl, parseLatLngFromMapUrl } from '../utils/map-url-embed.mjs';
+import { isPhoneServiceConfigured, registerCallerPhoneIndex } from '../utils/phone-service';
 import type {
   VoiceMessage,
   VoiceSession,
   EmotionState,
   VoiceEngineStatus,
 } from '../types/voice-engine';
+import { NexusVoiceResonanceOrb } from './nexus/NexusVoiceResonanceOrb';
+import type { NexusVoiceOrbPhase } from './nexus/nexus-voice-orb-types';
 
 // ============================================================================
 // PROPS
@@ -60,6 +72,10 @@ interface VoiceConversationEngineProps {
   onClose?: () => void;
   onMinimize?: () => void;
   userName?: string;
+  /** When true, fills a parent modal instead of using fixed viewport positioning. */
+  embeddedInModal?: boolean;
+  /** Sesame / ChatGPT-style hero orb + copy (Voice button on App AI). */
+  immersiveArt?: boolean;
 }
 
 // ============================================================================
@@ -71,29 +87,67 @@ export function VoiceConversationEngine({
   onClose,
   onMinimize,
   userName,
+  embeddedInModal = false,
+  immersiveArt = false,
 }: VoiceConversationEngineProps) {
-  const location = useLocation();
-  /** AI Assistant “Call Nexus” opens this overlay fullscreen on /ai or /agents only (see App + DashboardApp routes). */
-  const autoDialSavedPhone = mode === 'fullscreen' && (location.pathname === '/ai' || location.pathname === '/agents');
   // Session state
   const [session, setSession] = useState<VoiceSession | null>(null);
   const [messages, setMessages] = useState<VoiceMessage[]>([]);
   const [isActive, setIsActive] = useState(false);
   const [isProcessingAI, setIsProcessingAI] = useState(false);
-  const [showTranscript, setShowTranscript] = useState(true);
+  /** Immersive orb mode: hide transcript by default so the UI stays clean. */
+  const [showTranscript, setShowTranscript] = useState(() => !immersiveArt);
   const [textInput, setTextInput] = useState('');
   const [showTextInput, setShowTextInput] = useState(false);
   const [showPhonePanel, setShowPhonePanel] = useState(false);
+  /** Live canvas + confirmation chips (Nexus tools path). */
+  const [voiceCanvasDoc, setVoiceCanvasDoc] = useState<{
+    title: string;
+    content: string;
+    format?: 'document' | 'spreadsheet' | 'invoice';
+  } | null>(null);
+  const [voiceCanvasOpen, setVoiceCanvasOpen] = useState(false);
+  const [artifactChips, setArtifactChips] = useState<VoiceToolChip[]>([]);
+  const [mapUrlHint, setMapUrlHint] = useState<string | null>(null);
+  const [voiceTaskFocusId, setVoiceTaskFocusId] = useState<string | null>(null);
+  const [voiceTaskSheetOpen, setVoiceTaskSheetOpen] = useState(false);
+  /** Bumps when canvas content is replaced so DocumentCanvas remounts with new Markdown. */
+  const [voiceCanvasRenderKey, setVoiceCanvasRenderKey] = useState(0);
 
   // Refs
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const pendingUserTextRef = useRef('');
   const autoDialAttemptedRef = useRef(false);
+  /**
+   * `useVoiceStream` wires SpeechRecognition once on mount; `onStatusChange` / `onSpeechEnd` would
+   * otherwise close over `isActive === false` from the first render and never call the AI path.
+   */
+  const isActiveRef = useRef(isActive);
+  isActiveRef.current = isActive;
+  const handleUserMessageRef = useRef<(text: string) => Promise<void>>(async () => {});
+  /** After last final STT chunk, flush user text to the model (continuous mode often never fires `onend`). */
+  const pendingUserTextFlushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const voiceStreamRef = useRef<ReturnType<typeof useVoiceStream> | null>(null);
+  const isSpeakingRef = useRef(false);
+
+  const schedulePendingUserTextFlush = (delayMs: number) => {
+    if (pendingUserTextFlushTimerRef.current) {
+      clearTimeout(pendingUserTextFlushTimerRef.current);
+    }
+    pendingUserTextFlushTimerRef.current = setTimeout(() => {
+      pendingUserTextFlushTimerRef.current = null;
+      const text = pendingUserTextRef.current.trim();
+      if (!text || !isActiveRef.current) return;
+      pendingUserTextRef.current = '';
+      void handleUserMessageRef.current(text);
+    }, delayMs);
+  };
 
   // Hooks
   const { tasks } = useTasks();
   const { events } = useCalendarEvents();
-  const { user } = useAuth();
+  const { user, accessToken } = useAuth();
+  const nexusPrivateContext = useNexusPrivateContext();
   const { sendMessage: sendOpenClawMessage } = useOpenClaw();
 
   useEffect(() => {
@@ -105,12 +159,11 @@ export function VoiceConversationEngine({
   }, [user?.id]);
   const {
     currentEmotion, detectFromText, getEmotionColor, getEmotionEmoji,
-    startAudioAnalysis, stopAudioAnalysis, getEmotionTrend,
+    startAudioAnalysis, stopAudioAnalysis, getEmotionTrend, micInputLevel,
   } = useEmotionDetection();
 
   // Full-duplex: track if user is interrupting (barge-in)
   const bargeInDetectedRef = useRef(false);
-  const speakingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const voiceStream = useVoiceStream({
     continuous: true,
@@ -118,40 +171,29 @@ export function VoiceConversationEngine({
     onTranscript: (result) => {
       if (result.isFinal && result.text.trim()) {
         pendingUserTextRef.current += (pendingUserTextRef.current ? ' ' : '') + result.text.trim();
-        
-        // Full-duplex barge-in: if AI is speaking and user starts talking,
-        // stop the AI mid-sentence to let the user take over
-        if (voiceStream.isSpeaking) {
+
+        if (isSpeakingRef.current) {
           bargeInDetectedRef.current = true;
-          voiceStream.stopSpeaking();
+          voiceStreamRef.current?.stopSpeaking();
         }
+        // Primary path: Web Speech `continuous` often never emits `onend` between phrases — flush after a short pause.
+        schedulePendingUserTextFlush(320);
       }
     },
     onStatusChange: (status) => {
-      // Auto-process when user stops speaking
-      if (status === 'idle' && pendingUserTextRef.current && isActive) {
-        // Small delay to allow for natural pauses
-        if (speakingTimeoutRef.current) clearTimeout(speakingTimeoutRef.current);
-        speakingTimeoutRef.current = setTimeout(() => {
-          if (pendingUserTextRef.current) {
-            handleUserMessage(pendingUserTextRef.current);
-            pendingUserTextRef.current = '';
-          }
-        }, 800); // 800ms silence = user is done speaking
+      if (status === 'idle' && pendingUserTextRef.current.trim() && isActiveRef.current) {
+        schedulePendingUserTextFlush(100);
       }
     },
     onSpeechEnd: () => {
-      if (pendingUserTextRef.current && isActive) {
-        if (speakingTimeoutRef.current) clearTimeout(speakingTimeoutRef.current);
-        speakingTimeoutRef.current = setTimeout(() => {
-          if (pendingUserTextRef.current) {
-            handleUserMessage(pendingUserTextRef.current);
-            pendingUserTextRef.current = '';
-          }
-        }, 600);
+      if (pendingUserTextRef.current.trim() && isActiveRef.current) {
+        schedulePendingUserTextFlush(80);
       }
     },
   });
+
+  voiceStreamRef.current = voiceStream;
+  isSpeakingRef.current = voiceStream.isSpeaking;
 
   // ==========================================================================
   // CONTEXT
@@ -187,56 +229,6 @@ export function VoiceConversationEngine({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Call Nexus (AI tab): PSTN ring — same path as Phone panel / Twilio outbound, without “Call me now”.
-  useEffect(() => {
-    if (!autoDialSavedPhone) return;
-    if (autoDialAttemptedRef.current) return;
-
-    const saved = (typeof localStorage !== 'undefined' && localStorage.getItem(LS_SAVED_PHONE)?.trim()) || '';
-    if (!saved) {
-      autoDialAttemptedRef.current = true;
-      toast.info('To ring your phone from Call Nexus', {
-        description: 'Open the phone icon once, enter your number — it saves. Next time Call Nexus will dial you automatically.',
-        duration: 8000,
-      });
-      return;
-    }
-    if (!isPhoneServiceConfigured()) {
-      autoDialAttemptedRef.current = true;
-      toast.error('Phone service not configured', {
-        description: 'Set VITE_PHONE_API_URL and VITE_PHONE_API_KEY for this build.',
-      });
-      return;
-    }
-
-    // Avoid duplicate Twilio dials when React StrictMode runs effects twice in dev.
-    try {
-      const k = 'syncscript_nexus_autodial_ts';
-      const last = Number(sessionStorage.getItem(k) || '0');
-      if (Date.now() - last < 10_000) return;
-      sessionStorage.setItem(k, String(Date.now()));
-    } catch { /* ignore */ }
-
-    autoDialAttemptedRef.current = true;
-    void (async () => {
-      const status = await initiateCall({
-        phoneNumber: saved,
-        callType: 'outbound-briefing',
-        context: voiceContext,
-        userEmail: user?.email ?? undefined,
-        userId: user?.id,
-      });
-      if (status.status === 'failed') {
-        toast.error('Could not start the phone call', {
-          description: 'Check Twilio, verified numbers (trial), and API keys.',
-        });
-        return;
-      }
-      toast.success('Calling your phone…', { description: 'Answer to talk with Nexus.' });
-      setShowPhonePanel(true);
-    })();
-  }, [autoDialSavedPhone, voiceContext, user?.email, user?.id]);
-
   // ==========================================================================
   // SESSION MANAGEMENT
   // ==========================================================================
@@ -253,7 +245,20 @@ export function VoiceConversationEngine({
 
     setSession(newSession);
     setMessages([]);
+    setArtifactChips([]);
+    setMapUrlHint(null);
+    setVoiceCanvasDoc(null);
+    setVoiceCanvasOpen(false);
+    setVoiceTaskFocusId(null);
+    setVoiceTaskSheetOpen(false);
+    setVoiceCanvasRenderKey(0);
+    setShowTranscript(!immersiveArt);
     setIsActive(true);
+    if (pendingUserTextFlushTimerRef.current) {
+      clearTimeout(pendingUserTextFlushTimerRef.current);
+      pendingUserTextFlushTimerRef.current = null;
+    }
+    pendingUserTextRef.current = '';
 
     // Initialize audio analysis for voice emotion detection
     startAudioAnalysis();
@@ -280,25 +285,29 @@ export function VoiceConversationEngine({
 
     setMessages([greetingMessage]);
     
-    // Speak the greeting with circadian-aware TTS
+    // Speak the greeting — same Kokoro `cortana` + pacing as landing Nexus guest
     const ttsConfig = getTTSConfig({ text: greeting, emotion: currentEmotion }, voiceContext.circadianPhase);
+    const kokoro = nexusLandingKokoroConfig(ttsConfig);
     voiceStream.speak({
       text: greeting,
-      config: { model: ttsConfig.model, speed: ttsConfig.speed, pitch: ttsConfig.pitch },
+      config: { model: kokoro.model, voice: kokoro.voice, speed: kokoro.speed, pitch: kokoro.pitch },
     }).then(() => {
       // Start listening after greeting finishes
       voiceStream.startListening();
     });
 
     toast.success('Voice session started', { description: 'Speak naturally -- I\'m listening.' });
-  }, [voiceContext, currentEmotion, voiceStream, startAudioAnalysis]);
+  }, [voiceContext, currentEmotion, voiceStream, startAudioAnalysis, immersiveArt]);
 
   const endSession = useCallback(() => {
     voiceStream.stopListening();
     voiceStream.stopSpeaking();
     stopAudioAnalysis();
     setIsActive(false);
-    if (speakingTimeoutRef.current) clearTimeout(speakingTimeoutRef.current);
+    if (pendingUserTextFlushTimerRef.current) {
+      clearTimeout(pendingUserTextFlushTimerRef.current);
+      pendingUserTextFlushTimerRef.current = null;
+    }
 
     if (session) {
       const finalSession: VoiceSession = {
@@ -310,6 +319,13 @@ export function VoiceConversationEngine({
       voiceMemory.saveSession(finalSession);
     }
 
+    setVoiceCanvasOpen(false);
+    setVoiceCanvasDoc(null);
+    setArtifactChips([]);
+    setMapUrlHint(null);
+    setVoiceTaskFocusId(null);
+    setVoiceTaskSheetOpen(false);
+    setVoiceCanvasRenderKey(0);
     toast.info('Voice session ended');
   }, [session, messages, voiceStream, stopAudioAnalysis]);
 
@@ -335,38 +351,122 @@ export function VoiceConversationEngine({
       emotion,
     };
 
-    setMessages(prev => [...prev, userMessage]);
+    const thread = [...messages, userMessage];
+    setMessages(thread);
     setIsProcessingAI(true);
 
     try {
-      // Build deep context with memory and proactive insights
-      const memoryContext = voiceMemory.getMemoryContext(text);
-      const deepContext = buildDeepContextPrompt(voiceContext);
-      const systemPrompt = buildVoiceSystemPrompt(voiceContext, emotion) + deepContext + memoryContext;
+      let aiText: string;
 
-      // Send to AI with full SyncScript context
-      const response = await sendOpenClawMessage({
-        message: text.trim(),
-        context: {
-          currentPage: 'voice-assistant',
-          userPreferences: {
-            voiceMode: true,
-            circadianPhase: voiceContext.circadianPhase,
-            resonanceScore: voiceContext.resonanceScore,
-            energyLevel: voiceContext.energyLevel,
+      if (accessToken) {
+        const apiMsgs = thread
+          .filter((m) => m.role === 'user' || m.role === 'assistant')
+          .slice(-14)
+          .map((m) => ({
+            role: (m.role === 'assistant' ? 'assistant' : 'user') as 'user' | 'assistant',
+            content: m.text,
+          }));
+
+        const nexusRes = await postNexusUserVoiceTurn({
+          accessToken,
+          messages: apiMsgs,
+          privateContext: nexusPrivateContext as unknown as Record<string, unknown>,
+          personaMode: getStoredNexusPersonaMode(),
+        });
+
+        if (nexusRes.error) {
+          throw new Error(nexusRes.error);
+        }
+
+        const trace = nexusRes.toolTrace;
+        if (Array.isArray(trace) && trace.length > 0) {
+          window.dispatchEvent(
+            new CustomEvent('syncscript:nexus-tool-trace', { detail: { toolTrace: trace } }),
+          );
+        }
+
+        const rawContent =
+          nexusRes.content ||
+          "I heard you, but I'm having trouble formulating a response right now. Could you try again?";
+        aiText = formatAIResponseForVoice(rawContent);
+
+        const mapMatch = extractFirstMapUrl(rawContent);
+        setMapUrlHint(mapMatch);
+        setArtifactChips(toolTraceToVoiceChips(trace, rawContent));
+
+        const docTr = trace?.find(
+          (t) => t && t.ok === true && t.tool === 'create_document' && t.detail && typeof t.detail === 'object',
+        );
+        if (docTr) {
+          const d = docTr.detail as { title?: string; content?: string; format?: string };
+          if (d.title && d.content) {
+            setVoiceCanvasDoc({
+              title: d.title,
+              content: d.content,
+              format: (d.format as 'document' | 'spreadsheet' | 'invoice') || 'document',
+            });
+            setVoiceCanvasRenderKey((k) => k + 1);
+            setVoiceCanvasOpen(true);
+          }
+        }
+
+        const updTr = trace?.find(
+          (t) => t && t.ok === true && t.tool === 'update_document' && t.detail && typeof t.detail === 'object',
+        );
+        if (updTr) {
+          const d = updTr.detail as { title?: string; content?: string; format?: string };
+          const body = String(d.content || '').trim();
+          if (body) {
+            setVoiceCanvasDoc((prev) => ({
+              title: (d.title && String(d.title).trim()) || prev?.title || 'Document',
+              content: body,
+              format: (d.format as 'document' | 'spreadsheet' | 'invoice') || prev?.format || 'document',
+            }));
+            setVoiceCanvasRenderKey((k) => k + 1);
+            setVoiceCanvasOpen(true);
+          }
+        }
+
+        const taskEntry = trace?.find(
+          (t) =>
+            t &&
+            t.ok === true &&
+            (t.tool === 'create_task' || t.tool === 'add_note') &&
+            t.detail &&
+            typeof t.detail === 'object' &&
+            typeof (t.detail as { taskId?: string }).taskId === 'string',
+        );
+        if (taskEntry) {
+          const tid = String((taskEntry.detail as { taskId: string }).taskId);
+          setVoiceTaskFocusId(tid);
+          setVoiceTaskSheetOpen(true);
+        }
+      } else {
+        const response = await sendOpenClawMessage({
+          message: text.trim(),
+          context: {
+            currentPage: 'voice-assistant',
+            userPreferences: {
+              voiceMode: true,
+              circadianPhase: voiceContext.circadianPhase,
+              resonanceScore: voiceContext.resonanceScore,
+              energyLevel: voiceContext.energyLevel,
+            },
           },
-        },
-        options: {
-          temperature: 0.7,
-          maxTokens: 400,
-        },
-      });
+          options: {
+            temperature: 0.65,
+            maxTokens: 220,
+          },
+        });
 
-      const aiText = formatAIResponseForVoice(
-        response?.message?.content || 'I heard you, but I\'m having trouble formulating a response right now. Could you try again?'
-      );
+        aiText = formatAIResponseForVoice(
+          response?.message?.content ||
+            "I heard you, but I'm having trouble formulating a response right now. Could you try again?",
+        );
+        setArtifactChips([]);
+        setMapUrlHint(null);
+      }
 
-      // Add AI response
       const aiMessage: VoiceMessage = {
         id: `msg-${Date.now()}-ai`,
         role: 'assistant',
@@ -374,17 +474,17 @@ export function VoiceConversationEngine({
         timestamp: Date.now(),
       };
 
-      setMessages(prev => [...prev, aiMessage]);
+      setMessages((prev) => [...prev, aiMessage]);
 
-      // Speak with circadian-aware and emotion-adaptive TTS
       const ttsConfig = getTTSConfig({ text: aiText, emotion }, voiceContext.circadianPhase);
+      const kokoro = nexusLandingKokoroConfig(ttsConfig);
       await voiceStream.speak({
         text: aiText,
         emotion,
-        config: { model: ttsConfig.model, speed: ttsConfig.speed, pitch: ttsConfig.pitch },
+        config: { model: kokoro.model, voice: kokoro.voice, speed: kokoro.speed, pitch: kokoro.pitch },
       });
-
     } catch (error) {
+      console.warn('[VoiceConversationEngine] AI request failed — using offline fallback', error);
       // Fallback response when API is unavailable
       const fallbackText = getFallbackResponse(text, voiceContext, emotion);
       const fallbackMessage: VoiceMessage = {
@@ -397,19 +497,31 @@ export function VoiceConversationEngine({
       setMessages(prev => [...prev, fallbackMessage]);
 
       const ttsConfig = getTTSConfig({ text: fallbackText, emotion }, voiceContext.circadianPhase);
+      const kokoro = nexusLandingKokoroConfig(ttsConfig);
       await voiceStream.speak({
         text: fallbackText,
         emotion,
-        config: { model: ttsConfig.model, speed: ttsConfig.speed, pitch: ttsConfig.pitch },
+        config: { model: kokoro.model, voice: kokoro.voice, speed: kokoro.speed, pitch: kokoro.pitch },
       });
     } finally {
       setIsProcessingAI(false);
       // Resume listening
-      if (isActive) {
+      if (isActiveRef.current) {
         voiceStream.startListening();
       }
     }
-  }, [isProcessingAI, voiceStream, detectFromText, voiceContext, sendOpenClawMessage, isActive]);
+  }, [
+    isProcessingAI,
+    voiceStream,
+    detectFromText,
+    voiceContext,
+    sendOpenClawMessage,
+    accessToken,
+    nexusPrivateContext,
+    messages,
+  ]);
+
+  handleUserMessageRef.current = handleUserMessage;
 
   const handleTextSubmit = useCallback(() => {
     if (textInput.trim()) {
@@ -467,162 +579,234 @@ export function VoiceConversationEngine({
 
   const StatusIcon = statusConfig.icon;
 
+  const orbPhase: NexusVoiceOrbPhase = useMemo(() => {
+    if (isProcessingAI) return 'thinking';
+    if (voiceStream.isSpeaking) return 'speaking';
+    if (voiceStream.isListening) return 'listening';
+    return 'idle';
+  }, [isProcessingAI, voiceStream.isSpeaking, voiceStream.isListening]);
+
+  const mapEmbedCoords = useMemo(
+    () => (mapUrlHint ? parseLatLngFromMapUrl(mapUrlHint) : null),
+    [mapUrlHint],
+  );
+
   // ==========================================================================
   // RENDER
   // ==========================================================================
 
   const isCompact = mode === 'compact';
 
+  const shellPosition = embeddedInModal
+    ? 'relative h-full min-h-0 w-full'
+    : mode === 'fullscreen'
+      ? 'fixed z-[410] top-4 right-4 bottom-4 left-4 md:left-[calc(1rem+3.5rem)] lg:left-[calc(1rem+100px)]'
+      : mode === 'panel'
+        ? 'w-full h-full min-h-[500px]'
+        : 'w-80 h-[420px]';
+
+  const shellSkin =
+    immersiveArt && embeddedInModal
+      ? 'border-0 bg-[radial-gradient(ellipse_100%_70%_at_50%_-10%,rgba(109,40,217,0.35),transparent_55%),linear-gradient(180deg,#07070e_0%,#020204_100%)] shadow-none backdrop-blur-md'
+      : 'border border-white/10 bg-gradient-to-b from-slate-900/95 to-slate-950/95 shadow-2xl backdrop-blur-xl';
+
+  const shellRadius = embeddedInModal ? 'rounded-none' : 'rounded-2xl';
+
   return (
-    <div className={`flex flex-col bg-gradient-to-b from-slate-900/95 to-slate-950/95 backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden shadow-2xl ${
-      mode === 'fullscreen'
-        ? 'fixed z-[410] top-4 right-4 bottom-4 left-4 md:left-[calc(1rem+3.5rem)] lg:left-[calc(1rem+100px)]'
-        : mode === 'panel'
-          ? 'w-full h-full min-h-[500px]'
-          : 'w-80 h-[420px]'
-    }`}>
-      
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-white/5">
-        <div className="flex items-center gap-3">
-          <div className={`w-2 h-2 rounded-full ${isActive ? 'bg-green-400 animate-pulse' : 'bg-slate-500'}`} />
-          <div>
-            <h3 className="text-sm font-semibold text-white">Voice Resonance Engine</h3>
-            <div className="flex items-center gap-1.5">
-              <StatusIcon className={`w-3 h-3 ${statusConfig.color}`} />
-              <span className={`text-xs ${statusConfig.color}`}>
-                {statusConfig.label}
-              </span>
-              {currentEmotion.primary !== 'neutral' && (
-                <span className="text-xs ml-1">
-                  {getEmotionEmoji(currentEmotion.primary)}
-                </span>
-              )}
-            </div>
+    <>
+    <div
+      className={`flex flex-col overflow-hidden ${shellSkin} ${shellRadius} ${shellPosition}`}
+    >
+      {/* Header — immersive mode keeps only wayfinding + close so the orb stays the hero */}
+      {immersiveArt ? (
+        <div className="flex shrink-0 items-center justify-between border-b border-white/[0.07] bg-[#050508]/80 px-3 py-2.5 backdrop-blur-xl">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className={`h-2 w-2 shrink-0 rounded-full ${isActive ? 'animate-pulse bg-emerald-400' : 'bg-slate-600'}`} />
+            <span className="truncate text-[13px] font-semibold tracking-tight text-white/95">Nexus Voice</span>
+            <StatusIcon className={`h-3.5 w-3.5 shrink-0 ${statusConfig.color}`} aria-hidden />
+          </div>
+          <div className="flex items-center gap-0.5">
+            {onMinimize && (
+              <Button variant="ghost" size="icon" className="h-8 w-8 text-white/50 hover:bg-white/10 hover:text-white" onClick={onMinimize} aria-label="Minimize">
+                <Minimize2 className="h-3.5 w-3.5" />
+              </Button>
+            )}
+            {onClose && (
+              <Button variant="ghost" size="icon" className="h-8 w-8 text-white/50 hover:bg-white/10 hover:text-white" onClick={() => { endSession(); onClose(); }} aria-label="Close voice">
+                <X className="h-3.5 w-3.5" />
+              </Button>
+            )}
           </div>
         </div>
-
-        <div className="flex items-center gap-1">
-          {voiceMemory.getSessionCount() > 0 && (
-            <Badge variant="outline" className="text-[10px] border-purple-500/30 text-purple-400 px-1.5">
-              <Brain className="w-3 h-3 mr-1" />
-              {voiceMemory.getSessionCount()} sessions
-            </Badge>
-          )}
-          {onMinimize && (
-            <Button variant="ghost" size="icon" className="h-7 w-7 text-slate-400 hover:text-white" onClick={onMinimize} aria-label="Minimize">
-              <Minimize2 className="w-3.5 h-3.5" />
-            </Button>
-          )}
-          {onClose && (
-            <Button variant="ghost" size="icon" className="h-7 w-7 text-slate-400 hover:text-white" onClick={() => { endSession(); onClose(); }} aria-label="Close">
-              <X className="w-3.5 h-3.5" />
-            </Button>
-          )}
+      ) : (
+        <div className="flex items-center justify-between border-b border-white/5 px-4 py-3">
+          <div className="flex items-center gap-3">
+            <div className={`h-2 w-2 rounded-full ${isActive ? 'animate-pulse bg-green-400' : 'bg-slate-500'}`} />
+            <div>
+              <h3 className="text-sm font-semibold text-white">Voice Resonance Engine</h3>
+              <div className="flex items-center gap-1.5">
+                <StatusIcon className={`h-3 w-3 ${statusConfig.color}`} />
+                <span className={`text-xs ${statusConfig.color}`}>{statusConfig.label}</span>
+                {currentEmotion.primary !== 'neutral' && (
+                  <span className="ml-1 text-xs">{getEmotionEmoji(currentEmotion.primary)}</span>
+                )}
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center gap-1">
+            {voiceMemory.getSessionCount() > 0 && (
+              <Badge variant="outline" className="border-purple-500/30 px-1.5 text-[10px] text-purple-400">
+                <Brain className="mr-1 h-3 w-3" />
+                {voiceMemory.getSessionCount()} sessions
+              </Badge>
+            )}
+            {onMinimize && (
+              <Button variant="ghost" size="icon" className="h-7 w-7 text-slate-400 hover:text-white" onClick={onMinimize} aria-label="Minimize">
+                <Minimize2 className="h-3.5 w-3.5" />
+              </Button>
+            )}
+            {onClose && (
+              <Button variant="ghost" size="icon" className="h-7 w-7 text-slate-400 hover:text-white" onClick={() => { endSession(); onClose(); }} aria-label="Close">
+                <X className="h-3.5 w-3.5" />
+              </Button>
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        
-        {/* Waveform Area */}
-        <div className="px-4 py-4 flex flex-col items-center justify-center">
-          {/* Context Dashboard */}
-          <div className="flex flex-wrap items-center justify-center gap-2 mb-3">
-            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/5 border border-white/10">
-              <Zap className="w-3 h-3 text-amber-400" />
-              <span className="text-xs text-slate-300">Resonance</span>
-              <span className="text-xs font-bold text-amber-400">{voiceContext.resonanceScore}%</span>
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+        {immersiveArt ? (
+          <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
+            <div className="flex min-h-0 flex-1 flex-col items-center justify-center overflow-y-auto px-2 py-3">
+              <NexusVoiceResonanceOrb
+                phase={orbPhase}
+                ttsLevel={voiceStream.ttsOutputLevel}
+                micLevel={micInputLevel}
+              />
             </div>
-            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/5 border border-white/10">
-              <Activity className="w-3 h-3 text-cyan-400" />
-              <span className="text-xs text-slate-300">Energy</span>
-              <span className="text-xs font-bold text-cyan-400">{voiceContext.energyLevel}%</span>
-            </div>
-            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/5 border border-white/10">
-              <Sparkles className="w-3 h-3 text-purple-400" />
-              <span className="text-xs text-slate-300 capitalize">{voiceContext.circadianPhase.replace(/-/g, ' ')}</span>
-            </div>
+            <NexusVoiceArtifactRail
+              immersive
+              chips={artifactChips}
+              mapUrlHint={mapUrlHint}
+              mapEmbedCoords={mapEmbedCoords}
+              onOpenDocument={voiceCanvasDoc ? () => setVoiceCanvasOpen(true) : undefined}
+              onOpenTaskPanel={voiceTaskFocusId ? () => setVoiceTaskSheetOpen(true) : undefined}
+            />
           </div>
-
-          {/* Proactive Insight Ticker */}
-          {(() => {
-            const insights = generateDeepInsights(voiceContext);
-            const topInsight = insights[0];
-            if (!topInsight || isActive) return null;
-            return (
-              <motion.div
-                initial={{ opacity: 0, y: -5 }}
-                animate={{ opacity: 1, y: 0 }}
-                className={`mb-2 px-3 py-1.5 rounded-lg text-[11px] max-w-[360px] text-center ${
-                  topInsight.priority === 'high' 
-                    ? 'bg-amber-500/10 border border-amber-500/20 text-amber-300'
-                    : 'bg-white/5 border border-white/10 text-slate-400'
-                }`}
-              >
-                {topInsight.message}
-              </motion.div>
-            );
-          })()}
-
-          {/* Waveform */}
-          <WaveformVisualizer 
-            active={voiceStream.isListening || voiceStream.isSpeaking} 
-            color={voiceStream.isSpeaking ? '#60a5fa' : voiceStream.isListening ? '#4ade80' : '#475569'} 
-          />
-
-          {/* Interim Transcript */}
-          <AnimatePresence>
-            {voiceStream.interimText && (
-              <motion.p
-                initial={{ opacity: 0, y: 5 }}
-                animate={{ opacity: 0.7, y: 0 }}
-                exit={{ opacity: 0 }}
-                className="text-sm text-slate-400 italic text-center mt-2 max-w-[300px] truncate"
-              >
-                {voiceStream.interimText}...
-              </motion.p>
-            )}
-          </AnimatePresence>
-
-          {/* Emotion Indicator with Trend */}
-          {currentEmotion.primary !== 'neutral' && currentEmotion.confidence > 0.5 && (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
-              className="flex items-center gap-2 mt-2"
-            >
-              <div
-                className="flex items-center gap-1.5 px-2 py-0.5 rounded-full"
-                style={{ backgroundColor: getEmotionColor(currentEmotion.primary) + '20', borderColor: getEmotionColor(currentEmotion.primary) + '40', borderWidth: 1 }}
-              >
-                <Heart className="w-3 h-3" style={{ color: getEmotionColor(currentEmotion.primary) }} />
-                <span className="text-[10px] capitalize" style={{ color: getEmotionColor(currentEmotion.primary) }}>
-                  {currentEmotion.primary} ({Math.round(currentEmotion.confidence * 100)}%)
-                </span>
+        ) : (
+          <div className="relative flex flex-col items-center justify-center px-4 py-4">
+            {/* Context Dashboard */}
+            <div className="mb-3 flex flex-wrap items-center justify-center gap-2">
+              <div className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-2.5 py-1">
+                <Zap className="h-3 w-3 text-amber-400" />
+                <span className="text-xs text-slate-300">Resonance</span>
+                <span className="text-xs font-bold text-amber-400">{voiceContext.resonanceScore}%</span>
               </div>
-              {(() => {
-                const trend = getEmotionTrend();
-                if (trend === 'stable' || trend === 'neutral') return null;
-                const trendColors: Record<string, string> = {
-                  improving: '#22c55e',
-                  declining: '#f59e0b',
-                  escalating: '#ef4444',
-                };
-                const trendLabels: Record<string, string> = {
-                  improving: 'Mood improving',
-                  declining: 'Energy dropping',
-                  escalating: 'Stress rising',
-                };
-                return (
-                  <span className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ color: trendColors[trend], backgroundColor: trendColors[trend] + '15' }}>
-                    {trendLabels[trend]}
+              <div className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-2.5 py-1">
+                <Activity className="h-3 w-3 text-cyan-400" />
+                <span className="text-xs text-slate-300">Energy</span>
+                <span className="text-xs font-bold text-cyan-400">{voiceContext.energyLevel}%</span>
+              </div>
+              <div className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-2.5 py-1">
+                <Sparkles className="h-3 w-3 text-purple-400" />
+                <span className="text-xs capitalize text-slate-300">{voiceContext.circadianPhase.replace(/-/g, ' ')}</span>
+              </div>
+            </div>
+
+            {(() => {
+              const insights = generateDeepInsights(voiceContext);
+              const topInsight = insights[0];
+              if (!topInsight || isActive) return null;
+              return (
+                <motion.div
+                  initial={{ opacity: 0, y: -5 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className={`mb-2 max-w-[360px] rounded-lg px-3 py-1.5 text-center text-[11px] ${
+                    topInsight.priority === 'high'
+                      ? 'border border-amber-500/20 bg-amber-500/10 text-amber-300'
+                      : 'border border-white/10 bg-white/5 text-slate-400'
+                  }`}
+                >
+                  {topInsight.message}
+                </motion.div>
+              );
+            })()}
+
+            <WaveformVisualizer
+              active={voiceStream.isListening || voiceStream.isSpeaking}
+              color={
+                voiceStream.isSpeaking ? '#60a5fa' : voiceStream.isListening ? '#4ade80' : '#475569'
+              }
+            />
+
+            <AnimatePresence>
+              {voiceStream.interimText && (
+                <motion.p
+                  initial={{ opacity: 0, y: 5 }}
+                  animate={{ opacity: 0.7, y: 0 }}
+                  exit={{ opacity: 0 }}
+                  className="mt-2 max-w-[300px] truncate text-center text-sm italic text-slate-400"
+                >
+                  {voiceStream.interimText}...
+                </motion.p>
+              )}
+            </AnimatePresence>
+
+            {currentEmotion.primary !== 'neutral' && currentEmotion.confidence > 0.5 && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="mt-2 flex items-center gap-2"
+              >
+                <div
+                  className="flex items-center gap-1.5 rounded-full px-2 py-0.5"
+                  style={{
+                    backgroundColor: getEmotionColor(currentEmotion.primary) + '20',
+                    borderColor: getEmotionColor(currentEmotion.primary) + '40',
+                    borderWidth: 1,
+                  }}
+                >
+                  <Heart className="h-3 w-3" style={{ color: getEmotionColor(currentEmotion.primary) }} />
+                  <span className="text-[10px] capitalize" style={{ color: getEmotionColor(currentEmotion.primary) }}>
+                    {currentEmotion.primary} ({Math.round(currentEmotion.confidence * 100)}%)
                   </span>
-                );
-              })()}
-            </motion.div>
-          )}
-        </div>
+                </div>
+                {(() => {
+                  const trend = getEmotionTrend();
+                  if (trend === 'stable' || trend === 'neutral') return null;
+                  const trendColors: Record<string, string> = {
+                    improving: '#22c55e',
+                    declining: '#f59e0b',
+                    escalating: '#ef4444',
+                  };
+                  const trendLabels: Record<string, string> = {
+                    improving: 'Mood improving',
+                    declining: 'Energy dropping',
+                    escalating: 'Stress rising',
+                  };
+                  return (
+                    <span
+                      className="rounded-full px-1.5 py-0.5 text-[10px]"
+                      style={{ color: trendColors[trend], backgroundColor: trendColors[trend] + '15' }}
+                    >
+                      {trendLabels[trend]}
+                    </span>
+                  );
+                })()}
+              </motion.div>
+            )}
+            <NexusVoiceArtifactRail
+              immersive={false}
+              chips={artifactChips}
+              mapUrlHint={mapUrlHint}
+              mapEmbedCoords={mapEmbedCoords}
+              onOpenDocument={voiceCanvasDoc ? () => setVoiceCanvasOpen(true) : undefined}
+              onOpenTaskPanel={voiceTaskFocusId ? () => setVoiceTaskSheetOpen(true) : undefined}
+              className="mt-4 w-full"
+            />
+          </div>
+        )}
 
         {/* Conversation Transcript */}
         {showTranscript && (
@@ -734,83 +918,162 @@ export function VoiceConversationEngine({
         )}
       </AnimatePresence>
 
-      {/* Controls */}
-      <div className="px-4 py-3 border-t border-white/5 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 text-slate-400 hover:text-white"
-            onClick={() => setShowTranscript(!showTranscript)}
-            title="Toggle transcript"
-            aria-label="Toggle transcript"
-          >
-            <MessageSquare className="w-4 h-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 text-slate-400 hover:text-white"
-            onClick={() => setShowTextInput(!showTextInput)}
-            title="Toggle text input"
-            aria-label="Toggle text input"
-          >
-            <Send className="w-4 h-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className={`h-8 w-8 ${showPhonePanel ? 'text-green-400' : 'text-slate-400'} hover:text-white`}
-            onClick={() => setShowPhonePanel(!showPhonePanel)}
-            title="Phone calls (Premium)"
-            aria-label="Phone calls"
-          >
-            <Phone className="w-4 h-4" />
-          </Button>
-        </div>
-
-        {/* Main Action Button */}
-        {!isActive ? (
-          <Button
-            onClick={startSession}
-            className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white rounded-full px-6 gap-2 shadow-lg shadow-purple-500/20"
-            disabled={!voiceStream.sttReady}
-          >
-            <Mic className="w-4 h-4" />
-            Start Voice Chat
-          </Button>
+      {/* Controls — immersive keeps orb-first chrome: transcript + end only */}
+      <div
+        className={`flex items-center justify-between border-t border-white/5 px-4 py-3 ${immersiveArt ? 'bg-[#050508]/90' : ''}`}
+      >
+        {immersiveArt ? (
+          <>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-9 w-9 text-white/45 hover:bg-white/10 hover:text-white"
+              onClick={() => setShowTranscript(!showTranscript)}
+              title="Transcript"
+              aria-label="Toggle transcript"
+            >
+              <MessageSquare className="w-4 h-4" />
+            </Button>
+            {!isActive ? (
+              <Button
+                onClick={startSession}
+                className="gap-2 rounded-full bg-gradient-to-r from-violet-600 to-cyan-600 px-7 text-white shadow-lg shadow-violet-950/40 hover:from-violet-500 hover:to-cyan-500"
+                disabled={!voiceStream.sttReady}
+              >
+                <Mic className="h-4 w-4" />
+                Start
+              </Button>
+            ) : (
+              <div className="flex items-center gap-2">
+                {voiceStream.isSpeaking && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-9 w-9 text-cyan-300/90 hover:bg-white/10"
+                    onClick={voiceStream.stopSpeaking}
+                    aria-label="Stop speaking"
+                  >
+                    <VolumeX className="h-4 w-4" />
+                  </Button>
+                )}
+                <Button
+                  onClick={endSession}
+                  className="gap-2 rounded-full bg-red-600/85 px-6 text-white hover:bg-red-500"
+                >
+                  <PhoneOff className="h-4 w-4" />
+                  End
+                </Button>
+              </div>
+            )}
+            <div className="w-9" aria-hidden />
+          </>
         ) : (
-          <div className="flex items-center gap-2">
-            {voiceStream.isSpeaking && (
+          <>
+            <div className="flex items-center gap-2">
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-9 w-9 text-blue-400 hover:text-blue-300"
-                onClick={voiceStream.stopSpeaking}
-                aria-label="Stop speaking"
+                className="h-8 w-8 text-slate-400 hover:text-white"
+                onClick={() => setShowTranscript(!showTranscript)}
+                title="Toggle transcript"
+                aria-label="Toggle transcript"
               >
-                <VolumeX className="w-4 h-4" />
+                <MessageSquare className="w-4 h-4" />
               </Button>
-            )}
-            <Button
-              onClick={endSession}
-              className="bg-red-600/80 hover:bg-red-500 text-white rounded-full px-6 gap-2"
-            >
-              <PhoneOff className="w-4 h-4" />
-              End Session
-            </Button>
-          </div>
-        )}
-
-        <div className="flex items-center gap-2">
-          {isActive && (
-            <div className="text-[10px] text-slate-500 font-mono">
-              {Math.floor(((Date.now() - (session?.startedAt || Date.now())) / 1000 / 60))}m
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-slate-400 hover:text-white"
+                onClick={() => setShowTextInput(!showTextInput)}
+                title="Toggle text input"
+                aria-label="Toggle text input"
+              >
+                <Send className="w-4 h-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className={`h-8 w-8 ${showPhonePanel ? 'text-green-400' : 'text-slate-400'} hover:text-white`}
+                onClick={() => setShowPhonePanel(!showPhonePanel)}
+                title="Phone calls (Premium)"
+                aria-label="Phone calls"
+              >
+                <Phone className="w-4 h-4" />
+              </Button>
             </div>
-          )}
-        </div>
+
+            {!isActive ? (
+              <Button
+                onClick={startSession}
+                className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white rounded-full px-6 gap-2 shadow-lg shadow-purple-500/20"
+                disabled={!voiceStream.sttReady}
+              >
+                <Mic className="w-4 h-4" />
+                Start Voice Chat
+              </Button>
+            ) : (
+              <div className="flex items-center gap-2">
+                {voiceStream.isSpeaking && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-9 w-9 text-blue-400 hover:text-blue-300"
+                    onClick={voiceStream.stopSpeaking}
+                    aria-label="Stop speaking"
+                  >
+                    <VolumeX className="w-4 h-4" />
+                  </Button>
+                )}
+                <Button
+                  onClick={endSession}
+                  className="bg-red-600/80 hover:bg-red-500 text-white rounded-full px-6 gap-2"
+                >
+                  <PhoneOff className="w-4 h-4" />
+                  End Session
+                </Button>
+              </div>
+            )}
+
+            <div className="flex items-center gap-2">
+              {isActive && (
+                <div className="text-[10px] text-slate-500 font-mono">
+                  {Math.floor(((Date.now() - (session?.startedAt || Date.now())) / 1000 / 60))}m
+                </div>
+              )}
+            </div>
+          </>
+        )}
       </div>
     </div>
+
+    <NexusVoiceTaskPeek
+      taskId={voiceTaskFocusId}
+      open={voiceTaskSheetOpen && Boolean(voiceTaskFocusId)}
+      onOpenChange={setVoiceTaskSheetOpen}
+    />
+
+    {voiceCanvasDoc &&
+      voiceCanvasOpen &&
+      createPortal(
+        <div className="fixed inset-0 z-[520] flex items-center justify-center bg-black/60 p-3 backdrop-blur-md">
+          <div
+            className="relative flex h-[min(90vh,860px)] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-white/12 shadow-[0_32px_120px_-24px_rgba(0,0,0,0.85)]"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Document canvas"
+          >
+            <DocumentCanvas
+              key={voiceCanvasRenderKey}
+              title={voiceCanvasDoc.title}
+              content={voiceCanvasDoc.content}
+              format={voiceCanvasDoc.format}
+              onClose={() => setVoiceCanvasOpen(false)}
+            />
+          </div>
+        </div>,
+        document.body,
+      )}
+    </>
   );
 }
 

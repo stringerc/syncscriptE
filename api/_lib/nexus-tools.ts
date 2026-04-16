@@ -63,9 +63,165 @@ export const NEXUS_TOOL_DEFINITIONS = [
       },
     },
   },
+  {
+    type: 'function' as const,
+    function: {
+      name: 'create_document',
+      description:
+        'Generate a document for the user (letter, report, proposal, invoice, resume, spreadsheet, contract, or any formal document). Returns the document content which opens in an editable canvas where the user can edit and export to PDF/DOCX/XLSX. Use this whenever the user asks you to write, draft, create, or generate a document, letter, report, invoice, resume, or similar.',
+      parameters: {
+        type: 'object',
+        additionalProperties: false,
+        properties: {
+          title: { type: 'string', description: 'Document title' },
+          content: { type: 'string', description: 'Full document content in Markdown format. Use headings (#, ##, ###), bold (**text**), italic (*text*), lists (- item), horizontal rules (---), and tables (| col | col |) for structure.' },
+          format: {
+            type: 'string',
+            enum: ['document', 'spreadsheet', 'invoice'],
+            description: 'document for letters/reports/proposals/resumes, spreadsheet for tabular data, invoice for invoices',
+          },
+        },
+        required: ['title', 'content'],
+      },
+    },
+  },
+  {
+    type: 'function' as const,
+    function: {
+      name: 'update_document',
+      description:
+        'Replace the document currently open in the user\'s canvas with revised Markdown content. Use when the user asks to edit, shorten, expand, translate, restructure, or change a document you already created (or that is open). Pass the FULL replacement content — same rules as create_document.',
+      parameters: {
+        type: 'object',
+        additionalProperties: false,
+        properties: {
+          title: { type: 'string', description: 'New document title (optional if unchanged)' },
+          content: { type: 'string', description: 'Complete replacement document in Markdown (headings, lists, tables, etc.)' },
+          format: {
+            type: 'string',
+            enum: ['document', 'spreadsheet', 'invoice'],
+            description: 'Optional; defaults to current or document',
+          },
+        },
+        required: ['content'],
+      },
+    },
+  },
+  {
+    type: 'function' as const,
+    function: {
+      name: 'send_invoice',
+      description:
+        'Create a professional invoice and send it via email to the specified recipient. Use when the user wants to invoice someone — this generates a beautifully formatted invoice email and sends it immediately.',
+      parameters: {
+        type: 'object',
+        additionalProperties: false,
+        properties: {
+          to_email: { type: 'string', description: 'Recipient email address' },
+          to_name: { type: 'string', description: 'Recipient name or company (optional)' },
+          items: {
+            type: 'array',
+            description: 'Line items on the invoice',
+            items: {
+              type: 'object',
+              properties: {
+                description: { type: 'string', description: 'Item description' },
+                quantity: { type: 'number', description: 'Quantity (default 1)' },
+                unit_price: { type: 'number', description: 'Price per unit in USD' },
+              },
+              required: ['description', 'unit_price'],
+            },
+          },
+          tax_percent: { type: 'number', description: 'Tax rate as a percentage (e.g. 7.5 for 7.5%). Georgia is ~7.5%, California ~8.5%, etc.' },
+          notes: { type: 'string', description: 'Optional payment terms, notes, or memo' },
+          due_date: { type: 'string', description: 'Optional due date (e.g. "April 25, 2026" or ISO date)' },
+        },
+        required: ['to_email', 'items'],
+      },
+    },
+  },
+  {
+    type: 'function' as const,
+    function: {
+      name: 'send_document_for_signature',
+      description:
+        'Send a document for e-signature via Firma. Use after drafting with create_document when the user wants a contract or agreement signed. Requires signer email and document body text.',
+      parameters: {
+        type: 'object',
+        additionalProperties: false,
+        properties: {
+          title: { type: 'string', description: 'Document title' },
+          content: { type: 'string', description: 'Full text of the document to sign' },
+          signer_email: { type: 'string', description: 'Signer email' },
+          signer_name: { type: 'string', description: 'Signer full name' },
+        },
+        required: ['title', 'content', 'signer_email'],
+      },
+    },
+  },
+  {
+    type: 'function' as const,
+    function: {
+      name: 'enqueue_playbook',
+      description:
+        'Start a concierge playbook run (automation DAG: tasks, email waits, scripted third-party calls). Returns run_id and correlation_id for tracking. Use when the user wants scripted workflows beyond a single tool call.',
+      parameters: {
+        type: 'object',
+        additionalProperties: false,
+        properties: {
+          slug: { type: 'string', description: 'Playbook slug from the Scripts / playbooks catalog (e.g. concierge_demo_v1).' },
+          context: {
+            type: 'object',
+            description: 'Inputs for the playbook (e.g. venue_phone E.164 for tier-3 demo).',
+          },
+        },
+        required: ['slug'],
+      },
+    },
+  },
+  {
+    type: 'function' as const,
+    function: {
+      name: 'get_playbook_status',
+      description: 'Read status for a playbook run the user started (run_id from enqueue_playbook).',
+      parameters: {
+        type: 'object',
+        additionalProperties: false,
+        properties: {
+          run_id: { type: 'string', description: 'UUID of the playbook run' },
+        },
+        required: ['run_id'],
+      },
+    },
+  },
+  {
+    type: 'function' as const,
+    function: {
+      name: 'cancel_playbook_run',
+      description: 'Cancel a running or waiting playbook run.',
+      parameters: {
+        type: 'object',
+        additionalProperties: false,
+        properties: {
+          run_id: { type: 'string', description: 'UUID of the playbook run' },
+        },
+        required: ['run_id'],
+      },
+    },
+  },
 ];
 
-export type NexusToolName = 'create_task' | 'add_note' | 'propose_calendar_hold';
+export type NexusToolName =
+  | 'create_task'
+  | 'add_note'
+  | 'propose_calendar_hold'
+  | 'create_document'
+  | 'update_document'
+  | 'send_invoice'
+  | 'send_document_for_signature'
+  | 'enqueue_playbook'
+  | 'get_playbook_status'
+  | 'cancel_playbook_run';
 
 export interface NexusToolTraceEntry {
   tool: string;
@@ -77,9 +233,12 @@ export interface NexusToolTraceEntry {
 /** Appended to phone system prompt when using canonical Nexus tools (Twilio). */
 export const NEXUS_PHONE_TOOLS_APPEND = `
 TOOL USE (phone call, user is authenticated by SyncScript user id):
-- You may call: create_task, add_note, propose_calendar_hold.
+- You may call: create_task, add_note, propose_calendar_hold, send_invoice, send_document_for_signature.
+- Playbook tools (enqueue_playbook, get_playbook_status, cancel_playbook_run) require a signed-in JWT and are not available on the phone path; if asked, say they can start playbooks in the app chat.
 - create_task is the ONLY way to persist a to-do, reminder, or "wake me at 8" style item in their task list. Use create_task with title and optional due_date_iso for time-specific reminders.
 - add_note saves a free-form note as a task-shaped item.
-- propose_calendar_hold does NOT create a task — only a proposal. If they want something to appear in Tasks, use create_task.
+- propose_calendar_hold saves a calendar event on the phone (it will appear in their tasks and schedule). Use it when the user wants to add, schedule, or block time for something. Provide title, start_iso, and duration_minutes.
+- send_invoice creates and SENDS a professional invoice email. Use it when the user says "send an invoice to [email]" or "invoice [person]". Provide to_email, items (description + unit_price), and tax_percent if they mention a state. Default quantity to 1 if not specified.
 - Never say you added or saved something unless the tool result JSON says ok: true. If ok is false, apologize briefly and suggest adding it in the app.
-- Keep spoken replies short (1–3 sentences). No markdown.`;
+- Keep spoken replies short (1–3 sentences). No markdown.
+- After confirming a tool action, always ask what's next. Example: "Done! What else you got?" or "Saved it. Anything else?"`;

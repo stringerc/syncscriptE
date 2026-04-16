@@ -6,21 +6,31 @@ import { NEXUS_TOOLS_APPEND, NEXUS_VOICE_TOOLS_APPEND } from '../_lib/nexus-tool
 import { sanitizePrivateContext, serializePromptContext } from './_lib/nexus-context-firewall';
 import { loadNexusBrain } from './_lib/nexus-brain/load-brain';
 import { emitNexusTrace, newNexusRequestId } from './_lib/nexus-brain/telemetry';
+import {
+  getPrivateSystemPersonalityBlock,
+  resolvePersonaMode,
+  type NexusPersonaMode,
+} from '../../integrations/nexus-persona/nexus-persona-halo-inspired';
 
 const MAX_INPUT_MESSAGES = 12;
 
-function buildPrivateSystemPrompt(privateContextBlock: string): string {
+function buildPrivateSystemPrompt(privateContextBlock: string, personaMode: NexusPersonaMode): string {
   const brain = loadNexusBrain();
   return `You are Nexus, SyncScript's authenticated in-app AI assistant.
 
+${getPrivateSystemPersonalityBlock(personaMode)}
+
 ROLE:
-- You can help with tasks, scheduling, productivity planning, and resonance-aware recommendations.
+- You help with tasks, scheduling, productivity planning, and resonance-aware recommendations.
+- You create documents, letters, reports, invoices, spreadsheets, and any written content the user asks for — using the create_document tool, which opens an editable canvas with PDF/DOCX/XLSX export. Use update_document when they ask to revise content already in the canvas.
+- You create and manage tasks, notes, and calendar events using your tools.
 - Base your recommendations on the provided private user context when available.
 
 BOUNDARY:
 - This is the private signed-in Nexus surface.
-- Never claim access to data that is not present in PRIVATE CONTEXT.
-- If data is missing, ask a concise follow-up question.
+- Do not invent specific user data (tasks, events, account details) that is not present in PRIVATE CONTEXT.
+- If user data is missing, ask a concise follow-up question.
+- You DO have tools for creating documents, tasks, notes, and calendar events — use them when asked.
 
 BRAIN POLICY (${brain.signedInPolicyId}):
 ${brain.signedInAppendix}
@@ -28,7 +38,7 @@ ${brain.signedInAppendix}
 RESPONSE STYLE:
 - Be concise, practical, and action-oriented.
 - Prefer clear numbered plans when giving recommendations.
-- Keep responses grounded in the provided context and avoid speculation.
+- When asked to create any document, letter, spreadsheet, CSV, template, or written content: use the create_document tool immediately. Do not describe what you would create — create it. When they want edits to an open document, use update_document with full replacement Markdown.
 
 PRIVATE CONTEXT:
 ${privateContextBlock || 'No private context provided.'}`;
@@ -37,7 +47,7 @@ ${privateContextBlock || 'No private context provided.'}`;
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Nexus-Persona-Mode');
 
   if (req.method === 'OPTIONS') return res.status(204).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
@@ -51,10 +61,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const isAuthed = await validateAuth(req, res);
   if (!isAuthed) return;
 
+  const rawBody =
+    req.body && typeof req.body === 'object' ? (req.body as { personaMode?: string }) : {};
+  const headerPersona =
+    typeof req.headers['x-nexus-persona-mode'] === 'string'
+      ? req.headers['x-nexus-persona-mode']
+      : undefined;
+  const personaMode = resolvePersonaMode(
+    process.env.NEXUS_PERSONA_MODE,
+    rawBody.personaMode ?? headerPersona,
+  );
+
   if (!isAIConfigured()) {
     emitNexusTrace({
       surface: 'user',
       requestId,
+      personaMode,
       outcome: 'ai_unconfigured',
       pathway: 'llm',
       brainVersion: brain.manifest.version,
@@ -73,6 +95,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       emitNexusTrace({
         surface: 'user',
         requestId,
+        personaMode,
         outcome: 'validation_error',
         pathway: 'llm',
         brainVersion: brain.manifest.version,
@@ -92,7 +115,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const chatMessages: AIMessage[] = [
       {
         role: 'system',
-        content: buildPrivateSystemPrompt(serializePromptContext(privateContextResult.context)),
+        content: buildPrivateSystemPrompt(serializePromptContext(privateContextResult.context), personaMode),
       },
     ];
 
@@ -109,6 +132,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       emitNexusTrace({
         surface: 'user',
         requestId,
+        personaMode,
         outcome: 'validation_error',
         pathway: 'llm',
         brainVersion: brain.manifest.version,
@@ -131,6 +155,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const body = req.body || {};
     const enableTools = Boolean(body.enableTools);
     const voiceMode = Boolean(body.voiceMode);
+    const agentId = typeof body.agentId === 'string' ? body.agentId.trim() : '';
+    const agentPersonaPrompt = typeof body.agentPersonaPrompt === 'string' ? body.agentPersonaPrompt.trim() : '';
 
     if (enableTools) {
       const user = await getAuthenticatedSupabaseUser(req);
@@ -138,6 +164,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         emitNexusTrace({
           surface: 'user',
           requestId,
+          personaMode,
           outcome: 'validation_error',
           pathway: 'tools',
           brainVersion: brain.manifest.version,
@@ -152,29 +179,39 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const systemContent =
         chatMessages[0]?.role === 'system'
           ? String(chatMessages[0].content || '')
-          : buildPrivateSystemPrompt(serializePromptContext(privateContextResult.context));
+          : buildPrivateSystemPrompt(serializePromptContext(privateContextResult.context), personaMode);
 
+      const personaBlock = agentPersonaPrompt
+        ? `\nAGENT PERSONA (you are responding as this specialist):\n${agentPersonaPrompt}\nRespond from this agent's perspective. Stay in character.\n`
+        : '';
       const tail = `${NEXUS_TOOLS_APPEND}${voiceMode ? NEXUS_VOICE_TOOLS_APPEND : ''}`;
-      const augmentedSystem = `${systemContent}\n\n${tail}`;
+      const augmentedSystem = `${systemContent}${personaBlock}\n\n${tail}`;
+
+      const userAndAssistantMsgs = chatMessages
+        .filter((m) => m.role !== 'system')
+        .map((m) => ({ role: m.role, content: m.content }) as ChatCompletionMessage);
 
       const conv: ChatCompletionMessage[] = [
         { role: 'system', content: augmentedSystem },
-        ...chatMessages
-          .filter((m) => m.role !== 'system')
-          .map((m) => ({ role: m.role, content: m.content }) as ChatCompletionMessage),
+        ...userAndAssistantMsgs,
+        ...(userAndAssistantMsgs.length > 2 ? [{
+          role: 'system' as const,
+          content: `REMINDER: You are ${agentId && agentId !== 'nexus' ? `responding as a specialist agent. Stay in your persona.` : 'Nexus.'} You already have the user's identity. NEVER ask for user ID or credentials. Your tools match the system prompt: tasks, notes, calendar, documents, invoice, e-sign, and concierge playbooks (enqueue_playbook, get_playbook_status, cancel_playbook_run). For any document/letter/report/spreadsheet/CSV/canvas request, call create_document immediately.`,
+        }] : []),
       ];
 
       const { content, toolTrace, provider, model, toolRepairNudged } = await runNexusToolLoop({
         messages: conv,
         actor: { kind: 'jwt', user },
         meta: { surface: voiceMode ? 'voice' : 'text', requestId },
-        maxTokens: voiceMode ? 320 : 700,
+        maxTokens: voiceMode ? 320 : 2048,
         temperature: voiceMode ? 0.25 : 0.35,
       });
 
       emitNexusTrace({
         surface: 'user',
         requestId,
+        personaMode,
         outcome: 'ok',
         pathway: toolTrace.length ? 'tools' : 'llm',
         brainVersion: brain.manifest.version,
@@ -193,6 +230,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         model,
         provider,
         toolRepairNudged: Boolean(toolRepairNudged),
+        ...(agentId ? { agentId } : {}),
       });
     }
 
@@ -204,6 +242,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     emitNexusTrace({
       surface: 'user',
       requestId,
+      personaMode,
       outcome: 'ok',
       pathway: 'llm',
       brainVersion: brain.manifest.version,
@@ -224,6 +263,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     emitNexusTrace({
       surface: 'user',
       requestId,
+      personaMode,
       outcome: 'error',
       pathway: 'llm',
       brainVersion: brain.manifest.version,
