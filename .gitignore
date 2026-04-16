@@ -9,6 +9,9 @@ build/
 *.log
 .vercel
 
+# User-local symlink to ~/.cursor/rules-global (do not commit absolute paths — run scripts/link-global-cursor-brain.sh)
+.cursor/rules/00-universal-cursor-brain.mdc
+
 # Audit cleanup trash (recoverable dead code)
 .trash-audit-cleanup/
 
@@ -56,7 +59,7 @@ src/components/DiscordSetupGuide.tsx
 src/vercel.json
 
 # Agent workspace files (AGENTS.md memory system)
-MEMORY.md
+# MEMORY.md is tracked in git (session continuity); edit freely — avoid secrets.
 memory/
 JOURNAL.md
 JOURNAL.md.*
@@ -87,3 +90,11 @@ scripts/*
 
 # Large optional clone (run integrations/setup-engram.sh)
 integrations/engram_translator/
+
+# Cloud API private keys (OCI, etc.) — never commit
+*.pem
+
+# Local OCI tenant identifiers + paths (never commit)
+deploy/oracle/env.local
+deploy/oracle/instance-launch.env
+deploy/oracle/.temp-ssh/
