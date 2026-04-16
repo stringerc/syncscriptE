@@ -76,6 +76,59 @@
   --sidebar-accent-foreground: #fafafa;
   --sidebar-border: #3a3a3a;
   --sidebar-ring: #666666;
+
+  --elev-1: 0 1px 2px 0 rgb(0 0 0 / 0.45);
+  --elev-2: 0 4px 6px -1px rgb(0 0 0 / 0.5), 0 2px 4px -2px rgb(0 0 0 / 0.35);
+  --elev-3: 0 10px 15px -3px rgb(0 0 0 / 0.55), 0 4px 6px -4px rgb(0 0 0 / 0.4);
+}
+
+/* =============================================================================
+ * Semantic design tokens — role → primitive (legendary UI discipline)
+ * Docs: integrations/research/DESIGN_TOKENS_SYNCSCRIPT.md
+ * ============================================================================= */
+:root {
+  --surface: var(--background);
+  --surface-elevated: var(--card);
+  --text-primary: var(--foreground);
+  --text-muted: var(--muted-foreground);
+  --border-default: var(--border);
+  --semantic-accent: var(--primary);
+  --semantic-danger: var(--destructive);
+  --focus-ring-color: var(--ring);
+
+  --space-0: 0;
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-10: 2.5rem;
+  --space-12: 3rem;
+
+  --elev-0: none;
+  --elev-1: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --elev-2: 0 4px 6px -1px rgb(0 0 0 / 0.08), 0 2px 4px -2px rgb(0 0 0 / 0.05);
+  --elev-3: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.08);
+
+  --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-emphasized: cubic-bezier(0.2, 0, 0, 1);
+  --duration-instant: 100ms;
+  --duration-fast: 150ms;
+  --duration-base: 200ms;
+  --duration-slow: 300ms;
+
+  --z-base: 0;
+  --z-dropdown: 50;
+  --z-sticky: 100;
+  --z-fixed: 200;
+  --z-modal-backdrop: 300;
+  --z-modal: 400;
+  --z-popover: 450;
+  --z-toast: 500;
+  --z-tooltip: 550;
+  --z-skip-link: 9999;
 }
 
 @theme inline {
@@ -100,6 +153,14 @@
   --color-input-background: var(--input-background);
   --color-switch-background: var(--switch-background);
   --color-ring: var(--ring);
+  --color-surface: var(--surface);
+  --color-surface-elevated: var(--surface-elevated);
+  --color-text-primary: var(--text-primary);
+  --color-text-muted: var(--text-muted);
+  --color-border-default: var(--border-default);
+  --color-semantic-accent: var(--semantic-accent);
+  --color-semantic-danger: var(--semantic-danger);
+  --color-focus-ring-color: var(--focus-ring-color);
   --color-chart-1: var(--chart-1);
   --color-chart-2: var(--chart-2);
   --color-chart-3: var(--chart-3);

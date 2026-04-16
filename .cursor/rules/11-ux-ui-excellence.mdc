@@ -30,6 +30,6 @@ alwaysApply: true
 
 ## Deep reference (URLs + Figma workflow checklist)
 
-Repo canon: **`integrations/research/UX_UI_REFERENCE_CANON.md`**. **`MEMORY.md`** quick context points here — keep that file curated when you adopt a new kit or design token set.
+Repo canon: **`integrations/research/UX_UI_REFERENCE_CANON.md`**. **Semantic tokens** (`--surface`, `--space-*`, `--elev-*`, `--z-*`, motion) live in **`src/styles/globals.css`** — see **`integrations/research/DESIGN_TOKENS_SYNCSCRIPT.md`**. **`MEMORY.md`** quick context points here — keep that file curated when you adopt a new kit or design token set.
 
 **Anti-patterns:** decorative “AI slop” blobs without purpose; gratuitous glassmorphism that hurts contrast; custom scrolljacking; shipping icons without labels where meaning is ambiguous.

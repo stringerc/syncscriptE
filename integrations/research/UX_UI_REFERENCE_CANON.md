@@ -2,6 +2,8 @@
 
 **Purpose:** One durable list of **world-class** sources and a **Figma → code** workflow. Cursor rule **`.cursor/rules/11-ux-ui-excellence.mdc`** compresses behaviors; this file holds **links + checklist** so agents and humans do not re-research from scratch.
 
+**Implemented tokens in app CSS:** **`integrations/research/DESIGN_TOKENS_SYNCSCRIPT.md`** (semantic variables in `src/styles/globals.css`). **IDE/agent tradeoffs:** **`integrations/research/ANTIGRAVITY_VS_CURSOR.md`**.
+
 **Figma Community (UI kits entry — filter as needed):**  
 [figma.com/community/ui-kits](https://www.figma.com/community/ui-kits?resource_type=files&editor_type=figma)
 

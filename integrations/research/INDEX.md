@@ -53,6 +53,8 @@ From the repo root, **`npm run research:scan`** runs the same script against **t
 | Mac disk — Cursor `snapshots/` reclaim | 2026-04-12 | ~117 GiB tree removed; `df` free **~2.7 → ~129 GiB** on `/` after APFS settle; new `snapshots` ~few GiB | `./studies/2026-04-12-mac-disk-cursor-snapshots.md` | `rm -rf ~/Library/Application Support/Cursor/snapshots` (quit Cursor first next time) |
 | Regenerable pass — Xcode + npm + Docker prune | 2026-04-12 | **DerivedData ~1.2 GiB** cleared; **syncscript** `npm ci` restore; **Docker** `system prune` + `builder prune` reclaimed **~2.65 GiB** (Docker-reported); **`CI=true npm run build`** OK (skips Puppeteer prerender) | `./studies/2026-04-12-regenerable-docker-xcode-npm.md` | `docker system prune -f` · `docker builder prune -f` · `CI=true npm run build` |
 | UX/UI reference canon (Figma → code + world-class sources) | 2026-04-16 | Cursor **11** + research doc; tokens in code, not screenshots; WCAG + 03/04 | `./UX_UI_REFERENCE_CANON.md` · `.cursor/rules/11-ux-ui-excellence.mdc` | Figma Community UI kits filter URL in canon; update when adopting a new kit |
+| Semantic CSS design tokens | 2026-04-16 | `--surface`, `--space-*`, `--elev-*`, `--z-*`, motion in `globals.css` | `./DESIGN_TOKENS_SYNCSCRIPT.md` | v0.dev output → normalize to these tokens |
+| Antigravity vs Cursor agents | 2026-04-16 | When to use computer-use IDE vs repo agent; complementary workflow | `./ANTIGRAVITY_VS_CURSOR.md` | Share git + MEMORY between tools |
 
 **Per-study doc** (short markdown): **setup → method → result → follow-ups** — even if raw logs are deleted later.
 
