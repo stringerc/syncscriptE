@@ -26,3 +26,11 @@ SyncScript dashboard and **Nexus** (App AI): voice + tools-backed UI (canvas, ta
 ## Optional: micro-handoff for fragile tasks
 
 Paste 5 lines in chat: **Goal · Constraint · “Read MEMORY §X and SESSION_START.md” · Done definition.**
+
+## Browser console (not always SyncScript)
+
+Messages like **`[uwLogger]`**, **`uw.js`**, **`chrome-extension://`**, **`runtime.lastError`** (back/forward cache), or **`postMessage` target origin** usually come from **browser extensions** (e.g. accessibility overlays) or **DevTools**, not from this app’s bundle. To verify app-only errors, use a **clean profile** / **Incognito with extensions off** or filter the console by **`syncscript`** / **`localhost`**. Real app issues (e.g. **`speakingTimeoutRef`**) belong in **`src/`** and should be fixed in-repo.
+
+## Deploy check (prod vs repo)
+
+Confirm the live site’s deploy **commit SHA** (Vercel / GitHub → Environments) matches **`main`** when debugging “missing UI” reports.

@@ -628,10 +628,10 @@ export function AppAIPage() {
           <div className="max-w-3xl mx-auto space-y-3">
             <div className="flex flex-col gap-2">
               <p className="text-xs text-gray-500 leading-snug">
-                <span className="text-gray-400">Call Nexus</span> opens the voice console (waveform + context).{' '}
-                <span className="text-gray-400">Voice</span> opens the immersive Nexus orb — same engine, full-screen art. The{' '}
-                <span className="text-gray-400">inline mic</span> only dictates into the box. Optional phone calls use the phone
-                icon inside the panel; nothing auto-dials.
+                <span className="text-gray-400">Voice</span> opens the <span className="text-cyan-300/90">immersive orb</span> (full-screen, artifact rail).{' '}
+                <span className="text-gray-400">Call Nexus</span> opens the classic waveform console. Both need you{' '}
+                <span className="text-gray-300">signed in</span> for Nexus tools (documents, tasks, maps). The{' '}
+                <span className="text-gray-400">inline mic</span> only dictates into the text box. Phone calls: phone icon inside the panel; nothing auto-dials.
               </p>
               <div className="flex flex-wrap items-center gap-2">
                 <button

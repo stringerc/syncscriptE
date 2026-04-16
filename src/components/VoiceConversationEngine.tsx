@@ -17,7 +17,7 @@ import { createPortal } from 'react-dom';
 import {
   Mic, MicOff, Volume2, VolumeX, Phone, PhoneOff,
   Brain, Sparkles, Activity, MessageSquare, X, Minimize2,
-  Maximize2, Settings, Zap, Heart, ChevronDown, Send,
+  Maximize2, Settings, Zap, Heart, ChevronDown, Send, Info,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Button } from './ui/button';
@@ -50,7 +50,11 @@ import {
   type VoiceToolChip,
 } from './nexus/NexusVoiceArtifactRail';
 import { NexusVoiceTaskPeek } from './nexus/NexusVoiceTaskPeek';
-import { extractFirstMapUrl, parseLatLngFromMapUrl } from '../utils/map-url-embed.mjs';
+import {
+  extractFirstMapUrl,
+  parseLatLngFromMapUrl,
+  shouldTryServerMapResolve,
+} from '../utils/map-url-embed.mjs';
 import { isPhoneServiceConfigured, registerCallerPhoneIndex } from '../utils/phone-service';
 import type {
   VoiceMessage,
@@ -109,6 +113,7 @@ export function VoiceConversationEngine({
   const [voiceCanvasOpen, setVoiceCanvasOpen] = useState(false);
   const [artifactChips, setArtifactChips] = useState<VoiceToolChip[]>([]);
   const [mapUrlHint, setMapUrlHint] = useState<string | null>(null);
+  const [mapResolvedCoords, setMapResolvedCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [voiceTaskFocusId, setVoiceTaskFocusId] = useState<string | null>(null);
   const [voiceTaskSheetOpen, setVoiceTaskSheetOpen] = useState(false);
   /** Bumps when canvas content is replaced so DocumentCanvas remounts with new Markdown. */
@@ -484,7 +489,9 @@ export function VoiceConversationEngine({
         config: { model: kokoro.model, voice: kokoro.voice, speed: kokoro.speed, pitch: kokoro.pitch },
       });
     } catch (error) {
-      console.warn('[VoiceConversationEngine] AI request failed — using offline fallback', error);
+      if (import.meta.env.DEV) {
+        console.warn('[VoiceConversationEngine] AI request failed — using offline fallback', error);
+      }
       // Fallback response when API is unavailable
       const fallbackText = getFallbackResponse(text, voiceContext, emotion);
       const fallbackMessage: VoiceMessage = {
@@ -586,10 +593,55 @@ export function VoiceConversationEngine({
     return 'idle';
   }, [isProcessingAI, voiceStream.isSpeaking, voiceStream.isListening]);
 
-  const mapEmbedCoords = useMemo(
-    () => (mapUrlHint ? parseLatLngFromMapUrl(mapUrlHint) : null),
-    [mapUrlHint],
-  );
+  useEffect(() => {
+    if (!mapUrlHint) {
+      setMapResolvedCoords(null);
+      return;
+    }
+    if (parseLatLngFromMapUrl(mapUrlHint)) {
+      setMapResolvedCoords(null);
+      return;
+    }
+    if (!shouldTryServerMapResolve(mapUrlHint)) {
+      setMapResolvedCoords(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const qs = new URLSearchParams({ url: mapUrlHint });
+        const r = await fetch(`/api/map/resolve-map-url?${qs.toString()}`);
+        if (!r.ok) {
+          if (!cancelled) setMapResolvedCoords(null);
+          return;
+        }
+        const j = (await r.json()) as { lat?: number; lng?: number };
+        if (
+          !cancelled &&
+          typeof j.lat === 'number' &&
+          typeof j.lng === 'number' &&
+          !Number.isNaN(j.lat) &&
+          !Number.isNaN(j.lng)
+        ) {
+          setMapResolvedCoords({ lat: j.lat, lng: j.lng });
+        } else if (!cancelled) {
+          setMapResolvedCoords(null);
+        }
+      } catch {
+        if (!cancelled) setMapResolvedCoords(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [mapUrlHint]);
+
+  const mapEmbedCoords = useMemo(() => {
+    if (!mapUrlHint) return null;
+    const direct = parseLatLngFromMapUrl(mapUrlHint);
+    if (direct) return direct;
+    return mapResolvedCoords;
+  }, [mapUrlHint, mapResolvedCoords]);
 
   // ==========================================================================
   // RENDER
@@ -671,6 +723,18 @@ export function VoiceConversationEngine({
               </Button>
             )}
           </div>
+        </div>
+      )}
+
+      {!accessToken && (
+        <div
+          role="status"
+          className="flex shrink-0 items-start gap-2 border-b border-amber-400/25 bg-amber-500/[0.12] px-3 py-2.5 text-left"
+        >
+          <Info className="mt-0.5 h-4 w-4 shrink-0 text-amber-200/90" aria-hidden />
+          <p className="text-[12px] leading-snug text-amber-50/95">
+            <span className="font-semibold text-amber-100">Sign in</span> to use Nexus tools in voice (tasks, documents, maps, and live confirmations). Without an account, replies use the lighter assistant path and won’t show tool actions.
+          </p>
         </div>
       )}
 
