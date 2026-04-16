@@ -8,9 +8,10 @@ alwaysApply: true
 Before substantive coding or multi-step tasks in this workspace:
 
 1. Read **`SESSION_START.md`** at repo root (current focus + last session).
-2. Read **`MEMORY.md`**, starting with **§ Quick context for new chats**, then relevant dated sections.
-3. Read **`SOUL.md`** and **`USER.md`** at repo root. If **`~/USER.md`** exists on this machine, prefer it for full personal context when allowed.
-4. Respect **`.cursor/rules/02-protected-files-never-touch.mdc`** — do not edit listed Nexus/energy/auth surfaces without an explicit exception.
+2. Skim **`.cursor/rules/07-syncscript-app-knowledge.mdc`** — index of **syncscript.app** topics → **`MEMORY.md`** sections + key commands (always-on; not a substitute for MEMORY).
+3. Read **`MEMORY.md`**, starting with **§ Quick context for new chats**, then relevant dated sections.
+4. Read **`SOUL.md`** and **`USER.md`** at repo root. If **`~/USER.md`** exists on this machine, prefer it for full personal context when allowed.
+5. Respect **`.cursor/rules/02-protected-files-never-touch.mdc`** — do not edit listed Nexus/energy/auth surfaces without an explicit exception.
 
 Prefer **small diffs**, **run `npm test`** when changing Nexus tools/voice/contracts, and **update `SESSION_START.md` / `MEMORY.md`** when shipping something operators need to remember.
 

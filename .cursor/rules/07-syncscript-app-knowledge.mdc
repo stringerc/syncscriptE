@@ -1,0 +1,58 @@
+---
+description: SyncScript.app production index — points to MEMORY.md; deploy, Nexus, TTS, infra facts
+alwaysApply: true
+---
+
+# SyncScript.app — curated knowledge index (not a copy of MEMORY.md)
+
+**Source of truth for depth:** repo root **`MEMORY.md`** (curated handoff). **`SESSION_START.md`** for session focus. Raw logs: **`memory/YYYY-MM-DD.md`**. This rule is a **routing table** so agents know *what to read* without pasting 400+ lines into every prompt.
+
+## Production identity (fact-checked in MEMORY.md)
+
+| Item | Value |
+|------|--------|
+| **Live site** | **`https://www.syncscript.app`** (Vercel; custom domain aliases latest prod deploy) |
+| **GitHub** | **`stringerc/syncscriptE`**, branch **`main`** (confirm Vercel Git integration matches this repo) |
+| **Frontend** | Vite → **`build/`**; **`vercel.json`** drives Vercel build |
+| **API** | **`api/*.ts`** — Vercel serverless; **`npm run guard:vercel-functions`** (Hobby function cap) |
+| **Supabase** | Project ref **`kwhnrlzibgfedtxpkbgb`**; Edge **`make-server-57781ad9`** — deploy: `npm run deploy:edge:make-server` with **`--use-api`** |
+| **Build fingerprint** | HTML **`<!-- syncscript-build:<sha> -->`**; console **`window.__SYNCSCRIPT_BUILD__.sha`**; verify: **`npm run verify:prod-build`** |
+
+## MEMORY.md — what to open for which problem
+
+| Topic | MEMORY.md section (search / heading) |
+|--------|-------------------------------------|
+| **Finish-to-completion culture** | **§ Work completion — finish what we start** |
+| **Nexus Voice (App AI, tools, canvas, maps, CSP)** | Dated entries + **§ Nexus Voice**; **§ Nexus landing voice**; deploy smoke **`deploy/SMOKE_TEST_NEXUS_VOICE_DOC_MAP.md`** |
+| **TTS / Kokoro dead, 503, `ERR_NAME_NOT_RESOLVED`** | **§ Read this first**, **§ 24/7 TTS**, **§ Kokoro “same problem”**, **§ Key Env Vars** — almost always **ops** (tunnel URL), not app code |
+| **Verify production** | **`npm run verify:prod:live`**, **`verify:prod:live:strict`**; **`GET …/api/ai/tts?probe=1`** |
+| **Dashboard nav / sidebar clicks** | **§ Dashboard navigation — do not regress** (Outlet pattern, `App.tsx`, z-index / `#app-sidebar-rail`) |
+| **Router / BFCache** | **`BfcacheRouterSync`** — same § |
+| **Twilio / phone / TwiML errors** | **§ Nexus phone** |
+| **Billing / crons / Firma / Plaid** | **§ Autonomous billing** |
+| **OpenClaw / Hermes / Engram** | **§ OpenClaw + Cursor**; **`.cursor/rules/09-multi-agent-orchestration.mdc`**; playbooks **`integrations/agent-playbooks/`** |
+| **EC2 / Oracle / tunnels** | **§ AWS EC2**, **§ Oracle Cloud OCI**; **`deploy/kokoro-tts-ec2/`**, **`deploy/oracle/`** |
+| **Deployment map** | **§ Deployment map (what runs where)** |
+| **Guest mode / layout** | **§ Guest mode** |
+| **Disk / Cursor snapshots** | **§ Mac disk space** — operational, not app logic |
+| **Cursor transcripts** | **§ Cursor chat history vs this file** — `~/.cursor/projects/.../agent-transcripts/` is local, not git |
+
+## Commands agents should know (non-exhaustive)
+
+- **Tests (Nexus contracts):** `npm test`
+- **Prod HTML vs local git:** `npm run verify:prod-build`
+- **Dashboard route shell:** `npm run guard:dashboard-route-shell`
+- **Nexus tools live:** `npm run verify:nexus-tools-live` (needs env / JWT per MEMORY)
+- **Edge deploy:** `npm run deploy:edge:make-server`
+- **Vercel prod CLI:** `npm run deploy:vercel:prod` (requires CLI auth)
+
+## Protected surfaces
+
+Do **not** edit files listed in **`.cursor/rules/02-protected-files-never-touch.mdc`** unless the user explicitly overrides.
+
+## Ingestion reality (Cursor)
+
+- **Project Rules** (this folder) = what the agent always sees in compressed form.
+- **Full MEMORY.md** = read on demand per bootstrap rule **`00-session-bootstrap.mdc`**; there is no separate “embed MEMORY into Cursor vector DB” in this repo—**keeping MEMORY.md curated + linking here is the intended pattern.**
+
+When the user says “remember SyncScript production,” **update `MEMORY.md`** (and **`SESSION_START.md`** if workflow changes)—not only chat history.

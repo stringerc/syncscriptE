@@ -4,6 +4,7 @@
 
 - **Stack:** Vite/React dashboard, Vercel **`api/*`**, Supabase Edge; production deploy flows vary by change type (see dated entries below).
 - **Start here:** **`SESSION_START.md`** → this file (quick section first) → **`AGENTS.md`**, **`SOUL.md`**, **`USER.md`** (repo; full personal context may be **`~/USER.md`**).
+- **Cursor:** Always-on **topic index** (not full MEMORY) → **`.cursor/rules/07-syncscript-app-knowledge.mdc`**. Full detail stays **here** in git; Cursor has no separate “vector ingest” for arbitrary MD—**curated rules + this file** is the supported pattern.
 - **Rules:** **`.cursor/rules/`** — never violate **`02-protected-files-never-touch.mdc`** (Nexus/energy/auth surfaces).
 - **Ship:** Small diffs; **`npm test`** when touching Nexus tools/voice/contracts; build for risky UI.
 - **Nexus voice:** Signed-in App AI voice uses **`/api/ai/nexus-user`** + tools (not OpenClaw for that path). Canvas, map embed, **`update_document`** — details in **§ Nexus Voice** below.
