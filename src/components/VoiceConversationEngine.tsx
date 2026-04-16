@@ -226,9 +226,9 @@ export function VoiceConversationEngine({
       voiceStream.stopListening();
       voiceStream.stopSpeaking();
       stopAudioAnalysis();
-      if (speakingTimeoutRef.current) {
-        clearTimeout(speakingTimeoutRef.current);
-        speakingTimeoutRef.current = null;
+      if (pendingUserTextFlushTimerRef.current) {
+        clearTimeout(pendingUserTextFlushTimerRef.current);
+        pendingUserTextFlushTimerRef.current = null;
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
