@@ -4,14 +4,37 @@ import react from '@vitejs/plugin-react-swc';
 import { VitePWA } from 'vite-plugin-pwa';
 import vitePrerender from 'vite-plugin-prerender';
 import path from 'path';
+import { readFileSync } from 'fs';
+import { execSync } from 'child_process';
+
+/** Short SHA for deploy verification (Vercel sets VERCEL_GIT_COMMIT_SHA at build time). */
+function resolveSyncscriptBuildSha(): string {
+  const full =
+    process.env.VERCEL_GIT_COMMIT_SHA ||
+    process.env.CF_PAGES_COMMIT_SHA ||
+    process.env.GITHUB_SHA ||
+    '';
+  if (full.length >= 7) return full.slice(0, 12);
+  try {
+    return execSync('git rev-parse --short HEAD', { encoding: 'utf8' }).trim();
+  } catch {
+    return 'unknown';
+  }
+}
+
+const SYNCSCRIPT_BUILD_SHA = resolveSyncscriptBuildSha();
 
 const localChromePath = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const explicitPuppeteerPath = process.env.PUPPETEER_EXECUTABLE_PATH;
 const useLocalChromePath = process.platform === 'darwin' && !process.env.CI;
 const resolvedPuppeteerExecutablePath =
   explicitPuppeteerPath || (useLocalChromePath ? localChromePath : undefined);
-const shouldEnablePrerender =
-  process.env.ENABLE_PRERENDER === 'true' || (!process.env.VERCEL && process.env.CI !== 'true');
+/** Local builds default to prerender unless CI=1; opt out with ENABLE_PRERENDER=false. */
+const shouldEnablePrerender = (() => {
+  if (process.env.ENABLE_PRERENDER === 'false') return false;
+  if (process.env.ENABLE_PRERENDER === 'true') return true;
+  return !process.env.VERCEL && process.env.CI !== 'true';
+})();
 
   /**
    * Vite dev-server middleware that proxies Vercel-style API routes
@@ -28,6 +51,57 @@ const shouldEnablePrerender =
     { name: 'deepseek', url: 'https://api.deepseek.com/v1/chat/completions', model: 'deepseek-chat', keyEnv: 'DEEPSEEK_API_KEY' },
     { name: 'openai', url: 'https://api.openai.com/v1/chat/completions', model: 'gpt-4o-mini', keyEnv: 'OPENAI_API_KEY' },
   ];
+
+  /** Same intent regex as api/ai/nexus-guest (deterministic pricing path in dev). */
+  const PRICING_INTENT_RE_DEV =
+    /\b(price|pricing|plan|plans|cost|how much|monthly|annual|annually|billing|subscription|starter|professional|enterprise|free|pro|team)\b/i;
+
+  type DevPlan = { name: string; price: number; priceAnnual?: number };
+
+  function loadDevPublicPlans(): { trialDays: number; plans: DevPlan[] } {
+    try {
+      const fp = path.join(process.cwd(), 'api/ai/_lib/nexus-brain/knowledge/public-plans.json');
+      return JSON.parse(readFileSync(fp, 'utf8')) as { trialDays: number; plans: DevPlan[] };
+    } catch {
+      return {
+        trialDays: 14,
+        plans: [
+          { name: 'Free', price: 0 },
+          { name: 'Starter', price: 19, priceAnnual: 15 },
+          { name: 'Professional', price: 49, priceAnnual: 39 },
+          { name: 'Enterprise', price: 99, priceAnnual: 79 },
+        ],
+      };
+    }
+  }
+
+  function buildDevPricingReply(userText: string): string {
+    const { plans: PLANS, trialDays } = loadDevPublicPlans();
+    const n = trialDays === 14 ? 'fourteen' : trialDays === 7 ? 'seven' : String(trialDays);
+    const trialSuffix = `All paid plans include a ${n} day free trial with no credit card needed.`;
+    const q = userText.toLowerCase();
+    if (/\bstarter\b/.test(q)) {
+      const starter = PLANS.find((p) => p.name.toLowerCase() === 'starter');
+      return `Starter is ${starter?.price ?? 19} dollars per month, or ${starter?.priceAnnual ?? 15} dollars per month billed annually. ${trialSuffix}`;
+    }
+    if (/\bprofessional\b|\bpro\b/.test(q)) {
+      const professional = PLANS.find((p) => p.name.toLowerCase() === 'professional');
+      return `Professional is ${professional?.price ?? 49} dollars per month, or ${professional?.priceAnnual ?? 39} dollars per month billed annually. ${trialSuffix}`;
+    }
+    if (/\benterprise\b/.test(q)) {
+      const enterprise = PLANS.find((p) => p.name.toLowerCase() === 'enterprise');
+      return `Enterprise is ${enterprise?.price ?? 99} dollars per month, or ${enterprise?.priceAnnual ?? 79} dollars per month billed annually. ${trialSuffix}`;
+    }
+    if (/\bteam\b/.test(q)) {
+      const enterprise = PLANS.find((p) => p.name.toLowerCase() === 'enterprise');
+      return `We no longer list a separate Team tier. The current top tier is Enterprise at ${enterprise?.price ?? 99} dollars per month, or ${enterprise?.priceAnnual ?? 79} dollars per month billed annually. ${trialSuffix}`;
+    }
+    const free = PLANS.find((p) => p.name.toLowerCase() === 'free');
+    const starter = PLANS.find((p) => p.name.toLowerCase() === 'starter');
+    const professional = PLANS.find((p) => p.name.toLowerCase() === 'professional');
+    const enterprise = PLANS.find((p) => p.name.toLowerCase() === 'enterprise');
+    return `Current pricing is: Free is ${free?.price ?? 0} dollars. Starter is ${starter?.price ?? 19} dollars per month, or ${starter?.priceAnnual ?? 15} dollars per month billed annually. Professional is ${professional?.price ?? 49} dollars per month, or ${professional?.priceAnnual ?? 39} dollars per month billed annually. Enterprise is ${enterprise?.price ?? 99} dollars per month, or ${enterprise?.priceAnnual ?? 79} dollars per month billed annually. ${trialSuffix}`;
+  }
 
   const NEXUS_SYSTEM_PROMPT = `You are Nexus, SyncScript's AI assistant on a live voice call. Every word you write is read aloud through text-to-speech, so you must write exactly the way a human speaks.
 
@@ -113,14 +187,22 @@ STRICT RULES:
           req.on('data', (chunk: Buffer) => { body += chunk.toString(); });
           req.on('end', async () => {
             try {
-              const { text, voice, speed } = JSON.parse(body);
+              const parsed = JSON.parse(body);
+              if (parsed && typeof parsed === 'object' && parsed.kind === 'tts_rum') {
+                res.writeHead(204, {
+                  'Access-Control-Allow-Origin': '*',
+                  'Cache-Control': 'no-store',
+                });
+                return res.end();
+              }
+              const { text, voice, speed } = parsed;
               const PRESETS: Record<string, string> = {
                 nexus: 'nexus', nexus_emphatic: 'nexus_emphatic',
                 nexus_query: 'nexus_query', cortana: 'cortana',
                 commander: 'commander', professional: 'professional',
                 gentle: 'af_heart', playful: 'af_bella', natural: 'af_sky',
               };
-              const resolvedVoice = PRESETS[voice] || voice || 'nexus';
+              const resolvedVoice = PRESETS[voice] || voice || 'cortana';
 
               const upstream = await fetch(`${kokoroTtsUrl}/v1/audio/speech`, {
                 method: 'POST',
@@ -173,13 +255,39 @@ STRICT RULES:
             try {
               const parsed = JSON.parse(body);
 
+              const trimmedMsgs = (parsed.messages || [])
+                .filter((m: any) => m.role === 'user' || m.role === 'assistant')
+                .slice(-10);
+              const latestUserMessage =
+                [...trimmedMsgs].reverse().find((m: any) => m.role === 'user')?.content || '';
+
+              // ── Deterministic pricing (matches production nexus-guest + nexus-brain) ──
+              if (typeof latestUserMessage === 'string' && PRICING_INTENT_RE_DEV.test(latestUserMessage)) {
+                const content = buildDevPricingReply(latestUserMessage);
+                if (parsed.stream) {
+                  res.writeHead(200, {
+                    'Content-Type': 'text/event-stream',
+                    'Cache-Control': 'no-cache',
+                    'Connection': 'keep-alive',
+                    'Access-Control-Allow-Origin': '*',
+                  });
+                  res.write(`data: ${JSON.stringify({ content })}\n\n`);
+                  res.write(`data: ${JSON.stringify({ finalContent: content })}\n\n`);
+                  res.write('data: [DONE]\n\n');
+                  return res.end();
+                }
+                res.writeHead(200, {
+                  'Content-Type': 'application/json',
+                  'Access-Control-Allow-Origin': '*',
+                });
+                return res.end(JSON.stringify({ content }));
+              }
+
               // ── Direct AI path (local key available) ──────────────
               if (directAI) {
                 const chatMessages = [
                   { role: 'system', content: NEXUS_SYSTEM_PROMPT },
-                  ...(parsed.messages || [])
-                    .filter((m: any) => m.role === 'user' || m.role === 'assistant')
-                    .slice(-10),
+                  ...trimmedMsgs,
                 ];
 
                 const aiRes = await fetch(directAI.url, {
@@ -191,8 +299,8 @@ STRICT RULES:
                   body: JSON.stringify({
                     model: directAI.model,
                     messages: chatMessages,
-                    max_tokens: 80,
-                    temperature: 0.7,
+                    max_tokens: 150,
+                    temperature: 0.3,
                     stream: true,
                   }),
                 });
@@ -346,8 +454,18 @@ STRICT RULES:
   }
 
 export default defineConfig({
+  define: {
+    'import.meta.env.VITE_BUILD_SHA': JSON.stringify(SYNCSCRIPT_BUILD_SHA),
+  },
   plugins: [
     react(),
+    {
+      name: 'syncscript-build-html-comment',
+      transformIndexHtml(html: string) {
+        if (/syncscript-build:/.test(html)) return html;
+        return html.replace('<head>', `<head>\n    <!-- syncscript-build:${SYNCSCRIPT_BUILD_SHA} -->`);
+      },
+    },
     apiProxyPlugin(),
     VitePWA({
       registerType: 'autoUpdate',
@@ -371,6 +489,9 @@ export default defineConfig({
       },
       workbox: {
         navigateFallback: '/index.html',
+        skipWaiting: true,
+        clientsClaim: true,
+        cleanupOutdatedCaches: true,
         globPatterns: ['**/*.{js,css,html,svg,png,jpg,jpeg,webp,woff2,mp3}'],
         globIgnores: ['**/images/blog/**', '**/*.map'],
         maximumFileSizeToCacheInBytes: 8 * 1024 * 1024,

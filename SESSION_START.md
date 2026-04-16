@@ -33,4 +33,9 @@ Messages like **`[uwLogger]`**, **`uw.js`**, **`chrome-extension://`**, **`runti
 
 ## Deploy check (prod vs repo)
 
-Confirm the live site’s deploy **commit SHA** (Vercel / GitHub → Environments) matches **`main`** when debugging “missing UI” reports.
+Builds inject **`<!-- syncscript-build:&lt;sha&gt; -->`** in `index.html` and **`window.__SYNCSCRIPT_BUILD__.sha`** at runtime (see `vite.config.ts`).
+
+- **Automated:** from repo root, after deploy: `node scripts/verify-prod-build.mjs https://www.syncscript.app` — exits **0** only if the HTML comment’s SHA matches **`git rev-parse --short HEAD`** (override URL with `VERIFY_PROD_URL` or first arg).
+- **Manual:** DevTools → Elements → view page source on `/` and search for `syncscript-build`, or console: `__SYNCSCRIPT_BUILD__`.
+- **Vercel:** Project → **Settings → Git** must point at the same GitHub repo/branch you push (e.g. **`stringerc/syncscriptE`** + **`main`**). If production is wired to another repo, pushes here never ship.
+- **Cache:** after deploy, hard reload with cache disabled or unregister the **service worker** once so `index.html` isn’t stale.

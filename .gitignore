@@ -87,6 +87,7 @@ scripts/*
 !scripts/engram-public-supabase-url.mjs
 !scripts/bringup-hermes-tunnel-supabase.sh
 !scripts/verify-hermes-edge-live.mjs
+!scripts/verify-prod-build.mjs
 
 # Large optional clone (run integrations/setup-engram.sh)
 integrations/engram_translator/

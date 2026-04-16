@@ -24,6 +24,7 @@
  */
 
 import { useState, useEffect } from 'react';
+import { useLocation } from 'react-router';
 import { MessageCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { toast } from 'sonner';
@@ -33,10 +34,42 @@ interface FloatingFeedbackButtonProps {
   className?: string;
 }
 
+/** Hide Discord FAB on dashboard / app shell so it isn’t confused with product chrome. */
+function shouldHideFeedbackFab(pathname: string): boolean {
+  if (pathname.startsWith('/app/')) return true;
+  const exact = new Set([
+    '/dashboard',
+    '/tasks',
+    '/calendar',
+    '/financials',
+    '/email',
+    '/library',
+    '/ai',
+    '/energy',
+    '/resonance-engine',
+    '/team',
+    '/analytics',
+    '/gaming',
+    '/gaming-v2',
+    '/integrations',
+    '/enterprise',
+    '/scripts-templates',
+    '/team-scripts',
+    '/settings',
+    '/onboarding',
+  ]);
+  if (exact.has(pathname)) return true;
+  return /^\/(permission-testing|design-system|showcase)/.test(pathname);
+}
+
 export function FloatingFeedbackButton({ 
   discordInviteUrl = 'https://discord.gg/2rq38UJrDJ',
   className = '' 
 }: FloatingFeedbackButtonProps) {
+  const { pathname } = useLocation();
+  if (shouldHideFeedbackFab(pathname)) {
+    return null;
+  }
   // Track if user has seen the welcome modal
   const [hasSeenWelcome, setHasSeenWelcome] = useState(() => {
     if (typeof window === 'undefined') return true;
@@ -108,7 +141,7 @@ export function FloatingFeedbackButton({
           Size: 64px diameter (optimal visibility)
           Z-index: 9999 (above all content)
           ═══════════════════════════════════════════════════════════════ */}
-      <div className={`fixed bottom-6 right-6 z-[9999] ${className}`}>
+      <div className={`fixed bottom-6 right-6 z-[9999] hidden md:block ${className}`}>
         {/* Tooltip */}
         <AnimatePresence>
           {showTooltip && (

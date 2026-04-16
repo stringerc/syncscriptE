@@ -2,6 +2,21 @@ import { createRoot } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import App from "./App.tsx";
 import "./index.css";
+import { registerSyncScriptServiceWorker } from "./pwa/register-sw";
+
+declare global {
+  interface Window {
+    __SYNCSCRIPT_BUILD__?: { sha: string };
+  }
+}
+
+if (typeof window !== "undefined") {
+  window.__SYNCSCRIPT_BUILD__ = {
+    sha: String(import.meta.env.VITE_BUILD_SHA || ""),
+  };
+}
+
+registerSyncScriptServiceWorker();
 
 // Auto-recover from stale chunk errors after a new deployment.
 // When Vercel deploys new code, old chunk filenames are invalidated.
