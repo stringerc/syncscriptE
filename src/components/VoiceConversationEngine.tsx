@@ -134,6 +134,11 @@ export function VoiceConversationEngine({
   const pendingUserTextFlushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const voiceStreamRef = useRef<ReturnType<typeof useVoiceStream> | null>(null);
   const isSpeakingRef = useRef(false);
+  const sessionRef = useRef<VoiceSession | null>(null);
+  const messagesRef = useRef<VoiceMessage[]>([]);
+  const stopAudioAnalysisRef = useRef<() => void>(() => {});
+  sessionRef.current = session;
+  messagesRef.current = messages;
 
   const schedulePendingUserTextFlush = (delayMs: number) => {
     if (pendingUserTextFlushTimerRef.current) {
@@ -166,6 +171,8 @@ export function VoiceConversationEngine({
     currentEmotion, detectFromText, getEmotionColor, getEmotionEmoji,
     startAudioAnalysis, stopAudioAnalysis, getEmotionTrend, micInputLevel,
   } = useEmotionDetection();
+
+  stopAudioAnalysisRef.current = stopAudioAnalysis;
 
   // Full-duplex: track if user is interrupting (barge-in)
   const bargeInDetectedRef = useRef(false);
@@ -220,16 +227,26 @@ export function VoiceConversationEngine({
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Cleanup all resources on unmount to prevent memory leaks
+  // Cleanup all resources on unmount (use refs — deps [] would otherwise freeze stale voiceStream).
   useEffect(() => {
     return () => {
       try {
-        voiceStream.stopListening();
-        voiceStream.stopSpeaking();
-        stopAudioAnalysis();
+        voiceStreamRef.current?.stopListening();
+        voiceStreamRef.current?.stopSpeaking();
+        stopAudioAnalysisRef.current();
         if (pendingUserTextFlushTimerRef.current) {
           clearTimeout(pendingUserTextFlushTimerRef.current);
           pendingUserTextFlushTimerRef.current = null;
+        }
+        const s = sessionRef.current;
+        const msgs = messagesRef.current;
+        if (s) {
+          voiceMemory.saveSession({
+            ...s,
+            endedAt: Date.now(),
+            messages: msgs,
+            emotionTimeline: [],
+          });
         }
       } catch {
         /* Never throw from unmount cleanup — avoids a stuck modal / black overlay */
@@ -722,7 +739,7 @@ export function VoiceConversationEngine({
               </Button>
             )}
             {onClose && (
-              <Button variant="ghost" size="icon" className="h-7 w-7 text-slate-400 hover:text-white" onClick={() => { endSession(); onClose(); }} aria-label="Close">
+              <Button variant="ghost" size="icon" className="h-7 w-7 text-slate-400 hover:text-white" onClick={() => onClose()} aria-label="Close">
                 <X className="h-3.5 w-3.5" />
               </Button>
             )}
