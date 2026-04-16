@@ -22,7 +22,7 @@ SyncScript dashboard and **Nexus** (App AI): voice + tools-backed UI (canvas, ta
 
 ## Blockers
 
-- None recorded here — add a bullet when something external blocks merge/deploy.
+- **Vercel prod HTML drift (2026-04-16):** `git push origin main` succeeded (`ef743cd` on GitHub), but **`npm run verify:prod-build`** still failed — live `/` had **no** `<!-- syncscript-build:… -->` yet. Confirm **Vercel → Deployments** for a new build from `main`; fix **Settings → Git** if no deploy triggers; after green deploy, re-run **`verify:prod-build`** (expect **MATCH**).
 
 ## Optional: micro-handoff for fragile tasks
 
