@@ -36,6 +36,7 @@ alwaysApply: true
 | **Guest mode / layout** | **§ Guest mode** |
 | **Disk / Cursor snapshots** | **§ Mac disk space** — operational, not app logic |
 | **Cursor transcripts** | **§ Cursor chat history vs this file** — `~/.cursor/projects/.../agent-transcripts/` is local, not git |
+| **UX/UI (Figma kits, a11y, hierarchy)** | **`.cursor/rules/11-ux-ui-excellence.mdc`** + **`integrations/research/UX_UI_REFERENCE_CANON.md`** — still obey **03-landing** / **04-perf-seo** on marketing |
 
 ## Commands agents should know (non-exhaustive)
 

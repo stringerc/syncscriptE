@@ -1,0 +1,33 @@
+---
+description: World-class UX/UI — Figma-aligned workflow, tokens, a11y; complements 03/04
+alwaysApply: true
+---
+
+# UX/UI excellence (implementation-first)
+
+**Figma Community UI kits** ([browse kits](https://www.figma.com/community/ui-kits?resource_type=files&editor_type=figma)) are **design DNA**, not React components. **Do not** paste screenshots into production. **Do:** duplicate a kit → extract **variables** (color, type scale, radius, spacing) → map to **Tailwind / CSS variables** → build **accessible** components. Prefer kits with **published variables** and **component properties** (official **Apple** / **Material** / strong community systems like Tailwind-aligned kits).
+
+**SyncScript constraints:** Marketing **`LandingPageElite.tsx`** stays under **03-landing-conversion-guardrails** + **04-perf-seo-gate** (Lighthouse, JSON-LD, fonts, no render-blocking hero).
+
+## Non-negotiables (ship every surface)
+
+- **Hierarchy:** one primary action per view; secondary actions visually quieter; destructive actions never primary.
+- **Spacing:** 4/8px rhythm; consistent section padding; avoid arbitrary one-off gaps.
+- **Typography:** max ~65ch for body; line-height ≥1.5 for paragraphs; limit display sizes; respect `font-display:swap` / preload rules from **04**.
+- **Color:** WCAG **2.2 AA** contrast for text and interactive states; never rely on color alone for meaning.
+- **Focus:** visible `:focus-visible` rings; logical tab order; no `outline: none` without replacement.
+- **Motion:** purposeful only; honor **`prefers-reduced-motion`**; no infinite distracting loops.
+- **Touch:** min **44×44px** hit targets on mobile; adequate spacing between tappable controls.
+- **Feedback:** loading / empty / error states designed, not silent failures.
+
+## “Legendary” bar (behavioral)
+
+- **Predictability** beats novelty — users finish tasks faster than they admire gradients.
+- **Density** matches context: dashboard = scannable tables/cards; marketing = breathing room (still within perf budget).
+- **Copy** follows **03** (outcome-first, banned hype words).
+
+## Deep reference (URLs + Figma workflow checklist)
+
+Repo canon: **`integrations/research/UX_UI_REFERENCE_CANON.md`**. **`MEMORY.md`** quick context points here — keep that file curated when you adopt a new kit or design token set.
+
+**Anti-patterns:** decorative “AI slop” blobs without purpose; gratuitous glassmorphism that hurts contrast; custom scrolljacking; shipping icons without labels where meaning is ambiguous.

@@ -9,7 +9,7 @@ Before substantive coding or multi-step tasks in this workspace:
 
 1. Read **`SESSION_START.md`** at repo root (current focus + last session).
 2. Skim **`.cursor/rules/07-syncscript-app-knowledge.mdc`** — index of **syncscript.app** topics → **`MEMORY.md`** sections + key commands (always-on; not a substitute for MEMORY).
-3. Read **`MEMORY.md`**, starting with **§ Quick context for new chats**, then relevant dated sections.
+3. Read **`MEMORY.md`**, starting with **§ Quick context for new chats**, then relevant dated sections. For **UI/UX** implementation (Figma-aligned tokens, a11y, hierarchy), apply **`.cursor/rules/11-ux-ui-excellence.mdc`** and **`integrations/research/UX_UI_REFERENCE_CANON.md`** — marketing **`LandingPageElite.tsx`** still obeys **03** / **04**.
 4. Read **`SOUL.md`** and **`USER.md`** at repo root. If **`~/USER.md`** exists on this machine, prefer it for full personal context when allowed.
 5. Respect **`.cursor/rules/02-protected-files-never-touch.mdc`** — do not edit listed Nexus/energy/auth surfaces without an explicit exception.
 
