@@ -7,6 +7,8 @@ alwaysApply: true
 
 **Figma Community UI kits** ([browse kits](https://www.figma.com/community/ui-kits?resource_type=files&editor_type=figma)) are **design DNA**, not React components. **Do not** paste screenshots into production. **Do:** duplicate a kit → extract **variables** (color, type scale, radius, spacing) → map to **Tailwind / CSS variables** → build **accessible** components. Prefer kits with **published variables** and **component properties** (official **Apple** / **Material** / strong community systems like Tailwind-aligned kits).
 
+**v0.dev** (Vercel): optional **fast UI drafts** (React/Tailwind-style output). Use it to explore layouts, then **refactor** output to **semantic tokens**, **a11y**, and **03/04** — see **`integrations/research/UX_UI_REFERENCE_CANON.md`**.
+
 **SyncScript constraints:** Marketing **`LandingPageElite.tsx`** stays under **03-landing-conversion-guardrails** + **04-perf-seo-gate** (Lighthouse, JSON-LD, fonts, no render-blocking hero).
 
 ## Non-negotiables (ship every surface)
