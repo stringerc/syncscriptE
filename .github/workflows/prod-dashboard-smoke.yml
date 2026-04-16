@@ -1,0 +1,39 @@
+# Run after a production deploy (manual) to hit the live site with Playwright + guest session.
+# Same checks as e2e/dashboard-nav.spec.ts against PLAYWRIGHT_BASE_URL.
+name: Production dashboard smoke
+
+on:
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: 'Origin to test (no trailing slash)'
+        required: false
+        default: 'https://www.syncscript.app'
+
+jobs:
+  prod-dashboard-nav:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Install Playwright Chromium
+        run: npx playwright install chromium --with-deps
+
+      - name: Prod index.html matches this git SHA (deploy drift guard)
+        run: node scripts/verify-prod-build.mjs "${BASE_URL}"
+        env:
+          BASE_URL: ${{ inputs.base_url }}
+
+      - name: Dashboard nav (live site, guest session)
+        run: npm run test:e2e:dashboard-nav:prod
+        env:
+          CI: true
+          PLAYWRIGHT_BASE_URL: ${{ inputs.base_url }}

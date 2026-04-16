@@ -1,0 +1,29 @@
+# Compares git HEAD (scheduled/manual checkout) to live index.html <!-- syncscript-build:SHA -->.
+# Fails when production was not deployed from this repo/branch or HTML is cached without the marker.
+# Does NOT run on every push — Vercel deploy can lag behind the commit that triggered CI.
+name: Verify production HTML build fingerprint
+
+on:
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: 'Origin (no trailing slash)'
+        required: false
+        default: 'https://www.syncscript.app'
+  schedule:
+    - cron: '25 */8 * * *'
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Compare local HEAD to live index.html
+        run: node scripts/verify-prod-build.mjs "${BASE_URL}"
+        env:
+          BASE_URL: ${{ github.event.inputs.base_url || 'https://www.syncscript.app' }}

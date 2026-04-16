@@ -9,6 +9,7 @@
 - **Ship:** Small diffs; **`npm test`** when touching Nexus tools/voice/contracts; build for risky UI.
 - **Nexus voice:** Signed-in App AI voice uses **`/api/ai/nexus-user`** + tools (not OpenClaw for that path). Canvas, map embed, **`update_document`** — details in **§ Nexus Voice** below.
 - **Orchestration:** OpenClaw / Hermes / Engram = runtime tools — not a substitute for repo + MEMORY.
+- **Deploy vs repo:** `npm run verify:prod-build` compares **local `git` HEAD** to **`<!-- syncscript-build:sha -->` in live `/` HTML**. If it fails with “no marker,” production is **not** serving a build from current `vite build` (wrong Vercel project/branch, or deploy not run). **`npm test` green does not imply prod matches git** — run the verify script or GitHub Action **`Verify production HTML build fingerprint`** after deploy.
 
 **Last updated:** 2026-04-16 — Nexus voice follow-ups: **CSP `frame-src`** for OSM, **`GET /api/map/resolve-map-url`** for Google short links, **`update_document`** nudges + edit-intent reminder (see **§ Nexus Voice — tools-backed canvas & maps**).
 

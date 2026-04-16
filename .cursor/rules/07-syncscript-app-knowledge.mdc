@@ -16,7 +16,7 @@ alwaysApply: true
 | **Frontend** | Vite → **`build/`**; **`vercel.json`** drives Vercel build |
 | **API** | **`api/*.ts`** — Vercel serverless; **`npm run guard:vercel-functions`** (Hobby function cap) |
 | **Supabase** | Project ref **`kwhnrlzibgfedtxpkbgb`**; Edge **`make-server-57781ad9`** — deploy: `npm run deploy:edge:make-server` with **`--use-api`** |
-| **Build fingerprint** | HTML **`<!-- syncscript-build:<sha> -->`**; console **`window.__SYNCSCRIPT_BUILD__.sha`**; verify: **`npm run verify:prod-build`** |
+| **Build fingerprint** | HTML **`<!-- syncscript-build:<sha> -->`**; console **`window.__SYNCSCRIPT_BUILD__.sha`**; verify: **`npm run verify:prod-build`**. If “no marker” on live site while local `CI=true npm run build` has it → **deploy drift** (prod not updated from this repo), not necessarily broken code. |
 
 ## MEMORY.md — what to open for which problem
 

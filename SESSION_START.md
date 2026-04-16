@@ -16,7 +16,8 @@ SyncScript dashboard and **Nexus** (App AI): voice + tools-backed UI (canvas, ta
 
 ## Last session (update each time)
 
-- **Continuity stack:** Added **`SESSION_START.md`**, repo **`SOUL.md` / `USER.md` / `AGENTS.md`**, **`MEMORY.md` § Quick context**, Cursor rule **`00-session-bootstrap.mdc`** so new chats load the same ritual from git + rules.
+- **Cursor + MEMORY wiring:** Committed **`.cursor/rules/07-syncscript-app-knowledge.mdc`**, bootstrap points agents at it before full **`MEMORY.md`** read.
+- **Prod deploy drift audit:** Local **`CI=true npm run build`** injects **`<!-- syncscript-build:<sha> -->`** in **`build/index.html`**; **live `www.syncscript.app` was missing that marker** while **`npm test`** and **`prod-human-smoke`** still passed — meaning **Vercel HTML is behind git**, not that the Vite plugin is broken. Added **`verify-prod-build`** messaging, scheduled GitHub Action **`.github/workflows/verify-prod-build.yml`**, and a **deploy-drift** step on **`production dashboard smoke`**. **Remediation:** deploy **`main`** to the production Vercel project; confirm **Settings → Git**; hard-reload / SW cache if needed.
 - **Nexus voice (earlier commits):** Signed-in voice uses **`/api/ai/nexus-user`** + tools; artifact rail, canvas, map embed, **`update_document`** — details in **`MEMORY.md`** § Nexus Voice.
 
 ## Blockers

@@ -24,8 +24,11 @@ if (!res.ok) {
 const html = await res.text();
 const m = html.match(/<!--\s*syncscript-build:([a-f0-9]+)\s*-->/i);
 if (!m) {
-  console.error('verify-prod-build: no <!-- syncscript-build:... --> in index.html (old deploy or wrong URL)');
+  console.error('verify-prod-build: no <!-- syncscript-build:... --> in index.html');
+  console.error('  Likely causes: production not deployed from this repo/branch, or stale CDN/service-worker cache.');
   console.error('  Local HEAD:', localSha);
+  console.error('  Fix: push main → Vercel production; hard-reload; confirm Settings → Git → stringerc/syncscriptE + main.');
+  console.error('  Source: vite.config.ts plugin syncscript-build-html-comment (injected on `npm run build`).');
   process.exit(1);
 }
 
