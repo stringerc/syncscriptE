@@ -6,8 +6,9 @@
  * Usage: node scripts/push-nexus-e2e-secrets-to-github.mjs
  * Requires: gh auth login, repo origin pointing at github.com
  *
- * Optional: NEXUS_E2E_INCLUDE_PLACES=1 NEXUS_E2E_INCLUDE_VOICE=1 in .env to
- * also push those flags (defaults: set both to "1" for CI opt-in tests).
+ * Optional: set NEXUS_E2E_PUSH_CI_OPT_IN=1 in .env and add
+ * NEXUS_E2E_INCLUDE_PLACES=1 / NEXUS_E2E_INCLUDE_VOICE=1 to push flaky CI steps.
+ * Default: does **not** set those secrets (GitHub Actions skips places + voice).
  */
 import { readFileSync, existsSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
@@ -76,9 +77,14 @@ ghSecretSetFromStdin('NEXUS_LIVE_TEST_PASSWORD', password);
 ghSecretSetFromStdin('E2E_LOGIN_EMAIL', email);
 ghSecretSetFromStdin('E2E_LOGIN_PASSWORD', password);
 
-const places = env.NEXUS_E2E_INCLUDE_PLACES ?? '1';
-const voice = env.NEXUS_E2E_INCLUDE_VOICE ?? '1';
-ghSecretSetBody('NEXUS_E2E_INCLUDE_PLACES', places);
-ghSecretSetBody('NEXUS_E2E_INCLUDE_VOICE', voice);
+if (env.NEXUS_E2E_PUSH_CI_OPT_IN === '1') {
+  const places = env.NEXUS_E2E_INCLUDE_PLACES ?? '1';
+  const voice = env.NEXUS_E2E_INCLUDE_VOICE ?? '1';
+  ghSecretSetBody('NEXUS_E2E_INCLUDE_PLACES', places);
+  ghSecretSetBody('NEXUS_E2E_INCLUDE_VOICE', voice);
+  console.log('Also set NEXUS_E2E_INCLUDE_PLACES, NEXUS_E2E_INCLUDE_VOICE (CI will run flaky steps).');
+} else {
+  console.log('Skipped optional CI flags (places/voice). To enable: NEXUS_E2E_PUSH_CI_OPT_IN=1 in .env');
+}
 
-console.log('Done: NEXUS_LIVE_TEST_*, E2E_LOGIN_*, NEXUS_E2E_INCLUDE_PLACES, NEXUS_E2E_INCLUDE_VOICE');
+console.log('Done: NEXUS_LIVE_TEST_*, E2E_LOGIN_*');
