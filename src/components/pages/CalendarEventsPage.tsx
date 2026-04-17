@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useLocation } from 'react-router';
 import { format, addDays } from 'date-fns';
 /**
@@ -75,9 +76,14 @@ import { CURRENT_USER } from '../../utils/user-constants';
 import { UserAvatar } from '../user/UserAvatar';
 import { useUserProfile } from '../../utils/user-profile';
 import { useCalendarEvents } from '../../hooks/useCalendarEvents';
+import { useCalendarSyncGroups } from '../../hooks/useCalendarSyncGroups';
+import { mergeLocalEventsWithSyncGroups } from '../../utils/calendar-sync-merge';
+import { targetsFromLinkedInstances } from '../../utils/calendar-linked-targets';
+import { patchCalendarSyncGroup } from '../../lib/calendar-linked-api';
 import { useTasks } from '../../contexts/TasksContext'; // PHASE 3: Task scheduling integration
 import { useEnergy } from '../../hooks/useEnergy'; // PHASE 1.6: Energy system integration
 import { EventModal } from '../EventModal';
+import { LinkedCalendarEventModal } from '../calendar/LinkedCalendarEventModal';
 import { TaskEventCard } from '../TaskEventCard';
 import { SmartEventDialog } from '../SmartEventDialog';
 import { IntegrationImports } from '../IntegrationImports';
@@ -161,6 +167,10 @@ import { getCurrentDate } from '../../utils/app-date';
 // 4. Remove the fixed zoomConfig object
 // ═══════════════════════════════════════════════════════════════════════════
 // import { CalendarZoomControls, ZOOM_LEVELS, ZoomLevel, getDefaultZoomLevel } from '../calendar/CalendarZoomControls';
+
+function eventTimeMs(v: Date | string): number {
+  return v instanceof Date ? v.getTime() : new Date(v).getTime();
+}
 
 export function CalendarEventsPage() {
   const location = useLocation(); // Track route changes
@@ -417,6 +427,13 @@ export function CalendarEventsPage() {
     deleteEvent: deleteEventFromStore,
     bulkUpdateEvents, // NEW: For updating entire events array (milestones/steps)
   } = useCalendarEvents();
+
+  const queryClient = useQueryClient();
+  const { data: syncGroupData } = useCalendarSyncGroups();
+  const mergedEvents = React.useMemo(
+    () => mergeLocalEventsWithSyncGroups(events, syncGroupData?.groups),
+    [events, syncGroupData?.groups],
+  );
   
   // PHASE 1.6: Energy system integration
   const { awardEnergy } = useEnergy();
@@ -434,27 +451,27 @@ export function CalendarEventsPage() {
   
   // PHASE 5E: Conflict detection and auto-layout
   const [showConflictBanner, setShowConflictBanner] = useState(true);
-  const [conflicts, setConflicts] = useState(() => detectConflicts(events));
+  const [conflicts, setConflicts] = useState(() => detectConflicts([] as Event[]));
   
   // Re-detect conflicts when events change
   React.useEffect(() => {
-    const detected = detectConflicts(events);
+    const detected = detectConflicts(mergedEvents);
     setConflicts(detected);
     
     // Auto-show banner if conflicts detected
     if (detected.length > 0 && !showConflictBanner) {
-      console.log('🚨 PHASE 5E: Conflicts detected!', getConflictSummary(events));
+      console.log('🚨 PHASE 5E: Conflicts detected!', getConflictSummary(mergedEvents));
     }
-  }, [events]);
+  }, [mergedEvents]);
   
   // Auto-layout handler
   const handleAutoLayout = React.useCallback(() => {
     console.log('🚀 Auto-layout started', { 
-      totalEvents: events.length,
+      totalEvents: mergedEvents.length,
       conflictsToResolve: conflicts.length 
     });
     
-    const layoutedEvents = autoLayoutAllConflicts(events);
+    const layoutedEvents = autoLayoutAllConflicts(mergedEvents);
     
     console.log('📐 Layout calculated', {
       layoutedEvents: layoutedEvents.filter(e => e.xPosition !== undefined).length
@@ -479,11 +496,11 @@ export function CalendarEventsPage() {
     });
     
     setShowConflictBanner(false);
-  }, [events, conflicts, updateEventInStore]);
+  }, [mergedEvents, conflicts, updateEventInStore]);
   
   // PHASE 2: Multi-select for Smart Layout Panel
   const [selectedEventIds, setSelectedEventIds] = useState<Set<string>>(new Set());
-  const selectedEvents = events.filter(e => selectedEventIds.has(e.id));
+  const selectedEvents = mergedEvents.filter(e => selectedEventIds.has(e.id));
   
   const handleApplySmartLayout = React.useCallback((updatedEvents: Event[]) => {
     updatedEvents.forEach(event => {
@@ -1478,14 +1495,15 @@ export function CalendarEventsPage() {
     tags: [],
   });
   
-  // Apply filters to events
+  // Apply filters to events (after linked-calendar dedupe merge)
   const filteredEvents = React.useMemo(() => {
-    return filterEvents(events, calendarFilters);
-  }, [events, calendarFilters]);
+    return filterEvents(mergedEvents, calendarFilters);
+  }, [mergedEvents, calendarFilters]);
   
   // Event/Task System State
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
   const [eventModalOpen, setEventModalOpen] = useState(false);
+  const [linkedCalModalOpen, setLinkedCalModalOpen] = useState(false);
   
   // Drag and drop state
   const [draggedTask, setDraggedTask] = useState<any>(null);
@@ -1525,13 +1543,81 @@ export function CalendarEventsPage() {
     setEventModalOpen(true);
   };
 
-  // Handle saving event
-  const handleSaveEvent = (updatedEvent: Event) => {
-    updateEventInStore(updatedEvent.id, updatedEvent);
-    toast.success('Event updated', {
-      description: 'All team members have been notified',
-    });
-  };
+  // Handle saving event — PATCH linked Google/Outlook when title/time changes (KV sync group)
+  const handleSaveEvent = React.useCallback(
+    async (updatedEvent: Event) => {
+      const prev = selectedEvent;
+      const syncId = updatedEvent.syncGroupId;
+      const sameCard = prev?.id === updatedEvent.id;
+
+      let shouldPatchProviders = false;
+      if (syncId && sameCard && prev) {
+        const startChanged = eventTimeMs(prev.startTime) !== eventTimeMs(updatedEvent.startTime);
+        const endChanged = eventTimeMs(prev.endTime) !== eventTimeMs(updatedEvent.endTime);
+        const titleChanged = prev.title !== updatedEvent.title;
+        shouldPatchProviders = titleChanged || startChanged || endChanged;
+      }
+
+      if (shouldPatchProviders && syncId) {
+        const targets = targetsFromLinkedInstances(
+          updatedEvent.linkedCalendarInstances ?? prev?.linkedCalendarInstances,
+        );
+        if (targets.length === 0) {
+          updateEventInStore(updatedEvent.id, updatedEvent);
+          toast.success('Event updated', {
+            description:
+              'Saved locally. Use “Edit which calendars” if you need to sync Google or Outlook.',
+          });
+          return;
+        }
+        try {
+          const payload = await patchCalendarSyncGroup(syncId, {
+            targets,
+            title: updatedEvent.title,
+            start_time:
+              updatedEvent.startTime instanceof Date
+                ? updatedEvent.startTime.toISOString()
+                : String(updatedEvent.startTime),
+            end_time:
+              updatedEvent.endTime instanceof Date
+                ? updatedEvent.endTime.toISOString()
+                : String(updatedEvent.endTime),
+            time_zone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+          });
+
+          let next: Event = updatedEvent;
+          if (payload.group?.instances?.length) {
+            next = {
+              ...updatedEvent,
+              linkedCalendarInstances: payload.group.instances.map((i) => ({
+                provider: i.provider,
+                eventId: i.event_id,
+                link: i.link ?? null,
+              })),
+            };
+          }
+
+          updateEventInStore(next.id, next);
+          void queryClient.invalidateQueries({ queryKey: ['calendar-sync-groups'] });
+          toast.success('Event updated', {
+            description: 'Synced to connected Google Calendar and/or Outlook.',
+          });
+        } catch (err) {
+          updateEventInStore(updatedEvent.id, updatedEvent);
+          toast.error(err instanceof Error ? err.message : 'Calendar sync failed', {
+            description: 'Your changes are saved only in SyncScript.',
+          });
+        }
+        return;
+      }
+
+      updateEventInStore(updatedEvent.id, updatedEvent);
+      toast.success('Event updated', {
+        description: 'All team members have been notified',
+      });
+    },
+    [selectedEvent, updateEventInStore, queryClient],
+  );
   
   // MILESTONE & STEP COMPLETION HANDLERS (NEW)
   // RESEARCH: Inline completion from Calendar (Notion 2021 + Linear 2024)
@@ -2329,7 +2415,7 @@ export function CalendarEventsPage() {
               
               {/* PHASE 3: AI Calendar Optimization Button */}
               <CalendarOptimizeButton
-                events={events}
+                events={mergedEvents}
                 onOptimize={(optimizedEvents) => {
                   // Apply optimized schedule
                   console.log('[Phase 3] Applying optimized calendar:', optimizedEvents);
@@ -2456,7 +2542,7 @@ export function CalendarEventsPage() {
               {/* PHASE 4: Multi-Day Scroll View or Single Day View */}
               {currentView === 'day' && !isMultiDayMode && <DayCalendarView 
               currentDate={currentDate} 
-              events={events} 
+              events={filteredEvents} 
               onEventClick={handleOpenEvent}
               getParentEventName={getParentEventName}
               dragHook={dragHook}
@@ -2553,7 +2639,7 @@ export function CalendarEventsPage() {
             {currentView === 'day' && isMultiDayMode && <SimpleMultiDayCalendar
               ref={calendarRef}
               centerDate={centerDate}
-              events={events}
+              events={filteredEvents}
               onEventClick={handleOpenEvent}
               getParentEventName={getParentEventName}
               onUnschedule={handleUnscheduleEvent}
@@ -2764,7 +2850,7 @@ export function CalendarEventsPage() {
           <div className="flex-shrink-0 flex flex-col space-y-4" style={{ width: '320px' }}>
             {/* Calendar Intelligence Banner - moved to sidebar */}
             {(currentView === 'day' || currentView === 'week') && (
-              <CalendarIntelligenceBanner events={events} currentDate={currentDate} />
+              <CalendarIntelligenceBanner events={mergedEvents} currentDate={currentDate} />
             )}
             
             {/* PHASE 5E: Conflict Detection Card - Shows conflicts and allows auto-layout */}
@@ -2815,7 +2901,7 @@ export function CalendarEventsPage() {
             
             {/* PHASE 4: Smart Break Suggestions */}
             <SmartBreakSuggestions 
-                events={events}
+                events={mergedEvents}
                 currentDate={currentDate}
                 onScheduleBreak={(time, duration) => {
                   const breakEvent: Event = {
@@ -2879,7 +2965,10 @@ export function CalendarEventsPage() {
             onSave={handleSaveEvent}
             onSaveAsScript={handleSaveAsScript}
             onCompleteEvent={handleCompleteEvent}
-            allEvents={events}
+            allEvents={mergedEvents}
+            onManageLinkedCalendars={
+              selectedEvent.syncGroupId ? () => setLinkedCalModalOpen(true) : undefined
+            }
             onBulkUpdate={(updatedEvents) => {
               console.log('🎯 CalendarEventsPage.onBulkUpdate called', {
                 updatedEventsCount: updatedEvents.length,
@@ -2894,6 +2983,16 @@ export function CalendarEventsPage() {
               toast.success('Events updated', {
                 description: `Updated ${updatedEvents.length} events`,
               });
+            }}
+          />
+        )}
+        {selectedEvent && (
+          <LinkedCalendarEventModal
+            open={linkedCalModalOpen}
+            onOpenChange={setLinkedCalModalOpen}
+            event={selectedEvent}
+            onSaved={() => {
+              void queryClient.invalidateQueries({ queryKey: ['calendar-sync-groups'] });
             }}
           />
         )}
@@ -2913,7 +3012,7 @@ export function CalendarEventsPage() {
         <FloatingMiniTimeline
           visible={showMiniTimeline}
           taskTitle={draggedTask?.title || ''}
-          events={events}
+          events={mergedEvents}
           currentDate={currentDate}
           onSchedule={handleMiniTimelineSchedule}
           onClose={() => {
@@ -3792,11 +3891,17 @@ function EventCard({ event, compact = false, showAttendees = false }: { event: a
 }
 
 function UpcomingEventsPanel() {
+  const { profile } = useUserProfile();
   const { events } = useCalendarEvents(); // Use the hook to get all events
+  const { data: syncGroupData } = useCalendarSyncGroups();
+  const merged = React.useMemo(
+    () => mergeLocalEventsWithSyncGroups(events, syncGroupData?.groups),
+    [events, syncGroupData?.groups],
+  );
   
   // Get upcoming events from hook data
   const now = getCurrentDate(); // Use current application date
-  const upcomingEvents = events
+  const upcomingEvents = merged
     .filter(event => new Date(event.startTime) > now)
     .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime())
     .slice(0, 4);

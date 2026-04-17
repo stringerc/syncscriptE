@@ -17749,3 +17749,94 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
   animation: nexus-ios-dot 1.2s ease-in-out infinite;
   will-change: transform, opacity;
 }
+
+/*
+  Dashboard shell — rail vs main column (hit-testing / z-order).
+  Tailwind v4 + arbitrary + responsive + important combos for the layout shell were
+  not reliably present in the built CSS (computed margin-left: 0, z-index: auto on #app-sidebar-rail),
+  so main#content painted above the rail and swallowed clicks on /tasks. These rules are the source of truth.
+*/
+/* Below dialog overlays (z ~400); above main chrome and stray Radix layers */
+#app-sidebar-rail {
+  z-index: 399;
+  isolation: isolate;
+  pointer-events: auto;
+}
+
+@media (min-width: 768px) {
+  #app-sidebar-rail {
+    align-items: center;
+  }
+
+  #app-sidebar-rail .ambient-scrollbar {
+    align-self: stretch;
+  }
+
+  #app-sidebar-rail [data-nav^='sidebar-'],
+  #app-sidebar-rail [data-nav='sidebar-settings'] {
+    position: relative;
+    z-index: 1;
+  }
+}
+
+[data-syncscript-dashboard-main] {
+  margin-left: 0;
+}
+
+@media (min-width: 768px) {
+  [data-syncscript-dashboard-main] {
+    margin-left: 3.5rem; /* md:w-14 rail */
+  }
+}
+
+@media (min-width: 1024px) {
+  [data-syncscript-dashboard-main] {
+    margin-left: 100px; /* lg:w-[100px] rail */
+  }
+}
+
+[data-syncscript-guest-banner] {
+  left: 0;
+  right: 0;
+}
+
+@media (min-width: 768px) {
+  [data-syncscript-guest-banner] {
+    left: 3.5rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  [data-syncscript-guest-banner] {
+    left: 100px;
+  }
+}
+
+/* Mobile bottom bar — same band as #app-sidebar-rail; class also sets z-[399] */
+#syncscript-mobile-bottom-nav {
+  pointer-events: auto;
+  touch-action: manipulation;
+}
+
+/* Safe area inset for notched phones (iPhone X+) */
+.safe-area-inset-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* Mobile touch improvements */
+@media (max-width: 767px) {
+  /* Prevent text size adjustments on orientation change */
+  html { -webkit-text-size-adjust: 100%; }
+  
+  /* Smooth scrolling on iOS */
+  .overflow-y-auto, .overflow-auto { -webkit-overflow-scrolling: touch; }
+  
+  /* Prevent pull-to-refresh on inner scroll areas */
+  body { overscroll-behavior-y: contain; }
+  
+  /* Ensure tap targets are at least 44px (Apple HIG) */
+  button, a, [role="button"] { min-height: 44px; min-width: 44px; }
+  
+  /* Smaller min for icon-only buttons */
+  button[size="icon"], .h-6, .h-7, .h-8 { min-height: unset; min-width: unset; }
+}

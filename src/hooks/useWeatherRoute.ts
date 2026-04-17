@@ -31,6 +31,8 @@
 
 import { useState, useEffect } from 'react';
 import { projectId, publicAnonKey } from '../utils/supabase/info';
+import type { ForecastDaySlice } from '../utils/weather-event-conflicts';
+import { getWeatherCoords, WEATHER_COORDS_FALLBACK } from '../utils/weather-geolocation';
 
 export interface WeatherData {
   temp: number;
@@ -63,12 +65,52 @@ export interface RouteAlert {
   suggestion?: string;
 }
 
+export interface ForecastOutlookState {
+  daily: ForecastDaySlice[];
+  location: string;
+  demo: boolean;
+}
+
+function humanizeCondition(condition: string): string {
+  const k = condition.trim();
+  const map: Record<string, string> = {
+    Clear: 'Clear sky',
+    Clouds: 'Cloudy',
+    Rain: 'Rain',
+    Drizzle: 'Light drizzle',
+    Thunderstorm: 'Thunderstorms',
+    Snow: 'Snow',
+    Mist: 'Misty',
+    Fog: 'Foggy',
+    Haze: 'Haze',
+  };
+  return map[k] || `${k} conditions`;
+}
+
+function normalizeWeatherPayload(raw: Record<string, unknown>): WeatherData {
+  const condition = String(raw.condition ?? 'Clear');
+  return {
+    temp: Math.round(Number(raw.temp ?? 68)),
+    condition,
+    description:
+      typeof raw.description === 'string' && raw.description.length > 0
+        ? raw.description
+        : humanizeCondition(condition),
+    icon: String(raw.icon ?? '01d'),
+    humidity: Math.round(Number(raw.humidity ?? 0)),
+    windSpeed: Math.round(Number(raw.windSpeed ?? 0)),
+    city: String(raw.city ?? raw.location ?? 'Your area'),
+    demo: Boolean(raw.demo),
+  };
+}
+
 interface UseWeatherRouteReturn {
   weather: WeatherData | null;
   weatherAlerts: WeatherAlert[];
   routeAlerts: RouteAlert[];
   loading: boolean;
   error: string | null;
+  forecastOutlook: ForecastOutlookState | null;
 }
 
 export function useWeatherRoute(): UseWeatherRouteReturn {
@@ -77,56 +119,97 @@ export function useWeatherRoute(): UseWeatherRouteReturn {
   const [routeAlerts, setRouteAlerts] = useState<RouteAlert[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [forecastOutlook, setForecastOutlook] = useState<ForecastOutlookState | null>(null);
 
   const fetchWeather = async (lat: number, lon: number) => {
     try {
-      const url = `https://${projectId}.supabase.co/functions/v1/make-server-57781ad9/weather?lat=${lat}&lon=${lon}`;
-      
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 5000);
-      
-      const response = await fetch(url, {
-        headers: {
-          'Authorization': `Bearer ${publicAnonKey}`
-        },
-        signal: controller.signal
-      });
-      
-      clearTimeout(timeoutId);
-      
-      if (!response.ok) {
-        throw new Error('Weather fetch failed');
-      }
-      
-      const data: WeatherData = await response.json();
-      setWeather(data);
-      
-      // Generate weather alerts based on conditions
-      generateWeatherAlerts(data);
-      
-      // Generate mock route alerts (TODO: integrate with real traffic API)
-      generateRouteAlerts();
-      
-      setLoading(false);
-    } catch (err) {
-      // Don't log AbortError - it's expected when request is aborted (timeout or unmount)
-      if (err instanceof Error && err.name !== 'AbortError') {
-        console.error('[useWeatherRoute] Error fetching weather:', err);
-      }
-      setError('Failed to load weather data');
-      setLoading(false);
-      
-      // Set demo data on error
-      setWeather({
+      const headers = { Authorization: `Bearer ${publicAnonKey}` } as const;
+      const base = `https://${projectId}.supabase.co/functions/v1/make-server-57781ad9`;
+
+      const fallback: WeatherData = {
         temp: 68,
         condition: 'Clear',
         description: 'Clear sky',
         icon: '01d',
         humidity: 65,
         windSpeed: 5,
-        city: 'San Francisco',
-        demo: true
-      });
+        city: 'Your area',
+        demo: true,
+      };
+
+      let normalized: WeatherData = fallback;
+
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000);
+
+        const response = await fetch(`${base}/weather?lat=${lat}&lon=${lon}`, {
+          headers,
+          signal: controller.signal,
+        });
+
+        clearTimeout(timeoutId);
+
+        if (response.ok) {
+          const raw = (await response.json()) as Record<string, unknown>;
+          normalized = normalizeWeatherPayload(raw);
+          setError(null);
+        } else {
+          setError('Failed to load weather data');
+        }
+      } catch (err) {
+        if (err instanceof Error && err.name !== 'AbortError') {
+          console.error('[useWeatherRoute] Error fetching weather:', err);
+        }
+        setError('Failed to load weather data');
+      }
+
+      setWeather(normalized);
+      generateWeatherAlerts(normalized);
+      generateRouteAlerts();
+
+      try {
+        const now = new Date();
+        const lp = (n: number) => String(n).padStart(2, '0');
+        const localDate = `${now.getFullYear()}-${lp(now.getMonth() + 1)}-${lp(now.getDate())}`;
+        const fc = new AbortController();
+        const ft = setTimeout(() => fc.abort(), 8000);
+        const fr = await fetch(
+          `${base}/weather/forecast?lat=${lat}&lon=${lon}&localDate=${encodeURIComponent(localDate)}`,
+          {
+            headers,
+            signal: fc.signal,
+          },
+        );
+        clearTimeout(ft);
+
+        if (fr.ok) {
+          const raw = (await fr.json()) as Record<string, unknown>;
+          const daily = Array.isArray(raw.daily) ? raw.daily : [];
+          setForecastOutlook({
+            location: String(raw.location ?? normalized.city),
+            demo: Boolean(raw.demo),
+            daily: daily.map((d: Record<string, unknown>) => ({
+              dateKey: String(d.dateKey),
+              weekdayShort: String(d.weekdayShort),
+              monthDay: String(d.monthDay),
+              tempMin: Math.round(Number(d.tempMin)),
+              tempMax: Math.round(Number(d.tempMax)),
+              condition: String(d.condition),
+              description: String(d.description ?? ''),
+              icon: String(d.icon),
+              pop: typeof d.pop === 'number' ? d.pop : Number(d.pop) || 0,
+              windMax: d.windMax != null ? Math.round(Number(d.windMax)) : undefined,
+            })),
+          });
+        } else {
+          setForecastOutlook(null);
+        }
+      } catch {
+        setForecastOutlook(null);
+      }
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -285,25 +368,21 @@ export function useWeatherRoute(): UseWeatherRouteReturn {
   };
 
   useEffect(() => {
-    // Try browser geolocation first
-    if ('geolocation' in navigator) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          fetchWeather(position.coords.latitude, position.coords.longitude);
-        },
-        () => {
-          // User denied or error - fallback to San Francisco
-          fetchWeather(37.7749, -122.4194);
-        },
-        {
-          timeout: 3000,
-          maximumAge: 300000 // Cache for 5 minutes
+    let cancelled = false;
+    void (async () => {
+      try {
+        const { lat, lon } = await getWeatherCoords();
+        if (cancelled) return;
+        await fetchWeather(lat, lon);
+      } catch {
+        if (!cancelled) {
+          await fetchWeather(WEATHER_COORDS_FALLBACK.lat, WEATHER_COORDS_FALLBACK.lon);
         }
-      );
-    } else {
-      // No geolocation - fallback to San Francisco
-      fetchWeather(37.7749, -122.4194);
-    }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   return {
@@ -311,6 +390,7 @@ export function useWeatherRoute(): UseWeatherRouteReturn {
     weatherAlerts,
     routeAlerts,
     loading,
-    error
+    error,
+    forecastOutlook,
   };
 }

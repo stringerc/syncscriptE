@@ -4,6 +4,34 @@ import { createClient } from '@supabase/supabase-js';
 const SUPABASE_URL = process.env.SUPABASE_URL || `https://${process.env.SUPABASE_PROJECT_ID || 'kwhnrlzibgfedtxpkbgb'}.supabase.co`;
 const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || '';
 
+export interface AuthenticatedSupabaseUser {
+  userId: string;
+  email: string | null;
+  accessToken: string;
+}
+
+/**
+ * Returns the signed-in Supabase user from the Bearer JWT, or null if missing / anon / invalid.
+ * Does not send HTTP responses — use for tool execution after validateAuth passed.
+ */
+export async function getAuthenticatedSupabaseUser(req: VercelRequest): Promise<AuthenticatedSupabaseUser | null> {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) return null;
+
+  const token = authHeader.replace('Bearer ', '');
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) return null;
+  if (!token || token === SUPABASE_ANON_KEY) return null;
+
+  try {
+    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    const { data: { user }, error } = await supabase.auth.getUser(token);
+    if (error || !user) return null;
+    return { userId: user.id, email: user.email ?? null, accessToken: token };
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Validates the Authorization header contains a valid Supabase JWT or the anon key.
  * Returns the user if authenticated, or sends a 401 response.

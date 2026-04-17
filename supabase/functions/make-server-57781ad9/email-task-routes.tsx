@@ -2,6 +2,18 @@ import { Hono } from "npm:hono";
 import { createClient } from "npm:@supabase/supabase-js";
 import * as kv from "./kv_store.tsx";
 import { getValidToken } from "./oauth-routes.tsx";
+import { registerInvoiceBillingCron } from "./invoice-billing-cron.tsx";
+import {
+  createGoogleCalendarEvent,
+  createOutlookCalendarEvent,
+  syncCalendarEventToTargets,
+  updateGoogleCalendarEvent,
+  updateOutlookCalendarEvent,
+  deleteGoogleCalendarEvent,
+  deleteOutlookCalendarEvent,
+  type IntegrationActionResult,
+  type CalendarEventInput,
+} from "./integration-actions.tsx";
 
 const app = new Hono();
 
@@ -11,6 +23,130 @@ const supabase = createClient(
 );
 
 const TASKS_KEY = (userId: string) => `tasks:v1:${userId}`;
+const CALENDAR_HOLD_PREFS_KEY = (userId: string) => `calendar:hold_prefs:v1:${userId}`;
+const CALENDAR_SYNC_GROUPS_KEY = (userId: string) => `calendar:sync_groups:v1:${userId}`;
+
+type CalendarHoldPrefs = { autoTargets?: ("google" | "outlook")[] };
+
+type CalendarSyncGroup = {
+  id: string;
+  created_at: string;
+  title: string;
+  start_time: string;
+  end_time: string;
+  instances: { provider: string; event_id?: string; link?: string | null }[];
+};
+
+function normalizeHoldTargets(raw: unknown): ("google" | "outlook")[] | null {
+  if (!Array.isArray(raw) || raw.length === 0) return null;
+  const out: ("google" | "outlook")[] = [];
+  for (const x of raw) {
+    const s = String(x).toLowerCase();
+    if (s === "google" || s === "outlook") out.push(s);
+  }
+  return out.length ? out : null;
+}
+
+async function appendCalendarSyncGroup(
+  userId: string,
+  title: string,
+  startTime: string,
+  endTime: string,
+  results: IntegrationActionResult[],
+): Promise<string | null> {
+  const ok = results.filter((r) => r.success && r.data);
+  if (ok.length === 0) return null;
+  const id = crypto.randomUUID();
+  const instances = ok.map((r) => ({
+    provider: r.provider,
+    event_id: r.data?.eventId as string | undefined,
+    link: (r.data?.htmlLink ?? r.data?.webLink) as string | null | undefined,
+  }));
+  const row: CalendarSyncGroup = {
+    id,
+    created_at: new Date().toISOString(),
+    title,
+    start_time: startTime,
+    end_time: endTime,
+    instances,
+  };
+  const key = CALENDAR_SYNC_GROUPS_KEY(userId);
+  const prev = (await kv.get(key)) as { groups?: CalendarSyncGroup[] } | null;
+  const groups = Array.isArray(prev?.groups) ? [...prev.groups] : [];
+  groups.unshift(row);
+  await kv.set(key, { groups: groups.slice(0, 100) });
+  return id;
+}
+
+function toShortCalendarProvider(p: string): "google" | "outlook" | null {
+  const s = p.toLowerCase();
+  if (s.includes("google")) return "google";
+  if (s.includes("outlook")) return "outlook";
+  return null;
+}
+
+/** Reconcile KV-linked instances with desired targets; update/create/delete provider events. */
+async function reconcileCalendarSyncGroupInstances(
+  userId: string,
+  group: CalendarSyncGroup,
+  targets: ("google" | "outlook")[],
+  eventInput: CalendarEventInput,
+): Promise<{ instances: CalendarSyncGroup["instances"]; results: IntegrationActionResult[] }> {
+  const results: IntegrationActionResult[] = [];
+  const want = new Set(targets);
+  const byShort = new Map<string, CalendarSyncGroup["instances"][number]>();
+
+  for (const inst of group.instances) {
+    const sh = toShortCalendarProvider(inst.provider);
+    if (sh) byShort.set(sh, { ...inst });
+  }
+
+  for (const sh of ["google", "outlook"] as const) {
+    const need = want.has(sh);
+    const had = byShort.get(sh);
+
+    if (!need && had?.event_id) {
+      const r = sh === "google"
+        ? await deleteGoogleCalendarEvent(userId, had.event_id)
+        : await deleteOutlookCalendarEvent(userId, had.event_id);
+      results.push(r);
+      if (r.success) byShort.delete(sh);
+      continue;
+    }
+
+    if (need && had?.event_id) {
+      const r = sh === "google"
+        ? await updateGoogleCalendarEvent(userId, had.event_id, eventInput)
+        : await updateOutlookCalendarEvent(userId, had.event_id, eventInput);
+      results.push(r);
+      if (r.success) {
+        byShort.set(sh, {
+          provider: sh === "google" ? "google_calendar" : "outlook_calendar",
+          event_id: (r.data?.eventId as string | undefined) || had.event_id,
+          link: (r.data?.htmlLink ?? r.data?.webLink ?? had.link) as string | null | undefined,
+        });
+      }
+      continue;
+    }
+
+    if (need && !had?.event_id) {
+      const r = sh === "google"
+        ? await createGoogleCalendarEvent(userId, eventInput)
+        : await createOutlookCalendarEvent(userId, eventInput);
+      results.push(r);
+      if (r.success && r.data?.eventId) {
+        byShort.set(sh, {
+          provider: sh === "google" ? "google_calendar" : "outlook_calendar",
+          event_id: r.data.eventId as string,
+          link: (r.data.htmlLink ?? r.data.webLink) as string | null | undefined,
+        });
+      }
+    }
+  }
+
+  return { instances: Array.from(byShort.values()), results };
+}
+
 const EMAIL_SETTINGS_KEY = (userId: string) => `email:settings:${userId}`;
 const EMAIL_CACHE_KEY = (userId: string, provider: string) => `email:cache:${userId}:${provider}:metadata`;
 const EMAIL_EVENT_DEDUPE_KEY = (provider: string, userId: string, messageId: string) =>
@@ -349,6 +485,13 @@ app.post("/tasks", async (c) => {
   }, user.email || "You");
   tasks.push(task);
   await saveTasks(user.id, tasks);
+
+  const verify = await getTasks(user.id);
+  if (!verify.some((t) => t.id === task.id)) {
+    console.error("[TASKS] Write-verify FAILED for", task.id, "user", user.id);
+    return c.json({ error: "Task write could not be verified — please retry" }, 500);
+  }
+
   return c.json(task);
 });
 
@@ -398,6 +541,255 @@ app.post("/tasks/:id/toggle", async (c) => {
   );
   await saveTasks(user.id, tasks);
   return c.json(tasks[idx]);
+});
+
+/**
+ * GET /calendar/hold-preferences — default calendars for provider=auto (Hermes + UI).
+ * PUT body: { autoTargets: ("google"|"outlook")[] } — empty = all connected (same as both).
+ */
+app.get("/calendar/hold-preferences", async (c) => {
+  const user = await requireUser(c);
+  if (!user) return c.json({ error: "Unauthorized" }, 401);
+  const prefs = (await kv.get(CALENDAR_HOLD_PREFS_KEY(user.id))) as CalendarHoldPrefs | null;
+  return c.json({
+    autoTargets: prefs?.autoTargets ?? ["google", "outlook"],
+    hint: "Omit or set both for ‘all connected’. Single entry limits auto holds to that provider only.",
+  });
+});
+
+app.put("/calendar/hold-preferences", async (c) => {
+  const user = await requireUser(c);
+  if (!user) return c.json({ error: "Unauthorized" }, 401);
+  let body: Record<string, unknown> = {};
+  try {
+    body = (await c.req.json()) as Record<string, unknown>;
+  } catch {
+    return c.json({ error: "Invalid JSON" }, 400);
+  }
+  const raw = body.autoTargets;
+  if (raw !== undefined && !Array.isArray(raw)) {
+    return c.json({ error: "autoTargets must be an array" }, 400);
+  }
+  const normalized = normalizeHoldTargets(raw ?? ["google", "outlook"]);
+  if (!normalized) {
+    await kv.set(CALENDAR_HOLD_PREFS_KEY(user.id), { autoTargets: ["google", "outlook"] });
+    return c.json({ ok: true, autoTargets: ["google", "outlook"] });
+  }
+  await kv.set(CALENDAR_HOLD_PREFS_KEY(user.id), { autoTargets: normalized });
+  return c.json({ ok: true, autoTargets: normalized });
+});
+
+/** GET /calendar/sync-groups — recent linked holds (same logical event across providers). For merged UI. */
+app.get("/calendar/sync-groups", async (c) => {
+  const user = await requireUser(c);
+  if (!user) return c.json({ error: "Unauthorized" }, 401);
+  const prev = (await kv.get(CALENDAR_SYNC_GROUPS_KEY(user.id))) as { groups?: CalendarSyncGroup[] } | null;
+  const groups = Array.isArray(prev?.groups) ? prev.groups : [];
+  return c.json({ groups });
+});
+
+/**
+ * PATCH /calendar/sync-group/:id — update title/time and/or which providers host this hold.
+ * Body: { targets: ("google"|"outlook")[], title?, start_time?, end_time?, time_zone? }
+ */
+app.patch("/calendar/sync-group/:id", async (c) => {
+  const user = await requireUser(c);
+  if (!user) return c.json({ error: "Unauthorized" }, 401);
+  const id = c.req.param("id");
+  let body: Record<string, unknown> = {};
+  try {
+    body = (await c.req.json()) as Record<string, unknown>;
+  } catch {
+    return c.json({ error: "Invalid JSON" }, 400);
+  }
+  const targets = normalizeHoldTargets(body.targets);
+  if (!targets?.length) {
+    return c.json({ error: "targets must be a non-empty array of google and/or outlook" }, 400);
+  }
+
+  const key = CALENDAR_SYNC_GROUPS_KEY(user.id);
+  const prev = (await kv.get(key)) as { groups?: CalendarSyncGroup[] } | null;
+  const groups = Array.isArray(prev?.groups) ? [...prev.groups] : [];
+  const idx = groups.findIndex((g) => g.id === id);
+  if (idx < 0) return c.json({ error: "Sync group not found" }, 404);
+  const group = groups[idx];
+
+  const title =
+    typeof body.title === "string" && body.title.trim() ? body.title.trim() : group.title;
+  const start_time =
+    typeof body.start_time === "string" && body.start_time.trim()
+      ? body.start_time.trim()
+      : group.start_time;
+  const end_time =
+    typeof body.end_time === "string" && body.end_time.trim()
+      ? body.end_time.trim()
+      : group.end_time;
+  const timeZone =
+    typeof body.time_zone === "string" && body.time_zone.trim()
+      ? body.time_zone.trim()
+      : undefined;
+
+  const eventInput: CalendarEventInput = {
+    title,
+    startTime: start_time,
+    endTime: end_time,
+    ...(timeZone ? { timeZone } : {}),
+  };
+
+  const { instances, results } = await reconcileCalendarSyncGroupInstances(
+    user.id,
+    group,
+    targets,
+    eventInput,
+  );
+
+  const anyFailure = results.some((r) => !r.success);
+  if (anyFailure) {
+    return c.json(
+      {
+        error: results.filter((r) => !r.success).map((r) => r.error || r.provider).join("; "),
+        results,
+      },
+      502,
+    );
+  }
+
+  if (instances.length === 0) {
+    groups.splice(idx, 1);
+    await kv.set(key, { groups });
+    return c.json({ ok: true, removed: true, results });
+  }
+
+  groups[idx] = {
+    ...group,
+    title,
+    start_time,
+    end_time,
+    instances,
+  };
+  await kv.set(key, { groups });
+  return c.json({ ok: true, group: groups[idx], results });
+});
+
+/**
+ * POST /calendar/hold — authenticated quick hold (Hermes executor + connected calendars).
+ * Body: { title, start_iso, end_iso?, provider?, time_zone?, targets? }
+ *   provider: "auto" | "google" | "outlook"
+ *   targets: optional ["google","outlook"] when provider=auto — per-request override; else uses GET /calendar/hold-preferences.
+ * Default end = start + 30m if end_iso omitted.
+ * Response may include sync_group_id when instances are recorded for cross-calendar linking.
+ */
+app.post("/calendar/hold", async (c) => {
+  const user = await requireUser(c);
+  if (!user) return c.json({ error: "Unauthorized" }, 401);
+  let body: Record<string, unknown> = {};
+  try {
+    body = (await c.req.json()) as Record<string, unknown>;
+  } catch {
+    return c.json({ error: "Invalid JSON" }, 400);
+  }
+  const title = String(body.title || "").trim();
+  const startIso = String(body.start_iso || body.startTime || "").trim();
+  let endIso = String(body.end_iso || body.endTime || "").trim();
+  const timeZone = String(body.time_zone || body.timeZone || "").trim() || undefined;
+  const rawProvider = String(body.provider || "auto").toLowerCase();
+  if (!title || !startIso) {
+    return c.json({ error: "title and start_iso required" }, 400);
+  }
+  if (!["auto", "google", "outlook"].includes(rawProvider)) {
+    return c.json({ error: "provider must be auto, google, or outlook" }, 400);
+  }
+  const start = new Date(startIso);
+  if (Number.isNaN(start.getTime())) {
+    return c.json({ error: "invalid start_iso" }, 400);
+  }
+  let end: Date;
+  if (endIso) {
+    end = new Date(endIso);
+    if (Number.isNaN(end.getTime())) {
+      return c.json({ error: "invalid end_iso" }, 400);
+    }
+  } else {
+    end = new Date(start.getTime() + 30 * 60 * 1000);
+  }
+
+  const eventInput = {
+    title,
+    startTime: start.toISOString(),
+    endTime: end.toISOString(),
+    ...(timeZone ? { timeZone } : {}),
+  };
+
+  let results: IntegrationActionResult[];
+  if (rawProvider === "google") {
+    results = [await createGoogleCalendarEvent(user.id, eventInput)];
+  } else if (rawProvider === "outlook") {
+    results = [await createOutlookCalendarEvent(user.id, eventInput)];
+  } else {
+    const explicit = normalizeHoldTargets(body.targets);
+    let targets: ("google" | "outlook")[];
+    if (explicit) {
+      targets = explicit;
+    } else {
+      const prefs = (await kv.get(CALENDAR_HOLD_PREFS_KEY(user.id))) as CalendarHoldPrefs | null;
+      targets = prefs?.autoTargets?.length ? prefs.autoTargets : ["google", "outlook"];
+    }
+    results = await syncCalendarEventToTargets(user.id, eventInput, targets);
+  }
+
+  if (results.length === 0) {
+    return c.json(
+      {
+        error: "No calendar connected — connect Google Calendar and/or Outlook in Integrations",
+        code: "NO_CALENDAR",
+      },
+      422,
+    );
+  }
+
+  const anySuccess = results.some((r) => r.success);
+  if (!anySuccess) {
+    return c.json(
+      {
+        error: results.map((r) => r.error || `${r.provider} failed`).join("; "),
+        results: results.map((r) => ({
+          provider: r.provider,
+          success: r.success,
+          error: r.error,
+        })),
+      },
+      502,
+    );
+  }
+
+  const syncGroupId = await appendCalendarSyncGroup(
+    user.id,
+    title,
+    eventInput.startTime,
+    eventInput.endTime,
+    results,
+  );
+
+  const firstOk = results.find((r) => r.success);
+  const payload: Record<string, unknown> = {
+    success: true,
+    provider_mode: rawProvider,
+    results: results.map((r) => ({
+      provider: r.provider,
+      success: r.success,
+      error: r.error || null,
+      data: r.data || null,
+    })),
+  };
+  if (syncGroupId) {
+    payload.sync_group_id = syncGroupId;
+  }
+  if (firstOk?.data) {
+    payload.event_id = firstOk.data.eventId;
+    payload.html_link = firstOk.data.htmlLink ?? firstOk.data.webLink;
+    payload.summary = firstOk.data.summary ?? firstOk.data.subject;
+  }
+  return c.json(payload);
 });
 
 app.get("/email/settings", async (c) => {
@@ -763,6 +1155,408 @@ app.get("/email/automation/metrics", async (c) => {
     emailCompletedTasks: emailCompleted,
     sentEventsProcessed: Array.isArray(logs) ? logs.length : 0,
   });
+});
+
+/**
+ * Internal: Vercel Nexus phone tool executor (secret header). Creates tasks in KV for userId without a browser JWT.
+ */
+app.post("/phone/nexus-execute", async (c) => {
+  const secret = Deno.env.get("NEXUS_PHONE_EDGE_SECRET");
+  const hdr = c.req.header("x-nexus-internal-secret");
+  if (!secret || hdr !== secret) {
+    return c.json({ error: "Unauthorized" }, 401);
+  }
+  const body = await c.req.json().catch(() => ({}));
+  const userId = typeof body.userId === "string" ? body.userId.trim() : "";
+  const task = body.task;
+  if (!userId || !task || typeof task !== "object") {
+    return c.json({ error: "userId and task object required" }, 400);
+  }
+  const { data: userRow, error: userErr } = await supabase.auth.admin.getUserById(userId);
+  if (userErr || !userRow?.user) {
+    return c.json({ error: "Invalid user" }, 404);
+  }
+  const emailLabel = userRow.user.email || "You";
+  const tasks = await getTasks(userId);
+  const now = new Date().toISOString();
+  const normalized = normalizeTask(
+    {
+      ...task,
+      id: `task_${Date.now()}_${crypto.randomUUID().slice(0, 8)}`,
+      createdAt: now,
+      updatedAt: now,
+      completed: false,
+      status: "todo",
+      progress: 0,
+    },
+    emailLabel,
+  );
+  tasks.push(normalized);
+  await saveTasks(userId, tasks);
+
+  const verify = await getTasks(userId);
+  if (!verify.some((t) => t.id === normalized.id)) {
+    console.error("[PHONE-NEXUS] Write-verify FAILED for", normalized.id, "user", userId);
+    return c.json({ error: "Task write could not be verified — please retry" }, 500);
+  }
+
+  return c.json(normalized);
+});
+
+// ============================================================================
+// INVOICE ROUTES — KV-backed invoice persistence
+// ============================================================================
+
+const INVOICES_KEY = (userId: string) => `invoices:v1:${userId}`;
+
+type InvoiceRecord = {
+  id: string;
+  status: "sent" | "viewed" | "paid" | "overdue" | "cancelled";
+  to_email: string;
+  to_name?: string;
+  items: { description: string; quantity: number; unit_price: number }[];
+  subtotal: number;
+  tax_percent?: number;
+  tax_amount: number;
+  total: number;
+  notes?: string;
+  due_date?: string;
+  created_at: string;
+  paid_at?: string;
+  viewed_at?: string;
+  stripe_payment_link?: string;
+  stripe_session_id?: string;
+  resend_email_id?: string;
+  _userId?: string;
+  reminder_count?: number;
+  last_reminder_at?: string;
+  to_phone?: string;
+  collection_call_consent?: boolean;
+  last_collection_call_at?: string;
+};
+
+async function getInvoices(userId: string): Promise<InvoiceRecord[]> {
+  const existing = await kv.get(INVOICES_KEY(userId));
+  if (!Array.isArray(existing)) return [];
+  return existing as InvoiceRecord[];
+}
+
+async function saveInvoices(userId: string, invoices: InvoiceRecord[]): Promise<void> {
+  await kv.set(INVOICES_KEY(userId), invoices);
+}
+
+app.get("/invoices", async (c) => {
+  const user = await requireUser(c);
+  if (!user) return c.json({ error: "Unauthorized" }, 401);
+  const invoices = await getInvoices(user.id);
+  return c.json(invoices);
+});
+
+app.post("/invoices", async (c) => {
+  const user = await requireUser(c);
+  if (!user) return c.json({ error: "Unauthorized" }, 401);
+  const body = await c.req.json();
+  const invoices = await getInvoices(user.id);
+  const invoice: InvoiceRecord = {
+    id: String(body.id || `INV-${Date.now()}`),
+    status: body.status || "sent",
+    to_email: String(body.to_email || ""),
+    to_name: body.to_name ? String(body.to_name) : undefined,
+    items: Array.isArray(body.items) ? body.items : [],
+    subtotal: Number(body.subtotal) || 0,
+    tax_percent: body.tax_percent ? Number(body.tax_percent) : undefined,
+    tax_amount: Number(body.tax_amount) || 0,
+    total: Number(body.total) || 0,
+    notes: body.notes ? String(body.notes) : undefined,
+    due_date: body.due_date ? String(body.due_date) : undefined,
+    created_at: body.created_at || new Date().toISOString(),
+    paid_at: body.paid_at || undefined,
+    viewed_at: body.viewed_at || undefined,
+    stripe_payment_link: body.stripe_payment_link || undefined,
+    stripe_session_id: body.stripe_session_id || undefined,
+    resend_email_id: body.resend_email_id || undefined,
+    _userId: user.id,
+    to_phone: body.to_phone ? String(body.to_phone) : undefined,
+    collection_call_consent: Boolean(body.collection_call_consent),
+    reminder_count: typeof body.reminder_count === "number" ? body.reminder_count : undefined,
+    last_reminder_at: body.last_reminder_at ? String(body.last_reminder_at) : undefined,
+    last_collection_call_at: body.last_collection_call_at ? String(body.last_collection_call_at) : undefined,
+  };
+  invoices.push(invoice);
+  await saveInvoices(user.id, invoices);
+  return c.json(invoice);
+});
+
+app.put("/invoices/:id", async (c) => {
+  const user = await requireUser(c);
+  if (!user) return c.json({ error: "Unauthorized" }, 401);
+  const id = c.req.param("id");
+  const updates = await c.req.json();
+  const invoices = await getInvoices(user.id);
+  const idx = invoices.findIndex((inv) => inv.id === id);
+  if (idx < 0) return c.json({ error: "Invoice not found" }, 404);
+  invoices[idx] = { ...invoices[idx], ...updates, id };
+  await saveInvoices(user.id, invoices);
+  return c.json(invoices[idx]);
+});
+
+app.delete("/invoices/:id", async (c) => {
+  const user = await requireUser(c);
+  if (!user) return c.json({ error: "Unauthorized" }, 401);
+  const id = c.req.param("id");
+  const invoices = await getInvoices(user.id);
+  const next = invoices.filter((inv) => inv.id !== id);
+  if (next.length === invoices.length) return c.json({ error: "Invoice not found" }, 404);
+  await saveInvoices(user.id, next);
+  return c.json({ success: true });
+});
+
+const INVOICE_SETTINGS_KEY = (userId: string) => `invoice_settings:${userId}`;
+
+app.get("/invoice-settings", async (c) => {
+  const user = await requireUser(c);
+  if (!user) return c.json({ error: "Unauthorized" }, 401);
+  const settings = await kv.get(INVOICE_SETTINGS_KEY(user.id));
+  const opted = await kv.get(`benchmark_opt_in:${user.id}`);
+  return c.json({
+    ...(settings || { default_from: "resend", business_name: "", business_email: "" }),
+    benchmark_opt_in: opted === true,
+  });
+});
+
+app.put("/invoice-settings", async (c) => {
+  const user = await requireUser(c);
+  if (!user) return c.json({ error: "Unauthorized" }, 401);
+  const body = await c.req.json();
+  if (typeof body.benchmark_opt_in === "boolean") {
+    await kv.set(`benchmark_opt_in:${user.id}`, body.benchmark_opt_in);
+  }
+  const { benchmark_opt_in: _b, ...rest } = body as Record<string, unknown>;
+  const current = (await kv.get(INVOICE_SETTINGS_KEY(user.id))) || {};
+  const updated = { ...(current as object), ...rest };
+  await kv.set(INVOICE_SETTINGS_KEY(user.id), updated);
+  const opted = await kv.get(`benchmark_opt_in:${user.id}`);
+  return c.json({ ...updated, benchmark_opt_in: opted === true });
+});
+
+app.get("/invoice-settings/connected-emails", async (c) => {
+  const user = await requireUser(c);
+  if (!user) return c.json({ error: "Unauthorized" }, 401);
+  const emails: { provider: string; email: string }[] = [];
+  for (const provider of ["google_mail", "outlook_mail"]) {
+    const token = await kv.get(`oauth:${provider}:${user.id}`);
+    if (token && typeof token === "object" && (token as any).access_token) {
+      emails.push({ provider, email: (token as any).email || `${provider} connected` });
+    }
+  }
+  return c.json(emails);
+});
+
+const RECURRING_INVOICES_KEY = (userId: string) => `recurring_invoices:v1:${userId}`;
+
+app.get("/recurring-invoices", async (c) => {
+  const user = await requireUser(c);
+  if (!user) return c.json({ error: "Unauthorized" }, 401);
+  const raw = await kv.get(RECURRING_INVOICES_KEY(user.id));
+  return c.json(Array.isArray(raw) ? raw : []);
+});
+
+app.put("/recurring-invoices", async (c) => {
+  const user = await requireUser(c);
+  if (!user) return c.json({ error: "Unauthorized" }, 401);
+  const body = await c.req.json().catch(() => ({}));
+  const schedules = Array.isArray(body.schedules) ? body.schedules : [];
+  await kv.set(RECURRING_INVOICES_KEY(user.id), schedules);
+  return c.json({ success: true, count: schedules.length });
+});
+
+app.get("/benchmarks/summary", async (c) => {
+  const raw = await kv.get("benchmark:invoice_stats_v1");
+  return c.json(raw || { avg_invoice: 0, sample_size: 0, at: null });
+});
+
+/**
+ * Internal: future Gmail-driven proposal drafts (extend with Pub/Sub webhook).
+ */
+app.post("/internal/email-proposal-tick", async (c) => {
+  const secret = Deno.env.get("NEXUS_PHONE_EDGE_SECRET");
+  const hdr = c.req.header("x-nexus-internal-secret");
+  if (!secret || hdr !== secret) {
+    return c.json({ error: "Unauthorized" }, 401);
+  }
+  return c.json({
+    ok: true,
+    scanned: 0,
+    note: "Connect Gmail push ingestion to populate proposal drafts from subject/body keywords.",
+  });
+});
+
+app.post("/internal/bench/aggregate", async (c) => {
+  const secret = Deno.env.get("NEXUS_PHONE_EDGE_SECRET");
+  const hdr = c.req.header("x-nexus-internal-secret");
+  if (!secret || hdr !== secret) {
+    return c.json({ error: "Unauthorized" }, 401);
+  }
+  const rows = await kv.getKeyValueByPrefix("invoices:v1:");
+  let sum = 0;
+  let n = 0;
+  for (const row of rows) {
+    const userId = row.key.replace("invoices:v1:", "");
+    const opted = await kv.get(`benchmark_opt_in:${userId}`);
+    if (opted !== true) continue;
+    if (!Array.isArray(row.value)) continue;
+    for (const inv of row.value as { total?: number }[]) {
+      if (typeof inv.total === "number" && inv.total > 0) {
+        sum += inv.total;
+        n++;
+      }
+    }
+  }
+  const agg = {
+    avg_invoice: n > 0 ? Math.round((sum / n) * 100) / 100 : 0,
+    sample_size: n,
+    at: new Date().toISOString(),
+  };
+  await kv.set("benchmark:invoice_stats_v1", agg);
+  return c.json({ ok: true, ...agg });
+});
+
+app.post("/internal/firma-webhook", async (c) => {
+  const nexus = Deno.env.get("NEXUS_PHONE_EDGE_SECRET");
+  const hdrN = c.req.header("x-nexus-internal-secret");
+  const whSecret = Deno.env.get("FIRMA_WEBHOOK_SECRET");
+  const hdrW = c.req.header("x-firma-webhook-secret");
+  const authorized =
+    (nexus && hdrN === nexus) ||
+    (whSecret && hdrW === whSecret);
+  if (!authorized) {
+    return c.json({ error: "Unauthorized" }, 401);
+  }
+  const body = await c.req.json().catch(() => ({}));
+  const id = `firma_${Date.now()}_${crypto.randomUUID().slice(0, 8)}`;
+  await kv.set(`firma_event:${id}`, { ...body, received_at: new Date().toISOString() });
+  return c.json({ received: true });
+});
+
+// ============================================================================
+// CUSTOM AGENT PERSONAS
+// ============================================================================
+
+const AGENT_PERSONAS_KEY = (userId: string) => `agent_personas:${userId}`;
+
+app.get("/agent-personas", async (c) => {
+  const user = await requireUser(c);
+  if (!user) return c.json({ error: "Unauthorized" }, 401);
+  const personas = await kv.get(AGENT_PERSONAS_KEY(user.id));
+  return c.json(Array.isArray(personas) ? personas : []);
+});
+
+app.post("/agent-personas", async (c) => {
+  const user = await requireUser(c);
+  if (!user) return c.json({ error: "Unauthorized" }, 401);
+  const body = await c.req.json();
+  const personas = (await kv.get(AGENT_PERSONAS_KEY(user.id))) || [];
+  const list = Array.isArray(personas) ? personas : [];
+  const newAgent = {
+    id: `custom_${Date.now()}_${crypto.randomUUID().slice(0, 6)}`,
+    name: String(body.name || "Custom Agent").slice(0, 50),
+    specialty: String(body.specialty || "General").slice(0, 200),
+    color: String(body.color || "#8b5cf6"),
+    icon: String(body.icon || "🤖").slice(0, 4),
+    systemPrompt: String(body.systemPrompt || "").slice(0, 2000),
+    isPreset: false,
+  };
+  list.push(newAgent);
+  await kv.set(AGENT_PERSONAS_KEY(user.id), list);
+  return c.json(newAgent);
+});
+
+app.delete("/agent-personas/:id", async (c) => {
+  const user = await requireUser(c);
+  if (!user) return c.json({ error: "Unauthorized" }, 401);
+  const id = c.req.param("id");
+  const personas = (await kv.get(AGENT_PERSONAS_KEY(user.id))) || [];
+  const list = Array.isArray(personas) ? personas : [];
+  const next = list.filter((a: any) => a.id !== id);
+  await kv.set(AGENT_PERSONAS_KEY(user.id), next);
+  return c.json({ success: true });
+});
+
+/**
+ * Internal: upsert invoice from Nexus phone executor (no user JWT).
+ * Requires NEXUS_PHONE_EDGE_SECRET header.
+ */
+app.post("/invoices/phone-upsert", async (c) => {
+  const secret = Deno.env.get("NEXUS_PHONE_EDGE_SECRET");
+  const hdr = c.req.header("x-nexus-internal-secret");
+  if (!secret || hdr !== secret) {
+    return c.json({ error: "Unauthorized" }, 401);
+  }
+  const body = await c.req.json().catch(() => ({}));
+  const userId = typeof body.userId === "string" ? body.userId.trim() : "";
+  if (!userId) return c.json({ error: "userId required" }, 400);
+  const invoices = await getInvoices(userId);
+  const rec = body.invoice as Record<string, unknown>;
+  if (!rec || typeof rec !== "object") return c.json({ error: "invoice required" }, 400);
+  const id = String(rec.id || "").trim();
+  if (!id) return c.json({ error: "invoice.id required" }, 400);
+  const idx = invoices.findIndex((inv) => inv.id === id);
+  const merged: InvoiceRecord = {
+    id,
+    status: (rec.status as InvoiceRecord["status"]) || "sent",
+    to_email: String(rec.to_email || ""),
+    to_name: rec.to_name ? String(rec.to_name) : undefined,
+    items: Array.isArray(rec.items) ? rec.items as InvoiceRecord["items"] : [],
+    subtotal: Number(rec.subtotal) || 0,
+    tax_percent: rec.tax_percent != null ? Number(rec.tax_percent) : undefined,
+    tax_amount: Number(rec.tax_amount) || 0,
+    total: Number(rec.total) || 0,
+    notes: rec.notes ? String(rec.notes) : undefined,
+    due_date: rec.due_date ? String(rec.due_date) : undefined,
+    created_at: rec.created_at ? String(rec.created_at) : new Date().toISOString(),
+    paid_at: rec.paid_at ? String(rec.paid_at) : undefined,
+    viewed_at: rec.viewed_at ? String(rec.viewed_at) : undefined,
+    stripe_payment_link: rec.stripe_payment_link ? String(rec.stripe_payment_link) : undefined,
+    stripe_session_id: rec.stripe_session_id ? String(rec.stripe_session_id) : undefined,
+    resend_email_id: rec.resend_email_id ? String(rec.resend_email_id) : undefined,
+    _userId: userId,
+    to_phone: rec.to_phone ? String(rec.to_phone) : undefined,
+    collection_call_consent: Boolean(rec.collection_call_consent),
+    reminder_count: typeof rec.reminder_count === "number" ? rec.reminder_count : undefined,
+    last_reminder_at: rec.last_reminder_at ? String(rec.last_reminder_at) : undefined,
+    last_collection_call_at: rec.last_collection_call_at ? String(rec.last_collection_call_at) : undefined,
+  };
+  if (idx >= 0) invoices[idx] = { ...invoices[idx], ...merged, id };
+  else invoices.push(merged);
+  await saveInvoices(userId, invoices);
+  return c.json(merged);
+});
+
+registerInvoiceBillingCron(app);
+
+/**
+ * Internal: update invoice status without user JWT (for webhooks/cron).
+ * Requires NEXUS_PHONE_EDGE_SECRET header.
+ */
+app.post("/invoices/update-status", async (c) => {
+  const secret = Deno.env.get("NEXUS_PHONE_EDGE_SECRET");
+  const hdr = c.req.header("x-nexus-internal-secret");
+  if (!secret || hdr !== secret) {
+    return c.json({ error: "Unauthorized" }, 401);
+  }
+  const body = await c.req.json().catch(() => ({}));
+  const userId = typeof body.userId === "string" ? body.userId.trim() : "";
+  const invoiceId = typeof body.invoiceId === "string" ? body.invoiceId.trim() : "";
+  const status = body.status;
+  if (!userId || !invoiceId || !status) {
+    return c.json({ error: "userId, invoiceId, and status required" }, 400);
+  }
+  const invoices = await getInvoices(userId);
+  const idx = invoices.findIndex((inv) => inv.id === invoiceId);
+  if (idx < 0) return c.json({ error: "Invoice not found" }, 404);
+  invoices[idx] = { ...invoices[idx], status, ...(status === "paid" ? { paid_at: new Date().toISOString() } : {}), ...(status === "viewed" && !invoices[idx].viewed_at ? { viewed_at: new Date().toISOString() } : {}) };
+  await saveInvoices(userId, invoices);
+  return c.json(invoices[idx]);
 });
 
 export default app;

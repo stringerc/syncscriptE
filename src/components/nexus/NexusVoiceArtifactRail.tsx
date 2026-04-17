@@ -70,11 +70,14 @@ export function toolTraceToVoiceChips(
         subtitle: String(detail.title || 'Canvas refreshed'),
       });
     } else if (tool === 'propose_calendar_hold') {
+      const savedAsTask = Boolean(detail.taskId);
       chips.push({
         id,
         kind: 'calendar',
-        title: 'Time proposed',
-        subtitle: String(detail.title || 'Confirm in app to add'),
+        title: savedAsTask ? 'Time blocked (task)' : 'Calendar event',
+        subtitle: savedAsTask
+          ? `${String(detail.title || 'Saved')} — open task detail to edit`
+          : `${String(detail.title || 'Saved')} — full event editor opens`,
       });
     } else if (tool === 'send_invoice' || tool === 'send_document_for_signature') {
       chips.push({

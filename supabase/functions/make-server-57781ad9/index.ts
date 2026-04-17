@@ -12,6 +12,8 @@ import adminEmailRoutes from "./admin-email-routes.tsx";
 import emailSystemRoutes from "./email-system-routes.tsx";
 import feedbackRoutes from "./feedback-routes.tsx";
 import openclawBridge from "./openclaw-bridge.tsx";
+import engramBridge from "./engram-bridge.tsx";
+import hermesBridge from "./hermes-bridge.tsx";
 import { initializeEmailSystem } from "./email-automation.tsx";
 import aiObservatory from "./ai-observatory.tsx";
 import aiCache from "./ai-cache.tsx";
@@ -22,6 +24,8 @@ import aiABTesting from "./ai-ab-testing.tsx";
 import aiCrossAgentMemory from "./ai-cross-agent-memory.tsx";
 import aiPredictivePrefetch from "./ai-predictive-prefetch.tsx";
 import emailTaskRoutes from "./email-task-routes.tsx";
+import resourcesLibraryRoutes from "./resources-library-routes.tsx";
+import pushDeviceRoutes from "./push-device-routes.tsx";
 import discordRoutes from "./discord-routes.tsx";
 import scriptsRoutes from "./scripts-routes.tsx";
 import growthRoutes from "./growth-automation.tsx";
@@ -1057,6 +1061,210 @@ app.get("/make-server-57781ad9/weather", async (c) => {
   }
 });
 
+function pad2(n: number): string {
+  return String(n).padStart(2, "0");
+}
+
+function dateKeyFromForecastUnix(dt: number, tzOffsetSec: number): string {
+  const d = new Date((dt + tzOffsetSec) * 1000);
+  return `${d.getUTCFullYear()}-${pad2(d.getUTCMonth() + 1)}-${pad2(d.getUTCDate())}`;
+}
+
+function weekdayMonthDayFromForecastUnix(dt: number, tzOffsetSec: number): {
+  weekdayShort: string;
+  monthDay: string;
+} {
+  const d = new Date((dt + tzOffsetSec) * 1000);
+  const w = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][d.getUTCDay()];
+  const months = [
+    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+  ];
+  const monthDay = `${months[d.getUTCMonth()]} ${d.getUTCDate()}`;
+  return { weekdayShort: w, monthDay };
+}
+
+/** Optional YYYY-MM-DD from client so demo rows align with the user's calendar. */
+function buildDemoForecastDaily(location: string, anchorDate?: string) {
+  const daily: Array<Record<string, unknown>> = [];
+  let y: number;
+  let mo: number;
+  let da: number;
+  if (anchorDate && /^\d{4}-\d{2}-\d{2}$/.test(anchorDate)) {
+    const p = anchorDate.split("-").map(Number);
+    y = p[0];
+    mo = p[1];
+    da = p[2];
+  } else {
+    const n = new Date();
+    y = n.getUTCFullYear();
+    mo = n.getUTCMonth() + 1;
+    da = n.getUTCDate();
+  }
+  const conditions = [
+    { main: "Clear", icon: "01d", desc: "clear sky", pop: 0.05 },
+    { main: "Clouds", icon: "03d", desc: "scattered clouds", pop: 0.15 },
+    { main: "Rain", icon: "10d", desc: "light rain", pop: 0.55 },
+    { main: "Rain", icon: "10d", desc: "moderate rain", pop: 0.72 },
+    { main: "Thunderstorm", icon: "11d", desc: "thunderstorm", pop: 0.85 },
+    { main: "Clear", icon: "01d", desc: "clear sky", pop: 0.08 },
+    { main: "Drizzle", icon: "09d", desc: "drizzle", pop: 0.35 },
+  ];
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(Date.UTC(y, mo - 1, da + i));
+    const yk = d.getUTCFullYear();
+    const m = pad2(d.getUTCMonth() + 1);
+    const day = pad2(d.getUTCDate());
+    const dateKey = `${yk}-${m}-${day}`;
+    const w = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][d.getUTCDay()];
+    const months = [
+      "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+      "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+    ];
+    const monthDay = `${months[d.getUTCMonth()]} ${d.getUTCDate()}`;
+    const c = conditions[i % conditions.length];
+    const base = 62 + (i % 4) * 2;
+    daily.push({
+      dateKey,
+      weekdayShort: w,
+      monthDay,
+      tempMin: base,
+      tempMax: base + 12,
+      condition: c.main,
+      description: c.desc,
+      icon: c.icon,
+      pop: c.pop,
+      windMax: 8 + i * 2,
+    });
+  }
+  return { location, demo: true, daily };
+}
+
+// OpenWeather 2.5 forecast: 5-day / 3-hour steps — aggregate to local calendar days
+app.get("/make-server-57781ad9/weather/forecast", async (c) => {
+  try {
+    const { lat, lon, localDate } = c.req.query();
+    if (!lat || !lon) {
+      return c.json({ error: "Missing lat or lon parameters" }, 400);
+    }
+
+    const OPENWEATHER_API_KEY = Deno.env.get("OPENWEATHER_API_KEY");
+    if (!OPENWEATHER_API_KEY) {
+      return c.json(buildDemoForecastDaily("Demo Location", localDate));
+    }
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 8000);
+
+    const response = await fetch(
+      `https://api.openweathermap.org/data/2.5/forecast?lat=${lat}&lon=${lon}&appid=${OPENWEATHER_API_KEY}&units=imperial`,
+      { signal: controller.signal },
+    );
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      console.error("[WEATHER FORECAST] OpenWeather error:", response.status);
+      return c.json(buildDemoForecastDaily("Demo Location", localDate));
+    }
+
+    const data = await response.json();
+    const list = data.list as Array<{
+      dt: number;
+      pop?: number;
+      main: { temp_min: number; temp_max: number };
+      wind: { speed: number };
+      weather: Array<{ main: string; icon: string; description: string }>;
+    }>;
+    const city = data.city as { name?: string; timezone?: number };
+    const tz = typeof city?.timezone === "number" ? city.timezone : 0;
+    const location = city?.name || "Your area";
+
+    type Agg = {
+      dtSample: number;
+      tempsMin: number[];
+      tempsMax: number[];
+      pops: number[];
+      winds: number[];
+      mains: Array<{ main: string; icon: string; desc: string }>;
+    };
+    const groups = new Map<string, Agg>();
+
+    for (const item of list) {
+      const key = dateKeyFromForecastUnix(item.dt, tz);
+      let g = groups.get(key);
+      if (!g) {
+        g = {
+          dtSample: item.dt,
+          tempsMin: [],
+          tempsMax: [],
+          pops: [],
+          winds: [],
+          mains: [],
+        };
+        groups.set(key, g);
+      }
+      g.tempsMin.push(item.main.temp_min);
+      g.tempsMax.push(item.main.temp_max);
+      g.pops.push(typeof item.pop === "number" ? item.pop : 0);
+      g.winds.push(item.wind?.speed ?? 0);
+      const w0 = item.weather[0];
+      g.mains.push({
+        main: w0.main,
+        icon: w0.icon,
+        desc: w0.description,
+      });
+    }
+
+    const sortedKeys = [...groups.keys()].sort();
+    const dailyKeys = sortedKeys.slice(0, 7);
+
+    const daily = dailyKeys.map((dateKey) => {
+      const g = groups.get(dateKey)!;
+      const tempMin = Math.round(Math.min(...g.tempsMin));
+      const tempMax = Math.round(Math.max(...g.tempsMax));
+      const pop = Math.max(...g.pops);
+      const windMax = Math.round(Math.max(...g.winds));
+
+      const counts = new Map<string, number>();
+      for (const m of g.mains) {
+        counts.set(m.main, (counts.get(m.main) || 0) + 1);
+      }
+      let dominant = g.mains[0].main;
+      let maxC = 0;
+      for (const [k, v] of counts) {
+        if (v > maxC) {
+          maxC = v;
+          dominant = k;
+        }
+      }
+      const pick = g.mains.find((x) => x.main === dominant) || g.mains[0];
+      const { weekdayShort, monthDay } = weekdayMonthDayFromForecastUnix(
+        g.dtSample,
+        tz,
+      );
+
+      return {
+        dateKey,
+        weekdayShort,
+        monthDay,
+        tempMin,
+        tempMax,
+        condition: pick.main,
+        description: pick.desc,
+        icon: pick.icon,
+        pop,
+        windMax,
+      };
+    });
+
+    return c.json({ location, demo: false, daily });
+  } catch (error) {
+    console.error("[WEATHER FORECAST] Error:", error);
+    const { localDate } = c.req.query();
+    return c.json(buildDemoForecastDaily("Demo Location", localDate));
+  }
+});
+
 // ====================================================================
 // TRAFFIC API ENDPOINT (OpenRouter for AI-powered routing)
 // Research: Real-time traffic reduces commute time by 23% (Google Maps, 2024)
@@ -1292,7 +1500,7 @@ app.get("/make-server-57781ad9/user/profile", async (c) => {
     
     console.log('[AUTH API] Profile retrieved for:', user.id);
     
-    return c.json(userProfile);
+    return c.json({ ...userProfile, email: user.email ?? userProfile.email });
   } catch (error) {
     console.error('[AUTH API] Profile fetch failed:', error);
     return c.json({ error: 'Failed to fetch profile', details: String(error) }, 500);
@@ -1315,7 +1523,7 @@ app.put("/make-server-57781ad9/user/profile", async (c) => {
       return c.json({ error: 'Unauthorized' }, 401);
     }
     
-    const updates = await c.req.json();
+    const updates = await c.req.json() as Record<string, unknown>;
     
     // Get existing profile
     const existingProfile = await kv.get(`user:${user.id}`) as UserProfile;
@@ -1323,15 +1531,19 @@ app.put("/make-server-57781ad9/user/profile", async (c) => {
     if (!existingProfile) {
       return c.json({ error: 'Profile not found' }, 404);
     }
+
+    // Email must match Supabase Auth JWT — never trust client-supplied email for "verification".
+    delete updates.email;
     
     // Merge updates with existing profile
     const updatedProfile: UserProfile = {
       ...existingProfile,
       ...updates,
       id: user.id, // Prevent ID change
+      email: user.email ?? existingProfile.email,
       preferences: {
         ...existingProfile.preferences,
-        ...updates.preferences
+        ...(updates.preferences as UserProfile['preferences'])
       }
     };
     
@@ -1531,6 +1743,8 @@ app.post('/make-server-57781ad9/admin/metrics/ces', performanceMetrics.recordCES
 // ====================================================================
 app.route('/make-server-57781ad9/email', emailSystemRoutes);
 app.route('/make-server-57781ad9', emailTaskRoutes);
+app.route('/make-server-57781ad9', resourcesLibraryRoutes);
+app.route('/make-server-57781ad9/push', pushDeviceRoutes);
 
 // ====================================================================
 // FEEDBACK INTELLIGENCE SYSTEM ROUTES
@@ -1545,6 +1759,12 @@ app.route('/make-server-57781ad9/feedback', feedbackRoutes);
 // Research: Bridge pattern reduces coupling by 89% (Design Patterns)
 // ====================================================================
 app.route('/make-server-57781ad9/openclaw', openclawBridge);
+
+// ====================================================================
+// ENGRAM AGENT REGISTRY BRIDGE (optional — set ENGRAM_BASE_URL on Edge)
+// ====================================================================
+app.route("/make-server-57781ad9/engram", engramBridge);
+app.route("/make-server-57781ad9/hermes", hermesBridge);
 
 // ====================================================================
 // AI ENHANCEMENT SYSTEMS - PHASE 4 (Feb 10, 2026)

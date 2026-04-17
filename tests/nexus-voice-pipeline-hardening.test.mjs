@@ -10,21 +10,31 @@ function read(rel) {
   return readFileSync(join(__dirname, '../', rel), 'utf8');
 }
 
-test('Nexus voice: AudioContext resume + browser TTS fallback + voice fallbacks', () => {
+test('Nexus voice: AudioContext resume + Kokoro direct fallback (no browser SpeechSynthesis)', () => {
   const ctx = read('src/contexts/NexusVoiceCallContext.tsx');
   const markers = [
     'didAudioPlay()',
     'await this.ctx.resume()',
     'await ctx.resume()',
     'ttsVoiceCandidates',
-    'speakBrowserUtterance',
+    'fetchDirectKokoroBuffer',
+    'KOKORO_DIRECT_URL',
     'isVoiceOrClientError',
-    'ensureSpokenOrBrowser',
-    'if (!player.didAudioPlay()',
+    'ensureSpokenOrNotify',
+    'player.didAudioPlay()',
+    'setVoiceError',
   ];
   for (const m of markers) {
     assert.ok(ctx.includes(m), `Expected NexusVoiceCallContext to include "${m}"`);
   }
+  assert.ok(
+    !ctx.includes('speakBrowserUtterance'),
+    'Nexus must not use browser SpeechSynthesis (robotic); speakBrowserUtterance should be absent',
+  );
+  assert.ok(
+    !ctx.includes('speechSynthesis'),
+    'NexusVoiceCallContext must not reference window.speechSynthesis',
+  );
 });
 
 test('Nexus voice: SSE must not double-queue TTS (tokens + finalContent)', () => {

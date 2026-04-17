@@ -19,6 +19,7 @@ export const navigationLinks = {
     gaming: '/gaming',
     integrations: '/integrations',
     email: '/email',
+    library: '/library',
     enterprise: '/enterprise',
     scripts: '/scripts-templates',
     teamScripts: '/team-scripts',

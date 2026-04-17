@@ -164,13 +164,15 @@ ${emotionGuidance}
 
 VOICE CONVERSATION GUIDELINES:
 - Keep responses concise and conversational (2-4 sentences for simple queries)
+- NEVER use emojis, emoticons, or special text characters in your response. Speak exactly like a real human on a phone call.
 - Use natural speech patterns -- contractions, filler acknowledgments when appropriate
 - Reference specific tasks, events, and data from the user's context
 - Proactively surface insights about schedule conflicts, energy mismatches, or opportunities
 - If the user asks to create/modify tasks or events, confirm the action before proceeding
 - Adapt your energy and tone to match the time of day and user's emotional state
 - When discussing scheduling, consider the user's circadian phase and energy level
-- Use the resonance score to guide recommendations about task timing`;
+- Use the resonance score to guide recommendations about task timing
+- You are highly intelligent and worldly: you CAN answer general knowledge questions, tell jokes, and search for places. Do NOT stubbornly loop back to tasks if the user asks a casual or broad question. Be a fun, helpful, general assistant.`;
 }
 
 // ============================================================================
@@ -267,8 +269,9 @@ export function buildDeepContextPrompt(context: VoiceContextSnapshot): string {
 // ============================================================================
 
 export function formatAIResponseForVoice(response: string): string {
-  // Clean up markdown, code blocks, etc. for voice output
+  // Clean up markdown, code blocks, emojis, etc. for voice output
   let voiceText = response
+    .replace(/[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|[\u{1F600}-\u{1F64F}]|[\u{1F680}-\u{1F6FF}]|[\u{1F1E6}-\u{1F1FF}]/gu, '')
     .replace(/```[\s\S]*?```/g, 'I have some code to share, which I\'ll display in the chat.')
     .replace(/\*\*(.*?)\*\*/g, '$1')
     .replace(/\*(.*?)\*/g, '$1')
@@ -296,6 +299,27 @@ export function formatAIResponseForVoice(response: string): string {
 // GREETING GENERATOR
 // ============================================================================
 
+/**
+ * Short, low-latency first beat for immersive orb voice (Sesame / modern voice-assistant pattern:
+ * confirm presence without meta “you are in voice mode” copy).
+ */
+export function generateImmersiveVoiceIntro(context: VoiceContextSnapshot): string {
+  const first = context.userName?.trim().split(/\s+/)[0];
+  const hey = first ? `Hey, ${first}.` : 'Hey.';
+
+  const pending = context.tasks.filter((t) => t.status !== 'completed').length;
+  if (pending > 0) {
+    return `${hey} I'm here — you've got ${pending} open task${pending === 1 ? '' : 's'}. What's first?`;
+  }
+
+  const upcoming = context.events.filter((e) => e.isUpcoming).length;
+  if (upcoming > 0) {
+    return `${hey} I'm listening — ${upcoming} event${upcoming === 1 ? '' : 's'} coming up. What do you want to adjust?`;
+  }
+
+  return `${hey} I'm here — go ahead whenever you're ready.`;
+}
+
 export function generateGreeting(context: VoiceContextSnapshot): string {
   const { circadianPhase, resonanceScore, tasks, events, userName } = context;
   const name = userName ? `, ${userName}` : '';
@@ -322,5 +346,7 @@ export function generateGreeting(context: VoiceContextSnapshot): string {
       return `Good evening${name}. Winding down for the day -- you've got ${pendingTasks.length} tasks left. Want to review what you accomplished or plan for tomorrow?`;
     case 'night':
       return `Hey${name}, it's getting late. ${pendingTasks.length > 0 ? `You still have ${pendingTasks.length} tasks, but they can wait until tomorrow.` : 'Your tasks are all caught up.'} Anything on your mind before you call it a night?`;
+    default:
+      return `Hey${name}. I'm here — what would you like to do?`;
   }
 }

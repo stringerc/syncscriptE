@@ -8,8 +8,19 @@ import {
   type ReactNode,
 } from 'react';
 import { useVoiceStream } from '../hooks/useVoiceStream';
-import type { STTResult, TTSRequest } from '../types/voice-engine';
-import { disableTtsProxyForSession, isTtsProxyDisabled } from '../utils/tts-proxy-session';
+import type { STTResult } from '../types/voice-engine';
+import {
+  disableTtsProxyForSession,
+  isTtsProxyDisabled,
+  resetTtsProxySession,
+} from '../utils/tts-proxy-session';
+import { supabase } from '../utils/supabase/client';
+import { toast } from 'sonner';
+import {
+  NEXUS_GUEST_CHAT_PATH,
+  NEXUS_POST_CALL_SUMMARY_PATH,
+  NEXUS_USER_CHAT_PATH,
+} from '../config/nexus-vercel-ai-routes';
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Types
@@ -61,7 +72,6 @@ export function useNexusVoiceCall(): NexusVoiceCallContextValue {
 
 const MAX_CALL_DURATION = 300;
 const GOODBYE_LINGER_MS = 1800;
-const NEXUS_GUEST_API = '/api/ai/nexus-guest';
 
 /**
  * Kokoro voice id sent to /api/ai/tts — same preset as the desktop companion
@@ -77,8 +87,12 @@ const GOODBYE =
 const TIME_LIMIT_MSG =
   "We've reached the 5-minute demo limit. Thanks for trying Nexus! Sign up for a free trial to get unlimited access.";
 const STATIC_GREETING_AUDIO_URL = '/audio/nexus-greeting.mp3';
-/** Bundled MP3 matches GREETING + GREETING_PROFILE — instant first line after mic (no TTS round-trip). */
-const ENABLE_STATIC_GREETING = true;
+/**
+ * Pre-recorded MP3 for the opening line — **instant** (no `/api/ai/tts` wait). Default **on** so the first
+ * hello works even when Kokoro is 503. Replies still use Kokoro via the proxy.
+ * Set `VITE_NEXUS_STATIC_MP3_GREETING=false` to force Kokoro for the greeting too (needs healthy TTS).
+ */
+const ENABLE_STATIC_GREETING = import.meta.env.VITE_NEXUS_STATIC_MP3_GREETING !== 'false';
 /** Pre-fetch Kokoro buffers for greeting/goodbye on provider mount (smooth first line when API is healthy). */
 const PRELOAD_VOICE_CACHE_ON_MOUNT = true;
 
@@ -101,6 +115,13 @@ const TTS_CIRCUIT_BREAKER_MS = 30_000;
 
 let ttsConsecutiveFailures = 0;
 let ttsCircuitOpenUntil = 0;
+
+/** Fresh transport state each voice session — avoids stale circuit/proxy after preload storms or NO_TTS_URL. */
+function resetNexusTtsTransportState(): void {
+  ttsConsecutiveFailures = 0;
+  ttsCircuitOpenUntil = 0;
+  resetTtsProxySession();
+}
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Written → Spoken English Sanitizer
@@ -324,14 +345,16 @@ function extractCompleteSentences(buffer: string): { sentences: string[]; remain
   return { sentences: parts.map((s) => s.trim()).filter(Boolean), remainder };
 }
 
+/** Kokoro/ffmpeg MP3 chunks often carry ~50–120ms trailing silence; scheduling the next clip at full duration sounds like a long pause after “.” */
+const KOKORO_INTER_CHUNK_TAIL_TRIM_SEC = 0.072;
+
 // ═══════════════════════════════════════════════════════════════════════════
 // Progressive Player
 //
 // Plays audio segments as they arrive — the first sentence starts playing
 // the instant its TTS is ready, while later sentences are still being
-// generated and fetched. Uses Web Audio API precise scheduling so that when
-// segment N finishes, segment N+1 starts at the exact same sample with
-// zero audible gap.
+// generated and fetched. Uses Web Audio API scheduling; trims a few ms of
+// typical Kokoro MP3 tail silence between chunks so periods do not sound like long dead air.
 //
 // Usage:
 //   const player = new ProgressivePlayer(signal);
@@ -355,12 +378,10 @@ class ProgressivePlayer {
 
   onFirstPlay: (() => void) | null = null;
 
-  /** True if any audio buffer actually started playing (for browser-TTS fallback). */
+  /** True if any Kokoro audio buffer actually started playing. */
   didAudioPlay(): boolean {
     return this.firstPlayFired;
   }
-
-  private static readonly OVERLAP_SECS = 0;
 
   constructor(signal: AbortSignal) {
     this.ctx = new AudioContext();
@@ -409,8 +430,8 @@ class ProgressivePlayer {
       src.start(startAt);
       this.sources.push(src);
 
-      const effectiveDuration = Math.max(audio.duration - ProgressivePlayer.OVERLAP_SECS, audio.duration);
-      this.nextStartTime = startAt + effectiveDuration;
+      const trim = Math.min(KOKORO_INTER_CHUNK_TAIL_TRIM_SEC, Math.max(0, audio.duration - 0.04));
+      this.nextStartTime = startAt + Math.max(0.02, audio.duration - trim);
 
       src.onended = () => {
         const idx = this.sources.indexOf(src);
@@ -453,7 +474,7 @@ async function playCachedBuffers(
   signal: AbortSignal,
   onFirstPlay?: () => void,
 ): Promise<boolean> {
-  if (!buffers.length) return true;
+  if (!buffers.length) return false;
 
   const ctx = new AudioContext();
   const sources: AudioBufferSourceNode[] = [];
@@ -476,12 +497,15 @@ async function playCachedBuffers(
       src.start(when);
       sources.push(src);
       const isLast = i === buffers.length - 1;
-      const overlap = isLast ? 0 : 0;
-      when += Math.max(audio.duration - overlap, audio.duration);
+      const trim = isLast ? 0 : Math.min(KOKORO_INTER_CHUNK_TAIL_TRIM_SEC, Math.max(0, audio.duration - 0.04));
+      when += Math.max(0.02, audio.duration - trim);
     } catch { /* skip */ }
   }
 
-  if (!sources.length) { ctx.close().catch(() => {}); return true; }
+  if (!sources.length) {
+    ctx.close().catch(() => {});
+    return false;
+  }
 
   return new Promise<boolean>((resolve) => {
     const totalMs = (when - ctx.currentTime) * 1000 + 80;
@@ -657,86 +681,138 @@ function isVoiceOrClientError(status: number): boolean {
   return status === 400 || status === 404 || status === 422;
 }
 
-const MAX_TTS_BROWSER_CHARS = 2800;
+/**
+ * Direct Kokoro: dev / `VITE_KOKORO_TTS_URL`, or `GET /api/ai/tts` (`kokoroDirectOrigin`) so
+ * production tracks `KOKORO_TTS_URL` without rebuilding. Local-only Vite: `VITE_ALLOW_CLIENT_DIRECT_KOKORO=true`.
+ */
+const KOKORO_DIRECT_URL = (import.meta.env.VITE_KOKORO_TTS_URL || '').trim().replace(/\/$/, '');
 
-/** Last resort when Kokoro is down or all voices fail — user still hears something. */
-function speakBrowserUtterance(text: string): Promise<void> {
-  return new Promise((resolve) => {
-    if (typeof window === 'undefined' || !window.speechSynthesis) {
-      resolve();
-      return;
-    }
-    const clean = sanitizeForTTS(text).slice(0, MAX_TTS_BROWSER_CHARS);
-    if (!clean.trim()) {
-      resolve();
-      return;
-    }
-    const u = new SpeechSynthesisUtterance(clean);
-    u.rate = 0.95;
-    u.onend = () => resolve();
-    u.onerror = () => resolve();
+let serverKokoroOrigin: string | null = null;
+let serverKokoroOriginPromise: Promise<void> | null = null;
+
+function loadServerKokoroOriginOnce(): Promise<void> {
+  if (serverKokoroOriginPromise) return serverKokoroOriginPromise;
+  serverKokoroOriginPromise = (async () => {
     try {
-      window.speechSynthesis.cancel();
-      window.speechSynthesis.speak(u);
+      const r = await fetch('/api/ai/tts', { method: 'GET' });
+      if (!r.ok) return;
+      const j = (await r.json()) as { kokoroDirectOrigin?: string | null };
+      if (typeof j.kokoroDirectOrigin === 'string' && j.kokoroDirectOrigin.trim()) {
+        serverKokoroOrigin = j.kokoroDirectOrigin.trim().replace(/\/$/, '');
+      }
     } catch {
-      resolve();
+      /* keep null */
     }
-  });
+  })();
+  return serverKokoroOriginPromise;
+}
+
+function directKokoroBase(): string {
+  return (serverKokoroOrigin || KOKORO_DIRECT_URL).trim().replace(/\/$/, '');
+}
+
+function mayCallKokoroDirectly(): boolean {
+  if (import.meta.env.DEV) return true;
+  if (import.meta.env.VITE_ALLOW_CLIENT_DIRECT_KOKORO === 'true' && KOKORO_DIRECT_URL) return true;
+  if (serverKokoroOrigin) return true;
+  return false;
+}
+
+async function fetchDirectKokoroBuffer(
+  seg: ProsodySegment,
+  voice: string,
+  signal: AbortSignal | undefined,
+): Promise<ArrayBuffer | null> {
+  if (!mayCallKokoroDirectly()) return null;
+  const base = directKokoroBase();
+  if (!base) return null;
+  const timeoutController = new AbortController();
+  const timeoutId = setTimeout(() => timeoutController.abort(), TTS_REQUEST_TIMEOUT_MS);
+  const onAbort = () => timeoutController.abort();
+  if (signal) signal.addEventListener('abort', onAbort, { once: true });
+  try {
+    const res = await fetch(`${base}/v1/audio/speech`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'kokoro',
+        input: seg.text,
+        voice,
+        speed: seg.speed,
+      }),
+      signal: timeoutController.signal,
+    });
+    if (!res.ok) return null;
+    const buffer = await res.arrayBuffer();
+    return buffer.byteLength > 0 ? buffer : null;
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timeoutId);
+    if (signal) signal.removeEventListener('abort', onAbort);
+  }
 }
 
 function fetchTTSBuffer(seg: ProsodySegment, signal?: AbortSignal): Promise<ArrayBuffer | null> {
-  if (isTtsProxyDisabled() || Date.now() < ttsCircuitOpenUntil) {
-    return Promise.resolve(null);
-  }
   return (async () => {
+    await loadServerKokoroOriginOnce();
     const voices = ttsVoiceCandidates(seg.voice);
     for (const voice of voices) {
-      for (let attempt = 0; attempt <= TTS_MAX_RETRIES; attempt += 1) {
-        if (signal?.aborted) return null;
-        const timeoutController = new AbortController();
-        const timeoutId = setTimeout(() => timeoutController.abort(), TTS_REQUEST_TIMEOUT_MS);
-        const onAbort = () => timeoutController.abort();
-        if (signal) {
-          signal.addEventListener('abort', onAbort, { once: true });
-        }
-        try {
-          const response = await fetch('/api/ai/tts', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ text: seg.text, voice, speed: seg.speed }),
-            signal: timeoutController.signal,
-          });
-          if (response.ok) {
-            const buffer = await response.arrayBuffer();
-            if (buffer.byteLength > 0) {
-              registerTTSSuccess();
-              return buffer;
-            }
-            break;
-          } else {
-            const errData = (await response.json().catch(() => ({}))) as { code?: string };
-            if (errData.code === 'NO_TTS_URL') {
-              disableTtsProxyForSession();
-              registerTTSFailure();
-              return null;
-            }
-            if (isVoiceOrClientError(response.status)) {
-              break;
-            }
-            if (!isTransientTTSStatus(response.status) || attempt >= TTS_MAX_RETRIES) {
-              break;
-            }
-          }
-        } catch {
+      const canTryProxy = !isTtsProxyDisabled() && Date.now() >= ttsCircuitOpenUntil;
+
+      if (canTryProxy) {
+        for (let attempt = 0; attempt <= TTS_MAX_RETRIES; attempt += 1) {
           if (signal?.aborted) return null;
-          if (attempt >= TTS_MAX_RETRIES) break;
-        } finally {
-          clearTimeout(timeoutId);
+          const timeoutController = new AbortController();
+          const timeoutId = setTimeout(() => timeoutController.abort(), TTS_REQUEST_TIMEOUT_MS);
+          const onAbort = () => timeoutController.abort();
           if (signal) {
-            signal.removeEventListener('abort', onAbort);
+            signal.addEventListener('abort', onAbort, { once: true });
           }
+          try {
+            const response = await fetch('/api/ai/tts', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ text: seg.text, voice, speed: seg.speed }),
+              signal: timeoutController.signal,
+            });
+            if (response.ok) {
+              const buffer = await response.arrayBuffer();
+              if (buffer.byteLength > 0) {
+                registerTTSSuccess();
+                return buffer;
+              }
+              break;
+            } else {
+              const errData = (await response.json().catch(() => ({}))) as { code?: string };
+              if (errData.code === 'NO_TTS_URL') {
+                disableTtsProxyForSession();
+                break;
+              }
+              if (isVoiceOrClientError(response.status)) {
+                break;
+              }
+              if (!isTransientTTSStatus(response.status) || attempt >= TTS_MAX_RETRIES) {
+                break;
+              }
+            }
+          } catch {
+            if (signal?.aborted) return null;
+            if (attempt >= TTS_MAX_RETRIES) break;
+          } finally {
+            clearTimeout(timeoutId);
+            if (signal) {
+              signal.removeEventListener('abort', onAbort);
+            }
+          }
+          await delay(TTS_RETRY_BACKOFF_MS * (attempt + 1));
         }
-        await delay(TTS_RETRY_BACKOFF_MS * (attempt + 1));
+      }
+
+      const direct = await fetchDirectKokoroBuffer(seg, voice, signal);
+      if (direct) {
+        registerTTSSuccess();
+        return direct;
       }
     }
     registerTTSFailure();
@@ -811,6 +887,7 @@ export function NexusVoiceCallProvider({ children }: { children: ReactNode }) {
   const processUserMessageRef = useRef<(text: string) => void>(() => {});
   const heardTextClearTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const endCallInProgressRef = useRef(false);
+  const callToolTracesRef = useRef<Array<{ tool: string; ok: boolean; detail?: Record<string, unknown>; error?: string }>>([]);
   const assistantTurnsRef = useRef(0);
 
   // Preload caches
@@ -822,6 +899,11 @@ export function NexusVoiceCallProvider({ children }: { children: ReactNode }) {
       warm.preload = 'auto';
       warm.load();
       void fetch(STATIC_GREETING_AUDIO_URL, { cache: 'force-cache' }).catch(() => {});
+      // No Kokoro preload for greeting — opening line is MP3 only (avoids 503 spam on every page load).
+      greetingCacheRef.current = null;
+      // Goodbye Kokoro preload deferred to startCall after MP3 plays (see startCall) — not on idle mount.
+      goodbyeCacheRef.current = null;
+      return;
     }
     greetingCacheRef.current = preloadPhrase(GREETING, GREETING_PROFILE);
     goodbyeCacheRef.current = preloadPhrase(GOODBYE, GOODBYE_PROFILE);
@@ -916,7 +998,7 @@ export function NexusVoiceCallProvider({ children }: { children: ReactNode }) {
       text: string,
       cache?: AudioCacheEntry | null,
       opts?: { onFirstAudioStart?: () => void },
-    ): Promise<void> => {
+    ): Promise<boolean> => {
       speakingRef.current = true;
       setIsSpeakingLocal(true);
       voiceStream.stopListening();
@@ -926,29 +1008,37 @@ export function NexusVoiceCallProvider({ children }: { children: ReactNode }) {
 
       try {
         if (cache?.ready && cache.buffers.length > 0) {
-          await playCachedBuffers(cache.buffers, ac.signal, opts?.onFirstAudioStart);
-        } else {
-          const player = new ProgressivePlayer(ac.signal);
-          player.onFirstPlay = () => {
-            try { opts?.onFirstAudioStart?.(); } catch { /* silent */ }
-          };
-          for (const s of buildSpeechChunks(text)) {
-            const seg = toProsodySegmentWithProfile(s, FUTURE_WARM_PROFILE);
-            player.feed(fetchTTSBuffer(seg, ac.signal));
-          }
-          player.seal();
-          await player.waitUntilDone();
-          if (!player.didAudioPlay() && text.trim()) {
-            await speakBrowserUtterance(text);
-          }
+          const played = await playCachedBuffers(cache.buffers, ac.signal, opts?.onFirstAudioStart);
+          return played;
         }
+        const player = new ProgressivePlayer(ac.signal);
+        player.onFirstPlay = () => {
+          try {
+            opts?.onFirstAudioStart?.();
+          } catch {
+            /* silent */
+          }
+        };
+        for (const s of buildSpeechChunks(text)) {
+          const seg = toProsodySegmentWithProfile(s, FUTURE_WARM_PROFILE);
+          player.feed(fetchTTSBuffer(seg, ac.signal));
+        }
+        player.seal();
+        await player.waitUntilDone();
+        const played = player.didAudioPlay();
+        if (!played && text.trim()) {
+          setVoiceError(
+            'Voice could not play. Check your connection or try again in a moment.',
+          );
+        }
+        return played;
       } finally {
         speakingRef.current = false;
         setIsSpeakingLocal(false);
         if (abortRef.current === ac) abortRef.current = null;
       }
     },
-    [voiceStream],
+    [voiceStream, setVoiceError],
   );
 
   const speakStaticGreeting = useCallback(
@@ -1068,17 +1158,36 @@ export function NexusVoiceCallProvider({ children }: { children: ReactNode }) {
         player.feed(queued);
       };
 
-      const ensureSpokenOrBrowser = async () => {
+      const ensureSpokenOrNotify = async () => {
         if (fullText.trim() && !player.didAudioPlay()) {
-          await speakBrowserUtterance(fullText);
+          setVoiceError(
+            'Voice could not play. Check your connection or try again in a moment.',
+          );
         }
       };
 
       try {
-        const res = await fetch(NEXUS_GUEST_API, {
+        const { data: { session } } = await supabase.auth.getSession();
+        const useNexusUserTools = Boolean(session?.access_token);
+
+        const res = await fetch(useNexusUserTools ? NEXUS_USER_CHAT_PATH : NEXUS_GUEST_CHAT_PATH, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ messages: history, sessionId: sid, stream: true }),
+          headers: {
+            'Content-Type': 'application/json',
+            ...(useNexusUserTools && session?.access_token
+              ? { Authorization: `Bearer ${session.access_token}` }
+              : {}),
+          },
+          body: JSON.stringify(
+            useNexusUserTools
+              ? {
+                  messages: history,
+                  privateContext: { surface: 'voice', timestamp: new Date().toISOString() },
+                  enableTools: true,
+                  voiceMode: true,
+                }
+              : { messages: history, sessionId: sid, stream: true },
+          ),
           signal: ac.signal,
         });
 
@@ -1088,10 +1197,10 @@ export function NexusVoiceCallProvider({ children }: { children: ReactNode }) {
           ensureNexusBubble();
           showNexusText(fullText);
           clearProcessingOnce();
-          for (const s of splitToSentences(fullText)) feedSentence(s);
+          for (const s of buildSpeechChunks(fullText)) feedSentence(s);
           player.seal();
           await player.waitUntilDone();
-          await ensureSpokenOrBrowser();
+          await ensureSpokenOrNotify();
           return fullText;
         }
 
@@ -1103,7 +1212,7 @@ export function NexusVoiceCallProvider({ children }: { children: ReactNode }) {
           feedSentence(fullText);
           player.seal();
           await player.waitUntilDone();
-          await ensureSpokenOrBrowser();
+          await ensureSpokenOrNotify();
           return fullText;
         }
 
@@ -1121,7 +1230,7 @@ export function NexusVoiceCallProvider({ children }: { children: ReactNode }) {
           feedSentence(fullText);
           player.seal();
           await player.waitUntilDone();
-          await ensureSpokenOrBrowser();
+          await ensureSpokenOrNotify();
           return fullText;
         }
 
@@ -1144,6 +1253,29 @@ export function NexusVoiceCallProvider({ children }: { children: ReactNode }) {
           try {
             const data = JSON.parse(rawBody.trim());
             fullText = data?.content || '';
+            if (Array.isArray(data?.toolTrace) && data.toolTrace.length > 0) {
+              callToolTracesRef.current.push(...data.toolTrace);
+              window.dispatchEvent(
+                new CustomEvent('syncscript:nexus-tool-trace', { detail: { toolTrace: data.toolTrace } }),
+              );
+              const okCreates = data.toolTrace.filter(
+                (t: { ok?: boolean; tool?: string }) =>
+                  t?.ok && (t.tool === 'create_task' || t.tool === 'add_note'),
+              );
+              if (okCreates.length > 0) {
+                toast.success(
+                  okCreates.length === 1
+                    ? 'Nexus saved that to your tasks'
+                    : `Nexus saved ${okCreates.length} items to your tasks`,
+                );
+              }
+              const holds = data.toolTrace.filter(
+                (t: { ok?: boolean; tool?: string }) => t?.ok && t.tool === 'propose_calendar_hold',
+              );
+              if (holds.length > 0) {
+                toast.message('Calendar time proposed — confirm in the app to add it.');
+              }
+            }
           } catch { /* not valid JSON */ }
 
           if (!fullText) fullText = "I'm sorry, could you ask again?";
@@ -1165,7 +1297,7 @@ export function NexusVoiceCallProvider({ children }: { children: ReactNode }) {
           player.seal();
 
           await player.waitUntilDone();
-          await ensureSpokenOrBrowser();
+          await ensureSpokenOrNotify();
           if (!canRevealText) {
             showNexusText(display);
             clearProcessingOnce();
@@ -1214,7 +1346,7 @@ export function NexusVoiceCallProvider({ children }: { children: ReactNode }) {
                 }
 
                 textBuffer = '';
-                for (const s of splitToSentences(fullText)) feedSentence(s);
+                for (const s of buildSpeechChunks(fullText)) feedSentence(s);
                 return true;
               }
 
@@ -1251,7 +1383,7 @@ export function NexusVoiceCallProvider({ children }: { children: ReactNode }) {
         if (fullText && canRevealText) showNexusText(fullText);
         player.seal();
         await player.waitUntilDone();
-        await ensureSpokenOrBrowser();
+        await ensureSpokenOrNotify();
         if (fullText && !canRevealText) showNexusText(fullText);
         clearProcessingOnce();
       } catch (err: any) {
@@ -1263,7 +1395,7 @@ export function NexusVoiceCallProvider({ children }: { children: ReactNode }) {
           feedSentence(fullText);
           player.seal();
           await player.waitUntilDone();
-          await ensureSpokenOrBrowser();
+          await ensureSpokenOrNotify();
         }
       } finally {
         speakingRef.current = false;
@@ -1274,7 +1406,7 @@ export function NexusVoiceCallProvider({ children }: { children: ReactNode }) {
 
       return fullText;
     },
-    [voiceStream, addMessage, updateLastNexusMessage, startTypewriter, stopTypewriter],
+    [voiceStream, addMessage, updateLastNexusMessage, startTypewriter, stopTypewriter, setVoiceError],
   );
 
   // ── End call ───────────────────────────────────────────────────────────
@@ -1326,10 +1458,44 @@ export function NexusVoiceCallProvider({ children }: { children: ReactNode }) {
 
       // Re-preload for next call to keep restart starts fast.
       warmVoiceCaches();
+
+      if (msgsSnap.length > 0 && (toolsSnap.length > 0 || msgsSnap.length >= 2)) {
+        void (async () => {
+          try {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session?.access_token) return;
+            const res = await fetch(NEXUS_POST_CALL_SUMMARY_PATH, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${session.access_token}`,
+              },
+              body: JSON.stringify({
+                sessionId: sidSnap,
+                surface: 'voice',
+                messages: msgsSnap.map((m) => ({
+                  role: m.role === 'nexus' ? 'assistant' : 'user',
+                  content: m.text,
+                })),
+                toolTraces: toolsSnap,
+              }),
+            });
+            if (res.ok) {
+              const data = await res.json().catch(() => ({}));
+              const summary = typeof data?.summary === 'string' ? data.summary : '';
+              if (summary) {
+                toast.message('Call summary', { description: summary.slice(0, 280) });
+              }
+            }
+          } catch {
+            /* non-fatal */
+          }
+        })();
+      }
     } finally {
       endCallInProgressRef.current = false;
     }
-  }, [voiceStream, speakPhrase, callStatus, warmVoiceCaches]);
+  }, [voiceStream, speakPhrase, callStatus, warmVoiceCaches, sessionId]);
 
   // ── Process user message ───────────────────────────────────────────────
 
@@ -1416,6 +1582,8 @@ export function NexusVoiceCallProvider({ children }: { children: ReactNode }) {
 
     playChime('connect');
 
+    resetNexusTtsTransportState();
+
     const greetingCache = greetingCacheRef.current;
     if (!ENABLE_STATIC_GREETING && greetingCache && !greetingCache.ready) {
       // Wait for Kokoro preload (mount + click) so the first line plays from cache, not a cold TTS fetch.
@@ -1443,21 +1611,32 @@ export function NexusVoiceCallProvider({ children }: { children: ReactNode }) {
       });
     }, 1000);
 
-    // Prefer a deterministic handoff:
-    // play greeting fully, then begin one stable listening session.
-    const staticPlayed = ENABLE_STATIC_GREETING
-      ? await speakStaticGreeting({
-          onFirstAudioStart: () => {
-            setIsVoiceLoading(false);
-          },
-        })
-      : false;
-    if (!staticPlayed && activeRef.current) {
-      await speakPhrase(GREETING, greetingCacheRef.current, {
-        onFirstAudioStart: () => {
-          setIsVoiceLoading(false);
-        },
+    // Greeting: prefer env mode, otherwise Kokoro first; always fall back to bundled MP3 if TTS is silent
+    // (503/CSP/circuit) so users never get a dead call.
+    let firstAudioHandled = false;
+    const onFirstGreetingAudio = () => {
+      if (!firstAudioHandled) {
+        firstAudioHandled = true;
+        setIsVoiceLoading(false);
+      }
+    };
+
+    if (ENABLE_STATIC_GREETING) {
+      const playedStatic = await speakStaticGreeting({ onFirstAudioStart: onFirstGreetingAudio });
+      if (!playedStatic && activeRef.current) {
+        await speakPhrase(GREETING, greetingCacheRef.current, { onFirstAudioStart: onFirstGreetingAudio });
+      }
+      // Warm Kokoro for goodbye + later turns only after the instant MP3 path (fewer idle 503s on homepage).
+      if (activeRef.current) {
+        goodbyeCacheRef.current = preloadPhrase(GOODBYE, GOODBYE_PROFILE);
+      }
+    } else {
+      const spokeKokoro = await speakPhrase(GREETING, greetingCacheRef.current, {
+        onFirstAudioStart: onFirstGreetingAudio,
       });
+      if (!spokeKokoro && activeRef.current) {
+        await speakStaticGreeting({ onFirstAudioStart: onFirstGreetingAudio });
+      }
     }
 
     if (activeRef.current) {

@@ -18,3 +18,5 @@
 ## OpenClaw “mission control”
 
 Runtime orchestration stays **separate** from this file: see `integrations/ENGRAM_OPENCLAW.md`, Edge `openclaw-bridge`, and `npm run verify:openclaw:edge-live` when testing live bridges.
+
+**Full stack + operator runbook (browser, ClawHub, Cursor MCP, thin-bridge sketch, “AGI” framing, Mission Control naming):** `integrations/research/OPENCLAW_CLAWHUB_BROWSER_STACK.md`.

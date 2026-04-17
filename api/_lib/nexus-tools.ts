@@ -209,6 +209,21 @@ export const NEXUS_TOOL_DEFINITIONS = [
       },
     },
   },
+  {
+    type: 'function' as const,
+    function: {
+      name: 'search_places',
+      description: 'Search for live places, restaurants, or locations in the world. Use this whenever the user asks to find a restaurant, shop, or venue near a specific location.',
+      parameters: {
+        type: 'object',
+        additionalProperties: false,
+        properties: {
+          query: { type: 'string', description: 'What to search for, e.g. "Italian restaurants in New York City" or "coffee shops in Miami"' },
+        },
+        required: ['query'],
+      },
+    },
+  },
 ];
 
 export type NexusToolName =
@@ -221,7 +236,8 @@ export type NexusToolName =
   | 'send_document_for_signature'
   | 'enqueue_playbook'
   | 'get_playbook_status'
-  | 'cancel_playbook_run';
+  | 'cancel_playbook_run'
+  | 'search_places';
 
 export interface NexusToolTraceEntry {
   tool: string;
@@ -233,8 +249,9 @@ export interface NexusToolTraceEntry {
 /** Appended to phone system prompt when using canonical Nexus tools (Twilio). */
 export const NEXUS_PHONE_TOOLS_APPEND = `
 TOOL USE (phone call, user is authenticated by SyncScript user id):
-- You may call: create_task, add_note, propose_calendar_hold, send_invoice, send_document_for_signature.
+- You may call: create_task, add_note, propose_calendar_hold, send_invoice, send_document_for_signature, search_places.
 - Playbook tools (enqueue_playbook, get_playbook_status, cancel_playbook_run) require a signed-in JWT and are not available on the phone path; if asked, say they can start playbooks in the app chat.
+- search_places fetches real-world data like restaurants or venues. It allows you to find physical locations.
 - create_task is the ONLY way to persist a to-do, reminder, or "wake me at 8" style item in their task list. Use create_task with title and optional due_date_iso for time-specific reminders.
 - add_note saves a free-form note as a task-shaped item.
 - propose_calendar_hold saves a calendar event on the phone (it will appear in their tasks and schedule). Use it when the user wants to add, schedule, or block time for something. Provide title, start_iso, and duration_minutes.

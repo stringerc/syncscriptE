@@ -58,11 +58,13 @@ async function main() {
   }
 
   const executeUrl = `${url}/functions/v1/make-server-57781ad9/phone/nexus-execute`;
+  // Supabase gateway expects a valid user session JWT in Authorization (anon key → 401 Invalid JWT).
   const res = await fetch(executeUrl, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${anon}`,
+      apikey: anon,
+      Authorization: `Bearer ${jwt}`,
       'x-nexus-internal-secret': secret,
     },
     body: JSON.stringify({
@@ -100,7 +102,7 @@ async function main() {
   }
 
   const tasksRes = await fetch(`${url}/functions/v1/make-server-57781ad9/tasks`, {
-    headers: { Authorization: `Bearer ${jwt}` },
+    headers: { apikey: anon, Authorization: `Bearer ${jwt}` },
   });
   const tasksText = await tasksRes.text();
   if (!tasksRes.ok) {

@@ -24,6 +24,35 @@ SYNCSCRIPT_SUPABASE_KEY=<your-service-role-key>
 SYNCSCRIPT_API_BASE=https://kwhnrlzibgfedtxpkbgb.supabase.co/functions/v1/make-server-57781ad9
 ```
 
+## MEMORY.md (Telegram, Discord, and other OpenClaw channels)
+
+OpenClaw **automatically injects** bootstrap files from **`agents.defaults.workspace`** (default **`~/.openclaw/workspace`**) into the system prompt on every turn — including **`MEMORY.md`** when that file exists in the workspace root (see OpenClaw docs: *System Prompt* → workspace bootstrap).
+
+**So Telegram (and other OpenClaw channels) see your memory when the gateway workspace contains `MEMORY.md`.** Pick one:
+
+1. **Point the gateway at your SyncScript clone** (recommended if this repo is your main OpenClaw workspace):
+   ```bash
+   openclaw config set agents.defaults.workspace "$HOME/syncscript"
+   ```
+   Restart the gateway. Your local **`MEMORY.md`** (gitignored in-repo) lives there and will be injected.
+
+2. **Keep the default workspace** and copy or symlink only the file:
+   ```bash
+   ln -sf "$HOME/syncscript/MEMORY.md" "$HOME/.openclaw/workspace/MEMORY.md"
+   ```
+
+Tune size limits with **`agents.defaults.bootstrapMaxChars`** / **`bootstrapTotalMaxChars`** if prompts get large.
+
+## In-app Nexus (Supabase Edge `openclaw-bridge`)
+
+The Edge function **cannot read** your laptop’s **`MEMORY.md`**. Set Supabase secret **`SYNCSCRIPT_OPERATOR_MEMORY`** to a **text digest** of that file (first ~20k chars is enough). From the repo:
+
+```bash
+npm run operator-memory:digest
+```
+
+Paste the printed block into **Supabase → Edge Functions → Secrets**. Optional: **`SYNCSCRIPT_OPERATOR_MEMORY_MAX_CHARS`** (default 20000). Redeploy Edge functions after changing secrets.
+
 ## Tools Provided
 
 ### syncscript_get_tasks

@@ -51,6 +51,7 @@ import { toast } from 'sonner@2.0.3';
 import { motion, AnimatePresence } from 'motion/react';
 import { detectEventConflicts, formatConflictMessage } from '../utils/calendar-conflicts';
 import { getEventEnergyValue } from '../utils/energy-system'; // PHASE 1.6: Energy system
+import { cn } from '@/lib/utils';
 
 interface EventModalProps {
   open: boolean;
@@ -63,6 +64,10 @@ interface EventModalProps {
   allEvents?: Event[]; // For conflict detection
   onBulkUpdate?: (events: Event[]) => void; // NEW: For updating multiple events (milestones/steps)
   onCompleteEvent?: (eventId: string) => void; // PHASE 1.6: Energy system integration
+  /** Linked Google/Outlook hold — opens provider checkbox editor */
+  onManageLinkedCalendars?: () => void;
+  /** When true, stack above App AI voice overlay (`z-[100020]`). */
+  stackAboveVoiceShell?: boolean;
 }
 
 export function EventModal({
@@ -75,7 +80,9 @@ export function EventModal({
   onSaveAsScript,
   allEvents,
   onBulkUpdate,
-  onCompleteEvent, // PHASE 1.6: Energy system integration
+  onCompleteEvent,
+  onManageLinkedCalendars,
+  stackAboveVoiceShell,
 }: EventModalProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [showAISuggestions, setShowAISuggestions] = useState(false);
@@ -271,7 +278,13 @@ export function EventModal({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="!max-w-[1400px] w-[95vw] max-h-[90vh] bg-[#1a1d24] border-gray-800 text-white p-0 overflow-hidden !z-[100] flex flex-col !border-l-4 !border-l-teal-500">
+        <DialogContent
+          overlayClassName={stackAboveVoiceShell ? 'z-[100021]' : undefined}
+          className={cn(
+            '!max-w-[1400px] w-[95vw] max-h-[90vh] bg-[#1a1d24] border-gray-800 text-white p-0 overflow-hidden flex flex-col !border-l-4 !border-l-teal-500',
+            stackAboveVoiceShell && '!z-[100022]',
+          )}
+        >
           {/* Header - Fixed at top */}
           <DialogHeader className="p-6 pb-4 border-b border-gray-800 shrink-0">
             <div className="flex items-start justify-between gap-4">
@@ -465,6 +478,42 @@ export function EventModal({
                     )}
                   </div>
                 </div>
+
+                {event.syncGroupId &&
+                  event.linkedCalendarInstances &&
+                  event.linkedCalendarInstances.length > 0 &&
+                  onManageLinkedCalendars && (
+                    <div className="rounded-lg border border-teal-500/30 bg-teal-500/5 p-4 space-y-3">
+                      <h4 className="text-sm text-gray-300 flex items-center gap-2">
+                        <Calendar className="w-4 h-4 text-teal-400" />
+                        Connected calendars
+                      </h4>
+                      <div className="flex flex-wrap gap-2">
+                        {event.linkedCalendarInstances.map((i) => {
+                          const p = (i.provider || '').toLowerCase();
+                          const label = p.includes('google')
+                            ? 'Google'
+                            : p.includes('outlook')
+                              ? 'Outlook'
+                              : i.provider;
+                          return (
+                            <Badge key={`${i.provider}-${i.eventId || ''}`} variant="secondary" className="text-xs">
+                              {label}
+                            </Badge>
+                          );
+                        })}
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={onManageLinkedCalendars}
+                        type="button"
+                        className="border-teal-500/40"
+                      >
+                        Edit which calendars
+                      </Button>
+                    </div>
+                  )}
 
                 {/* Location */}
                 {event.location && (

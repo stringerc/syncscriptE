@@ -10,6 +10,29 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
   if (req.method === 'OPTIONS') return res.status(204).end();
+
+  const resource = typeof req.query.resource === 'string' ? req.query.resource : undefined;
+
+  // Phase 2B shadow projection mirror calls GET/PATCH here; the DeepSeek insights path below is POST-only.
+  if (resource === 'contract-runtime-projection') {
+    if (req.method === 'GET') {
+      return res.status(200).json({
+        projectionVersion: 0,
+        sourceEventCursor: 0,
+        generatedAt: new Date().toISOString(),
+        data: {},
+      });
+    }
+    if (req.method === 'PATCH') {
+      return res.status(200).json({
+        projectionVersion: 0,
+        sourceEventCursor: 0,
+        generatedAt: new Date().toISOString(),
+        data: { accepted: true },
+      });
+    }
+  }
+
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   const isAuthed = await validateAuth(req, res);

@@ -473,7 +473,7 @@ export function GoalDetailModal({ goal, open, onOpenChange, onEditGoal, onComple
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="!max-w-[1400px] w-[95vw] max-h-[90vh] bg-[#1a1d24] border-gray-800 text-white p-0 overflow-hidden !z-[100] flex flex-col !border-l-4 !border-l-purple-500">
+      <DialogContent className="!max-w-[1400px] w-[95vw] max-h-[90vh] bg-[#1a1d24] border-gray-800 text-white p-0 overflow-hidden flex flex-col !border-l-4 !border-l-purple-500">
         {/* Header - Fixed at top */}
         <DialogHeader className="p-6 pb-4 border-b border-gray-800 shrink-0">
           <DialogTitle className="sr-only">{goal.title}</DialogTitle>

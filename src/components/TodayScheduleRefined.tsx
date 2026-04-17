@@ -264,8 +264,11 @@ export function TodayScheduleRefined() {
       const isOverdue = dueDate < todayStart;
       const isDueToday = dueDate >= todayStart && dueDate < todayEnd;
       const hasNoDueDate = !task.dueDate;
+      const isCreatedToday = task.createdAt
+        && new Date(task.createdAt) >= todayStart
+        && new Date(task.createdAt) < todayEnd;
       
-      return isOverdue || isDueToday || hasNoDueDate;
+      return isOverdue || isDueToday || hasNoDueDate || isCreatedToday;
     });
     
     // Score and assign time slots

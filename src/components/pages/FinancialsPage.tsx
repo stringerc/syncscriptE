@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { AlertTriangle, BrainCircuit, DollarSign, ShieldCheck, Sparkles, TrendingUp, Users, Wallet } from 'lucide-react';
+import { AlertTriangle, BrainCircuit, DollarSign, FileText, ShieldCheck, Sparkles, TrendingUp, Users, Wallet } from 'lucide-react';
 import { toast } from 'sonner@2.0.3';
 import { DashboardLayout } from '../layout/DashboardLayout';
 import { Button } from '../ui/button';
@@ -9,10 +9,22 @@ import { useRevenueAnalytics } from '../../hooks/useRevenueAnalytics';
 import { calculateRevenueImpact } from '../RevenueOptimizer';
 import { useTasks } from '../../hooks/useTasks';
 import { useFinancialIntelligence } from '../../hooks/useFinancialIntelligence';
+import { InvoiceDashboard } from '../InvoiceDashboard';
+import { InvoiceFormModal } from '../InvoiceFormModal';
+import type { Invoice } from '../../hooks/useInvoices';
+import { PlaidConnectCard } from '../PlaidConnectCard';
+import { BenchmarkOptInCard } from '../BenchmarkOptInCard';
+import { RecurringInvoicesPanel } from '../RecurringInvoicesPanel';
+import { useBiometricSummary } from '../../hooks/useBiometricSummary';
+import { usePlaidSnapshot } from '../../hooks/usePlaidSnapshot';
 
 type GrowthMode = 'stable' | 'aggressive';
 
 export function FinancialsPage() {
+  const [activeTab, setActiveTab] = useState<'revenue' | 'invoices'>('invoices');
+  const [invoiceFormOpen, setInvoiceFormOpen] = useState(false);
+  const [editingInvoice, setEditingInvoice] = useState<Invoice | null>(null);
+  const [invoiceRefreshKey, setInvoiceRefreshKey] = useState(0);
   const [visitors, setVisitors] = useState(2400);
   const [conversionRate, setConversionRate] = useState(2.8);
   const [price, setPrice] = useState(49);
@@ -26,6 +38,8 @@ export function FinancialsPage() {
   const { trackRevenueEvent, getUpgradeProbability } = useRevenueAnalytics();
   const { createTask } = useTasks();
   const { accounts, snapshot, anomalies, cashflowSeries, upcomingObligations } = useFinancialIntelligence();
+  const biometric = useBiometricSummary();
+  const plaidLive = usePlaidSnapshot();
 
   const baseline = useMemo(
     () => calculateRevenueImpact({ visitors, conversionRate, price, optimizeConversion: false }),
@@ -191,14 +205,66 @@ Upgrade probability: ${upgradeProbability}%`,
               Financials
             </h1>
             <p className="text-sm text-gray-400 mt-1">
-              Revenue intelligence, growth modeling, and AI financial execution.
+              Invoicing, revenue intelligence, and AI financial execution.
             </p>
           </div>
-          <Button onClick={() => void runFinancialBrief()} disabled={briefLoading} className="gap-2">
-            <Sparkles className="w-4 h-4" />
-            {briefLoading ? 'Building Brief...' : 'Generate OpenClaw Financial Brief'}
-          </Button>
+          {activeTab === 'revenue' && (
+            <Button onClick={() => void runFinancialBrief()} disabled={briefLoading} className="gap-2">
+              <Sparkles className="w-4 h-4" />
+              {briefLoading ? 'Building Brief...' : 'Generate Financial Brief'}
+            </Button>
+          )}
         </div>
+
+        <div className="flex items-center gap-1 bg-[#1a1b23] rounded-xl p-1 border border-gray-800 w-fit">
+          <button
+            onClick={() => setActiveTab('invoices')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              activeTab === 'invoices'
+                ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30'
+                : 'text-gray-400 hover:text-gray-200 border border-transparent'
+            }`}
+          >
+            <FileText className="w-4 h-4" /> Invoices
+          </button>
+          <button
+            onClick={() => setActiveTab('revenue')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              activeTab === 'revenue'
+                ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                : 'text-gray-400 hover:text-gray-200 border border-transparent'
+            }`}
+          >
+            <TrendingUp className="w-4 h-4" /> Revenue Intelligence
+          </button>
+        </div>
+
+        {activeTab === 'invoices' ? (
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <PlaidConnectCard />
+              <BenchmarkOptInCard />
+            </div>
+            {biometric.supported && biometric.note && (
+              <p className="text-xs text-gray-500">{biometric.note}</p>
+            )}
+            <InvoiceDashboard
+              key={invoiceRefreshKey}
+              onCreateNew={() => { setEditingInvoice(null); setInvoiceFormOpen(true); }}
+              onEdit={(inv) => { setEditingInvoice(inv); setInvoiceFormOpen(true); }}
+            />
+            <RecurringInvoicesPanel />
+          </div>
+        ) : (
+        <>
+        {plaidLive?.connected && plaidLive.snapshot && (
+          <div className="rounded-xl border border-cyan-500/25 bg-cyan-500/10 px-4 py-3 text-sm text-cyan-100">
+            <span className="font-medium">Live bank data (Plaid):</span>{' '}
+            Cash ${Number(plaidLive.snapshot.totalCash || 0).toLocaleString()} · Net monthly $
+            {Number(plaidLive.snapshot.netMonthlyCashflow || 0).toLocaleString()} · Runway{' '}
+            {Number(plaidLive.snapshot.runwayMonths || 0).toFixed(1)} mo
+          </div>
+        )}
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="bg-[#1e2128] border border-gray-800 rounded-xl p-4">
@@ -484,7 +550,17 @@ Upgrade probability: ${upgradeProbability}%`,
             </div>
           </div>
         </div>
+        </>
+        )}
       </div>
+
+      {invoiceFormOpen && (
+        <InvoiceFormModal
+          invoice={editingInvoice}
+          onClose={() => { setInvoiceFormOpen(false); setEditingInvoice(null); }}
+          onSaved={() => setInvoiceRefreshKey((k) => k + 1)}
+        />
+      )}
     </DashboardLayout>
   );
 }

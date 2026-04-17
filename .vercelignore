@@ -13,7 +13,6 @@ figma-make-latest/
 .trash-audit-cleanup/
 scripts/
 memory/
-api/phone/**
 
 nature-cortana-platform/
 ios/
@@ -21,9 +20,16 @@ ios/
 .tmp-*/
 evidence/
 reports/
+test-results/
+playwright-report/
 *.log
 
-# Local-only API routes (not on origin/main) — keep CLI deploy ≤ Hobby function limit / match GitHub
-api/discord/
+# Kokoro local dev artifacts (large; never ship to Vercel)
+deploy/kokoro-tts-ec2/.venv-tts/
+deploy/kokoro-tts-ec2/models/
+
+# Local-only / trimmed API routes — keep Hobby deploy ≤ 12 serverless functions:
+# - phone: api/phone/[endpoint].ts (includes Discord interactions proxy → /api/discord/interactions)
+# - crons: api/cron/[job].ts (wake-up, guest-cleanup, process-emails, phone-dispatch)
 api/ai/stt.ts
 api/ai/nexus-brain-manifest.ts

@@ -1,3 +1,30 @@
+import { projectId, supabaseUrl } from '../utils/supabase/info';
+
+/** POST APNs/FCM token to Edge (`/push/register`) when the user session exists (Supabase JWT in localStorage). */
+async function registerPushTokenOnEdge(deviceToken: string): Promise<void> {
+  if (!deviceToken || typeof localStorage === 'undefined') return;
+  try {
+    const key = `sb-${projectId}-auth-token`;
+    const raw = localStorage.getItem(key);
+    let access: string | null = null;
+    if (raw) {
+      const j = JSON.parse(raw) as { access_token?: string };
+      access = j?.access_token || null;
+    }
+    if (!access) return;
+    const { Capacitor } = await import('@capacitor/core');
+    const platform = typeof Capacitor?.getPlatform === 'function' ? Capacitor.getPlatform() : 'web';
+    const url = `${supabaseUrl.replace(/\/+$/, '')}/functions/v1/make-server-57781ad9/push/register`;
+    await fetch(url, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${access}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token: deviceToken, platform }),
+    });
+  } catch {
+    // Non-fatal: user may sign in after push registration.
+  }
+}
+
 function resolveIncomingRoute(url: string): string | null {
   const raw = String(url || '').trim();
   if (!raw) return null;
@@ -43,8 +70,10 @@ export async function bootstrapCapacitorRuntime(): Promise<void> {
     await PushNotifications.requestPermissions();
     await PushNotifications.register();
 
-    PushNotifications.addListener('registration', (token) => {
-      localStorage.setItem('syncscript_native_push_token', String(token?.value || ''));
+    PushNotifications.addListener('registration', async (token) => {
+      const v = String(token?.value || '');
+      localStorage.setItem('syncscript_native_push_token', v);
+      await registerPushTokenOnEdge(v);
     });
 
     PushNotifications.addListener('pushNotificationActionPerformed', (event) => {

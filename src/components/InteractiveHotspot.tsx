@@ -85,7 +85,14 @@ function HotspotContent({
       {/* Pulsing spotlight on target element */}
       <motion.div
         className="absolute rounded-full blur-2xl pointer-events-none"
-        style={{ backgroundColor: '#6366f1' }}
+        style={{
+          backgroundColor: '#6366f1',
+          width: '200px',
+          height: '200px',
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+        }}
         animate={{
           scale: [1, 1.3, 1],
           opacity: [0.06, 0.12, 0.06]
@@ -94,13 +101,6 @@ function HotspotContent({
           duration: 2,
           repeat: Infinity,
           ease: 'easeInOut'
-        }}
-        style={{
-          width: '200px',
-          height: '200px',
-          top: '50%',
-          left: '50%',
-          transform: 'translate(-50%, -50%)'
         }}
       />
 

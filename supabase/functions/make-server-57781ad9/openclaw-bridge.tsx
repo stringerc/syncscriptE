@@ -17,6 +17,7 @@ import { cors } from 'npm:hono/cors';
 import { secureOpenClawRequest, filterSensitiveData } from './openclaw-security.tsx';
 import { getUserConnectedIntegrations } from './oauth-routes.tsx';
 import * as kv from './kv_store.tsx';
+import { getOpenClawPersonalityMarkdown, resolvePersonaMode } from './nexus-persona-halo-inspired.ts';
 import {
   createGoogleCalendarEvent,
   updateGoogleCalendarEvent,
@@ -40,6 +41,103 @@ const openclawBridge = new Hono();
 // OpenClaw server details (EC2 instance) — loaded from environment variables
 const OPENCLAW_BASE_URL = Deno.env.get('OPENCLAW_BASE_URL') || 'http://3.148.233.23:18789';
 const OPENCLAW_TOKEN = Deno.env.get('OPENCLAW_TOKEN') || '';
+
+// Same KV key as email-task-routes / SupabaseTaskRepository — must persist here for phone + chat tools.
+const TASKS_V1_KEY = (userId: string) => `tasks:v1:${userId}`;
+
+type TaskV1Record = {
+  id: string;
+  title: string;
+  description?: string;
+  priority: 'low' | 'medium' | 'high' | 'urgent';
+  status: 'todo' | 'in_progress' | 'completed';
+  completed: boolean;
+  energyLevel: 'low' | 'medium' | 'high';
+  estimatedTime: string;
+  dueDate: string;
+  scheduledTime?: string;
+  progress: number;
+  tags: string[];
+  createdAt: string;
+  updatedAt: string;
+  createdBy: string;
+  completedAt?: string | null;
+  source?: string;
+};
+
+function normalizeTaskV1(raw: any, userName = 'You'): TaskV1Record {
+  const now = new Date().toISOString();
+  const due = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+  return {
+    id: String(raw?.id || `task_${Date.now()}_${crypto.randomUUID().slice(0, 8)}`),
+    title: String(raw?.title || 'Untitled Task'),
+    description: raw?.description ? String(raw.description) : '',
+    priority: ['low', 'medium', 'high', 'urgent'].includes(raw?.priority) ? raw.priority : 'medium',
+    status: ['todo', 'in_progress', 'completed'].includes(raw?.status)
+      ? raw.status
+      : (raw?.completed ? 'completed' : 'todo'),
+    completed: Boolean(raw?.completed),
+    energyLevel: ['low', 'medium', 'high'].includes(raw?.energyLevel) ? raw.energyLevel : 'medium',
+    estimatedTime: String(raw?.estimatedTime || '15 min'),
+    dueDate: raw?.dueDate ? new Date(raw.dueDate).toISOString() : due,
+    scheduledTime: raw?.scheduledTime ? new Date(raw.scheduledTime).toISOString() : undefined,
+    progress: Number.isFinite(Number(raw?.progress)) ? Number(raw.progress) : (raw?.completed ? 100 : 0),
+    tags: Array.isArray(raw?.tags) ? raw.tags.map((t: any) => String(t)) : [],
+    createdAt: raw?.createdAt ? new Date(raw.createdAt).toISOString() : now,
+    updatedAt: raw?.updatedAt ? new Date(raw.updatedAt).toISOString() : now,
+    createdBy: String(raw?.createdBy || userName || 'You'),
+    completedAt: raw?.completedAt ? new Date(raw.completedAt).toISOString() : null,
+    source: raw?.source ? String(raw.source) : undefined,
+  };
+}
+
+async function loadTasksV1(userId: string): Promise<TaskV1Record[]> {
+  const existing = await kv.get(TASKS_V1_KEY(userId));
+  return Array.isArray(existing) ? (existing as TaskV1Record[]) : [];
+}
+
+async function saveTasksV1(userId: string, tasks: TaskV1Record[]): Promise<void> {
+  await kv.set(TASKS_V1_KEY(userId), tasks);
+}
+
+function findTaskIndexByTitle(tasks: TaskV1Record[], title: string): number {
+  const q = title.trim().toLowerCase();
+  if (!q) return -1;
+  const exact = tasks.findIndex((t) => t.title.trim().toLowerCase() === q);
+  if (exact >= 0) return exact;
+  return tasks.findIndex((t) => {
+    const tt = t.title.toLowerCase();
+    return tt.includes(q) || q.includes(tt);
+  });
+}
+
+function mapToolPriorityToRecord(p: string | undefined): 'low' | 'medium' | 'high' | 'urgent' {
+  if (p === 'high') return 'high';
+  if (p === 'low') return 'low';
+  return 'medium';
+}
+
+/**
+ * Optional Supabase secret `SYNCSCRIPT_OPERATOR_MEMORY`: curated digest of repo MEMORY.md
+ * (Edge has no filesystem access to the developer's machine — paste or sync via CI).
+ */
+function buildOperatorMemorySectionForNexus(): string {
+  const raw = Deno.env.get('SYNCSCRIPT_OPERATOR_MEMORY')?.trim();
+  if (!raw) return '';
+  const parsed = Number(Deno.env.get('SYNCSCRIPT_OPERATOR_MEMORY_MAX_CHARS') || '20000');
+  const max = Number.isFinite(parsed) ? Math.min(100000, Math.max(2000, parsed)) : 20000;
+  const body =
+    raw.length > max
+      ? `${raw.slice(0, max)}\n\n[... truncated. Raise SYNCSCRIPT_OPERATOR_MEMORY_MAX_CHARS or shorten the digest.]`
+      : raw;
+  return `
+
+## Operator-curated project memory
+Use for SyncScript jargon, infra, product names, and ongoing decisions. This block is a digest (may be truncated).
+
+${body}
+`;
+}
 
 // ============================================================================
 // MIDDLEWARE
@@ -169,7 +267,7 @@ async function executeSkill(
  */
 openclawBridge.get('/health', async (c) => {
   try {
-    const health = await callOpenClaw('/api/health', 'GET');
+    const health = await callOpenClaw('/healthz', 'GET');
     return c.json({
       success: true,
       openclawStatus: 'connected',
@@ -210,18 +308,31 @@ openclawBridge.post('/chat', async (c) => {
     
     // ── Build rich system prompt with user's actual data ──────────────────
     const userData = context?.userData || {};
-    const tasks = userData.tasks || [];
+    let tasks: any[] = userData.tasks || [];
+    if (userId) {
+      try {
+        tasks = await loadTasksV1(userId);
+      } catch (e) {
+        console.warn('[OpenClaw Bridge] tasks:v1 load failed, using context tasks:', e);
+      }
+    }
     const calendarEvents = userData.calendarEvents || [];
     const goals = userData.goals || [];
     const energyData = userData.energyData || {};
     const currentPage = context?.currentPage || 'ai-assistant';
-    
+    const personaMode = resolvePersonaMode(
+      Deno.env.get('NEXUS_PERSONA_MODE'),
+      typeof context?.personaMode === 'string' ? context.personaMode : null,
+    );
+    const personalitySection = getOpenClawPersonalityMarkdown(personaMode);
+
     let dataContext = '';
     
     if (tasks.length > 0) {
       dataContext += `\n\n## User's Current Tasks\n`;
       for (const t of tasks) {
-        dataContext += `- [${t.status === 'completed' ? 'x' : ' '}] "${t.title}" (Priority: ${t.priority}${t.dueDate ? `, Due: ${t.dueDate}` : ''})\n`;
+        const done = t.status === 'completed' || t.completed === true;
+        dataContext += `- [${done ? 'x' : ' '}] "${t.title}" (Priority: ${t.priority}${t.dueDate ? `, Due: ${t.dueDate}` : ''})\n`;
       }
     }
     
@@ -271,10 +382,11 @@ openclawBridge.post('/chat', async (c) => {
       }
     }
 
+    const operatorMemorySection = buildOperatorMemorySectionForNexus();
+
     let systemPrompt = `You are Nexus, the AI assistant built into SyncScript — an AI-powered productivity platform.
 
-## Your Personality
-You are inspired by Cortana from Halo: intelligent, confident, warmly supportive, and occasionally witty. You speak with clarity and purpose, balancing professionalism with a friendly, slightly playful tone. You are proactive and action-oriented — you don't just suggest, you DO.
+${personalitySection}${operatorMemorySection}
 
 ## Your Capabilities — YOU CAN AND SHOULD DO THESE
 You have direct access to the user's SyncScript workspace. When asked to do something, DO IT. Never deflect, never ask unnecessary clarifying questions, never suggest the user do it themselves. You have tools to:
@@ -329,6 +441,7 @@ You are on a LIVE PHONE CALL. These rules override any conflicting chat rules:
 6. NEVER say "asterisk" or read formatting characters aloud.
 7. You still have ALL your tools — use them when asked. But announce actions in conversational speech, not structured text.
 8. After performing a tool action, confirm naturally: "Done, I added that to your calendar" not "## Action Complete\\n- Created event..."
+8b. For tasks: only say you saved, completed, or created a task if the tool result JSON shows success: true. If success is false or the tool errored, say honestly that it did not save and ask them to add it in the SyncScript app (or try rephrasing the task name).
 9. You can set up scheduled briefing calls using the set_briefing_schedule tool. If a user says "call me every morning at 7" — do it.
 10. When mood/insight context is provided, adapt your tone accordingly. Don't announce "I detect you're stressed" — just BE warmer, gentler, or more celebratory as needed.
 11. If proactive insights, relationship reminders, or viral stats are provided in context, weave them into conversation naturally. Don't dump them — find the right moment.
@@ -787,30 +900,120 @@ You are on a LIVE PHONE CALL. These rules override any conflicting chat rules:
         let result: any = { success: true };
         
         switch (fn.name) {
-          case 'create_task':
-            result = {
-              success: true,
-              action: 'create_task',
-              task: {
-                id: `task-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-                title: args.title,
-                priority: args.priority || 'medium',
-                status: args.status || 'active',
-                dueDate: args.dueDate || null,
-              },
-              message: `Created task: "${args.title}"`,
-            };
+          case 'create_task': {
+            if (!userId) {
+              result = {
+                success: false,
+                action: 'create_task',
+                error: 'No user id — cannot persist task. Ask the user to open SyncScript and add it there.',
+              };
+              break;
+            }
+            try {
+              const title = String(args.title || '').trim() || 'Untitled Task';
+              let dueIso: string | undefined;
+              if (args.dueDate) {
+                const d = new Date(args.dueDate);
+                dueIso = Number.isNaN(d.getTime()) ? undefined : d.toISOString();
+              }
+              const all = await loadTasksV1(userId);
+              const newTask = normalizeTaskV1({
+                title,
+                priority: mapToolPriorityToRecord(args.priority),
+                dueDate: dueIso,
+                completed: false,
+                status: 'todo',
+                source: 'nexus-tool',
+              });
+              all.unshift(newTask);
+              await saveTasksV1(userId, all);
+              result = {
+                success: true,
+                action: 'create_task',
+                task: {
+                  id: newTask.id,
+                  title: newTask.title,
+                  priority: newTask.priority,
+                  status: newTask.status,
+                  completed: newTask.completed,
+                  dueDate: newTask.dueDate,
+                },
+                message: `Created task: "${title}"`,
+              };
+            } catch (e: any) {
+              result = {
+                success: false,
+                action: 'create_task',
+                error: e?.message || String(e),
+              };
+            }
             break;
-            
-          case 'update_task':
-            result = {
-              success: true,
-              action: 'update_task',
-              taskTitle: args.taskTitle,
-              updates: args.updates,
-              message: `Updated task: "${args.taskTitle}" — ${Object.entries(args.updates || {}).map(([k, v]) => `${k}: ${v}`).join(', ')}`,
-            };
+          }
+
+          case 'update_task': {
+            if (!userId) {
+              result = {
+                success: false,
+                action: 'update_task',
+                error: 'No user id — cannot update tasks. Ask the user to mark them complete in SyncScript.',
+              };
+              break;
+            }
+            try {
+              const all = await loadTasksV1(userId);
+              const idx = findTaskIndexByTitle(all, String(args.taskTitle || ''));
+              if (idx < 0) {
+                result = {
+                  success: false,
+                  action: 'update_task',
+                  error: `No task matched "${args.taskTitle}". List tasks or ask for the exact title.`,
+                  taskTitle: args.taskTitle,
+                };
+                break;
+              }
+              const u = args.updates || {};
+              const cur = { ...all[idx] };
+              if (u.status === 'completed') {
+                cur.completed = true;
+                cur.status = 'completed';
+                cur.completedAt = new Date().toISOString();
+                cur.progress = 100;
+              } else if (u.status === 'active' || u.status === 'pending') {
+                cur.completed = false;
+                cur.status = u.status === 'pending' ? 'todo' : 'in_progress';
+                cur.completedAt = null;
+                cur.progress = cur.status === 'in_progress' ? 50 : 0;
+              }
+              if (u.priority) {
+                cur.priority = mapToolPriorityToRecord(u.priority);
+              }
+              if (u.dueDate) {
+                const d = new Date(u.dueDate);
+                if (!Number.isNaN(d.getTime())) cur.dueDate = d.toISOString();
+              }
+              if (u.title) {
+                cur.title = String(u.title).trim() || cur.title;
+              }
+              cur.updatedAt = new Date().toISOString();
+              all[idx] = normalizeTaskV1(cur, cur.createdBy);
+              await saveTasksV1(userId, all);
+              result = {
+                success: true,
+                action: 'update_task',
+                taskTitle: args.taskTitle,
+                updates: args.updates,
+                message: `Updated task: "${args.taskTitle}" — ${Object.entries(args.updates || {}).map(([k, v]) => `${k}: ${v}`).join(', ')}`,
+              };
+            } catch (e: any) {
+              result = {
+                success: false,
+                action: 'update_task',
+                error: e?.message || String(e),
+                taskTitle: args.taskTitle,
+              };
+            }
             break;
+          }
             
           case 'create_calendar_event':
             result = {
@@ -2027,5 +2230,11 @@ openclawBridge.post('/cs/analyze-sentiment', async (c) => {
 // ============================================================================
 // EXPORT
 // ============================================================================
+
+// Stub continuity routes — prevents 404 console spam from ContinuityProvider
+openclawBridge.get('/continuity/presence', (c) => c.json({ devices: [] }));
+openclawBridge.post('/continuity/presence', (c) => c.json({ ok: true }));
+openclawBridge.get('/continuity/security-policy', (c) => c.json({ requireTrustedDeviceForHandoff: false, requireCriticalApproval: false, trustedDevices: [], watchProfile: 'generic' }));
+openclawBridge.put('/continuity/security-policy', (c) => c.json({ ok: true }));
 
 export default openclawBridge;

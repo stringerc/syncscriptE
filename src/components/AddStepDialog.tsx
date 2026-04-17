@@ -42,7 +42,7 @@ export function AddStepDialog({ open, onOpenChange, onAdd, availableUsers, miles
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="!max-w-md bg-[#1a1d24] border-gray-800 text-white !z-[120]">
+      <DialogContent className="!max-w-md bg-[#1a1d24] border-gray-800 text-white">
         <DialogHeader>
           <DialogTitle className="text-xl">Add Step</DialogTitle>
           <DialogDescription className="text-gray-400">to {milestoneName}</DialogDescription>

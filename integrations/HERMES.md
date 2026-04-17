@@ -40,7 +40,7 @@ SyncScript **Edge** (`hermes-bridge.tsx`) proxies authenticated clients to:
 |------|---------|
 | `list_tools` | Introspection. |
 | `apply_task_patch` | Idempotent task update; production should finish by calling **your** task APIs or Supabase so `task.updated` contract events fire from the app layer. |
-| `create_calendar_hold` | Reserve time; production should create/update calendar events via existing integrations. |
+| `create_calendar_hold` | Reserve time on **Google and/or Outlook** via Edge `POST /calendar/hold` (`provider`: auto \| google \| outlook). With `provider: auto`, optional **`targets`** (`["google"]`, `["outlook"]`, or both) overrides per request; otherwise the user’s **`GET /calendar/hold-preferences`** defaults apply. Response may include **`sync_group_id`** when multiple instances are linked. **After creation**, the app can **`PATCH /calendar/sync-group/:id`** with **`targets`** (and optional title/time) to add/remove provider copies or reschedule — see dashboard calendar linked-hold UI. |
 
 ### Response shape (for UI traces)
 
@@ -51,7 +51,14 @@ Hermes should return JSON including:
 - `result` (object) — domain outcome
 - `trace` (array) — `{ step, status, detail?, at }` for **progress visibility**
 
-The **mock** server (`npm run hermes:mock`) implements this shape.
+The **mock** server (`npm run hermes:mock`) implements this shape for local/dev.
+
+**Production executor** (`integrations/hermes-executor-server.mjs`, `npm run hermes:executor`): same HTTP surface, but **`apply_task_patch`** performs **`PUT /tasks/:id`** on Supabase Edge (KV task store) and **`create_calendar_hold`** calls **`POST /calendar/hold`** (`provider`: **`auto`** uses **`syncCalendarEventToTargets`** with saved prefs or optional **`targets`**; **`google`** / **`outlook`** for a single provider). Requires:
+
+- **`SYNCSCRIPT_EDGE_BASE`** — `https://<project-ref>.supabase.co/functions/v1/make-server-57781ad9` (no trailing slash).
+- **Hermes Edge bridge forwards the user’s `Authorization` JWT** to the executor (`hermes-bridge.tsx`) so actions run as that user.
+
+Oracle/systemd: **`deploy/oracle/systemd/hermes-executor.service`** (default **`install-stack-services.sh`** enables executor and disables **`hermes-mock`**).
 
 ## Edge (Supabase)
 

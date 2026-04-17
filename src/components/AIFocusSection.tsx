@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { HelpCircle, Mic, MoreHorizontal, Zap, TrendingUp, ArrowRight, Sparkles, Brain, Activity, Crown, CircleDot, BarChart3, ChevronRight, CloudRain, Navigation } from 'lucide-react';
 import { AnimatedAvatar } from './AnimatedAvatar';
 import { useUserProfile } from '../utils/user-profile';
@@ -12,7 +12,10 @@ import { Clock } from 'lucide-react';
 import { calculateCollaboratorProgress, getROYGBIVProgress } from '../utils/progress-calculations';
 import { useCurrentReadiness } from '../hooks/useCurrentReadiness';
 import { useWeatherRoute } from '../hooks/useWeatherRoute';
+import { useCalendarEvents } from '../hooks/useCalendarEvents';
+import { buildWeekOutlookRows } from '../utils/weather-event-conflicts';
 import { WeatherRouteConflictModal } from './WeatherRouteConflictModal';
+import { WeatherWeekOutlookModal } from './WeatherWeekOutlookModal';
 import { defaultCollaboratorImage, resolveTaskCardAvatar } from '../utils/task-avatar-display';
 
 /**
@@ -76,7 +79,7 @@ import { defaultCollaboratorImage, resolveTaskCardAvatar } from '../utils/task-a
 export function AIFocusSection() {
   const [showWeatherModal, setShowWeatherModal] = useState(false);
   const [showRouteModal, setShowRouteModal] = useState(false);
-  const [modalType, setModalType] = useState<'weather' | 'route'>('weather');
+  const [showWeekOutlook, setShowWeekOutlook] = useState(false);
   
   const { tasks, loading } = useTasks();
   const { energy } = useEnergy();
@@ -103,7 +106,15 @@ export function AIFocusSection() {
   // Research: Google Maps (2024), Waze (2024)
   // ══════════════════════════════════════════════════════════════════════════════
   
-  const { weather, weatherAlerts, routeAlerts, loading: weatherLoading } = useWeatherRoute();
+  const { weather, weatherAlerts, routeAlerts, loading: weatherLoading, forecastOutlook } = useWeatherRoute();
+  const { events: calendarEvents } = useCalendarEvents();
+
+  const weekOutlookRows = useMemo(() => {
+    const daily = forecastOutlook?.daily;
+    if (!daily?.length) return [];
+    return buildWeekOutlookRows(daily, calendarEvents);
+  }, [forecastOutlook, calendarEvents]);
+
   const energyPercent = calculatedEnergy;
   
   // Convert to ROYGBIV loop progression (matches AnimatedAvatar)
@@ -241,7 +252,7 @@ export function AIFocusSection() {
         >
           {/* Animated background gradient */}
           <motion.div
-            className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
+            className="pointer-events-none absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"
             animate={{
               scale: [1, 1.05, 1],
             }}
@@ -415,12 +426,12 @@ export function AIFocusSection() {
 
         {/* Weather & Route Intelligence - RESEARCH-BACKED AHEAD-OF-TIME VERSION */}
         <motion.div 
-          className="bg-gradient-to-br from-gray-900/80 to-gray-800/80 rounded-2xl p-6 border border-gray-700/50 flex-[0.7] flex flex-col justify-center card-hover shadow-lg hover:border-purple-500/40 transition-all relative overflow-hidden group"
+          className="bg-gradient-to-br from-gray-900/80 to-gray-800/80 rounded-2xl p-6 border border-gray-700/50 flex-[0.7] flex flex-col justify-start gap-3 card-hover shadow-lg hover:border-purple-500/40 transition-all relative overflow-visible group"
           whileHover={{ scale: 1.02 }}
         >
-          {/* Animated background gradient */}
+          {/* Animated background gradient — must not intercept clicks */}
           <motion.div
-            className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
+            className="pointer-events-none absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"
             style={{
               background: 'radial-gradient(circle at center, rgba(168, 85, 247, 0.1), transparent)'
             }}
@@ -432,7 +443,10 @@ export function AIFocusSection() {
                 <Sparkles className="w-5 h-5 text-purple-400" />
                 Weather & Route Intelligence
               </h3>
-              <p className="text-gray-400 text-xs mt-1">Proactive suggestions based on your day</p>
+              <p className="text-gray-400 text-xs mt-1">
+                Proactive suggestions based on your day — tap weather for a 7-day outlook and calendar
+                cross-check
+              </p>
             </div>
             <Badge variant="outline" className="border-purple-400/40 text-purple-300 text-xs">
               <Brain className="w-3 h-3 mr-1" />
@@ -440,7 +454,7 @@ export function AIFocusSection() {
             </Badge>
           </div>
           
-          <div className="space-y-3 relative z-10">
+          <div className="relative z-10 flex min-h-0 flex-col gap-3">
             {/* Loading State */}
             {weatherLoading && (
               <div className="flex items-center justify-center py-6">
@@ -470,9 +484,14 @@ export function AIFocusSection() {
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.1 }}
-                  onClick={() => {
-                    setModalType('weather');
-                    setShowWeatherModal(true);
+                  onClick={() => setShowWeekOutlook(true)}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      setShowWeekOutlook(true);
+                    }
                   }}
                 >
                   <div className="flex items-start gap-3 mb-3">
@@ -561,10 +580,7 @@ export function AIFocusSection() {
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: (1 + index) * 0.1 }}
-                  onClick={() => {
-                    setModalType('route');
-                    setShowRouteModal(true);
-                  }}
+                  onClick={() => setShowRouteModal(true)}
                 >
                   <div className="flex items-start gap-3 mb-3">
                     <div className="w-16 h-16 rounded-full bg-orange-500/20 flex items-center justify-center shrink-0 group-hover/card:scale-110 transition-transform">
@@ -659,9 +675,18 @@ export function AIFocusSection() {
             {/* NO ALERTS - Show current weather status */}
             {!weatherLoading && weatherAlerts.length === 0 && routeAlerts.length === 0 && weather && (
               <motion.div 
-                className="bg-gradient-to-r from-emerald-950/30 to-teal-950/30 rounded-lg p-3 border border-emerald-500/20"
+                className="bg-gradient-to-r from-emerald-950/30 to-teal-950/30 rounded-lg p-3 border border-emerald-500/20 cursor-pointer hover:border-emerald-400/35 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/50"
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
+                onClick={() => setShowWeekOutlook(true)}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    setShowWeekOutlook(true);
+                  }
+                }}
               >
                 <div className="flex items-center gap-3 mb-2">
                   <CloudRain className="w-8 h-8 text-emerald-400" />
@@ -675,7 +700,7 @@ export function AIFocusSection() {
                   <p className="text-emerald-300 text-xs font-medium">Clear conditions ahead</p>
                 </div>
                 <p className="text-gray-300 text-xs">
-                  ✨ Perfect weather for your scheduled activities today
+                  ✨ Tap for the week ahead and any calendar weather flags
                 </p>
               </motion.div>
             )}
@@ -684,6 +709,17 @@ export function AIFocusSection() {
       </div>
       
       {/* Weather & Route Conflict Modals */}
+      <WeatherWeekOutlookModal
+        open={showWeekOutlook}
+        onOpenChange={setShowWeekOutlook}
+        locationLabel={forecastOutlook?.location ?? weather?.city ?? 'Your area'}
+        demo={forecastOutlook?.demo ?? weather?.demo ?? true}
+        rows={weekOutlookRows}
+        onOpenConflictDetails={() => {
+          setShowWeekOutlook(false);
+          setShowWeatherModal(true);
+        }}
+      />
       <WeatherRouteConflictModal 
         isOpen={showWeatherModal}
         onClose={() => setShowWeatherModal(false)}

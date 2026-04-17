@@ -70,6 +70,9 @@ export function useEmotionDetection() {
   });
 
   const [emotionHistory, setEmotionHistory] = useState<EmotionSnapshot[]>([]);
+  /** 0–1 mic RMS while `startAudioAnalysis` is active — for voice UI blob reactivity */
+  const [micInputLevel, setMicInputLevel] = useState(0);
+  const [voiceAnalysisActive, setVoiceAnalysisActive] = useState(false);
   const smoothingWindowRef = useRef<EmotionState[]>([]);
 
   // ==========================================================================
@@ -225,12 +228,15 @@ export function useEmotionDetection() {
       audioContextRef.current = audioContext;
       analyzerRef.current = analyzer;
       sourceRef.current = source;
+      setVoiceAnalysisActive(true);
     } catch {
       // Audio analysis unavailable, fall back to text-only
     }
   }, []);
 
   const stopAudioAnalysis = useCallback(() => {
+    setVoiceAnalysisActive(false);
+    setMicInputLevel(0);
     sourceRef.current?.disconnect();
     audioContextRef.current?.close();
     // Stop all media tracks to release the microphone
@@ -295,6 +301,28 @@ export function useEmotionDetection() {
 
     return { energy, pitch, variability };
   }, []);
+
+  useEffect(() => {
+    if (!voiceAnalysisActive) return;
+    let cancelled = false;
+    let rafId = 0;
+    let lastEmit = 0;
+    const loop = (t: number) => {
+      if (cancelled) return;
+      const prosody = analyzeVoiceProsody();
+      if (prosody && t - lastEmit > 48) {
+        lastEmit = t;
+        setMicInputLevel(Math.min(1, prosody.energy * 14));
+      }
+      rafId = requestAnimationFrame(loop);
+    };
+    rafId = requestAnimationFrame(loop);
+    return () => {
+      cancelled = true;
+      cancelAnimationFrame(rafId);
+      setMicInputLevel(0);
+    };
+  }, [voiceAnalysisActive, analyzeVoiceProsody]);
 
   const detectFromVoice = useCallback((): EmotionState => {
     const prosody = analyzeVoiceProsody();
@@ -434,6 +462,7 @@ export function useEmotionDetection() {
   return {
     currentEmotion,
     emotionHistory,
+    micInputLevel,
     detectFromText,
     detectFromVoice,
     startAudioAnalysis,

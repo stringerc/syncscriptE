@@ -39,6 +39,8 @@ import {
   upsertWorkstreamFlowDocument,
 } from '../../utils/workstream-flow-store';
 import { appendExecutionTrailEvent } from '../../utils/execution-trail';
+import { getStoredNexusPersonaMode } from '../../utils/nexus-persona-preference';
+import { NEXUS_GUEST_CHAT_PATH, NEXUS_USER_CHAT_PATH } from '../../config/nexus-vercel-ai-routes';
 import type {
   WorkstreamFlowAssignee,
   WorkstreamFlowCheckpoint,
@@ -2727,9 +2729,10 @@ function WorkstreamFlowCanvasInner({
         `REQUEST: ${prompt.trim()}`,
       ].join('\n');
 
-      const endpoint = accessToken ? '/api/ai/nexus-user' : '/api/ai/nexus-guest';
+      const endpoint = accessToken ? NEXUS_USER_CHAT_PATH : NEXUS_GUEST_CHAT_PATH;
       const headers: Record<string, string> = { 'Content-Type': 'application/json' };
       if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
+      const personaMode = getStoredNexusPersonaMode();
       const body = accessToken
         ? {
             messages: [{ role: 'user', content: plannerPrompt }],
@@ -2739,6 +2742,7 @@ function WorkstreamFlowCanvasInner({
               projectId,
               projectName: projectTitleDraft,
             },
+            personaMode,
           }
         : {
             sessionId: getOrCreateGuestAiSessionId(),
@@ -2749,6 +2753,7 @@ function WorkstreamFlowCanvasInner({
               projectId,
               projectName: projectTitleDraft,
             },
+            personaMode,
           };
 
       const controller = new AbortController();

@@ -209,6 +209,19 @@ export function CalendarEventCard({
   
   const totalMilestones = milestones.length;
   const completedMilestones = milestones.filter(m => m.completed).length;
+
+  const linkedProviderLabels = React.useMemo(() => {
+    const inst = event.linkedCalendarInstances;
+    if (!inst?.length) return undefined;
+    const labels: string[] = [];
+    for (const i of inst) {
+      const p = (i.provider || '').toLowerCase();
+      if (p.includes('google')) labels.push('Google');
+      else if (p.includes('outlook')) labels.push('Outlook');
+      else labels.push(i.provider);
+    }
+    return labels.length ? [...new Set(labels)] : undefined;
+  }, [event.linkedCalendarInstances]);
   
   // RESEARCH: Google Calendar (2020) - Z-index stacking
   // Focus blocks > Meetings/Deadlines > Social > Others
@@ -272,6 +285,8 @@ export function CalendarEventCard({
       
       // Team
       teamMembers={event.teamMembers}
+
+      linkedProviderLabels={linkedProviderLabels}
       
       // NEW: Resize zones (replaces ResizableCard wrapper)
       showResizeZones={enableResize}

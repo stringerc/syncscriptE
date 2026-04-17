@@ -47,6 +47,12 @@ test('api/ai/tts exposes GET health with kokoroConfigured (no secrets)', () => {
   assert.match(src, /probeKokoroHealth|kokoroUpstreamReachable/, 'GET may probe Kokoro /health when ?probe=1');
   assert.match(src, /NO_TTS_URL/, 'POST still documents NO_TTS_URL');
   assert.match(src, /KOKORO_TTS_FALLBACK_URL|KOKORO_FALLBACK_URL/, 'optional fallback Kokoro URL');
+  assert.match(src, /tts_rum|handleTtsRumPost/, 'POST accepts kind=tts_rum RUM beacons');
+});
+
+test('GitHub workflow registers external TTS synthetic probe (Hobby cannot run sub-daily Vercel crons)', () => {
+  const raw = readFileSync(join(root, '.github/workflows/tts-slo-probe.yml'), 'utf8');
+  assert.match(raw, /probe=1/, 'workflow hits GET ?probe=1');
 });
 
 test('tts-proxy-session coordinates Nexus + useVoiceStream', () => {

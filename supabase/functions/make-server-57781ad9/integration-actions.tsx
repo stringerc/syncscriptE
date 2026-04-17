@@ -285,6 +285,33 @@ export async function updateOutlookCalendarEvent(
   }
 }
 
+export async function deleteOutlookCalendarEvent(
+  userId: string,
+  eventId: string,
+): Promise<IntegrationActionResult> {
+  const token = await getValidToken('outlook_calendar', userId);
+  if (!token) {
+    return { success: false, provider: 'outlook_calendar', action: 'delete_event', error: 'No valid token' };
+  }
+
+  try {
+    const resp = await fetch(
+      `https://graph.microsoft.com/v1.0/me/calendar/events/${encodeURIComponent(eventId)}`,
+      { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } },
+    );
+
+    const result: IntegrationActionResult = resp.ok || resp.status === 204
+      ? { success: true, provider: 'outlook_calendar', action: 'delete_event', data: { eventId } }
+      : { success: false, provider: 'outlook_calendar', action: 'delete_event', error: await resp.text() };
+    await logAction(userId, 'outlook_calendar', 'delete_event', { eventId }, result);
+    return result;
+  } catch (err) {
+    const result: IntegrationActionResult = { success: false, provider: 'outlook_calendar', action: 'delete_event', error: String(err) };
+    await logAction(userId, 'outlook_calendar', 'delete_event', { eventId }, result);
+    return result;
+  }
+}
+
 // ============================================================================
 // SLACK
 // ============================================================================
@@ -506,16 +533,30 @@ export async function syncCalendarEventToConnected(
   userId: string,
   event: CalendarEventInput
 ): Promise<IntegrationActionResult[]> {
-  const results: IntegrationActionResult[] = [];
+  return syncCalendarEventToTargets(userId, event, ["google", "outlook"]);
+}
 
-  const googleToken = await getValidToken('google_calendar', userId);
-  if (googleToken) {
-    results.push(await createGoogleCalendarEvent(userId, event));
+/** Create the same logical hold only on selected providers (must have OAuth). */
+export async function syncCalendarEventToTargets(
+  userId: string,
+  event: CalendarEventInput,
+  targets: ("google" | "outlook")[],
+): Promise<IntegrationActionResult[]> {
+  const results: IntegrationActionResult[] = [];
+  const want = new Set(targets);
+
+  if (want.has("google")) {
+    const googleToken = await getValidToken("google_calendar", userId);
+    if (googleToken) {
+      results.push(await createGoogleCalendarEvent(userId, event));
+    }
   }
 
-  const outlookToken = await getValidToken('outlook_calendar', userId);
-  if (outlookToken) {
-    results.push(await createOutlookCalendarEvent(userId, event));
+  if (want.has("outlook")) {
+    const outlookToken = await getValidToken("outlook_calendar", userId);
+    if (outlookToken) {
+      results.push(await createOutlookCalendarEvent(userId, event));
+    }
   }
 
   return results;

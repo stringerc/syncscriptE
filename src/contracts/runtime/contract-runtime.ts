@@ -3,8 +3,21 @@ import { createEnvelope } from '../core/event-envelope';
 import type { ContractEntityKind } from '../core/entity-contract';
 import type { ContractDomainEventType } from '../events/domain-events';
 
+/** Payload shape for `agent.run.*` events (Hermes / executor visibility). */
+export type AgentRunStepPayload = {
+  runId: string;
+  stepIndex: number;
+  tool?: string;
+  status: 'pending' | 'running' | 'ok' | 'error';
+  argsSummary?: string;
+  resultSummary?: string;
+  linkedTaskId?: string;
+  linkedEventId?: string;
+};
+
 const DEFAULT_WORKSPACE_ID = 'workspace-main';
-const CONTRACT_EVENT_WINDOW_NAME = 'syncscript:contract-event';
+/** Dispatched on `window` when a contract event is accepted (Agent run dock, traces, etc.). */
+export const CONTRACT_EVENT_WINDOW_NAME = 'syncscript:contract-event';
 const RECENT_EVENT_LIMIT = 200;
 
 const eventBus = new ContractEventBus();
@@ -79,4 +92,49 @@ export function emitContractDomainEvent(
     reason: result.reason,
     eventId: result.accepted ? envelope.eventId : undefined,
   };
+}
+
+/** Start a traceable executor run (entityId should equal runId). */
+export function emitAgentRunStarted(
+  runId: string,
+  payload: { label?: string; source?: string } = {},
+): ReturnType<typeof emitContractDomainEvent> {
+  return emitContractDomainEvent('agent.run.started', 'agent', runId, { ...payload, runId }, {
+    actorType: 'agent',
+    actorId: payload.source || 'hermes',
+  });
+}
+
+export function emitAgentRunStep(
+  runId: string,
+  payload: AgentRunStepPayload,
+): ReturnType<typeof emitContractDomainEvent> {
+  return emitContractDomainEvent('agent.run.step', 'agent', runId, payload as Record<string, unknown>, {
+    actorType: 'agent',
+    actorId: 'hermes',
+    idempotencyKey: `agent.run.step:${runId}:${payload.stepIndex}:${payload.tool || 'step'}`,
+  });
+}
+
+export function emitAgentRunCompleted(
+  runId: string,
+  payload: { ok: boolean; summary?: string } = { ok: true },
+): ReturnType<typeof emitContractDomainEvent> {
+  return emitContractDomainEvent(
+    'agent.run.completed',
+    'agent',
+    runId,
+    { runId, ...payload },
+    { actorType: 'agent', actorId: 'hermes' },
+  );
+}
+
+export function emitAgentRunFailed(runId: string, message: string): ReturnType<typeof emitContractDomainEvent> {
+  return emitContractDomainEvent(
+    'agent.run.failed',
+    'agent',
+    runId,
+    { runId, message },
+    { actorType: 'agent', actorId: 'hermes' },
+  );
 }

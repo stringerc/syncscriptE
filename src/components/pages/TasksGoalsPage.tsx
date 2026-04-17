@@ -36,6 +36,7 @@ import { EnhancedGoalCard } from '../EnhancedGoalCard';
 import { SuccessMetricsDashboard } from '../SuccessMetricsDashboard';
 import { useResonance } from '../../hooks/useResonance';
 import { ErrorBoundary } from '../ErrorBoundary';
+import { DashboardLayout } from '../layout/DashboardLayout';
 import { useTasks } from '../../hooks/useTasks';
 // PHASE 1: Unified system imports
 import { useGoals } from '../../hooks/useGoals';
@@ -1011,10 +1012,11 @@ export function TasksGoalsPage() {
   }, [activeView]);
 
   return (
+    <DashboardLayout>
       <motion.div 
-        className={`flex-1 hide-scrollbar ${activeView === 'workstream' ? 'flex h-full min-h-0 flex-col overflow-hidden p-2' : 'overflow-auto p-6 space-y-6'}`}
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
+        className={`flex-1 min-w-0 overflow-x-hidden hide-scrollbar ${activeView === 'workstream' ? 'flex h-full min-h-0 flex-col overflow-hidden p-2' : 'overflow-y-auto space-y-6'}`}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
         transition={{ duration: 0.3 }}
       >
         {/* Header */}
@@ -1088,45 +1090,89 @@ export function TasksGoalsPage() {
 
 
 
-        {/* Main Tabs */}
-        <Tabs
-          value={activeView}
-          onValueChange={(v) => handleTabChange(v as 'goals' | 'tasks' | 'workstream' | 'projects')}
+        {/* Main view switcher: plain buttons + panels (not Radix Tabs) so nested task sub-tabs cannot break outer activation */}
+        <div
           className={`w-full ${activeView === 'workstream' ? 'flex h-full min-h-0 flex-1 flex-col' : ''}`}
         >
-          <TabsList className="grid w-full max-w-2xl grid-cols-4 bg-[#2a2d35]/50 border border-gray-700/50 p-1 rounded-lg shadow-lg backdrop-blur-sm">
-            <TabsTrigger
-              value="goals"
-              className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600 data-[state=active]:to-pink-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/30 transition-all duration-200 flex items-center gap-2 font-medium"
+          <div
+            role="tablist"
+            aria-label="Projects OS sections"
+            className="grid w-full max-w-2xl grid-cols-4 bg-[#2a2d35]/50 border border-gray-700/50 p-1 rounded-lg shadow-lg backdrop-blur-sm"
+          >
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeView === 'goals'}
+              id="projects-os-tab-goals"
+              aria-controls="projects-os-panel-goals"
+              onClick={() => handleTabChange('goals')}
+              className={`w-full rounded-md px-2 py-2 text-sm transition-all duration-200 flex items-center justify-center gap-2 font-medium ${
+                activeView === 'goals'
+                  ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg shadow-purple-500/30'
+                  : 'text-gray-400 hover:text-white hover:bg-gray-700/40'
+              }`}
             >
-              <Target className="w-4 h-4" />
-              <span>Goals</span>
-            </TabsTrigger>
-            <TabsTrigger 
-              value="tasks" 
-              className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-teal-600 data-[state=active]:to-blue-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-teal-500/30 transition-all duration-200 flex items-center gap-2 font-medium"
+              <Target className="w-4 h-4 shrink-0" />
+              <span className="truncate">Goals</span>
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeView === 'tasks'}
+              id="projects-os-tab-tasks"
+              aria-controls="projects-os-panel-tasks"
+              onClick={() => handleTabChange('tasks')}
+              className={`w-full rounded-md px-2 py-2 text-sm transition-all duration-200 flex items-center justify-center gap-2 font-medium ${
+                activeView === 'tasks'
+                  ? 'bg-gradient-to-r from-teal-600 to-blue-600 text-white shadow-lg shadow-teal-500/30'
+                  : 'text-gray-400 hover:text-white hover:bg-gray-700/40'
+              }`}
             >
-              <CheckCircle2 className="w-4 h-4" />
-              <span>Tasks</span>
-            </TabsTrigger>
-            <TabsTrigger 
-              value="workstream" 
-              className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-indigo-600 data-[state=active]:to-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-indigo-500/30 transition-all duration-200 flex items-center gap-2 font-medium"
+              <CheckCircle2 className="w-4 h-4 shrink-0" />
+              <span className="truncate">Tasks</span>
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeView === 'workstream'}
+              id="projects-os-tab-workstream"
+              aria-controls="projects-os-panel-workstream"
+              onClick={() => handleTabChange('workstream')}
+              className={`w-full rounded-md px-2 py-2 text-sm transition-all duration-200 flex items-center justify-center gap-2 font-medium ${
+                activeView === 'workstream'
+                  ? 'bg-gradient-to-r from-indigo-600 to-cyan-600 text-white shadow-lg shadow-indigo-500/30'
+                  : 'text-gray-400 hover:text-white hover:bg-gray-700/40'
+              }`}
             >
-              <Activity className="w-4 h-4" />
-              <span>Workstream</span>
-            </TabsTrigger>
-            <TabsTrigger
-              value="projects"
-              className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-600 data-[state=active]:to-teal-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-emerald-500/30 transition-all duration-200 flex items-center gap-2 font-medium"
+              <Activity className="w-4 h-4 shrink-0" />
+              <span className="truncate">Workstream</span>
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeView === 'projects'}
+              id="projects-os-tab-projects"
+              aria-controls="projects-os-panel-projects"
+              onClick={() => handleTabChange('projects')}
+              className={`w-full rounded-md px-2 py-2 text-sm transition-all duration-200 flex items-center justify-center gap-2 font-medium ${
+                activeView === 'projects'
+                  ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-lg shadow-emerald-500/30'
+                  : 'text-gray-400 hover:text-white hover:bg-gray-700/40'
+              }`}
             >
-              <MapPin className="w-4 h-4" />
-              <span>Projects</span>
-            </TabsTrigger>
-          </TabsList>
+              <MapPin className="w-4 h-4 shrink-0" />
+              <span className="truncate">Projects</span>
+            </button>
+          </div>
 
           {/* Tasks View */}
-          <TabsContent value="tasks" className="space-y-6 mt-6">
+          {activeView === 'tasks' ? (
+          <div
+            id="projects-os-panel-tasks"
+            role="tabpanel"
+            aria-labelledby="projects-os-tab-tasks"
+            className="space-y-6 mt-6"
+          >
             <TaskManagementSection 
               tasks={tasks}
               setIsNewTaskDialogOpen={setIsNewTaskDialogOpen}
@@ -1166,10 +1212,16 @@ export function TasksGoalsPage() {
               taskDependencies={taskDependencies}
               updateTask={updateTask}
             />
-          </TabsContent>
+          </div>
+          ) : null}
 
-          {/* Goals View */}
-          <TabsContent value="goals" className="space-y-6 mt-6">
+          {activeView === 'goals' ? (
+          <div
+            id="projects-os-panel-goals"
+            role="tabpanel"
+            aria-labelledby="projects-os-tab-goals"
+            className="space-y-6 mt-6"
+          >
             <GoalManagementSection 
               onCreateGoal={() => setIsNewGoalDialogOpen(true)}
               setIsVoiceToGoalOpen={setIsVoiceToGoalOpen}
@@ -1184,9 +1236,16 @@ export function TasksGoalsPage() {
               onUpdateGoal={updateGoal}
               onDeleteGoalItem={deleteGoal}
             />
-          </TabsContent>
+          </div>
+          ) : null}
 
-          <TabsContent value="workstream" className="!mt-2 !flex-1 overflow-hidden">
+          {activeView === 'workstream' ? (
+          <div
+            id="projects-os-panel-workstream"
+            role="tabpanel"
+            aria-labelledby="projects-os-tab-workstream"
+            className="!mt-2 !flex-1 overflow-hidden"
+          >
             <div
               className="h-full min-h-0 overflow-hidden"
               style={{ height: 'calc(100dvh - 150px)', minHeight: '760px' }}
@@ -1202,9 +1261,16 @@ export function TasksGoalsPage() {
                 />
               </Suspense>
             </div>
-          </TabsContent>
+          </div>
+          ) : null}
 
-          <TabsContent value="projects" className="space-y-6 mt-6">
+          {activeView === 'projects' ? (
+          <div
+            id="projects-os-panel-projects"
+            role="tabpanel"
+            aria-labelledby="projects-os-tab-projects"
+            className="space-y-6 mt-6"
+          >
             <Suspense fallback={<div className="p-4 text-sm text-gray-400">Loading projects...</div>}>
               <ProjectsOperatingSystem
                 mode="projects"
@@ -1215,8 +1281,9 @@ export function TasksGoalsPage() {
                 deleteTask={deleteTask as any}
               />
             </Suspense>
-          </TabsContent>
-        </Tabs>
+          </div>
+          ) : null}
+        </div>
 
         {/* Quick Action Dialogs */}
         <NewTaskDialog 
@@ -1858,6 +1925,7 @@ export function TasksGoalsPage() {
           </DialogContent>
         </Dialog>
       </motion.div>
+    </DashboardLayout>
   );
 }
 

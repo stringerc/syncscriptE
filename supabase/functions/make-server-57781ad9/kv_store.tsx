@@ -85,3 +85,15 @@ export const getByPrefix = async (prefix: string): Promise<any[]> => {
   }
   return data?.map((d) => d.value) ?? [];
 };
+
+/** Same as getByPrefix but preserves keys (needed for invoice KV scans, Stripe write-back). */
+export const getKeyValueByPrefix = async (
+  prefix: string,
+): Promise<{ key: string; value: unknown }[]> => {
+  const supabase = client();
+  const { data, error } = await supabase.from("kv_store_57781ad9").select("key, value").like("key", prefix + "%");
+  if (error) {
+    throw new Error(error.message);
+  }
+  return data?.map((d) => ({ key: d.key as string, value: d.value })) ?? [];
+};

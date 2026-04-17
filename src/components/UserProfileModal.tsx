@@ -85,7 +85,7 @@ export function UserProfileModal({ user, open, onOpenChange, canEdit = false, on
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="!max-w-[900px] w-[95vw] max-h-[90vh] bg-[#1a1d24] border-gray-800 text-white p-0 overflow-hidden !z-[110]">
+      <DialogContent className="!max-w-[900px] w-[95vw] max-h-[90vh] bg-[#1a1d24] border-gray-800 text-white p-0 overflow-hidden">
         <DialogHeader className="sr-only">
           <DialogTitle>{user.name}'s Profile</DialogTitle>
           <DialogDescription>View profile details and activity</DialogDescription>

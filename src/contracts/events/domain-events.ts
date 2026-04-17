@@ -19,7 +19,12 @@ export type ContractDomainEventType =
   | 'finance.recommendation.generated'
   | 'finance.action.approved'
   | 'resonance.snapshot.computed'
-  | 'run.proof.finalized';
+  | 'run.proof.finalized'
+  /** Hermes / executor agent — structured progress for UI “Agent run” dock */
+  | 'agent.run.started'
+  | 'agent.run.step'
+  | 'agent.run.completed'
+  | 'agent.run.failed';
 
 export type ContractDomainEvent = ContractEventEnvelope<Record<string, unknown>> & {
   eventType: ContractDomainEventType;

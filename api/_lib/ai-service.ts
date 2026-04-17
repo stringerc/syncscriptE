@@ -32,7 +32,7 @@ interface ProviderConfig {
 const PROVIDERS: Record<string, ProviderConfig> = {
   nvidia: {
     url: 'https://integrate.api.nvidia.com/v1/chat/completions',
-    model: 'moonshotai/kimi-k2-instruct',
+    model: 'meta/llama-3.1-70b-instruct',
     keyEnv: 'NVIDIA_API_KEY',
   },
   moonshot: {
@@ -184,6 +184,106 @@ export async function callAI(
       return result;
     } catch (err: any) {
       console.warn(`[AI Service] ${providerName} failed: ${err.message}`);
+      lastError = err;
+    }
+  }
+
+  throw lastError || new Error('No AI providers available');
+}
+
+// ---------------------------------------------------------------------------
+// Chat completions with tools (OpenAI-compatible messages + optional tools)
+// ---------------------------------------------------------------------------
+
+export type ChatCompletionMessage = Record<string, unknown>;
+
+export interface ChatCompletionsOptions extends AICallOptions {
+  tools?: unknown[];
+  tool_choice?: 'auto' | 'none' | Record<string, unknown>;
+}
+
+export interface ChatCompletionResult {
+  message: Record<string, unknown>;
+  model: string;
+  provider: string;
+  usage?: { prompt_tokens: number; completion_tokens: number; total_tokens: number };
+  raw: unknown;
+}
+
+async function callProviderChat(
+  providerName: string,
+  messages: ChatCompletionMessage[],
+  opts: ChatCompletionsOptions,
+): Promise<ChatCompletionResult> {
+  const provider = PROVIDERS[providerName];
+  if (!provider) throw new Error(`Unknown AI provider: ${providerName}`);
+
+  const apiKey = process.env[provider.keyEnv];
+  if (!apiKey || !apiKey.trim()) {
+    throw new Error(`${provider.keyEnv} not configured for provider ${providerName}`);
+  }
+
+  const model = opts.model || provider.model;
+
+  const body: Record<string, unknown> = {
+    model,
+    messages,
+    max_tokens: opts.maxTokens ?? 1024,
+    temperature: opts.temperature ?? 0.7,
+  };
+
+  if (opts.tools && opts.tools.length > 0) {
+    body.tools = opts.tools;
+    body.tool_choice = opts.tool_choice ?? 'auto';
+  }
+
+  const response = await fetch(provider.url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `${provider.headerPrefix || 'Bearer'} ${apiKey.trim()}`,
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => '');
+    throw new Error(`${providerName} API ${response.status}: ${errorText.slice(0, 400)}`);
+  }
+
+  const data = (await response.json()) as Record<string, unknown>;
+  const choice = (data.choices as any[])?.[0];
+  const message = (choice?.message || {}) as Record<string, unknown>;
+
+  return {
+    message,
+    model: (data.model as string) || model,
+    provider: providerName,
+    usage: data.usage as ChatCompletionResult['usage'],
+    raw: data,
+  };
+}
+
+/**
+ * Single chat completion with optional tools; supports failover like callAI.
+ */
+export async function callChatCompletion(
+  messages: ChatCompletionMessage[],
+  opts: ChatCompletionsOptions = {},
+): Promise<ChatCompletionResult> {
+  const chain = getProviderChain();
+
+  if (opts.noFallback) {
+    return callProviderChat(chain[0], messages, opts);
+  }
+
+  let lastError: Error | null = null;
+
+  for (const providerName of chain) {
+    try {
+      return await callProviderChat(providerName, messages, opts);
+    } catch (err: any) {
+      console.warn(`[AI Service] chat completion ${providerName} failed: ${err.message}`);
       lastError = err;
     }
   }

@@ -12,6 +12,11 @@
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import {
+  completeThirdPartyCallFromTwilio,
+  getThirdPartyCallScriptForTwiml,
+  verifyConciergeTpToken,
+} from '../_lib/concierge-playbook-worker';
+import {
   getTwilioConfig,
   generatePhoneAIResponse,
   generatePhoneAIResponseWithTools,
@@ -61,6 +66,17 @@ function resolveVoice(v?: string): string {
   return v;
 }
 
+/** One-way automated payment reminder (TCPA/consent should be captured on invoice). */
+function handleInvoiceCollection(req: VercelRequest, res: VercelResponse) {
+  const voiceId = resolveVoice(req.query.voice as string);
+  const invoiceId = (req.query.invoiceId as string) || 'your invoice';
+  const amount = (req.query.amount as string) || 'the amount shown in email';
+  const msg = `Hello. This is an automated payment notice from SyncScript about invoice ${invoiceId}. The amount due is ${amount}. If you received our email, you can pay securely using the link there. Thank you. Goodbye.`;
+  const xml = twiml(twimlSay(msg, voiceId) + '<Hangup/>');
+  res.setHeader('Content-Type', 'text/xml');
+  return res.status(200).send(xml);
+}
+
 function handleConversation(req: VercelRequest, res: VercelResponse) {
   const config = getTwilioConfig();
   const callType = (req.query.type as string) || 'general';
@@ -96,6 +112,7 @@ const callMemoryCache = new Map<string, CallMemory | null>();
 const callUserIdMap = new Map<string, string>();
 const callMoodCache = new Map<string, { mood: MoodState; negativeTurns: number }>();
 const callEnrichedContextCache = new Map<string, string>();
+const callGroundingCache = new Map<string, string>();
 const MAX_TURNS = 20;
 const MAX_HISTORY = 2000;
 
@@ -124,10 +141,6 @@ async function handleRespond(req: VercelRequest, res: VercelResponse) {
     (userEmail ? `&email=${encodeURIComponent(userEmail)}` : '') +
     (binding.userIdForTwiml ? `&userId=${encodeURIComponent(binding.userIdForTwiml)}` : '');
 
-  console.log(
-    `[PhoneAI] CallSid=${callSid} Speech="${speechResult}" Confidence=${confidence} From=${callerFrom || 'n/a'} boundUser=${userId ? `${userId.slice(0, 8)}…` : 'none'}`,
-  );
-
   if (!speechResult || confidence < 0.3) {
     const xml = twiml(
       twimlSay("Sorry, I didn't quite catch that. Could you say that again?", voiceId) +
@@ -136,7 +149,7 @@ async function handleRespond(req: VercelRequest, res: VercelResponse) {
         input: 'speech',
         speechTimeout: 'auto',
         language: 'en-US',
-        innerXml: twimlPause(2),
+        innerXml: twimlPause(1),
       }) +
       twimlSay("Looks like we lost connection. Feel free to call back anytime. Bye!", voiceId)
     );
@@ -159,6 +172,7 @@ async function handleRespond(req: VercelRequest, res: VercelResponse) {
     callUserIdMap.delete(callSid);
     callMoodCache.delete(callSid);
     callEnrichedContextCache.delete(callSid);
+    callGroundingCache.delete(callSid);
 
     const xml = twiml(
       twimlSay("Great talking with you! Remember, I'm always here in the app if you need anything. Have an awesome day!", voiceId) +
@@ -182,13 +196,11 @@ async function handleRespond(req: VercelRequest, res: VercelResponse) {
     if (weather) liveCtx.weather = weather;
     if (emailInsights) liveCtx.emailInsights = emailInsights;
     callLiveContextCache.set(callSid, liveCtx);
-    console.log(`[PhoneAI] Live context loaded for ${callSid}: weather=${!!weather}, email=${!!emailInsights}`);
   }
 
   if (userId && !callMemoryCache.has(callSid)) {
     const mem = await loadCallMemory(userId);
     callMemoryCache.set(callSid, mem);
-    if (mem) console.log(`[PhoneAI] Loaded cross-call memory for ${callSid} from ${mem.lastCallDate}`);
   }
 
   const detectedMood = detectMoodFromSpeech(speechResult, history);
@@ -203,46 +215,52 @@ async function handleRespond(req: VercelRequest, res: VercelResponse) {
   const moodOverride = getMoodPromptOverride(moodState.mood, moodState.negativeTurns);
 
   if (userId && !callEnrichedContextCache.has(callSid)) {
-    try {
-      const [insights, relationships, viralStats] = await Promise.all([
-        generateProactiveInsights(userId),
-        getRelationshipReminders(userId),
-        generateViralStats(userId),
-      ]);
-      const enrichedParts: string[] = [];
-      if (insights.length > 0) {
-        enrichedParts.push('PROACTIVE INSIGHTS (weave in naturally):');
-        for (const ins of insights.slice(0, 3)) {
-          enrichedParts.push(`- [${ins.type.toUpperCase()}] ${ins.text}`);
+    callEnrichedContextCache.set(callSid, '');
+    void (async () => {
+      try {
+        const [insights, relationships, viralStats] = await Promise.all([
+          generateProactiveInsights(userId),
+          getRelationshipReminders(userId),
+          generateViralStats(userId),
+        ]);
+        const enrichedParts: string[] = [];
+        if (insights.length > 0) {
+          enrichedParts.push('PROACTIVE INSIGHTS (weave in naturally):');
+          for (const ins of insights.slice(0, 3)) {
+            enrichedParts.push(`- [${ins.type.toUpperCase()}] ${ins.text}`);
+          }
         }
-      }
-      if (relationships.length > 0) {
-        enrichedParts.push('RELATIONSHIP REMINDERS:');
-        for (const r of relationships.slice(0, 2)) {
-          enrichedParts.push(`- ${r.name} (${r.relationship}) — ${r.daysSinceContact} days, context: "${r.lastContext}"`);
+        if (relationships.length > 0) {
+          enrichedParts.push('RELATIONSHIP REMINDERS:');
+          for (const r of relationships.slice(0, 2)) {
+            enrichedParts.push(`- ${r.name} (${r.relationship}) — ${r.daysSinceContact} days, context: "${r.lastContext}"`);
+          }
         }
+        if (viralStats.length > 0) {
+          const vs = viralStats[0];
+          enrichedParts.push(
+            `ROLLING STAT (may include prior days — not "today" unless grounding says so): ${vs.stat} — "${vs.wittyComment}"`,
+          );
+        }
+        callEnrichedContextCache.set(callSid, enrichedParts.join('\n'));
+      } catch (e) {
+        console.warn('[PhoneAI] Enriched context build failed:', e);
       }
-      if (viralStats.length > 0) {
-        const vs = viralStats[0];
-        enrichedParts.push(
-          `ROLLING STAT (may include prior days — not "today" unless grounding says so): ${vs.stat} — "${vs.wittyComment}"`,
-        );
-      }
-      const enrichedContext = enrichedParts.join('\n');
-      callEnrichedContextCache.set(callSid, enrichedContext);
-    } catch (e) {
-      console.warn('[PhoneAI] Enriched context build failed:', e);
-      callEnrichedContextCache.set(callSid, '');
-    }
+    })();
   }
 
   const briefingCtx = (req.query.briefingCtx as string) || '';
   const enrichedCtx = callEnrichedContextCache.get(callSid) || '';
-  let groundingBlock = '';
-  if (userId) {
+  let groundingBlock = callGroundingCache.get(callSid) ?? '';
+  if (userId && !callGroundingCache.has(callSid)) {
     groundingBlock = await buildPhoneSessionGroundingBlock(userId);
+    callGroundingCache.set(callSid, groundingBlock);
   }
-  const extraContext = [groundingBlock, moodOverride, enrichedCtx, briefingCtx].filter(Boolean).join('\n');
+  const MAX_EXTRA_CONTEXT_CHARS = 1200;
+  let extraContext = [groundingBlock, moodOverride, enrichedCtx, briefingCtx].filter(Boolean).join('\n');
+  if (extraContext.length > MAX_EXTRA_CONTEXT_CHARS) {
+    extraContext = extraContext.slice(0, MAX_EXTRA_CONTEXT_CHARS);
+  }
 
   let spokenResponse: string;
 
@@ -258,19 +276,23 @@ async function handleRespond(req: VercelRequest, res: VercelResponse) {
     spokenResponse = bridgeResult.spoken;
 
     if (bridgeResult.toolResults) {
+      const summaryLines: string[] = [];
       for (const tr of bridgeResult.toolResults) {
-        if (tr.action === 'create_calendar_event' && tr.event) {
-          storePendingCalendarEvent(callSid, {
-            title: tr.event.title,
-            date: tr.event.date || new Date().toISOString().split('T')[0],
-            startHour: tr.event.startHour ?? 9,
-            startMinute: tr.event.startMinute ?? 0,
-            endHour: tr.event.endHour ?? 10,
-            endMinute: tr.event.endMinute ?? 0,
-            createdAt: new Date().toISOString(),
-          });
-          console.log(`[PhoneAI] Tool created calendar event: "${tr.event.title}"`);
+        if (tr.ok && tr.action === 'create_task') {
+          const t = tr.detail?.title || 'task';
+          summaryLines.push(`Created task: ${t}`);
         }
+        if (tr.ok && tr.action === 'add_note') {
+          const t = tr.detail?.title || 'note';
+          summaryLines.push(`Added note: ${t}`);
+        }
+        if (tr.ok && tr.action === 'propose_calendar_hold') {
+          const t = tr.detail?.title || 'event';
+          summaryLines.push(`Saved event: ${t}`);
+        }
+      }
+      if (summaryLines.length > 0) {
+        appendPendingNexusCallLines(callSid, summaryLines);
       }
     }
   } else {
@@ -289,6 +311,8 @@ async function handleRespond(req: VercelRequest, res: VercelResponse) {
     }
   }
 
+  spokenResponse = truncateForTwilioSay(spokenResponse);
+
   history.push(`User: ${speechResult}`);
   history.push(`AI: ${spokenResponse}`);
   conversations.set(callSid, history);
@@ -302,7 +326,7 @@ async function handleRespond(req: VercelRequest, res: VercelResponse) {
       input: 'speech',
       speechTimeout: 'auto',
       language: 'en-US',
-      innerXml: twimlPause(3),
+      innerXml: twimlPause(1),
     }) +
     twimlSay("Are you still there? ... I'll let you go for now. Talk to you soon!", voiceId)
   );
@@ -336,8 +360,75 @@ async function handleStatusCallback(req: VercelRequest, res: VercelResponse) {
     callUserIdMap.delete(callSid);
     callMoodCache.delete(callSid);
     callEnrichedContextCache.delete(callSid);
+    callGroundingCache.delete(callSid);
   }
 
+  return res.status(200).send('OK');
+}
+
+/** T3 scripted third-party outbound (recording disclosure + fixed script + optional gather). */
+async function handleConciergeThirdParty(req: VercelRequest, res: VercelResponse) {
+  const tpCallId = (req.query.tp as string) || '';
+  const token = (req.query.token as string) || '';
+  const voiceId = resolveVoice(req.query.voice as string);
+
+  if (!tpCallId || !verifyConciergeTpToken(tpCallId, token)) {
+    const xml = twiml(
+      twimlSay('Sorry, this automated call link is invalid or expired. Goodbye.', voiceId) + '<Hangup/>',
+    );
+    res.setHeader('Content-Type', 'text/xml');
+    return res.status(200).send(xml);
+  }
+
+  const loaded = await getThirdPartyCallScriptForTwiml(tpCallId);
+  const script =
+    loaded?.script || 'This is an automated call from SyncScript regarding your playbook task. Thank you.';
+  const disclosure =
+    loaded?.recording_disclosure !== false
+      ? 'This call may be recorded for quality and confirmation purposes. '
+      : '';
+  const config = getTwilioConfig();
+  const gatherUrl =
+    `${config.appUrl}/api/phone/twiml?handler=concierge-third-party-gather&tp=${encodeURIComponent(tpCallId)}&token=${encodeURIComponent(token)}`;
+
+  const xml = twiml(
+    twimlSay(disclosure + script, voiceId) +
+      twimlGather({
+        action: gatherUrl,
+        input: 'speech',
+        speechTimeout: 'auto',
+        language: 'en-US',
+        innerXml: twimlPause(1),
+      }) +
+      twimlSay('Thank you. Goodbye.', voiceId) +
+      '<Hangup/>',
+  );
+  res.setHeader('Content-Type', 'text/xml');
+  return res.status(200).send(xml);
+}
+
+function handleConciergeThirdPartyGather(req: VercelRequest, res: VercelResponse) {
+  const tpCallId = (req.query.tp as string) || '';
+  const token = (req.query.token as string) || '';
+  const voiceId = resolveVoice(req.query.voice as string);
+  if (!tpCallId || !verifyConciergeTpToken(tpCallId, token)) {
+    const xml = twiml(twimlSay('Goodbye.', voiceId) + '<Hangup/>');
+    res.setHeader('Content-Type', 'text/xml');
+    return res.status(200).send(xml);
+  }
+  const xml = twiml(twimlSay('Thank you. Goodbye.', voiceId) + '<Hangup/>');
+  res.setHeader('Content-Type', 'text/xml');
+  return res.status(200).send(xml);
+}
+
+async function handleConciergeTpStatus(req: VercelRequest, res: VercelResponse) {
+  const tpCallId = (req.query.tp as string) || '';
+  const body = (req.body && typeof req.body === 'object' ? req.body : {}) as Record<string, string>;
+  const callSid = body.CallSid || '';
+  const callStatus = body.CallStatus || '';
+  if (tpCallId) {
+    await completeThirdPartyCallFromTwilio(tpCallId, callSid, callStatus);
+  }
   return res.status(200).send('OK');
 }
 
@@ -384,12 +475,20 @@ export async function routePhoneTwiml(req: VercelRequest, res: VercelResponse) {
     switch (handlerType) {
       case 'conversation':
         return handleConversation(req, res);
+      case 'invoice-collection':
+        return handleInvoiceCollection(req, res);
       case 'respond':
         return await handleRespond(req, res);
       case 'status-callback':
         return await handleStatusCallback(req, res);
       case 'inbound':
         return handleInbound(req, res);
+      case 'concierge-third-party':
+        return await handleConciergeThirdParty(req, res);
+      case 'concierge-third-party-gather':
+        return handleConciergeThirdPartyGather(req, res);
+      case 'concierge-tp-status':
+        return handleConciergeTpStatus(req, res);
       default: {
         const fallbackXml = twiml(
           twimlSay('Sorry, that phone menu request was not recognized. Goodbye!', 'Polly.Joanna-Neural') + '<Hangup/>',

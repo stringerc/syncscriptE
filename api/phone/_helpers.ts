@@ -302,20 +302,25 @@ export function twimlSay(text: string, voice = 'Polly.Joanna-Neural'): string {
   return `<Say voice="${voice}">${escapeXml(text)}</Say>`;
 }
 
+const SPEECH_HINTS = 'SyncScript,Nexus,task,reminder,calendar,schedule,wake up,briefing,to-do,todo,goal,energy,focus,morning,evening';
+
 export function twimlGather(params: {
   action: string;
   input?: string;
   speechTimeout?: string;
   language?: string;
+  hints?: string;
   innerXml?: string;
 }): string {
   const input = params.input || 'speech';
   const timeout = params.speechTimeout || 'auto';
   const lang = params.language || 'en-US';
+  const hints = params.hints ?? SPEECH_HINTS;
   const inner = params.innerXml || '';
 
   const safeAction = escapeXml(params.action);
-  return `<Gather input="${input}" action="${safeAction}" speechTimeout="${timeout}" language="${lang}" method="POST">${inner}</Gather>`;
+  const hintsAttr = hints ? ` hints="${escapeXml(hints)}"` : '';
+  return `<Gather input="${input}" action="${safeAction}" speechTimeout="${timeout}" language="${lang}"${hintsAttr} method="POST">${inner}</Gather>`;
 }
 
 export function twimlPause(length = 1): string {
@@ -1635,8 +1640,14 @@ CRITICAL PHONE RULES:
 - Sound NATURAL. Use contractions, casual language, pauses ("well..."), ("got it"), ("so...").
 - NEVER use markdown, bullet points, numbered lists, or formatting characters.
 - If listing things, say them naturally: "First... then... and finally..."
-- End clearly so the user knows it's their turn to speak.
 - NEVER say "asterisk" or read formatting characters.
+
+CONVERSATION FLOW (critical for natural phone experience):
+- ALWAYS end your response with a question, prompt, or invitation to continue. Examples: "What else?", "Anything else on your mind?", "What's next?", "Want me to help with anything else?", "So what else is going on?"
+- After completing an action (task, calendar, note), confirm briefly then ask what's next. Example: "Done, that's on your list. What else you got?"
+- Vary your follow-up questions — don't repeat the same one twice in a row. Be creative and in-character.
+- Match the user's energy. If they're upbeat, be playful. If they're brief, be concise. If they're chatty, engage more.
+- If the user seems done but hasn't said goodbye, gently check: "Anything else before I let you go?"
 
 {{CALL_CONTEXT}}
 
@@ -1826,8 +1837,8 @@ export async function generatePhoneAIResponse(
 
   try {
     const result = await callAI(messages as AIMessage[], {
-      maxTokens: 256,
-      temperature: 0.85,
+      maxTokens: 180,
+      temperature: 0.55,
     });
 
     const rawResponse = result.content || "I didn't quite catch that. What were you saying?";
@@ -2011,8 +2022,8 @@ export async function generatePhoneAIResponseWithTools(
       messages,
       actor: { kind: 'phone', userId },
       meta: { surface: 'phone', requestId: callSid || `phone_${userId}` },
-      maxTokens: 280,
-      temperature: 0.35,
+      maxTokens: 180,
+      temperature: 0.55,
     });
 
     const rating = getContentRating();
@@ -2024,11 +2035,10 @@ export async function generatePhoneAIResponseWithTools(
     const createOk = result.toolTrace.some((t) => t.tool === 'create_task' && t.ok);
     const noteOk = result.toolTrace.some((t) => t.tool === 'add_note' && t.ok);
     const persistFailMsg =
-      "I couldn't save that to your task list from this call. Add it in the SyncScript app, or try again later.";
+      "Hmm, I hit a snag saving that to your task list. You can add it in the app, or I can try again if you want. What else is on your mind?";
     if (persistFail) {
       spoken = persistFailMsg;
     } else if (phoneUserSoundsLikeTaskPersistIntent(userSpeech) && !createOk && !noteOk) {
-      // Model claimed success without running create_task / add_note (or tools were skipped).
       spoken = persistFailMsg;
     }
 
@@ -2417,6 +2427,9 @@ export type ScheduledPhoneCallJob = {
   briefingType: string;
   userEmail?: string;
   userId?: string;
+  /** Invoice collection outbound (debtor-facing); optional TwiML context */
+  invoiceId?: string;
+  amountDisplay?: string;
 };
 
 export async function enqueueScheduledPhoneCall(job: ScheduledPhoneCallJob): Promise<void> {
@@ -2437,8 +2450,11 @@ export async function removeScheduledPhoneCallById(id: string): Promise<boolean>
 }
 
 /**
- * Invoked by GET/POST /api/cron/phone-dispatch (see api/cron/[job].ts) every minute.
- * Fires Twilio for jobs whose scheduledAt <= now, with a grace window for slow cron ticks.
+ * Invoked by `/api/cron/phone-dispatch` (see `vercel.json` — typically **once per day** on Hobby).
+ * Fires Twilio for jobs whose scheduledAt <= now, with a grace window so the **next** cron tick can
+ * pick up jobs (daily cadence needs hours, not minutes). For minute-level dispatch without Pro, hit
+ * this endpoint from an external scheduler (e.g. Oracle VM cron) every 5–15 minutes and you may
+ * lower the late window in a fork.
  */
 export async function dispatchDueScheduledPhoneCalls(): Promise<{
   processed: number;
@@ -2447,8 +2463,8 @@ export async function dispatchDueScheduledPhoneCalls(): Promise<{
   const raw = await kvGet(PHONE_SCHEDULE_QUEUE_KEY);
   let list: ScheduledPhoneCallJob[] = Array.isArray(raw) ? raw : [];
   const now = Date.now();
-  /** Still ring if cron runs a few minutes late; drop if hopelessly stale */
-  const MAX_LATE_MS = 20 * 60 * 1000;
+  /** Allow pickup on the next daily Vercel cron (~up to ~24h after due). Invoice + briefing queue share this. */
+  const MAX_LATE_MS = 26 * 60 * 60 * 1000;
   const remaining: ScheduledPhoneCallJob[] = [];
   const errors: string[] = [];
   let processed = 0;
@@ -2469,18 +2485,30 @@ export async function dispatchDueScheduledPhoneCalls(): Promise<{
       continue;
     }
 
-    const twimlType =
-      job.briefingType === 'morning' ? 'morning-briefing' :
-      job.briefingType === 'evening' ? 'evening-review' :
-      'outbound-briefing';
+    let twimlUrl: string;
+    if (job.briefingType === 'invoice-collection') {
+      const p = new URLSearchParams({
+        handler: 'invoice-collection',
+        voice: 'Polly.Joanna-Neural',
+      });
+      if (job.invoiceId) p.set('invoiceId', job.invoiceId);
+      if (job.amountDisplay) p.set('amount', job.amountDisplay);
+      if (job.userId) p.set('merchantUserId', job.userId);
+      twimlUrl = `${config.appUrl}/api/phone/twiml?${p.toString()}`;
+    } else {
+      const twimlType =
+        job.briefingType === 'morning' ? 'morning-briefing' :
+        job.briefingType === 'evening' ? 'evening-review' :
+        'outbound-briefing';
 
-    const convParams = new URLSearchParams({
-      handler: 'conversation',
-      type: twimlType,
-    });
-    if (job.userId) convParams.set('userId', job.userId);
-    if (job.userEmail) convParams.set('email', job.userEmail);
-    const twimlUrl = `${config.appUrl}/api/phone/twiml?${convParams.toString()}`;
+      const convParams = new URLSearchParams({
+        handler: 'conversation',
+        type: twimlType,
+      });
+      if (job.userId) convParams.set('userId', job.userId);
+      if (job.userEmail) convParams.set('email', job.userEmail);
+      twimlUrl = `${config.appUrl}/api/phone/twiml?${convParams.toString()}`;
+    }
     const statusUrl = `${config.appUrl}/api/phone/twiml?handler=status-callback`;
 
     const result = await twilioCreateCall({

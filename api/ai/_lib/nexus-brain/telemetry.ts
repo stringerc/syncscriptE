@@ -9,7 +9,7 @@ export type NexusTraceOutcome =
   | 'validation_error'
   | 'ai_unconfigured';
 
-export type NexusTracePathway = 'llm' | 'deterministic_pricing' | 'stream' | 'stream_fallback';
+export type NexusTracePathway = 'llm' | 'deterministic_pricing' | 'stream' | 'stream_fallback' | 'tools';
 
 /** One JSON line per request for Vercel / Mission Control log drains. Never include raw user text or private context. */
 export function emitNexusTrace(ev: {
@@ -27,6 +27,12 @@ export function emitNexusTrace(ev: {
   errorCode?: string;
   httpStatus?: number;
   responseChars?: number;
+  /** Which Nexus persona mode was applied (no user text). */
+  personaMode?: 'standard' | 'halo_inspired';
+  /** User surface + tools path: count of tool executions returned to the client. */
+  toolTraceEntries?: number;
+  /** User surface + tools path: tool loop applied a repair/nudge path. */
+  toolRepairNudged?: boolean;
 }): void {
   const line = {
     nexus_trace: 'v1',

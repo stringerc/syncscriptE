@@ -799,15 +799,38 @@ stripeRoutes.post('/webhook', async (c) => {
         break;
       }
 
-      // ── CHECKOUT COMPLETED → Store pending subscription for account linking ──
+      // ── CHECKOUT COMPLETED → Store pending subscription OR mark invoice paid ──
       case 'checkout.session.completed': {
         const session = event.data.object as any;
         const customerEmail = session.customer_details?.email || session.customer_email;
         const customerId = session.customer;
         const subscriptionId = session.subscription;
         const planId = session.metadata?.plan_id;
+        const invoicePaymentId = session.metadata?.invoice_id;
+        const isInvoicePayment = session.metadata?.type === 'invoice_payment';
 
-        console.log(`[Stripe] Checkout completed: session ${session.id}, email=${customerEmail}, subscription=${subscriptionId}`);
+        console.log(`[Stripe] Checkout completed: session ${session.id}, email=${customerEmail}, invoice=${invoicePaymentId || 'n/a'}`);
+
+        if (isInvoicePayment && invoicePaymentId) {
+          const INVOICES_PREFIX = 'invoices:v1:';
+          const rows = await kv.getKeyValueByPrefix(INVOICES_PREFIX);
+          for (const row of rows) {
+            if (!Array.isArray(row.value)) continue;
+            const invoicesArr = row.value as Record<string, unknown>[];
+            const idx = invoicesArr.findIndex((inv: any) => inv.id === invoicePaymentId);
+            if (idx >= 0) {
+              const paidAt = new Date().toISOString();
+              invoicesArr[idx] = {
+                ...invoicesArr[idx],
+                status: 'paid',
+                paid_at: paidAt,
+              };
+              await kv.set(row.key, invoicesArr);
+              console.log(`[Stripe] Invoice ${invoicePaymentId} marked paid (key=${row.key})`);
+              break;
+            }
+          }
+        }
         
         // Track conversion in growth metrics
         const today = new Date().toISOString().split('T')[0];
@@ -1598,5 +1621,81 @@ async function triggerContextCall(
     console.error(`[Stripe→Call] ${context} exception:`, error);
   }
 }
+
+// ============================================================================
+// INVOICE PAYMENT — Stripe Checkout for one-time invoice payments
+// ============================================================================
+
+/**
+ * POST /stripe/create-invoice-payment
+ * Creates a Stripe Checkout Session for a one-time invoice payment.
+ * Called by the Nexus executor when sending invoices.
+ */
+stripeRoutes.post('/create-invoice-payment', async (c) => {
+  try {
+    const body = await c.req.json();
+    const { invoice_id, amount_cents, description, customer_email, user_id, success_url, cancel_url } = body;
+
+    if (!invoice_id || !amount_cents || !customer_email) {
+      return c.json({ error: 'invoice_id, amount_cents, and customer_email required' }, 400);
+    }
+
+    let connectAccountId: string | undefined;
+    if (user_id) {
+      const stored = await kv.get(`stripe_connect_${user_id}`);
+      if (typeof stored === 'string' && stored.startsWith('acct_')) {
+        try {
+          const acct = await stripe.accounts.retrieve(stored);
+          if (acct.charges_enabled) {
+            connectAccountId = stored;
+          }
+        } catch {}
+      }
+    }
+
+    const sessionParams: any = {
+      payment_method_types: ['card'],
+      customer_email,
+      line_items: [
+        {
+          price_data: {
+            currency: 'usd',
+            product_data: {
+              name: description || `Invoice ${invoice_id}`,
+              description: `Payment for invoice ${invoice_id}`,
+            },
+            unit_amount: Math.round(amount_cents),
+          },
+          quantity: 1,
+        },
+      ],
+      mode: 'payment',
+      success_url: success_url || `https://syncscript.app/financials?invoice_paid=${invoice_id}`,
+      cancel_url: cancel_url || `https://syncscript.app/financials`,
+      metadata: {
+        invoice_id,
+        type: 'invoice_payment',
+        ...(user_id ? { user_id: String(user_id) } : {}),
+      },
+    };
+
+    if (connectAccountId) {
+      sessionParams.payment_intent_data = {
+        application_fee_amount: Math.round(amount_cents * 0.029 + 30),
+        transfer_data: { destination: connectAccountId },
+      };
+    }
+
+    const session = await stripe.checkout.sessions.create(sessionParams);
+
+    return c.json({
+      session_id: session.id,
+      url: session.url,
+    });
+  } catch (error) {
+    console.error('[Stripe] Invoice payment session error:', error);
+    return c.json({ error: 'Failed to create payment session' }, 500);
+  }
+});
 
 export default stripeRoutes;

@@ -3,11 +3,13 @@ import { useState, useEffect } from 'react';
 import { 
   LayoutDashboard, Target, Calendar, Bot, Zap, Waves, Users, 
   TrendingUp, Gamepad2, Link2, Building2, FileText, Menu, Settings, Mail, DollarSign,
+  FolderOpen,
   X
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import logoImage from 'figma:asset/914d5787f554946c037cbfbb2cf65fcc0de06278.png';
 import { navigationLinks } from '../utils/navigation';
+import { navigateWithHardFallback } from '../utils/navigateWithHardFallback';
 import { useAI } from '../contexts/AIContext';
 
 export function MobileNav() {
@@ -29,6 +31,7 @@ export function MobileNav() {
     { icon: Calendar, label: 'Calendar', id: 'Calendar', path: navigationLinks.sidebar.calendar },
     { icon: DollarSign, label: 'Financials', id: 'Financials', path: navigationLinks.sidebar.financials },
     { icon: Mail, label: 'Email', id: 'Email', path: navigationLinks.sidebar.email },
+    { icon: FolderOpen, label: 'Library', id: 'Library', path: navigationLinks.sidebar.library },
     { icon: Bot, label: 'AI', id: 'AI', path: navigationLinks.sidebar.ai },
     { icon: Zap, label: 'Energy', id: 'Energy', path: navigationLinks.sidebar.energy },
     { icon: Waves, label: 'Resonance Engine', id: 'Resonance', path: navigationLinks.sidebar.resonance },
@@ -42,17 +45,21 @@ export function MobileNav() {
   ];
 
   const handleNavClick = (item: typeof navItems[0]) => {
-    navigate(item.path);
+    navigateWithHardFallback(navigate, item.path);
     setIsDrawerOpen(false);
   };
 
   return (
     <>
       {/* Mobile Bottom Navigation Bar - Visible on <768px */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-gradient-to-r from-[#1d232d]/95 via-[#1a2029]/95 to-[#171c24]/95 backdrop-blur-md border-t border-gray-700/70 shadow-[0_-8px_36px_rgba(45,212,191,0.09)] z-40 safe-area-inset-bottom">
+      <div
+        id="syncscript-mobile-bottom-nav"
+        className="md:hidden fixed bottom-0 left-0 right-0 z-[399] bg-gradient-to-r from-[#1d232d]/95 via-[#1a2029]/95 to-[#171c24]/95 backdrop-blur-md border-t border-gray-700/70 shadow-[0_-8px_36px_rgba(45,212,191,0.09)] safe-area-inset-bottom touch-manipulation"
+      >
         <div className="grid grid-cols-5 gap-0.5 px-1 py-1.5">
           {/* Dashboard */}
           <button
+            type="button"
             onClick={() => navigate(navigationLinks.sidebar.dashboard)}
             className={`flex flex-col items-center justify-center gap-0.5 py-2 px-1 rounded-lg transition-all min-h-[60px] ${
               location.pathname === navigationLinks.sidebar.dashboard
@@ -66,7 +73,8 @@ export function MobileNav() {
 
           {/* Tasks */}
           <button
-            onClick={() => navigate(navigationLinks.sidebar.tasks)}
+            type="button"
+            onClick={() => navigateWithHardFallback(navigate, navigationLinks.sidebar.tasks)}
             className={`flex flex-col items-center justify-center gap-0.5 py-2 px-1 rounded-lg transition-all min-h-[60px] ${
               location.pathname === navigationLinks.sidebar.tasks
                 ? 'text-teal-400 bg-teal-600/20'
@@ -79,6 +87,7 @@ export function MobileNav() {
 
           {/* Calendar */}
           <button
+            type="button"
             onClick={() => navigate(navigationLinks.sidebar.calendar)}
             className={`flex flex-col items-center justify-center gap-0.5 py-2 px-1 rounded-lg transition-all min-h-[60px] ${
               location.pathname === navigationLinks.sidebar.calendar
@@ -92,7 +101,8 @@ export function MobileNav() {
 
           {/* AI */}
           <button
-            onClick={() => navigate(navigationLinks.sidebar.ai)}
+            type="button"
+            onClick={() => navigateWithHardFallback(navigate, navigationLinks.sidebar.ai)}
             className={`relative flex flex-col items-center justify-center gap-0.5 py-2 px-1 rounded-lg transition-all min-h-[60px] ${
               location.pathname === navigationLinks.sidebar.ai
                 ? 'text-teal-400 bg-teal-600/20'
@@ -108,6 +118,7 @@ export function MobileNav() {
 
           {/* Menu Drawer Trigger */}
           <button
+            type="button"
             onClick={() => setIsDrawerOpen(true)}
             className={`flex flex-col items-center justify-center gap-0.5 py-2 px-1 rounded-lg transition-all min-h-[60px] ${
               isDrawerOpen
@@ -131,7 +142,7 @@ export function MobileNav() {
               animate={{ opacity: 0.6 }}
               exit={{ opacity: 0 }}
               onClick={() => setIsDrawerOpen(false)}
-              className="md:hidden fixed inset-0 bg-black/75 backdrop-blur-sm z-50"
+              className="md:hidden fixed inset-0 bg-black/75 backdrop-blur-sm z-[390]"
             />
 
             {/* Drawer */}
@@ -140,7 +151,7 @@ export function MobileNav() {
               animate={{ x: 0 }}
               exit={{ x: '-100%' }}
               transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-              className="md:hidden fixed left-0 top-0 bottom-0 w-[280px] bg-gradient-to-b from-[#1f252f] via-[#1a2029] to-[#171c25] border-r border-gray-700/70 shadow-[inset_-1px_0_0_rgba(45,212,191,0.08),0_0_40px_rgba(45,212,191,0.08)] z-50 overflow-y-auto ambient-scrollbar"
+              className="md:hidden fixed left-0 top-0 bottom-0 w-[280px] bg-gradient-to-b from-[#1f252f] via-[#1a2029] to-[#171c25] border-r border-gray-700/70 shadow-[inset_-1px_0_0_rgba(45,212,191,0.08),0_0_40px_rgba(45,212,191,0.08)] z-[391] overflow-y-auto ambient-scrollbar"
             >
               {/* Header */}
               <div className="flex items-center justify-between p-4 border-b border-gray-800">
@@ -149,6 +160,7 @@ export function MobileNav() {
                   <span className="font-semibold text-white">SyncScript</span>
                 </div>
                 <button
+                  type="button"
                   onClick={() => setIsDrawerOpen(false)}
                   className="p-2 hover:bg-gray-700/50 rounded-lg transition-colors"
                 >
@@ -160,10 +172,12 @@ export function MobileNav() {
               <nav className="p-4 space-y-2">
                 {navItems.map((item) => {
                   const Icon = item.icon;
-                  const isActive = location.pathname === item.path;
+                  const pathOnly = item.path.split('?')[0];
+                  const isActive = location.pathname === pathOnly;
 
                   return (
                     <button
+                      type="button"
                       key={item.id}
                       onClick={() => handleNavClick(item)}
                       className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
@@ -180,8 +194,9 @@ export function MobileNav() {
 
                 {/* Settings */}
                 <button
+                  type="button"
                   onClick={() => {
-                    navigate(navigationLinks.sidebar.settings);
+                    navigateWithHardFallback(navigate, navigationLinks.sidebar.settings);
                     setIsDrawerOpen(false);
                   }}
                   className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${

@@ -1,5 +1,9 @@
 # Kokoro TTS on EC2 (SyncScript production)
 
+**Production (stable hostname, not your laptop):** follow **[NAMED_TUNNEL_SETUP_RUNBOOK.md](./NAMED_TUNNEL_SETUP_RUNBOOK.md)** end-to-end — Cloudflare named tunnel → EC2 `docker compose --profile named-tunnel` → `KOKORO_TTS_URL` on Vercel. On the server, after `.env` has `CLOUDFLARE_TUNNEL_TOKEN`: `bash scripts/on-ec2-start-named-tunnel.sh`.
+
+**Recovery / Vercel URL drift:** see **[VERCEL_EC2_RECOVERY_RUNBOOK.md](./VERCEL_EC2_RECOVERY_RUNBOOK.md)** (probe fails, dead `*.trycloudflare.com`, SSH + Cloudflare dashboard).
+
 This stack replaces a **laptop + ephemeral `trycloudflare.com` URL** with **EC2 + Docker + a stable public URL**.
 
 ## Why this shape

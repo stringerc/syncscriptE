@@ -30,10 +30,10 @@ jobs:
       - name: Prod index.html matches this git SHA (deploy drift guard)
         run: node scripts/verify-prod-build.mjs "${BASE_URL}"
         env:
-          BASE_URL: ${{ inputs.base_url }}
+          BASE_URL: ${{ github.event.inputs.base_url || 'https://www.syncscript.app' }}
 
       - name: Dashboard nav (live site, guest session)
         run: npm run test:e2e:dashboard-nav:prod
         env:
           CI: true
-          PLAYWRIGHT_BASE_URL: ${{ inputs.base_url }}
+          PLAYWRIGHT_BASE_URL: ${{ github.event.inputs.base_url || 'https://www.syncscript.app' }}

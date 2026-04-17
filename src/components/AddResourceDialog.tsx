@@ -2,6 +2,9 @@ import React from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from './ui/dialog';
 import { Button } from './ui/button';
 import { Link as LinkIcon, Paperclip, X } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
+import { uploadResourceFile } from '../utils/resource-upload';
+import { toast } from 'sonner';
 
 interface AddResourceDialogProps {
   open: boolean;
@@ -28,10 +31,14 @@ export function AddResourceDialog({
   setStepResources,
   isTaskLeader
 }: AddResourceDialogProps) {
+  const { accessToken, user } = useAuth();
   const [resourceType, setResourceType] = React.useState<'link' | 'file' | null>(null);
   const [linkUrl, setLinkUrl] = React.useState('');
   const [linkName, setLinkName] = React.useState('');
+  const [fileBusy, setFileBusy] = React.useState(false);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  const displayName = user?.name || user?.email || 'You';
 
   const handleAddLink = () => {
     if (linkUrl && linkName && context) {
@@ -40,7 +47,7 @@ export function AddResourceDialog({
         type: 'link' as const,
         name: linkName,
         url: linkUrl,
-        addedBy: 'Sarah Chen', // Mock current user
+        addedBy: displayName,
         addedAt: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
       };
 
@@ -66,23 +73,42 @@ export function AddResourceDialog({
     }
   };
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file && context) {
-      // Convert file size to readable format
-      const fileSizeKB = (file.size / 1024).toFixed(2);
-      const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2);
-      const fileSize = file.size > 1024 * 1024 ? `${fileSizeMB} MB` : `${fileSizeKB} KB`;
+    if (!file || !context) return;
+    if (user?.isGuest) {
+      toast.error('Sign in to upload files to your library');
+      return;
+    }
+    if (!accessToken) {
+      toast.error('Sign in required');
+      return;
+    }
 
+    const fileSizeKB = (file.size / 1024).toFixed(2);
+    const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2);
+    const fileSize = file.size > 1024 * 1024 ? `${fileSizeMB} MB` : `${fileSizeKB} KB`;
+
+    const uploadCtx =
+      context.type === 'task'
+        ? { type: 'task' as const, id: context.id }
+        : context.type === 'milestone'
+          ? { type: 'milestone' as const, id: context.id }
+          : { type: 'step' as const, id: context.id, milestoneId: context.milestoneId };
+
+    setFileBusy(true);
+    try {
+      const uploaded = await uploadResourceFile(file, uploadCtx, accessToken);
       const newResource = {
-        id: Date.now().toString(),
+        id: uploaded.file_id || Date.now().toString(),
         type: 'file' as const,
         name: file.name,
         fileName: file.name,
         fileSize: fileSize,
-        url: URL.createObjectURL(file), // In real app, this would upload to server
-        addedBy: 'Sarah Chen', // Mock current user
-        addedAt: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+        url: uploaded.url,
+        fileId: uploaded.file_id,
+        addedBy: displayName,
+        addedAt: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
       };
 
       if (context.type === 'task') {
@@ -90,21 +116,24 @@ export function AddResourceDialog({
       } else if (context.type === 'milestone' && context.id) {
         setMilestoneResources({
           ...milestoneResources,
-          [context.id]: [...(milestoneResources[context.id] || []), newResource]
+          [context.id]: [...(milestoneResources[context.id] || []), newResource],
         });
       } else if (context.type === 'step' && context.id) {
         setStepResources({
           ...stepResources,
-          [context.id]: [...(stepResources[context.id] || []), newResource]
+          [context.id]: [...(stepResources[context.id] || []), newResource],
         });
       }
-      
-      // Reset form
+
+      toast.success('File uploaded');
       setResourceType(null);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
+      if (fileInputRef.current) fileInputRef.current.value = '';
       onOpenChange(false);
+    } catch (err) {
+      console.error('[AddResource] upload', err);
+      toast.error(err instanceof Error ? err.message : 'Upload failed');
+    } finally {
+      setFileBusy(false);
     }
   };
 

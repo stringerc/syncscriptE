@@ -719,23 +719,28 @@ export function EmailHubPage() {
           <div className="grid grid-cols-1 xl:grid-cols-[340px_minmax(0,1fr)_300px] gap-4 min-h-[640px]">
             <div className="border border-gray-800 rounded-lg overflow-y-auto max-h-[520px]">
               {prioritizedMessages.length === 0 ? (
-                <div className="text-sm text-gray-500 p-6 text-center space-y-3">
-                  <p>No messages found for current filters.</p>
+                <div className="p-8 text-center space-y-4">
+                  <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-purple-500/20 to-cyan-500/20 border border-purple-500/30 flex items-center justify-center mx-auto">
+                    <Mail className="w-7 h-7 text-purple-400" />
+                  </div>
+                  <div>
+                    <p className="text-base font-medium text-white">
+                      {providerErrors.gmail || providerErrors.outlook ? 'Connect Your Email' : 'No messages yet'}
+                    </p>
+                    <p className="text-sm text-gray-400 mt-1 max-w-sm mx-auto">
+                      {providerErrors.gmail || providerErrors.outlook
+                        ? 'Link your Gmail or Outlook account to see your inbox, send emails, and let Nexus manage your communications.'
+                        : 'No messages found for the current filters. Try adjusting your search or check back later.'}
+                    </p>
+                  </div>
                   {(providerErrors.gmail || providerErrors.outlook) && (
-                    <div className="text-left bg-[#1a1d24] border border-gray-800 rounded-md p-3 space-y-2 text-xs">
-                      <p className="text-gray-300">Provider status:</p>
-                      {providerErrors.gmail && (
-                        <p className="text-yellow-300">Gmail: connect Gmail Mail in Integrations (mail scopes required).</p>
-                      )}
-                      {providerErrors.outlook && (
-                        <p className="text-yellow-300">Outlook: connect Outlook Mail in Integrations.</p>
-                      )}
-                      <div>
-                        <Button size="sm" variant="outline" onClick={() => navigate('/integrations')}>
-                          Open Integrations
-                        </Button>
-                      </div>
-                    </div>
+                    <Button
+                      onClick={() => navigate('/integrations')}
+                      className="bg-gradient-to-r from-purple-600 to-cyan-600 hover:from-purple-500 hover:to-cyan-500 text-white border-0"
+                    >
+                      <Mail className="w-4 h-4 mr-2" />
+                      Connect Email Account
+                    </Button>
                   )}
                 </div>
               ) : (

@@ -27,3 +27,14 @@ jobs:
         run: node scripts/verify-prod-build.mjs "${BASE_URL}"
         env:
           BASE_URL: ${{ github.event.inputs.base_url || 'https://www.syncscript.app' }}
+
+      - name: Summary
+        if: success()
+        run: |
+          echo '## Production HTML build fingerprint' >> "$GITHUB_STEP_SUMMARY"
+          echo '**MATCH** — local `git` HEAD aligns with live `<!-- syncscript-build:… -->` on `' >> "$GITHUB_STEP_SUMMARY"
+          echo "${BASE_URL}" >> "$GITHUB_STEP_SUMMARY"
+          echo '' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Habit: run this after meaningful deploys (`npm run verify:prod-build` locally).' >> "$GITHUB_STEP_SUMMARY"
+        env:
+          BASE_URL: ${{ github.event.inputs.base_url || 'https://www.syncscript.app' }}

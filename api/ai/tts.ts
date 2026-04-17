@@ -4,6 +4,8 @@
  * Browser → /api/ai/tts → Kokoro `{origin}/v1/audio/speech` → audio bytes.
  * GET returns `kokoroDirectOrigin` so the client can call Kokoro directly if the proxy fails
  * (same hostname as `KOKORO_TTS_URL` — no OpenAI, no extra billing).
+ *
+ * POST with `{ kind: "tts_rum", ... }` ingests coarse RUM (no transcript) — see deploy/tts-reliability-slo.md.
  */
 
 import { lookup } from 'node:dns/promises';
@@ -111,6 +113,62 @@ async function probeKokoroHealth(baseUrl: string): Promise<{ ok: boolean; detail
   }
 }
 
+function sanitizeRumToken(s: string, max: number): string {
+  return s.replace(/[^\w./:-]/g, '').slice(0, max) || 'unknown';
+}
+
+type TtsRumBody = {
+  kind?: string;
+  v?: number;
+  outcome?: string;
+  path?: string;
+  voicePreset?: string;
+  durationMs?: number;
+  err?: string;
+  origin?: string;
+};
+
+/** Ingest client RUM beacons — structured logs for Vercel / log drains; optional webhook. */
+function handleTtsRumPost(res: VercelResponse, raw: unknown) {
+  if (!raw || typeof raw !== 'object') {
+    return res.status(400).json({ error: 'invalid body' });
+  }
+  const b = raw as TtsRumBody;
+  const outcome = b.outcome === 'ok' || b.outcome === 'fail' ? b.outcome : null;
+  if (!outcome) {
+    return res.status(400).json({ error: 'invalid outcome' });
+  }
+  const path = sanitizeRumToken(String(b.path || 'unknown'), 40);
+  const voicePreset = sanitizeRumToken(String(b.voicePreset || 'unknown'), 48);
+  const durationMs = Math.min(120_000, Math.max(0, Number(b.durationMs) || 0));
+  const page = String(b.origin || '').slice(0, 200);
+  const err = b.err ? String(b.err).slice(0, 240) : undefined;
+
+  const payload = {
+    v: 1,
+    src: 'tts_rum',
+    outcome,
+    path,
+    voicePreset,
+    durationMs,
+    ...(page ? { page } : {}),
+    ...(err ? { err } : {}),
+  };
+  console.log(JSON.stringify(payload));
+
+  const wh = process.env.TTS_RUM_WEBHOOK_URL?.trim();
+  if (wh) {
+    void fetch(wh, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    }).catch(() => {});
+  }
+
+  res.setHeader('Cache-Control', 'no-store');
+  return res.status(204).end();
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -146,11 +204,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     }
 
+    const fallback = KOKORO_FALLBACK_URL.replace(/\/$/, '');
+
     return res.status(200).json({
       service: 'kokoro-tts-proxy',
       kokoroConfigured,
       /** Same origin Vercel uses for POST proxy — client may call `/v1/audio/speech` directly if proxy fails. */
       kokoroDirectOrigin: primary || null,
+      /** Second Kokoro host (e.g. Oracle backup) — chunked client TTS tries this if primary direct fails. */
+      kokoroFallbackDirectOrigin: fallback || null,
       ...(wantProbe
         ? {
             kokoroUpstreamReachable,
@@ -165,7 +227,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  const { text, voice, speed } = req.body || {};
+  const rawBody = req.body || {};
+  if (typeof rawBody === 'object' && rawBody !== null && (rawBody as { kind?: string }).kind === 'tts_rum') {
+    return handleTtsRumPost(res, rawBody);
+  }
+
+  const { text, voice, speed } = rawBody;
 
   if (!text || typeof text !== 'string' || !text.trim()) {
     return res.status(400).json({ error: 'text is required' });
@@ -205,17 +272,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.send(result.buffer);
     }
 
-    if (!result.ok) {
-      if (result.kind === 'http') {
-        console.error(`[TTS] Kokoro (${label}) HTTP ${result.status}: ${result.detail}`);
-        lastFailure = { code: 'KOKORO_ERROR', message: 'TTS synthesis failed' };
-      } else {
-        const isTimeout = result.detail === 'timeout';
-        console.error(`[TTS] Kokoro (${label}) ${isTimeout ? 'timed out' : 'unreachable'}: ${result.detail}`);
-        lastFailure = isTimeout
-          ? { code: 'TIMEOUT', message: 'TTS request timed out' }
-          : { code: 'UNREACHABLE', message: 'TTS service unreachable' };
-      }
+    const fail = result as any;
+    if (fail.kind === 'http') {
+      console.error(`[TTS] Kokoro (${label}) HTTP ${fail.status}: ${fail.detail}`);
+      lastFailure = { code: 'KOKORO_ERROR', message: 'TTS synthesis failed' };
+    } else {
+      const isTimeout = fail.detail === 'timeout';
+      console.error(`[TTS] Kokoro (${label}) ${isTimeout ? 'timed out' : 'unreachable'}: ${fail.detail}`);
+      lastFailure = isTimeout
+        ? { code: 'TIMEOUT', message: 'TTS request timed out' }
+        : { code: 'UNREACHABLE', message: 'TTS service unreachable' };
     }
   }
 

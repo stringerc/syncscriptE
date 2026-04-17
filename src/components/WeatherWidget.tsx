@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
 import { projectId, publicAnonKey } from '../utils/supabase/info';
+import { getWeatherCoords } from '../utils/weather-geolocation';
 
 interface WeatherData {
   temp: number;
@@ -107,25 +108,9 @@ export function WeatherWidget() {
   };
 
   useEffect(() => {
-    // Try browser geolocation first
-    if ('geolocation' in navigator) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          fetchWeather(position.coords.latitude, position.coords.longitude);
-        },
-        () => {
-          // User denied or error - fallback to San Francisco
-          fetchWeather(37.7749, -122.4194);
-        },
-        {
-          timeout: 3000,
-          maximumAge: 300000 // Cache for 5 minutes
-        }
-      );
-    } else {
-      // No geolocation - fallback to San Francisco
-      fetchWeather(37.7749, -122.4194);
-    }
+    void getWeatherCoords().then(({ lat, lon }) => {
+      void fetchWeather(lat, lon);
+    });
   }, []);
 
   if (loading) {

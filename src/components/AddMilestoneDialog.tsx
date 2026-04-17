@@ -57,7 +57,7 @@ export function AddMilestoneDialog({ open, onOpenChange, onAdd, availableUsers }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="!max-w-md bg-[#1a1d24] border-gray-800 text-white !z-[110]">
+      <DialogContent className="!max-w-md bg-[#1a1d24] border-gray-800 text-white">
         <DialogHeader>
           <DialogTitle className="text-xl">Add Milestone</DialogTitle>
           <DialogDescription className="text-gray-400">

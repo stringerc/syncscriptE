@@ -14,6 +14,9 @@ import { EnergyDisplay } from './energy/EnergyDisplay';
 import { toast } from 'sonner';
 import { useEnergy } from '../contexts/EnergyContext';
 import { useCurrentReadiness } from '../hooks/useCurrentReadiness';
+import { navigationLinks } from '../utils/navigation';
+
+const sideNav = navigationLinks.sidebar;
 
 interface DashboardHeaderProps {
   isAIInsightsOpen: boolean;
@@ -42,17 +45,17 @@ const commands: Command[] = [
   { id: 'create-script', label: 'Create Script', keywords: ['create script', 'new script', 'add script', 'script'], category: 'action', icon: FileText, action: 'modal', handler: 'script', description: 'Create a new script' },
   
   // Navigation - Pages
-  { id: 'goto-tasks', label: 'Go to Tasks', keywords: ['tasks', 'todos', 'go to tasks', 'open tasks'], category: 'navigation', icon: CheckCircle2, action: 'navigate', handler: '/dashboard/tasks' },
-  { id: 'goto-calendar', label: 'Go to Calendar', keywords: ['calendar', 'schedule', 'events', 'go to calendar'], category: 'navigation', icon: CalendarIcon, action: 'navigate', handler: '/dashboard/calendar' },
-  { id: 'goto-analytics', label: 'Go to Analytics', keywords: ['analytics', 'stats', 'data', 'reports'], category: 'navigation', icon: BarChart3, action: 'navigate', handler: '/dashboard/analytics' },
-  { id: 'goto-financials', label: 'Go to Financials', keywords: ['financials', 'finance', 'revenue', 'money', 'billing'], category: 'navigation', icon: TrendingUp, action: 'navigate', handler: '/financials' },
-  { id: 'goto-resonance', label: 'Go to Resonance', keywords: ['resonance', 'energy', 'focus'], category: 'navigation', icon: Activity, action: 'navigate', handler: '/dashboard/resonance' },
-  { id: 'goto-ai', label: 'Go to AI Assistant', keywords: ['ai', 'assistant', 'chat', 'help'], category: 'navigation', icon: Brain, action: 'navigate', handler: '/dashboard/ai-assistant' },
-  { id: 'goto-team', label: 'Go to Team', keywords: ['team', 'collaboration', 'members'], category: 'navigation', icon: Users, action: 'navigate', handler: '/dashboard/team' },
-  { id: 'goto-integrations', label: 'Go to Integrations', keywords: ['integrations', 'apps', 'connections'], category: 'navigation', icon: Plug, action: 'navigate', handler: '/dashboard/integrations' },
-  { id: 'goto-scripts', label: 'Go to Scripts', keywords: ['scripts', 'templates', 'marketplace'], category: 'navigation', icon: FileText, action: 'navigate', handler: '/dashboard/scripts' },
-  { id: 'goto-gamification', label: 'Go to Gamification', keywords: ['gamification', 'rewards', 'achievements'], category: 'navigation', icon: Award, action: 'navigate', handler: '/dashboard/gamification' },
-  { id: 'goto-settings', label: 'Go to Settings', keywords: ['settings', 'preferences', 'config'], category: 'navigation', icon: Settings, action: 'navigate', handler: '/dashboard/settings' },
+  { id: 'goto-tasks', label: 'Go to Tasks', keywords: ['tasks', 'todos', 'go to tasks', 'open tasks'], category: 'navigation', icon: CheckCircle2, action: 'navigate', handler: sideNav.tasks },
+  { id: 'goto-calendar', label: 'Go to Calendar', keywords: ['calendar', 'schedule', 'events', 'go to calendar'], category: 'navigation', icon: CalendarIcon, action: 'navigate', handler: sideNav.calendar },
+  { id: 'goto-analytics', label: 'Go to Analytics', keywords: ['analytics', 'stats', 'data', 'reports'], category: 'navigation', icon: BarChart3, action: 'navigate', handler: sideNav.analytics },
+  { id: 'goto-financials', label: 'Go to Financials', keywords: ['financials', 'finance', 'revenue', 'money', 'billing'], category: 'navigation', icon: TrendingUp, action: 'navigate', handler: sideNav.financials },
+  { id: 'goto-resonance', label: 'Go to Resonance', keywords: ['resonance', 'energy', 'focus'], category: 'navigation', icon: Activity, action: 'navigate', handler: sideNav.resonance },
+  { id: 'goto-ai', label: 'Go to AI Assistant', keywords: ['ai', 'assistant', 'chat', 'help'], category: 'navigation', icon: Brain, action: 'navigate', handler: sideNav.ai },
+  { id: 'goto-team', label: 'Go to Team', keywords: ['team', 'collaboration', 'members'], category: 'navigation', icon: Users, action: 'navigate', handler: sideNav.team },
+  { id: 'goto-integrations', label: 'Go to Integrations', keywords: ['integrations', 'apps', 'connections'], category: 'navigation', icon: Plug, action: 'navigate', handler: sideNav.integrations },
+  { id: 'goto-scripts', label: 'Go to Scripts', keywords: ['scripts', 'templates', 'marketplace'], category: 'navigation', icon: FileText, action: 'navigate', handler: sideNav.scripts },
+  { id: 'goto-gamification', label: 'Go to Gamification', keywords: ['gamification', 'rewards', 'achievements'], category: 'navigation', icon: Award, action: 'navigate', handler: sideNav.gaming },
+  { id: 'goto-settings', label: 'Go to Settings', keywords: ['settings', 'preferences', 'config'], category: 'navigation', icon: Settings, action: 'navigate', handler: sideNav.settings },
 ];
 
 // Calculate Levenshtein distance for fuzzy matching
@@ -100,17 +103,17 @@ function isAIQuestion(query: string): boolean {
 // Mock searchable content (in real app, this would come from global state/context)
 const mockContent = {
   tasks: [
-    { id: '1', title: 'Complete budget allocation analysis', type: 'task', route: '/dashboard/tasks' },
-    { id: '2', title: 'Review project proposal draft', type: 'task', route: '/dashboard/tasks' },
-    { id: '3', title: 'Team sync meeting preparation', type: 'task', route: '/dashboard/tasks' },
+    { id: '1', title: 'Complete budget allocation analysis', type: 'task', route: sideNav.tasks },
+    { id: '2', title: 'Review project proposal draft', type: 'task', route: sideNav.tasks },
+    { id: '3', title: 'Team sync meeting preparation', type: 'task', route: sideNav.tasks },
   ],
   goals: [
-    { id: '1', title: 'Launch Personal Finance Dashboard', type: 'goal', route: '/dashboard/tasks' },
-    { id: '2', title: 'Read 24 Books This Year', type: 'goal', route: '/dashboard/tasks' },
+    { id: '1', title: 'Launch Personal Finance Dashboard', type: 'goal', route: sideNav.tasks },
+    { id: '2', title: 'Read 24 Books This Year', type: 'goal', route: sideNav.tasks },
   ],
   events: [
-    { id: '1', title: 'Team Standup', type: 'event', route: '/dashboard/calendar' },
-    { id: '2', title: 'Project Review Meeting', type: 'event', route: '/dashboard/calendar' },
+    { id: '1', title: 'Team Standup', type: 'event', route: sideNav.calendar },
+    { id: '2', title: 'Project Review Meeting', type: 'event', route: sideNav.calendar },
   ]
 };
 
@@ -193,19 +196,19 @@ function searchCommands(query: string): Command[] {
 
 // Searchable items with common misspellings (keeping for backward compatibility)
 const searchableItems = [
-  { term: 'tasks', keywords: ['task', 'todo', 'todos', 'taks', 'tassk', 'tak'], route: '/dashboard/tasks' },
-  { term: 'goals', keywords: ['goal', 'goall', 'gols', 'gol', 'gaols'], route: '/dashboard/tasks' },
-  { term: 'calendar', keywords: ['calender', 'calandar', 'calander', 'schedule', 'events'], route: '/dashboard/calendar' },
-  { term: 'analytics', keywords: ['analytic', 'stats', 'statistics', 'data', 'analitics', 'analytiks'], route: '/dashboard/analytics' },
-  { term: 'financials', keywords: ['finance', 'revenue', 'money', 'billing', 'cashflow'], route: '/financials' },
-  { term: 'resonance', keywords: ['resonence', 'resonanse', 'energy', 'focus', 'reson'], route: '/dashboard/resonance' },
-  { term: 'ai assistant', keywords: ['ai', 'assistant', 'help', 'chatbot', 'asistant', 'assistent'], route: '/dashboard/ai-assistant' },
-  { term: 'settings', keywords: ['setting', 'preferences', 'config', 'setings', 'settigns'], route: '/dashboard/settings' },
-  { term: 'team', keywords: ['collaboration', 'members', 'collab', 'teem'], route: '/dashboard/team' },
-  { term: 'integrations', keywords: ['integration', 'apps', 'connections', 'integretion'], route: '/dashboard/integrations' },
-  { term: 'scripts', keywords: ['script', 'templates', 'automation', 'scrips'], route: '/dashboard/scripts' },
-  { term: 'gamification', keywords: ['rewards', 'achievements', 'points', 'badges', 'game'], route: '/dashboard/gamification' },
-  { term: 'enterprise', keywords: ['business', 'admin', 'tools', 'enterprize'], route: '/dashboard/enterprise' },
+  { term: 'tasks', keywords: ['task', 'todo', 'todos', 'taks', 'tassk', 'tak'], route: sideNav.tasks },
+  { term: 'goals', keywords: ['goal', 'goall', 'gols', 'gol', 'gaols'], route: sideNav.tasks },
+  { term: 'calendar', keywords: ['calender', 'calandar', 'calander', 'schedule', 'events'], route: sideNav.calendar },
+  { term: 'analytics', keywords: ['analytic', 'stats', 'statistics', 'data', 'analitics', 'analytiks'], route: sideNav.analytics },
+  { term: 'financials', keywords: ['finance', 'revenue', 'money', 'billing', 'cashflow'], route: sideNav.financials },
+  { term: 'resonance', keywords: ['resonence', 'resonanse', 'energy', 'focus', 'reson'], route: sideNav.resonance },
+  { term: 'ai assistant', keywords: ['ai', 'assistant', 'help', 'chatbot', 'asistant', 'assistent'], route: sideNav.ai },
+  { term: 'settings', keywords: ['setting', 'preferences', 'config', 'setings', 'settigns'], route: sideNav.settings },
+  { term: 'team', keywords: ['collaboration', 'members', 'collab', 'teem'], route: sideNav.team },
+  { term: 'integrations', keywords: ['integration', 'apps', 'connections', 'integretion'], route: sideNav.integrations },
+  { term: 'scripts', keywords: ['script', 'templates', 'automation', 'scrips'], route: sideNav.scripts },
+  { term: 'gamification', keywords: ['rewards', 'achievements', 'points', 'badges', 'game'], route: sideNav.gaming },
+  { term: 'enterprise', keywords: ['business', 'admin', 'tools', 'enterprize'], route: sideNav.enterprise },
 ];
 
 // Find best match for search query
@@ -359,7 +362,7 @@ export function DashboardHeader({ isAIInsightsOpen, onToggleAIInsights }: Dashbo
     
     // If it's an AI question, navigate to AI Assistant with the query
     if (isAIQuery) {
-      navigate('/dashboard/ai-assistant', { state: { initialMessage: searchQuery } });
+      navigate(sideNav.ai, { state: { initialMessage: searchQuery } });
       toast.success('Opening AI Assistant...', { description: 'Your question will be sent to the AI' });
       setSearchQuery('');
       setShowDropdown(false);
@@ -401,7 +404,7 @@ export function DashboardHeader({ isAIInsightsOpen, onToggleAIInsights }: Dashbo
   };
 
   const handleAIQuestionClick = () => {
-    navigate('/dashboard/ai-assistant', { state: { initialMessage: searchQuery } });
+    navigate(sideNav.ai, { state: { initialMessage: searchQuery } });
     toast.success('Opening AI Assistant...', { description: 'Your question will be sent to the AI' });
     setSearchQuery('');
     setShowDropdown(false);
@@ -428,22 +431,22 @@ export function DashboardHeader({ isAIInsightsOpen, onToggleAIInsights }: Dashbo
       
       switch (command.handler) {
         case 'task':
-          route = '/dashboard/tasks';
+          route = sideNav.tasks;
           message = 'Opening task creation...';
           toast.success('Create Task', { description: message });
           break;
         case 'goal':
-          route = '/dashboard/tasks';
+          route = sideNav.tasks;
           message = 'Opening goal creation...';
           toast.success('Create Goal', { description: message });
           break;
         case 'event':
-          route = '/dashboard/calendar';
+          route = sideNav.calendar;
           message = 'Opening event creation...';
           toast.success('Create Event', { description: message });
           break;
         case 'script':
-          route = '/dashboard/scripts';
+          route = sideNav.scripts;
           message = 'Opening script creation...';
           toast.success('Create Script', { description: message });
           break;

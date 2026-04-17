@@ -12,7 +12,8 @@
  * - Voice memory integration
  */
 
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { createPortal } from 'react-dom';
 import {
   Mic, MicOff, Volume2, VolumeX, Phone, PhoneOff,
@@ -32,6 +33,7 @@ import {
   buildVoiceContext,
   formatAIResponseForVoice,
   generateGreeting,
+  generateImmersiveVoiceIntro,
   generateDeepInsights,
 } from '../utils/voice-context-builder';
 import { voiceMemory } from '../utils/voice-memory';
@@ -44,12 +46,19 @@ import { useAuth } from '../contexts/AuthContext';
 import { useNexusPrivateContext } from '../hooks/useNexusPrivateContext';
 import { getStoredNexusPersonaMode } from '../utils/nexus-persona-preference';
 import { postNexusUserVoiceTurn } from '../utils/nexus-voice-user-client';
+import { voiceLatencyMark, voiceLatencyMeasure, voiceLatencyLogNexusCorrelation } from '../utils/voice-latency-debug';
 import {
   NexusVoiceArtifactRail,
   toolTraceToVoiceChips,
   type VoiceToolChip,
 } from './nexus/NexusVoiceArtifactRail';
-import { NexusVoiceTaskPeek } from './nexus/NexusVoiceTaskPeek';
+import { TaskDetailModal } from './TaskDetailModal';
+import { EventModal } from './EventModal';
+import { LinkedCalendarEventModal } from './calendar/LinkedCalendarEventModal';
+import { buildPrimaryEventFromNexusCalendarHold } from '../utils/nexus-voice-calendar-event';
+import { fetchCalendarSyncGroups, postCalendarHold } from '../lib/calendar-linked-api';
+import { CURRENT_USER } from '../utils/user-constants';
+import type { Event } from '../utils/event-task-types';
 import {
   extractFirstMapUrl,
   parseLatLngFromMapUrl,
@@ -62,7 +71,7 @@ import type {
   EmotionState,
   VoiceEngineStatus,
 } from '../types/voice-engine';
-import { NexusVoiceResonanceOrb } from './nexus/NexusVoiceResonanceOrb';
+import { NexusVoiceMinimalCircle } from './nexus/NexusVoiceMinimalCircle';
 import type { NexusVoiceOrbPhase } from './nexus/nexus-voice-orb-types';
 
 // ============================================================================
@@ -116,6 +125,11 @@ export function VoiceConversationEngine({
   const [mapResolvedCoords, setMapResolvedCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [voiceTaskFocusId, setVoiceTaskFocusId] = useState<string | null>(null);
   const [voiceTaskSheetOpen, setVoiceTaskSheetOpen] = useState(false);
+  /** Calendar tab–parity editor after `propose_calendar_hold` (local `addEvent` + EventModal). */
+  const [voiceCalendarEvent, setVoiceCalendarEvent] = useState<Event | null>(null);
+  const [voiceEventModalOpen, setVoiceEventModalOpen] = useState(false);
+  const [voiceLinkedCalModalOpen, setVoiceLinkedCalModalOpen] = useState(false);
+  const queryClient = useQueryClient();
   /** Bumps when canvas content is replaced so DocumentCanvas remounts with new Markdown. */
   const [voiceCanvasRenderKey, setVoiceCanvasRenderKey] = useState(0);
 
@@ -137,6 +151,8 @@ export function VoiceConversationEngine({
   const sessionRef = useRef<VoiceSession | null>(null);
   const messagesRef = useRef<VoiceMessage[]>([]);
   const stopAudioAnalysisRef = useRef<() => void>(() => {});
+  /** Set after Nexus creates a task; cleared when `tasks` includes it and TaskDetailModal opens. */
+  const pendingVoiceTaskOpenRef = useRef<string | null>(null);
   sessionRef.current = session;
   messagesRef.current = messages;
 
@@ -149,16 +165,31 @@ export function VoiceConversationEngine({
       const text = pendingUserTextRef.current.trim();
       if (!text || !isActiveRef.current) return;
       pendingUserTextRef.current = '';
+      voiceLatencyMark('utterance_commit');
       void handleUserMessageRef.current(text);
     }, delayMs);
   };
 
   // Hooks
   const { tasks } = useTasks();
-  const { events } = useCalendarEvents();
+  const { events, addEvent, updateEvent, bulkUpdateEvents } = useCalendarEvents();
   const { user, accessToken } = useAuth();
   const nexusPrivateContext = useNexusPrivateContext();
   const { sendMessage: sendOpenClawMessage } = useOpenClaw();
+
+  useEffect(() => {
+    setShowTranscript(!immersiveArt);
+  }, [immersiveArt]);
+
+  useEffect(() => {
+    const tid = pendingVoiceTaskOpenRef.current;
+    if (!tid) return;
+    if (tasks.some((t) => t.id === tid)) {
+      setVoiceTaskFocusId(tid);
+      setVoiceTaskSheetOpen(true);
+      pendingVoiceTaskOpenRef.current = null;
+    }
+  }, [tasks]);
 
   useEffect(() => {
     if (!user?.id || !isPhoneServiceConfigured()) return;
@@ -167,6 +198,7 @@ export function VoiceConversationEngine({
     const t = setTimeout(() => registerCallerPhoneIndex(saved, user.id), 800);
     return () => clearTimeout(t);
   }, [user?.id]);
+
   const {
     currentEmotion, detectFromText, getEmotionColor, getEmotionEmoji,
     startAudioAnalysis, stopAudioAnalysis, getEmotionTrend, micInputLevel,
@@ -277,6 +309,10 @@ export function VoiceConversationEngine({
     setVoiceCanvasOpen(false);
     setVoiceTaskFocusId(null);
     setVoiceTaskSheetOpen(false);
+    pendingVoiceTaskOpenRef.current = null;
+    setVoiceCalendarEvent(null);
+    setVoiceEventModalOpen(false);
+    setVoiceLinkedCalModalOpen(false);
     setVoiceCanvasRenderKey(0);
     setShowTranscript(!immersiveArt);
     setIsActive(true);
@@ -299,7 +335,7 @@ export function VoiceConversationEngine({
       markNotified(activeCheckIn);
       greeting = activeCheckIn.message;
     } else {
-      greeting = generateGreeting(voiceContext);
+      greeting = immersiveArt ? generateImmersiveVoiceIntro(voiceContext) : generateGreeting(voiceContext);
     }
 
     const greetingMessage: VoiceMessage = {
@@ -322,8 +358,16 @@ export function VoiceConversationEngine({
       voiceStream.startListening();
     });
 
-    toast.success('Voice session started', { description: 'Speak naturally -- I\'m listening.' });
+    if (!immersiveArt) {
+      toast.success('Voice session started', { description: 'Speak naturally — I\'m listening.' });
+    }
   }, [voiceContext, currentEmotion, voiceStream, startAudioAnalysis, immersiveArt]);
+
+  useLayoutEffect(() => {
+    if (!immersiveArt || autoDialAttemptedRef.current) return;
+    autoDialAttemptedRef.current = true;
+    startSession();
+  }, [immersiveArt, startSession]);
 
   const endSession = useCallback(() => {
     voiceStream.stopListening();
@@ -351,9 +395,23 @@ export function VoiceConversationEngine({
     setMapUrlHint(null);
     setVoiceTaskFocusId(null);
     setVoiceTaskSheetOpen(false);
+    pendingVoiceTaskOpenRef.current = null;
+    setVoiceCalendarEvent(null);
+    setVoiceEventModalOpen(false);
+    setVoiceLinkedCalModalOpen(false);
     setVoiceCanvasRenderKey(0);
     toast.info('Voice session ended');
   }, [session, messages, voiceStream, stopAudioAnalysis]);
+
+  const voiceCalendarEventResolved = useMemo(() => {
+    if (!voiceCalendarEvent?.id) return null;
+    return events.find((e) => e.id === voiceCalendarEvent.id) ?? voiceCalendarEvent;
+  }, [events, voiceCalendarEvent]);
+
+  const handleVoiceCalendarSave = useCallback((ev: Event) => {
+    updateEvent(ev.id, ev as Partial<Event>);
+    setVoiceCalendarEvent(ev);
+  }, [updateEvent]);
 
   // ==========================================================================
   // MESSAGE HANDLING
@@ -362,8 +420,12 @@ export function VoiceConversationEngine({
   const handleUserMessage = useCallback(async (text: string) => {
     if (!text.trim() || isProcessingAI) return;
 
-    // Stop listening while processing
+    voiceLatencyMark('handler_enter');
+    voiceLatencyMeasure('stt_to_handler', 'utterance_commit', 'handler_enter');
+
+    // Stop listening while processing — clear interim so immersive UI shows “thinking” instead of stale partial STT.
     voiceStream.stopListening();
+    voiceStream.clearInterimTranscript();
 
     // Detect emotion from user text
     const emotion = detectFromText(text);
@@ -464,8 +526,80 @@ export function VoiceConversationEngine({
         );
         if (taskEntry) {
           const tid = String((taskEntry.detail as { taskId: string }).taskId);
-          setVoiceTaskFocusId(tid);
-          setVoiceTaskSheetOpen(true);
+          pendingVoiceTaskOpenRef.current = tid;
+          try {
+            await refreshTasks();
+          } catch {
+            /* syncscript:nexus-tool-trace may still refresh tasks */
+          }
+          void refreshTasks();
+        }
+
+        const voiceCalHold = trace?.find(
+          (t) => t && t.ok === true && t.tool === 'propose_calendar_hold',
+        );
+        if (voiceCalHold?.detail && typeof voiceCalHold.detail === 'object') {
+          const d = voiceCalHold.detail as {
+            taskId?: string;
+            start_iso?: string;
+            end_iso?: string;
+            title?: string;
+          };
+          if (!d.taskId && d.start_iso && d.end_iso) {
+            const newEvent = buildPrimaryEventFromNexusCalendarHold({
+              title: d.title,
+              start_iso: d.start_iso,
+              end_iso: d.end_iso,
+            });
+            addEvent(newEvent);
+
+            let merged: Event = newEvent;
+            try {
+              const holdRes = await postCalendarHold({
+                title: newEvent.title,
+                start_iso: d.start_iso,
+                end_iso: d.end_iso,
+                provider: 'auto',
+              });
+              if (holdRes.sync_group_id && Array.isArray(holdRes.results)) {
+                const instances = holdRes.results
+                  .filter((r) => r.success && r.data)
+                  .map((r) => {
+                    const data = r.data as { eventId?: string; htmlLink?: string | null; webLink?: string | null };
+                    return {
+                      provider: r.provider,
+                      eventId: data?.eventId,
+                      link: data?.htmlLink ?? data?.webLink ?? null,
+                    };
+                  });
+                merged = {
+                  ...newEvent,
+                  syncGroupId: holdRes.sync_group_id,
+                  linkedCalendarInstances: instances,
+                };
+                updateEvent(newEvent.id, merged as Partial<Event>);
+              }
+            } catch (e) {
+              const code = (e as Error & { code?: string }).code;
+              const msg = e instanceof Error ? e.message : '';
+              if (code === 'NO_CALENDAR' || msg.includes('No calendar connected')) {
+                toast.message(
+                  'Saved on your SyncScript calendar — connect Google or Outlook under Settings → Integrations to sync.',
+                  { duration: 6000 },
+                );
+              } else if (import.meta.env.DEV) {
+                console.warn('[VoiceConversationEngine] calendar/hold', e);
+              }
+            }
+
+            setVoiceCalendarEvent(merged);
+            setVoiceEventModalOpen(true);
+            toast.success('Calendar event added', {
+              description: merged.syncGroupId
+                ? 'Synced where your accounts are linked. Use “Connected calendars” in the event to adjust Google vs Outlook.'
+                : 'Edit details in the event panel.',
+            });
+          }
         }
       } else {
         const response = await sendOpenClawMessage({
@@ -502,8 +636,13 @@ export function VoiceConversationEngine({
 
       setMessages((prev) => [...prev, aiMessage]);
 
+      voiceLatencyMark('llm_done');
+      voiceLatencyMeasure('handler_to_llm', 'handler_enter', 'llm_done');
+
       const ttsConfig = getTTSConfig({ text: aiText, emotion }, voiceContext.circadianPhase);
       const kokoro = nexusLandingKokoroConfig(ttsConfig);
+      voiceLatencyMark('tts_precall');
+      voiceLatencyMeasure('llm_to_tts_precall', 'llm_done', 'tts_precall');
       await voiceStream.speak({
         text: aiText,
         emotion,
@@ -524,8 +663,13 @@ export function VoiceConversationEngine({
 
       setMessages(prev => [...prev, fallbackMessage]);
 
+      voiceLatencyMark('llm_done');
+      voiceLatencyMeasure('handler_to_llm', 'handler_enter', 'llm_done');
+
       const ttsConfig = getTTSConfig({ text: fallbackText, emotion }, voiceContext.circadianPhase);
       const kokoro = nexusLandingKokoroConfig(ttsConfig);
+      voiceLatencyMark('tts_precall');
+      voiceLatencyMeasure('llm_to_tts_precall', 'llm_done', 'tts_precall');
       await voiceStream.speak({
         text: fallbackText,
         emotion,
@@ -547,12 +691,16 @@ export function VoiceConversationEngine({
     accessToken,
     nexusPrivateContext,
     messages,
+    refreshTasks,
+    addEvent,
+    updateEvent,
   ]);
 
   handleUserMessageRef.current = handleUserMessage;
 
   const handleTextSubmit = useCallback(() => {
     if (textInput.trim()) {
+      voiceLatencyMark('text_submit');
       handleUserMessage(textInput.trim());
       setTextInput('');
     }
@@ -596,7 +744,7 @@ export function VoiceConversationEngine({
   // ==========================================================================
 
   const statusConfig = useMemo(() => {
-    if (isProcessingAI) return { label: 'Thinking...', color: 'text-amber-400', pulse: true, icon: Brain };
+    if (isProcessingAI) return { label: 'Nexus is thinking…', color: 'text-amber-400', pulse: true, icon: Brain };
     switch (voiceStream.status) {
       case 'listening': return { label: 'Listening', color: 'text-green-400', pulse: true, icon: Mic };
       case 'speaking': return { label: 'Speaking', color: 'text-blue-400', pulse: true, icon: Volume2 };
@@ -680,7 +828,7 @@ export function VoiceConversationEngine({
 
   const shellSkin =
     immersiveArt && embeddedInModal
-      ? 'border-0 bg-[radial-gradient(ellipse_100%_70%_at_50%_-10%,rgba(109,40,217,0.35),transparent_55%),linear-gradient(180deg,#07070e_0%,#020204_100%)] shadow-none backdrop-blur-md'
+      ? 'border-0 bg-[#010101] shadow-none backdrop-blur-sm'
       : 'border border-white/10 bg-gradient-to-b from-slate-900/95 to-slate-950/95 shadow-2xl backdrop-blur-xl';
 
   const shellRadius = embeddedInModal ? 'rounded-none' : 'rounded-2xl';
@@ -688,30 +836,12 @@ export function VoiceConversationEngine({
   return (
     <>
     <div
+      data-voice-ui-mode={immersiveArt ? 'immersive-nexus' : 'classic-waveform'}
+      data-testid="voice-conversation-engine-root"
       className={`flex flex-col overflow-hidden ${shellSkin} ${shellRadius} ${shellPosition}`}
     >
-      {/* Header — immersive mode keeps only wayfinding + close so the orb stays the hero */}
-      {immersiveArt ? (
-        <div className="flex shrink-0 items-center justify-between border-b border-white/[0.07] bg-[#050508]/80 px-3 py-2.5 backdrop-blur-xl">
-          <div className="flex items-center gap-2.5 min-w-0">
-            <div className={`h-2 w-2 shrink-0 rounded-full ${isActive ? 'animate-pulse bg-emerald-400' : 'bg-slate-600'}`} />
-            <span className="truncate text-[13px] font-semibold tracking-tight text-white/95">Nexus Voice</span>
-            <StatusIcon className={`h-3.5 w-3.5 shrink-0 ${statusConfig.color}`} aria-hidden />
-          </div>
-          <div className="flex items-center gap-0.5">
-            {onMinimize && (
-              <Button variant="ghost" size="icon" className="h-8 w-8 text-white/50 hover:bg-white/10 hover:text-white" onClick={onMinimize} aria-label="Minimize">
-                <Minimize2 className="h-3.5 w-3.5" />
-              </Button>
-            )}
-            {onClose && (
-              <Button variant="ghost" size="icon" className="h-8 w-8 text-white/50 hover:bg-white/10 hover:text-white" onClick={() => { endSession(); onClose(); }} aria-label="Close voice">
-                <X className="h-3.5 w-3.5" />
-              </Button>
-            )}
-          </div>
-        </div>
-      ) : (
+      {/* Header — immersive mode: no chrome (close is over the canvas). */}
+      {!immersiveArt ? (
         <div className="flex items-center justify-between border-b border-white/5 px-4 py-3">
           <div className="flex items-center gap-3">
             <div className={`h-2 w-2 rounded-full ${isActive ? 'animate-pulse bg-green-400' : 'bg-slate-500'}`} />
@@ -739,15 +869,15 @@ export function VoiceConversationEngine({
               </Button>
             )}
             {onClose && (
-              <Button variant="ghost" size="icon" className="h-7 w-7 text-slate-400 hover:text-white" onClick={() => onClose()} aria-label="Close">
+              <Button variant="ghost" size="icon" className="h-7 w-7 text-slate-400 hover:text-white" onClick={() => { endSession(); onClose(); }} aria-label="Close voice">
                 <X className="h-3.5 w-3.5" />
               </Button>
             )}
           </div>
         </div>
-      )}
+      ) : null}
 
-      {!accessToken && (
+      {!accessToken && !immersiveArt && (
         <div
           role="status"
           className="flex shrink-0 items-start gap-2 border-b border-amber-400/25 bg-amber-500/[0.12] px-3 py-2.5 text-left"
@@ -762,22 +892,80 @@ export function VoiceConversationEngine({
       {/* Main Content */}
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
         {immersiveArt ? (
-          <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
-            <div className="flex min-h-0 flex-1 flex-col items-center justify-center overflow-y-auto px-2 py-3">
-              <NexusVoiceResonanceOrb
+          <div
+            className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-[#030206]"
+            data-testid="nexus-voice-immersive-main"
+          >
+            {onClose && (
+              <div className="pointer-events-none absolute inset-x-0 top-0 z-20 flex justify-end p-4 pt-[max(0.75rem,env(safe-area-inset-top))] pr-[max(0.75rem,env(safe-area-inset-right))]">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="pointer-events-auto h-11 w-11 rounded-full border border-white/15 bg-black/40 text-white/80 backdrop-blur-md hover:bg-white/10 hover:text-white"
+                  onClick={() => {
+                    endSession();
+                    onClose();
+                  }}
+                  aria-label="Close voice"
+                >
+                  <X className="h-5 w-5" />
+                </Button>
+              </div>
+            )}
+            <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-12 overflow-y-auto px-4 pb-8 pt-14">
+              <NexusVoiceMinimalCircle
                 phase={orbPhase}
                 ttsLevel={voiceStream.ttsOutputLevel}
                 micLevel={micInputLevel}
+                sessionActive={isActive}
+                onTapToStart={startSession}
+                sttReady={voiceStream.sttReady}
               />
+              <div
+                className="w-full max-w-[min(92vw,380px)] min-h-[1.25rem] px-2"
+                aria-live="polite"
+                aria-atomic="true"
+              >
+                <AnimatePresence mode="wait">
+                  {isProcessingAI ? (
+                    <motion.p
+                      key="thinking"
+                      initial={{ opacity: 0, y: 6 }}
+                      animate={{ opacity: 0.88, y: 0 }}
+                      exit={{ opacity: 0, y: -4 }}
+                      transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+                      className="text-center text-[14px] font-medium leading-relaxed tracking-tight text-amber-200/90 [text-shadow:0_1px_14px_rgba(0,0,0,0.45)]"
+                    >
+                      Nexus is thinking…
+                    </motion.p>
+                  ) : voiceStream.interimText ? (
+                    <motion.p
+                      key="interim"
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 0.92, y: 0 }}
+                      exit={{ opacity: 0, y: -4 }}
+                      transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+                      className="text-center text-[15px] font-normal leading-relaxed tracking-tight text-blue-200/95 [text-shadow:0_1px_18px_rgba(0,0,0,0.55)]"
+                    >
+                      {voiceStream.interimText}
+                    </motion.p>
+                  ) : null}
+                </AnimatePresence>
+              </div>
             </div>
-            <NexusVoiceArtifactRail
-              immersive
-              chips={artifactChips}
-              mapUrlHint={mapUrlHint}
-              mapEmbedCoords={mapEmbedCoords}
-              onOpenDocument={voiceCanvasDoc ? () => setVoiceCanvasOpen(true) : undefined}
-              onOpenTaskPanel={voiceTaskFocusId ? () => setVoiceTaskSheetOpen(true) : undefined}
-            />
+            {isActive && (
+              <div className="flex shrink-0 flex-col items-center gap-2 border-t border-white/[0.08] bg-black/80 px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-5">
+                <button
+                  type="button"
+                  onClick={endSession}
+                  className="flex h-[72px] w-[72px] shrink-0 items-center justify-center rounded-full bg-[#e85d6a] text-white shadow-[0_12px_48px_-12px_rgba(232,93,106,0.75)] transition-transform hover:scale-[1.02] hover:bg-[#f06b78] active:scale-[0.98]"
+                  aria-label="End voice session"
+                >
+                  <X className="h-9 w-9 stroke-[2.5]" />
+                </button>
+                <span className="text-[11px] font-medium text-white/40">End session</span>
+              </div>
+            )}
           </div>
         ) : (
           <div className="relative flex flex-col items-center justify-center px-4 py-4">
@@ -894,7 +1082,7 @@ export function VoiceConversationEngine({
         )}
 
         {/* Conversation Transcript */}
-        {showTranscript && (
+        {showTranscript && !immersiveArt && (
           <div className="flex-1 overflow-y-auto px-4 pb-2 space-y-3 min-h-0">
             <AnimatePresence initial={false}>
               {messages.map((msg) => (
@@ -942,7 +1130,7 @@ export function VoiceConversationEngine({
                         />
                       ))}
                     </div>
-                    <span className="text-xs text-slate-400">Thinking...</span>
+                    <span className="text-xs text-slate-400">Nexus is thinking…</span>
                   </div>
                 </div>
               </motion.div>
@@ -955,7 +1143,7 @@ export function VoiceConversationEngine({
 
       {/* Text Input (toggle) */}
       <AnimatePresence>
-        {showTextInput && (
+        {showTextInput && !immersiveArt && (
           <motion.div
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
@@ -988,7 +1176,7 @@ export function VoiceConversationEngine({
 
       {/* Phone Call Panel (Premium) */}
       <AnimatePresence>
-        {showPhonePanel && (
+        {showPhonePanel && !immersiveArt && (
           <motion.div
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
@@ -1003,138 +1191,147 @@ export function VoiceConversationEngine({
         )}
       </AnimatePresence>
 
-      {/* Controls — immersive keeps orb-first chrome: transcript + end only */}
-      <div
-        className={`flex items-center justify-between border-t border-white/5 px-4 py-3 ${immersiveArt ? 'bg-[#050508]/90' : ''}`}
-      >
-        {immersiveArt ? (
-          <>
+      {/* Controls — classic mode only (immersive: tap circle to start; end control is under the hero). */}
+      {!immersiveArt && (
+        <div className="flex items-center justify-between border-t border-white/5 px-4 py-3">
+          <div className="flex items-center gap-2">
             <Button
               variant="ghost"
               size="icon"
-              className="h-9 w-9 text-white/45 hover:bg-white/10 hover:text-white"
+              className="h-8 w-8 text-slate-400 hover:text-white"
               onClick={() => setShowTranscript(!showTranscript)}
-              title="Transcript"
+              title="Toggle transcript"
               aria-label="Toggle transcript"
             >
               <MessageSquare className="w-4 h-4" />
             </Button>
-            {!isActive ? (
-              <Button
-                onClick={startSession}
-                className="gap-2 rounded-full bg-gradient-to-r from-violet-600 to-cyan-600 px-7 text-white shadow-lg shadow-violet-950/40 hover:from-violet-500 hover:to-cyan-500"
-                disabled={!voiceStream.sttReady}
-              >
-                <Mic className="h-4 w-4" />
-                Start
-              </Button>
-            ) : (
-              <div className="flex items-center gap-2">
-                {voiceStream.isSpeaking && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-9 w-9 text-cyan-300/90 hover:bg-white/10"
-                    onClick={voiceStream.stopSpeaking}
-                    aria-label="Stop speaking"
-                  >
-                    <VolumeX className="h-4 w-4" />
-                  </Button>
-                )}
-                <Button
-                  onClick={endSession}
-                  className="gap-2 rounded-full bg-red-600/85 px-6 text-white hover:bg-red-500"
-                >
-                  <PhoneOff className="h-4 w-4" />
-                  End
-                </Button>
-              </div>
-            )}
-            <div className="w-9" aria-hidden />
-          </>
-        ) : (
-          <>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 text-slate-400 hover:text-white"
-                onClick={() => setShowTranscript(!showTranscript)}
-                title="Toggle transcript"
-                aria-label="Toggle transcript"
-              >
-                <MessageSquare className="w-4 h-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 text-slate-400 hover:text-white"
-                onClick={() => setShowTextInput(!showTextInput)}
-                title="Toggle text input"
-                aria-label="Toggle text input"
-              >
-                <Send className="w-4 h-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className={`h-8 w-8 ${showPhonePanel ? 'text-green-400' : 'text-slate-400'} hover:text-white`}
-                onClick={() => setShowPhonePanel(!showPhonePanel)}
-                title="Phone calls (Premium)"
-                aria-label="Phone calls"
-              >
-                <Phone className="w-4 h-4" />
-              </Button>
-            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-slate-400 hover:text-white"
+              onClick={() => setShowTextInput(!showTextInput)}
+              title="Toggle text input"
+              aria-label="Toggle text input"
+            >
+              <Send className="w-4 h-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className={`h-8 w-8 ${showPhonePanel ? 'text-green-400' : 'text-slate-400'} hover:text-white`}
+              onClick={() => setShowPhonePanel(!showPhonePanel)}
+              title="Phone calls (Premium)"
+              aria-label="Phone calls"
+            >
+              <Phone className="w-4 h-4" />
+            </Button>
+          </div>
 
-            {!isActive ? (
-              <Button
-                onClick={startSession}
-                className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white rounded-full px-6 gap-2 shadow-lg shadow-purple-500/20"
-                disabled={!voiceStream.sttReady}
-              >
-                <Mic className="w-4 h-4" />
-                Start Voice Chat
-              </Button>
-            ) : (
-              <div className="flex items-center gap-2">
-                {voiceStream.isSpeaking && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-9 w-9 text-blue-400 hover:text-blue-300"
-                    onClick={voiceStream.stopSpeaking}
-                    aria-label="Stop speaking"
-                  >
-                    <VolumeX className="w-4 h-4" />
-                  </Button>
-                )}
-                <Button
-                  onClick={endSession}
-                  className="bg-red-600/80 hover:bg-red-500 text-white rounded-full px-6 gap-2"
-                >
-                  <PhoneOff className="w-4 h-4" />
-                  End Session
-                </Button>
-              </div>
-            )}
-
+          {!isActive ? (
+            <Button
+              onClick={startSession}
+              className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white rounded-full px-6 gap-2 shadow-lg shadow-purple-500/20"
+              disabled={!voiceStream.sttReady}
+            >
+              <Mic className="w-4 h-4" />
+              Start Voice Chat
+            </Button>
+          ) : (
             <div className="flex items-center gap-2">
-              {isActive && (
-                <div className="text-[10px] text-slate-500 font-mono">
-                  {Math.floor(((Date.now() - (session?.startedAt || Date.now())) / 1000 / 60))}m
-                </div>
+              {voiceStream.isSpeaking && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-9 w-9 text-blue-400 hover:text-blue-300"
+                  onClick={voiceStream.stopSpeaking}
+                  aria-label="Stop speaking"
+                >
+                  <VolumeX className="w-4 h-4" />
+                </Button>
               )}
+              <Button
+                onClick={endSession}
+                className="bg-red-600/80 hover:bg-red-500 text-white rounded-full px-6 gap-2"
+              >
+                <PhoneOff className="w-4 h-4" />
+                End Session
+              </Button>
             </div>
-          </>
-        )}
-      </div>
+          )}
+
+          <div className="flex items-center gap-2">
+            {isActive && (
+              <div className="text-[10px] text-slate-500 font-mono">
+                {Math.floor(((Date.now() - (session?.startedAt || Date.now())) / 1000 / 60))}m
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
 
-    <NexusVoiceTaskPeek
-      taskId={voiceTaskFocusId}
+    <TaskDetailModal
+      task={voiceTaskFocusId ? tasks.find((t) => t.id === voiceTaskFocusId) ?? null : null}
       open={voiceTaskSheetOpen && Boolean(voiceTaskFocusId)}
-      onOpenChange={setVoiceTaskSheetOpen}
+      onOpenChange={(open) => {
+        setVoiceTaskSheetOpen(open);
+        if (!open) {
+          setVoiceTaskFocusId(null);
+          pendingVoiceTaskOpenRef.current = null;
+        }
+      }}
+      stackAboveVoiceShell={embeddedInModal}
+    />
+
+    <EventModal
+      open={voiceEventModalOpen && Boolean(voiceCalendarEventResolved)}
+      onOpenChange={(open) => {
+        setVoiceEventModalOpen(open);
+        if (!open) {
+          setVoiceCalendarEvent(null);
+          setVoiceLinkedCalModalOpen(false);
+        }
+      }}
+      event={voiceCalendarEventResolved}
+      currentUserId={CURRENT_USER.name}
+      onSave={handleVoiceCalendarSave}
+      allEvents={events}
+      onBulkUpdate={bulkUpdateEvents}
+      onManageLinkedCalendars={
+        voiceCalendarEventResolved?.syncGroupId
+          ? () => setVoiceLinkedCalModalOpen(true)
+          : undefined
+      }
+      stackAboveVoiceShell={embeddedInModal}
+    />
+
+    <LinkedCalendarEventModal
+      open={voiceLinkedCalModalOpen}
+      onOpenChange={setVoiceLinkedCalModalOpen}
+      event={voiceCalendarEventResolved}
+      stackAboveVoiceShell={embeddedInModal}
+      onSaved={async () => {
+        await queryClient.invalidateQueries({ queryKey: ['calendar-sync-groups'] });
+        const ev = voiceCalendarEventResolved;
+        if (!ev?.syncGroupId) return;
+        try {
+          const { groups } = await fetchCalendarSyncGroups();
+          const g = groups.find((x) => x.id === ev.syncGroupId);
+          if (g) {
+            const linkedCalendarInstances = g.instances.map((i) => ({
+              provider: i.provider,
+              eventId: i.event_id,
+              link: i.link ?? null,
+            }));
+            updateEvent(ev.id, { linkedCalendarInstances } as Partial<Event>);
+            setVoiceCalendarEvent((p) =>
+              p && p.id === ev.id ? { ...p, linkedCalendarInstances } : p,
+            );
+          }
+        } catch {
+          /* empty */
+        }
+      }}
     />
 
     {voiceCanvasDoc &&

@@ -28,6 +28,7 @@ import { useAnalytics } from '../hooks/useAnalytics';
 import { useEnergy } from '../hooks/useEnergy';
 import { useTasks } from '../hooks/useTasks';
 import { CURRENT_USER } from '../utils/user-constants';
+import { cn } from '@/lib/utils';
 
 interface TaskDetailModalProps {
   task: {
@@ -80,9 +81,11 @@ interface TaskDetailModalProps {
   } | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** When true, stack above the App AI voice overlay (`z-[100020]`). */
+  stackAboveVoiceShell?: boolean;
 }
 
-export function TaskDetailModal({ task, open, onOpenChange }: TaskDetailModalProps) {
+export function TaskDetailModal({ task, open, onOpenChange, stackAboveVoiceShell }: TaskDetailModalProps) {
   const [activeTab, setActiveTab] = React.useState('overview');
   const [expandedCollaborator, setExpandedCollaborator] = React.useState<string | null>(null);
   const [expandedMilestone, setExpandedMilestone] = React.useState<string | null>(null);
@@ -416,7 +419,13 @@ export function TaskDetailModal({ task, open, onOpenChange }: TaskDetailModalPro
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="!max-w-[1400px] w-[95vw] max-h-[90vh] bg-[#1a1d24] border-gray-800 text-white p-0 overflow-hidden !z-[100] !border-l-4 !border-l-blue-500 flex flex-col">
+      <DialogContent
+        overlayClassName={stackAboveVoiceShell ? 'z-[100021]' : undefined}
+        className={cn(
+          '!max-w-[1400px] w-[95vw] max-h-[90vh] bg-[#1a1d24] border-gray-800 text-white p-0 overflow-hidden !border-l-4 !border-l-blue-500 flex flex-col',
+          stackAboveVoiceShell && '!z-[100022]',
+        )}
+      >
         <DialogHeader className="p-6 pb-4 border-b border-gray-800 shrink-0">
           <DialogTitle className="sr-only">{task.title}</DialogTitle>
           <DialogDescription className="sr-only">

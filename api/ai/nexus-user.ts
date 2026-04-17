@@ -11,6 +11,7 @@ import {
   resolvePersonaMode,
   type NexusPersonaMode,
 } from '../../integrations/nexus-persona/nexus-persona-halo-inspired';
+import { userSoundsLikeDocumentEditIntent } from '../_lib/nexus-document-intent';
 
 const MAX_INPUT_MESSAGES = 12;
 
@@ -191,13 +192,28 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         .filter((m) => m.role !== 'system')
         .map((m) => ({ role: m.role, content: m.content }) as ChatCompletionMessage);
 
+      const lastUserTurn =
+        [...userAndAssistantMsgs].reverse().find((m) => m.role === 'user')?.content;
+      const lastUserString = typeof lastUserTurn === 'string' ? lastUserTurn.trim() : '';
+      const userMsgCount = userAndAssistantMsgs.filter((m) => m.role === 'user').length;
+      const docEditReminder =
+        lastUserString &&
+        userSoundsLikeDocumentEditIntent(lastUserString) &&
+        userMsgCount >= 2
+          ? ' If the user is revising a document you already created or that is open in the canvas, call update_document with the full replacement Markdown — do not put the full revision only in chat.'
+          : '';
+
       const conv: ChatCompletionMessage[] = [
         { role: 'system', content: augmentedSystem },
         ...userAndAssistantMsgs,
-        ...(userAndAssistantMsgs.length > 2 ? [{
-          role: 'system' as const,
-          content: `REMINDER: You are ${agentId && agentId !== 'nexus' ? `responding as a specialist agent. Stay in your persona.` : 'Nexus.'} You already have the user's identity. NEVER ask for user ID or credentials. Your tools match the system prompt: tasks, notes, calendar, documents, invoice, e-sign, and concierge playbooks (enqueue_playbook, get_playbook_status, cancel_playbook_run). For any document/letter/report/spreadsheet/CSV/canvas request, call create_document immediately.`,
-        }] : []),
+        ...(userAndAssistantMsgs.length > 2
+          ? [
+              {
+                role: 'system' as const,
+                content: `REMINDER: You are ${agentId && agentId !== 'nexus' ? `responding as a specialist agent. Stay in your persona.` : 'Nexus.'} You already have the user's identity. NEVER ask for user ID or credentials. Your tools match the system prompt: tasks, notes, calendar, documents, invoice, e-sign, and concierge playbooks (enqueue_playbook, get_playbook_status, cancel_playbook_run). For any document/letter/report/spreadsheet/CSV/canvas request, call create_document immediately.${docEditReminder}`,
+              },
+            ]
+          : []),
       ];
 
       const { content, toolTrace, provider, model, toolRepairNudged } = await runNexusToolLoop({
@@ -221,6 +237,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         model,
         httpStatus: 200,
         responseChars: content.length,
+        toolTraceEntries: toolTrace.length,
+        toolRepairNudged: Boolean(toolRepairNudged),
       });
 
       return res.status(200).json({

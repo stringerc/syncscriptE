@@ -126,13 +126,29 @@ export function OnboardingChecklist() {
     };
   }, []);
   
-  // Load dismissed state
   useEffect(() => {
     const isDismissed = localStorage.getItem('syncscript_onboarding_dismissed') === 'true';
     setDismissed(isDismissed);
     
     const isCollapsed = localStorage.getItem('syncscript_onboarding_collapsed') === 'true';
     setCollapsed(isCollapsed);
+
+    if (!isDismissed) {
+      const firstSeen = localStorage.getItem('syncscript_onboarding_first_seen');
+      if (!firstSeen) {
+        localStorage.setItem('syncscript_onboarding_first_seen', Date.now().toString());
+      } else {
+        const daysSinceFirst = (Date.now() - parseInt(firstSeen, 10)) / 86_400_000;
+        if (daysSinceFirst > 7) {
+          setDismissed(true);
+          localStorage.setItem('syncscript_onboarding_dismissed', 'true');
+        }
+      }
+    }
+
+    if (window.innerWidth < 768 && !isCollapsed) {
+      setCollapsed(true);
+    }
   }, []);
   
   // Calculate progress
@@ -183,7 +199,7 @@ export function OnboardingChecklist() {
         animate={{ opacity: 1, y: 0, scale: 1 }}
         exit={{ opacity: 0, y: 20, scale: 0.9 }}
         transition={{ duration: 0.3 }}
-        className="fixed top-20 right-4 md:right-6 z-40 w-80 md:w-96"
+        className="fixed top-16 md:top-20 right-2 md:right-6 z-40 w-[calc(100vw-1rem)] max-w-80 md:max-w-96"
       >
         <div className="bg-gradient-to-br from-gray-900 to-gray-800 border border-purple-500/30 rounded-xl shadow-2xl overflow-hidden">
           {/* Celebration Overlay */}

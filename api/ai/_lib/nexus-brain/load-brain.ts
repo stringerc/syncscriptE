@@ -89,9 +89,9 @@ const EMBEDDED_FACTS: ProductFactsFile = {
 };
 
 const EMBEDDED_BOUNDARIES: SignedInBoundariesFile = {
-  id: 'signed-in-boundaries-v1',
+  id: 'signed-in-boundaries-v2',
   appendix:
-    'SHARED NEXUS POLICY (brain-signed-in-boundaries-v1): Never claim access to user data that is not explicitly present in PRIVATE CONTEXT. Never invent specific calendar events, tasks, or account state. Never ask for passwords, full payment card numbers, or government ID. If context is missing, ask one concise clarifying question or give general guidance. Prefer actionable steps over speculation.',
+    'SHARED NEXUS POLICY: Do not invent specific user data (existing tasks, events, account balances) that is not in PRIVATE CONTEXT. Never ask for passwords, payment card numbers, or government ID. If user data context is missing, ask one concise clarifying question. You DO have tools to CREATE new tasks, documents, notes, and calendar events — always use them when the user asks. Prefer action over speculation.',
 };
 
 const EMBEDDED_TOOL_REGISTRY: ToolRegistryFile = {

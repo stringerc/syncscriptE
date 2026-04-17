@@ -29,6 +29,7 @@ const InteractiveDemo = lazy(() => import('../InteractiveDemo').then(m => ({ def
 const InteractiveComparison = lazy(() => import('../InteractiveComparison').then(m => ({ default: m.InteractiveComparison })));
 const AdminLoginModal = lazy(() => import('../admin/AdminLoginModal').then(m => ({ default: m.AdminLoginModal })));
 const AdminEmailDashboard = lazy(() => import('../admin/AdminEmailDashboardV2').then(m => ({ default: m.AdminEmailDashboard })));
+import { NexusCapabilityBlurb } from '../nexus/NexusCapabilityBlurb';
 import { getBetaCount } from '../../utils/betaApi';
 import { PLANS as PRICING_PLANS } from '../../config/pricing';
 import imgDashboardPreview from "figma:asset/10a3b698cc11b04c569092c39ce52acabd7f851f.png";
@@ -1566,6 +1567,10 @@ export function LandingPage() {
             </div>
         </div>
       </section>
+      </ScrollSection>
+
+      <ScrollSection id="assistant-capabilities" animation={blurToSharp}>
+        <NexusCapabilityBlurb variant="marketing" />
       </ScrollSection>
 
       <div className="section-divider" />

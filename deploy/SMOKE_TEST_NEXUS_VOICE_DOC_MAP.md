@@ -8,10 +8,15 @@
 ## Automated checks (local / CI)
 
 ```bash
-node --test tests/map-url-embed.test.mjs tests/nexus-update-document-contract.test.mjs
+node --test tests/map-url-embed.test.mjs tests/nexus-update-document-contract.test.mjs tests/nexus-map-csp-and-resolve-contract.test.mjs
+npx tsx --test tests/nexus-document-intent.test.ts
 ```
 
-Full suite: `npm test` (includes `nexus-tools-contract` and map tests once wired in `package.json`).
+Full suite: `npm test` (includes `nexus-tools-contract`, map + CSP contract, document-edit intent, and map tests).
+
+**Deploy / CSP:** Production `vercel.json` must include `https://www.openstreetmap.org` in `Content-Security-Policy` → `frame-src` so the OSM iframe is not blank.
+
+**Short links:** Voice UI calls `GET /api/map/resolve-map-url?url=…` for `goo.gl` / `maps.app.goo.gl` when coordinates are not in the URL string (server follows HTTPS redirects on an allowlisted host chain).
 
 ## Manual smoke (production or staging)
 
@@ -20,7 +25,7 @@ Full suite: `npm test` (includes `nexus-tools-contract` and map tests once wired
 1. Open **App AI** → **Voice** (immersive orb).
 2. Ask Nexus for a restaurant and insist the reply include a **full Google Maps URL** with **`@lat,lng`** in the path (example shape: `https://www.google.com/maps/@37.77,-122.41,15z`).
 3. **Pass:** Artifact rail shows a **place** card with an **inline map** (OpenStreetMap iframe) and “Open in Google Maps”.
-4. **Expected gap:** URLs that are **only short links** (`goo.gl`, `maps.app.goo.gl`) usually **will not** embed until we resolve redirects server-side — link-out still works.
+4. **Short links:** With `GET /api/map/resolve-map-url`, short links **may** produce an inline map after redirect resolution. If resolution fails, **Open in Maps** still works.
 
 ### B — Document canvas refresh (`update_document`)
 

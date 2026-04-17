@@ -31,7 +31,7 @@ assert.match(helpers, /surface:\s*'phone'/);
 assert.match(helpers, /kind:\s*'phone'/);
 assert.match(helpers, /NEXUS_PHONE_TOOLS_APPEND/);
 assert.match(helpers, /NEXUS_PHONE_USE_OPENCLAW/);
-assert.match(helpers, /couldn't save that to your task list from this call/);
+assert.match(helpers, /saving that to your task list/);
 assert.match(helpers, /phoneUserSoundsLikeTaskPersistIntent/);
 
 assert.match(tools, /NEXUS_PHONE_TOOLS_APPEND/);

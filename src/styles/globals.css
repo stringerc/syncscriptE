@@ -593,28 +593,6 @@ select:focus-visible,
   box-shadow: 0 0 0 4px rgba(20, 184, 166, 0.2);
 }
 
-/* Skip to Main Content Link */
-.skip-to-main {
-  position: absolute;
-  top: -100px;
-  left: 0;
-  background: theme('colors.teal.600');
-  color: white;
-  padding: 12px 24px;
-  text-decoration: none;
-  border-radius: 0 0 8px 0;
-  z-index: 9999;
-  font-weight: 600;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-  transition: top 0.3s ease;
-}
-
-.skip-to-main:focus {
-  top: 0;
-  outline: 3px solid white;
-  outline-offset: 2px;
-}
-
 /* Keyboard Navigation: Highlight Active Element */
 *:focus-visible {
   position: relative;
@@ -658,10 +636,6 @@ select:focus-visible,
 @media (prefers-reduced-motion: reduce) {
   *:focus-visible::after {
     animation: none;
-  }
-  
-  .skip-to-main {
-    transition: none;
   }
 }
 

@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, startTransition, lazy, Suspense } from 'react'
+import { createPortal } from 'react-dom'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Button } from '@/components/ui/button'
 import { DashboardLayout } from '../../../components/layout/DashboardLayout'
@@ -30,6 +31,7 @@ import { DocumentCanvas } from '../../../components/DocumentCanvas'
 import { VoiceConversationEngine } from '../../../components/VoiceConversationEngine'
 import { PRESET_AGENTS, getAgentPersona, getAgentColor, getAgentName, routeToAgents, type AgentPersona } from '../../../utils/agent-personas'
 import { getStoredNexusPersonaMode } from '../../../utils/nexus-persona-preference'
+import { NEXUS_USER_CHAT_PATH } from '../../../config/nexus-vercel-ai-routes'
 
 const CHAT_STORAGE_KEY = 'syncscript-chats'
 
@@ -153,14 +155,40 @@ export function AppAIPage() {
   
   const [isListening, setIsListening] = useState(false)
   const [showVoiceEngine, setShowVoiceEngine] = useState(false)
-  /** Voice = immersive orb UI; Call Nexus = classic waveform + metrics. */
-  const [voiceImmersiveArt, setVoiceImmersiveArt] = useState(false)
+  /** Voice = immersive orb; Call Nexus = classic waveform console. */
+  const [voiceImmersiveArt, setVoiceImmersiveArt] = useState(true)
+  /** Bump on each open so VoiceConversationEngine remounts (clears autoDial ref / session state). */
+  const [voiceEngineMountKey, setVoiceEngineMountKey] = useState(0)
   const [showAgentPicker, setShowAgentPicker] = useState(false)
   const [selectedGroupAgents, setSelectedGroupAgents] = useState<string[]>([])
   const [canvasDoc, setCanvasDoc] = useState<{ title: string; content: string; format?: 'document' | 'spreadsheet' | 'invoice' } | null>(null)
   const [canvasDocKey, setCanvasDocKey] = useState(0)
   const scrollRef = useRef<HTMLDivElement>(null)
   const recognitionRef = useRef<SpeechRecognition | null>(null)
+
+  /**
+   * INP: the handler must return immediately. Never call getUserMedia in this path (often 300–500ms+).
+   * Defer state + lazy chunk to a macrotask; mic/STT starts inside VoiceConversationEngine after mount.
+   */
+  const openVoice = useCallback(() => {
+    globalThis.setTimeout(() => {
+      startTransition(() => {
+        setVoiceImmersiveArt(true)
+        setVoiceEngineMountKey((k) => k + 1)
+        setShowVoiceEngine(true)
+      })
+    }, 0)
+  }, [])
+
+  const openClassicVoice = useCallback(() => {
+    globalThis.setTimeout(() => {
+      startTransition(() => {
+        setVoiceImmersiveArt(false)
+        setVoiceEngineMountKey((k) => k + 1)
+        setShowVoiceEngine(true)
+      })
+    }, 0)
+  }, [])
 
   const activeChat = chats.find((c) => c.id === activeChatId)
 
@@ -194,7 +222,7 @@ export function AppAIPage() {
       const results: any[] = [];
       for (const agentId of targetAgentIds) {
         const persona = getAgentPersona(agentId);
-        const res = await fetch('/api/ai/nexus-user', {
+        const res = await fetch(NEXUS_USER_CHAT_PATH, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -507,7 +535,7 @@ export function AppAIPage() {
           className="flex-1 overflow-y-auto px-3 md:px-6 py-4 space-y-4"
         >
           {!activeChat && (
-            <div className="flex flex-col items-center justify-center h-full text-center py-16">
+            <div className="flex flex-col items-center justify-center min-h-[42vh] text-center py-16">
               <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-500/20 to-cyan-500/20 border border-purple-500/30 flex items-center justify-center mb-4">
                 <MessageSquare className="w-8 h-8 text-purple-400" />
               </div>
@@ -527,15 +555,13 @@ export function AppAIPage() {
                 </button>
               </div>
               <p className="text-xs text-gray-500 max-w-md mt-6 text-center leading-snug">
-                The <span className="text-gray-400">orb</span> appears after you tap <span className="text-cyan-300/90">Voice</span> (full screen). <span className="text-gray-400">Call Nexus</span> uses the classic console. Sign in for Nexus tools.
+                <span className="text-cyan-300/90">Voice</span> opens the animated orb and HUD.{' '}
+                <span className="text-gray-400">Call Nexus</span> opens the classic waveform console. Sign in for Nexus tools.
               </p>
               <div className="flex flex-wrap items-center justify-center gap-2 mt-3">
                 <button
                   type="button"
-                  onClick={() => {
-                    setVoiceImmersiveArt(false)
-                    setShowVoiceEngine(true)
-                  }}
+                  onClick={openClassicVoice}
                   aria-label="Call Nexus — full voice session"
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-green-400 bg-green-500/10 border border-green-500/20 hover:bg-green-500/20 hover:border-green-400/30 transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-green-400/40"
                 >
@@ -544,10 +570,45 @@ export function AppAIPage() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => {
-                    setVoiceImmersiveArt(true)
-                    setShowVoiceEngine(true)
-                  }}
+                  onClick={openVoice}
+                  aria-label="Voice — conversational AI (live speech and replies)"
+                  className={cn(
+                    'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-all',
+                    'text-cyan-100 bg-gradient-to-r from-violet-600/35 to-cyan-600/35 border-cyan-500/25',
+                    'hover:from-violet-500/45 hover:to-cyan-500/45 hover:border-cyan-400/35',
+                    'focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0c0d12]'
+                  )}
+                >
+                  <AudioWaveform className="w-3.5 h-3.5 shrink-0" aria-hidden />
+                  Voice
+                </button>
+              </div>
+            </div>
+          )}
+          {activeChat && activeChat.messages.length === 0 && !chatMutation.isPending && (
+            <div className="flex flex-col items-center justify-center min-h-[42vh] text-center py-12 px-4">
+              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-purple-500/15 to-cyan-500/15 border border-purple-500/25 flex items-center justify-center mb-4">
+                <MessageSquare className="w-7 h-7 text-purple-300/90" />
+              </div>
+              <h2 className="text-lg font-semibold text-white mb-2">
+                {activeChat.title?.trim() ? activeChat.title : 'New chat'}
+              </h2>
+              <p className="text-gray-400 max-w-md mb-6 text-sm">
+                This thread has no messages yet. Use the bar below to type, or open voice again.
+              </p>
+              <div className="flex flex-wrap items-center justify-center gap-2">
+                <button
+                  type="button"
+                  onClick={openClassicVoice}
+                  aria-label="Call Nexus — full voice session"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-green-400 bg-green-500/10 border border-green-500/20 hover:bg-green-500/20 hover:border-green-400/30 transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-green-400/40"
+                >
+                  <Phone className="w-3.5 h-3.5 shrink-0" aria-hidden />
+                  Call Nexus
+                </button>
+                <button
+                  type="button"
+                  onClick={openVoice}
                   aria-label="Voice — conversational AI (live speech and replies)"
                   className={cn(
                     'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-all',
@@ -662,18 +723,15 @@ export function AppAIPage() {
           <div className="max-w-3xl mx-auto space-y-3">
             <div className="flex flex-col gap-2">
               <p className="text-xs text-gray-500 leading-snug">
-                <span className="text-gray-400">Voice</span> opens the <span className="text-cyan-300/90">immersive orb</span> (full-screen, artifact rail).{' '}
-                <span className="text-gray-400">Call Nexus</span> opens the classic waveform console. Both need you{' '}
+                <span className="text-gray-400">Voice</span> opens the <span className="text-cyan-300/90">immersive orb</span> (animated rings + artifact rail).{' '}
+                <span className="text-gray-400">Call Nexus</span> opens the classic waveform console. You need to be{' '}
                 <span className="text-gray-300">signed in</span> for Nexus tools (documents, tasks, maps). The{' '}
-                <span className="text-gray-400">inline mic</span> only dictates into the text box. Phone calls: phone icon inside the panel; nothing auto-dials.
+                <span className="text-gray-400">inline mic</span> only dictates into the text box. Phone calls: phone icon inside the voice panel; nothing auto-dials.
               </p>
               <div className="flex flex-wrap items-center gap-2">
                 <button
                   type="button"
-                  onClick={() => {
-                    setVoiceImmersiveArt(false)
-                    setShowVoiceEngine(true)
-                  }}
+                  onClick={openClassicVoice}
                   aria-label="Call Nexus — full voice session"
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-green-400 bg-green-500/10 border border-green-500/20 hover:bg-green-500/20 hover:border-green-400/30 transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-green-400/40"
                 >
@@ -682,10 +740,7 @@ export function AppAIPage() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => {
-                    setVoiceImmersiveArt(true)
-                    setShowVoiceEngine(true)
-                  }}
+                  onClick={openVoice}
                   aria-label="Voice — conversational AI (live speech and replies)"
                   className={cn(
                     'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-all',
@@ -814,44 +869,55 @@ export function AppAIPage() {
       )}
     </div>
 
-    {showVoiceEngine && (
-      <div
-        className={cn(
-          'fixed inset-0 z-50 flex items-center justify-center',
-          voiceImmersiveArt ? 'bg-[#030206]' : 'bg-black/60 backdrop-blur-sm'
-        )}
-      >
+    {showVoiceEngine &&
+      typeof document !== 'undefined' &&
+      createPortal(
         <div
+          data-testid={voiceImmersiveArt ? 'nexus-voice-immersive-overlay' : 'nexus-voice-classic-overlay'}
+          data-voice-shell={voiceImmersiveArt ? 'immersive' : 'classic'}
+          data-syncscript-build-sha={import.meta.env.VITE_BUILD_SHA ?? ''}
           className={cn(
-            'relative overflow-hidden shadow-2xl',
+            'fixed inset-0 z-[100020] h-[100dvh] w-full overflow-hidden',
             voiceImmersiveArt
-              ? 'h-full w-full'
-              : 'h-[80vh] w-full max-w-4xl rounded-2xl border border-gray-800 bg-[#13141a]'
+              ? 'bg-[#030206]'
+              : 'bg-black/60 backdrop-blur-sm flex items-center justify-center p-3'
           )}
         >
-          <button
-            type="button"
-            onClick={() => setShowVoiceEngine(false)}
+          <div
             className={cn(
-              'absolute right-4 top-4 z-10 flex h-9 w-9 items-center justify-center rounded-xl transition-colors',
-              voiceImmersiveArt
-                ? 'text-white/80 hover:bg-white/10 hover:text-white'
-                : 'text-gray-400 hover:bg-gray-800 hover:text-white'
+              'relative min-h-0 overflow-hidden shadow-2xl',
+              voiceImmersiveArt ? 'h-full w-full' : 'h-[80vh] w-full max-w-4xl rounded-2xl border border-gray-800 bg-[#13141a]'
             )}
-            aria-label="Close voice session"
           >
-            <X className="h-4 w-4" />
-          </button>
-          <VoiceConversationEngine
-            mode="fullscreen"
-            embeddedInModal
-            immersiveArt={voiceImmersiveArt}
-            onClose={() => setShowVoiceEngine(false)}
-            onMinimize={() => setShowVoiceEngine(false)}
-          />
-        </div>
-      </div>
-    )}
+            <Suspense
+              fallback={
+                <div
+                  className={cn(
+                    'flex h-full min-h-[50dvh] w-full flex-col items-center justify-center gap-3 px-6',
+                    voiceImmersiveArt ? 'bg-[#030206]' : 'bg-[#13141a]'
+                  )}
+                  role="status"
+                  aria-live="polite"
+                  data-testid="voice-engine-loading"
+                >
+                  <div className="h-14 w-14 animate-pulse rounded-full bg-gradient-to-br from-violet-500/40 to-cyan-500/30 ring-2 ring-cyan-400/20" />
+                  <p className="text-sm text-slate-400">Opening voice…</p>
+                </div>
+              }
+            >
+              <VoiceConversationEngine
+                key={voiceEngineMountKey}
+                mode="fullscreen"
+                embeddedInModal
+                immersiveArt={voiceImmersiveArt}
+                onClose={() => setShowVoiceEngine(false)}
+                onMinimize={() => setShowVoiceEngine(false)}
+              />
+            </Suspense>
+          </div>
+        </div>,
+        document.body
+      )}
 
     {showAgentPicker && (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">

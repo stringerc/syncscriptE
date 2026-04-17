@@ -1,5 +1,9 @@
 import assert from 'node:assert/strict';
-import { extractFirstMapUrl, parseLatLngFromMapUrl } from '../src/utils/map-url-embed.mjs';
+import {
+  extractFirstMapUrl,
+  parseLatLngFromMapUrl,
+  shouldTryServerMapResolve,
+} from '../src/utils/map-url-embed.mjs';
 
 // --- extractFirstMapUrl
 assert.equal(
@@ -24,5 +28,9 @@ assert.ok(pd && Math.abs(pd.lat - 40.7128) < 1e-6 && Math.abs(pd.lng - (-74.006)
 
 // Short link: no coords in string
 assert.equal(parseLatLngFromMapUrl('https://goo.gl/maps/abc123'), null);
+
+assert.equal(shouldTryServerMapResolve('https://goo.gl/maps/abc123'), true);
+assert.equal(shouldTryServerMapResolve('https://maps.app.goo.gl/abc'), true);
+assert.equal(shouldTryServerMapResolve('https://www.google.com/maps/@37.77,-122.41,15z'), false);
 
 console.log('map-url-embed: ok');

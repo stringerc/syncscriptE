@@ -85,7 +85,7 @@ export function EditTaskDialog({ task, open, onOpenChange, onSave }: EditTaskDia
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="!max-w-2xl max-h-[90vh] overflow-y-auto bg-[#1a1d24] border-gray-800 text-white !z-[110]">
+      <DialogContent className="!max-w-2xl max-h-[90vh] overflow-y-auto bg-[#1a1d24] border-gray-800 text-white">
         <DialogHeader>
           <DialogTitle className="text-xl">Edit Task</DialogTitle>
           <DialogDescription className="text-gray-400">

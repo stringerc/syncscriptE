@@ -32,3 +32,5 @@ Not by embedding Cursor inside Antigravity, but by **sharing artifacts**:
 ## Bottom line
 
 You do **not** have to choose one forever. **Antigravity-style computer use** and **Cursor-style repo engineering** solve overlapping but non-identical problems. Legendary UI still comes from **tokens, review, and measurement in git** — whichever IDE you used to type them.
+
+**See also (OpenClaw gateway browser + ClawHub + thin-bridge plan):** `OPENCLAW_CLAWHUB_BROWSER_STACK.md`.

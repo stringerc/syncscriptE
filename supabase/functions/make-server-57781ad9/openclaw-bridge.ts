@@ -154,7 +154,7 @@ async function executeSkill(
  */
 openclawBridge.get('/health', async (c) => {
   try {
-    const health = await callOpenClaw('/api/health', 'GET');
+    const health = await callOpenClaw('/healthz', 'GET');
     return c.json({
       success: true,
       openclawStatus: 'connected',

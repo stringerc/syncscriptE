@@ -4,6 +4,7 @@ import { sanitizePublicContext, serializePromptContext } from './_lib/nexus-cont
 import { loadNexusBrain } from './_lib/nexus-brain/load-brain';
 import { buildPricingKnowledge, buildPricingReply, PRICING_INTENT_RE } from './_lib/nexus-brain/pricing';
 import { emitNexusTrace, newNexusRequestId, hashSessionKey } from './_lib/nexus-brain/telemetry';
+import { getGuestVoicePersonalityBlock, resolvePersonaMode } from '../../integrations/nexus-persona/nexus-persona-halo-inspired';
 
 const MAX_SESSIONS_PER_IP_PER_HOUR = 5;
 const MAX_MESSAGES_PER_SESSION = 15;
@@ -56,7 +57,7 @@ function cleanupStaleEntries() {
   }
 }
 
-function buildNexusSystemPrompt(publicContextBlock: string): string {
+function buildNexusSystemPrompt(publicContextBlock: string, personaMode: ReturnType<typeof resolvePersonaMode>): string {
   const brain = loadNexusBrain();
   return `You are Nexus, SyncScript's AI assistant on a live voice call. Every word you write is read aloud through text-to-speech, so you must write exactly the way a human speaks.
 
@@ -155,12 +156,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   const ip = getRateLimitKey(req);
-  const { messages, sessionId, context } = req.body || {};
+  const { messages, sessionId, context, personaMode: bodyPersonaMode } = req.body || {};
+  const personaMode = resolvePersonaMode(process.env.NEXUS_PERSONA_MODE, bodyPersonaMode);
 
   if (!sessionId || typeof sessionId !== 'string') {
     emitNexusTrace({
       surface: 'guest',
       requestId,
+      personaMode,
       outcome: 'validation_error',
       pathway: 'llm',
       brainVersion: brain.manifest.version,
@@ -175,6 +178,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     emitNexusTrace({
       surface: 'guest',
       requestId,
+      personaMode,
       outcome: 'validation_error',
       pathway: 'llm',
       brainVersion: brain.manifest.version,
@@ -191,6 +195,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     emitNexusTrace({
       surface: 'guest',
       requestId,
+      personaMode,
       outcome: 'validation_error',
       pathway: 'llm',
       brainVersion: brain.manifest.version,
@@ -220,6 +225,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       emitNexusTrace({
         surface: 'guest',
         requestId,
+        personaMode,
         outcome: 'rate_limited',
         pathway: 'llm',
         brainVersion: brain.manifest.version,
@@ -240,6 +246,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     emitNexusTrace({
       surface: 'guest',
       requestId,
+      personaMode,
       outcome: 'rate_limited',
       pathway: 'llm',
       brainVersion: brain.manifest.version,
@@ -273,6 +280,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       emitNexusTrace({
         surface: 'guest',
         requestId,
+        personaMode,
         outcome: 'ok',
         pathway: 'deterministic_pricing',
         brainVersion: brain.manifest.version,
@@ -286,6 +294,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     emitNexusTrace({
       surface: 'guest',
       requestId,
+      personaMode,
       outcome: 'ok',
       pathway: 'deterministic_pricing',
       brainVersion: brain.manifest.version,
@@ -298,7 +307,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   const chatMessages: AIMessage[] = [
-    { role: 'system', content: buildNexusSystemPrompt(serializePromptContext(publicContext)) },
+    { role: 'system', content: buildNexusSystemPrompt(serializePromptContext(publicContext), personaMode) },
     ...trimmedMessages,
   ];
 
@@ -325,6 +334,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         emitNexusTrace({
           surface: 'guest',
           requestId,
+          personaMode,
           outcome: 'ok',
           pathway: 'stream_fallback',
           brainVersion: brain.manifest.version,
@@ -391,6 +401,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       emitNexusTrace({
         surface: 'guest',
         requestId,
+        personaMode,
         outcome: 'ok',
         pathway: 'stream',
         brainVersion: brain.manifest.version,
@@ -412,6 +423,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         emitNexusTrace({
           surface: 'guest',
           requestId,
+          personaMode,
           outcome: 'ok',
           pathway: 'stream_fallback',
           brainVersion: brain.manifest.version,
@@ -427,6 +439,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         emitNexusTrace({
           surface: 'guest',
           requestId,
+          personaMode,
           outcome: 'error',
           pathway: 'stream',
           brainVersion: brain.manifest.version,
@@ -444,6 +457,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       emitNexusTrace({
         surface: 'guest',
         requestId,
+        personaMode,
         outcome: 'ok',
         pathway: 'llm',
         brainVersion: brain.manifest.version,
@@ -460,6 +474,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       emitNexusTrace({
         surface: 'guest',
         requestId,
+        personaMode,
         outcome: 'error',
         pathway: 'llm',
         brainVersion: brain.manifest.version,

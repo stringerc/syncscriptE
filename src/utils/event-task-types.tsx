@@ -179,6 +179,14 @@ export interface Event {
   
   // If this event was created from a task
   createdFromTaskId?: string;
+
+  /** Server-side linked hold group (GET /calendar/sync-groups) — merged UI + provider edit */
+  syncGroupId?: string;
+  linkedCalendarInstances?: Array<{
+    provider: string;
+    eventId?: string;
+    link?: string | null;
+  }>;
 }
 
 export interface Script {

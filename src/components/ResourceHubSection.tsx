@@ -28,6 +28,8 @@ import {
   X 
 } from 'lucide-react';
 
+const sideNav = navigationLinks.sidebar;
+
 export function ResourceHubSection() {
   const navigate = useNavigate();
   const [selectedGoal, setSelectedGoal] = useState<any>(null);
@@ -193,7 +195,7 @@ export function ResourceHubSection() {
         icon: <Zap className="w-4 h-4 text-yellow-400" />,
         title: '⚡ Peak Energy Window',
         description: `You have ${highEnergyTasks.length} high-energy tasks ready. Perfect timing!`,
-        action: () => navigate('/dashboard/tasks'),
+        action: () => navigate(sideNav.tasks),
         priority: 'high',
         color: 'yellow'
       });
@@ -204,7 +206,7 @@ export function ResourceHubSection() {
         icon: <Activity className="w-4 h-4 text-blue-400" />,
         title: '🌙 Low Energy - Light Tasks',
         description: 'Energy dipping. Try some easier tasks or take a break.',
-        action: () => navigate('/dashboard/tasks'),
+        action: () => navigate(sideNav.tasks),
         priority: 'medium',
         color: 'blue'
       });
@@ -225,7 +227,7 @@ export function ResourceHubSection() {
         icon: <AlertCircle className="w-4 h-4 text-orange-400" />,
         title: '⏰ Deadline Approaching',
         description: `${upcomingDeadlines.length} task${upcomingDeadlines.length > 1 ? 's' : ''} due in the next 24 hours`,
-        action: () => navigate('/dashboard/tasks'),
+        action: () => navigate(sideNav.tasks),
         priority: 'high',
         color: 'orange'
       });
@@ -254,7 +256,7 @@ export function ResourceHubSection() {
         icon: <Target className="w-4 h-4 text-purple-400" />,
         title: '📅 Tasks Need Scheduling',
         description: `${unscheduledTasks.length} tasks floating. Schedule them for better focus.`,
-        action: () => navigate('/dashboard/tasks'),
+        action: () => navigate(sideNav.tasks),
         priority: 'medium',
         color: 'purple'
       });
@@ -290,7 +292,7 @@ export function ResourceHubSection() {
       icon: <Plus className="w-4 h-4 text-gray-400" />,
       title: '➕ Quick Add Task',
       description: 'Capture a new task or idea',
-      action: () => navigate('/dashboard/tasks'),
+      action: () => navigate(sideNav.tasks),
       priority: 'low',
       color: 'gray'
     });
@@ -337,13 +339,13 @@ export function ResourceHubSection() {
   
   const handleCreateBudgetGoal = () => {
     // Navigate to goals tab with create dialog
-    navigate('/dashboard/tasks?tab=goals');
+    navigate(`${sideNav.tasks}?tab=goals`);
     // In production, this would open NewGoalDialog with budget template
   };
   
   const handleCreateSavingsGoal = () => {
     // Navigate to goals tab with create dialog
-    navigate('/dashboard/tasks?tab=goals');
+    navigate(`${sideNav.tasks}?tab=goals`);
     // In production, this would open NewGoalDialog with savings template
   };
   

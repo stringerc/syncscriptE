@@ -154,6 +154,9 @@ export interface BaseCardProps {
   
   // Formatting helpers (passed down to avoid logic in component)
   formattedTime?: string;
+
+  /** Google / Outlook badges when this row is a linked cross-provider hold */
+  linkedProviderLabels?: string[];
 }
 
 /**
@@ -569,6 +572,18 @@ export const BaseCard = React.memo(function BaseCard({
                 </span>
               )}
             </div>
+            {linkedProviderLabels && linkedProviderLabels.length > 0 && (
+              <div className="flex flex-wrap gap-1 mt-0.5" aria-label="Linked calendars">
+                {linkedProviderLabels.map((label) => (
+                  <span
+                    key={label}
+                    className="text-[9px] uppercase tracking-wide px-1 py-0 rounded bg-slate-700/80 text-slate-300"
+                  >
+                    {label}
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Privacy/Permission Badges + Expand Button */}

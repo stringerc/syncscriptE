@@ -20,6 +20,22 @@ export function extractFirstMapUrl(text) {
 }
 
 /** Returns WGS84 coords when the URL encodes them; otherwise null. */
+/** True when URL may resolve to coordinates via GET /api/map/resolve-map-url (short links). */
+export function shouldTryServerMapResolve(urlString) {
+  if (!urlString) return false;
+  if (parseLatLngFromMapUrl(urlString)) return false;
+  try {
+    const u = new URL(urlString);
+    if (u.protocol !== 'https:') return false;
+    const h = u.hostname.toLowerCase();
+    if (h === 'maps.app.goo.gl' || h.endsWith('.app.goo.gl')) return true;
+    if (h === 'goo.gl' || h === 'www.goo.gl') return true;
+    return false;
+  } catch {
+    return false;
+  }
+}
+
 export function parseLatLngFromMapUrl(urlString) {
   if (!urlString) return null;
   try {

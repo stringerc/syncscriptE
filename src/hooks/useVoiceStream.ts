@@ -8,13 +8,20 @@
  * Architecture:
  * - Primary STT: Web Speech API (free, zero-cost, works in Chrome/Edge/Safari)
  * - Fallback STT: Groq Whisper API (free tier, higher accuracy)
- * - Primary TTS: Kokoro TTS (local/AWS, unlimited, free — set VITE_KOKORO_TTS_URL)
- * - Fallback TTS: Supabase Gemini TTS (cloud)
- * - Emergency TTS: Web Speech Synthesis API (browser built-in)
+ * - Primary TTS: Kokoro via /api/ai/tts (chunked landing pipeline for `cortana`, then monolithic proxy + direct).
+ * - Direct: GET /api/ai/tts exposes primary + optional `kokoroFallbackDirectOrigin` (e.g. Oracle backup).
+ * - Cortana preset: **no** browser SpeechSynthesis — neural-only or error (avoids robotic fallback).
+ * - Other presets: Web Speech API last resort.
  */
 
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { disableTtsProxyForSession, isTtsProxyDisabled } from '../utils/tts-proxy-session';
+import { NEXUS_LANDING_KOKORO_VOICE_ID } from '../utils/nexus-tts-prosody';
+import { playNexusLandingKokoroTTS } from '../utils/nexus-kokoro-landing-playback';
+import { ensureKokoroOriginsLoaded, getKokoroDirectBases } from '../utils/nexus-kokoro-tts-fetch';
+import { reportTtsRum } from '../utils/tts-rum-beacon';
+import { stepVuEnvelope } from '../utils/audio-vu-envelope';
+import { voiceLatencyMark, voiceLatencyMeasure } from '../utils/voice-latency-debug';
 import type {
   VoiceEngineState,
   VoiceEngineStatus,
@@ -78,6 +85,47 @@ declare global {
   }
 }
 
+function delayMs(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+const TTS_PROXY_ATTEMPTS = 3;
+
+/** Monolithic Kokoro via Vercel proxy with transient 502/503/504 retries (cold ONNX / tunnel blips). */
+async function fetchTtsProxyAudio(text: string, voice: string, speed: number): Promise<Blob | null> {
+  if (isTtsProxyDisabled()) return null;
+  for (let attempt = 0; attempt < TTS_PROXY_ATTEMPTS; attempt += 1) {
+    try {
+      const res = await fetch('/api/ai/tts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text, voice, speed }),
+      });
+      if (res.ok) {
+        const ct = res.headers.get('content-type') || '';
+        if (ct.startsWith('audio/')) {
+          const blob = await res.blob();
+          if (blob.size > 100) return blob;
+        }
+        return null;
+      }
+      const errData = (await res.json().catch(() => ({}))) as { code?: string; error?: string };
+      if (errData.code === 'NO_TTS_URL') {
+        disableTtsProxyForSession();
+        return null;
+      }
+      if (res.status === 503 || res.status === 502 || res.status === 504) {
+        await delayMs(400 * (attempt + 1));
+        continue;
+      }
+      break;
+    } catch {
+      if (attempt < TTS_PROXY_ATTEMPTS - 1) await delayMs(400 * (attempt + 1));
+    }
+  }
+  return null;
+}
+
 // ============================================================================
 // HOOK OPTIONS
 // ============================================================================
@@ -115,6 +163,16 @@ export function useVoiceStream(options: UseVoiceStreamOptions = {}) {
     onSpeechEnd,
   } = options;
 
+  /** STT is wired once on mount; always invoke latest parent callbacks (avoid stale closures). */
+  const onTranscriptRef = useRef(onTranscript);
+  const onStatusChangeRef = useRef(onStatusChange);
+  const onSpeechEndRef = useRef(onSpeechEnd);
+  const onErrorRef = useRef(onError);
+  onTranscriptRef.current = onTranscript;
+  onStatusChangeRef.current = onStatusChange;
+  onSpeechEndRef.current = onSpeechEnd;
+  onErrorRef.current = onError;
+
   // State
   const [state, setState] = useState<VoiceEngineState>({
     status: 'idle',
@@ -146,7 +204,7 @@ export function useVoiceStream(options: UseVoiceStreamOptions = {}) {
     
     if (!SpeechRecognitionAPI) {
       setState(prev => ({ ...prev, sttReady: false, lastError: 'Speech recognition not supported in this browser' }));
-      onError?.('Speech recognition not supported. Please use Chrome, Edge, or Safari.');
+      onErrorRef.current?.('Speech recognition not supported. Please use Chrome, Edge, or Safari.');
       return false;
     }
 
@@ -185,7 +243,7 @@ export function useVoiceStream(options: UseVoiceStreamOptions = {}) {
           isFinal: true,
           language,
         };
-        onTranscript?.(sttResult);
+        onTranscriptRef.current?.(sttResult);
       }
     };
 
@@ -199,7 +257,7 @@ export function useVoiceStream(options: UseVoiceStreamOptions = {}) {
       }
       const errorMsg = `Speech recognition error: ${event.error}`;
       setState(prev => ({ ...prev, lastError: errorMsg }));
-      onError?.(errorMsg);
+      onErrorRef.current?.(errorMsg);
     };
 
     recognition.onend = () => {
@@ -209,26 +267,26 @@ export function useVoiceStream(options: UseVoiceStreamOptions = {}) {
         } catch {
           isListeningRef.current = false;
           setState(prev => ({ ...prev, status: 'idle' }));
-          onStatusChange?.('idle');
+          onStatusChangeRef.current?.('idle');
         }
       } else {
         isListeningRef.current = false;
         setState(prev => ({ ...prev, status: 'idle' }));
-        onStatusChange?.('idle');
-        onSpeechEnd?.();
+        onStatusChangeRef.current?.('idle');
+        onSpeechEndRef.current?.();
       }
     };
 
     recognition.onstart = () => {
       isListeningRef.current = true;
       setState(prev => ({ ...prev, status: 'listening' }));
-      onStatusChange?.('listening');
+      onStatusChangeRef.current?.('listening');
     };
 
     recognitionRef.current = recognition;
     setState(prev => ({ ...prev, sttReady: true }));
     return true;
-  }, [language, continuous, interimResults, onTranscript, onStatusChange, onError, onSpeechEnd]);
+  }, [language, continuous, interimResults]);
 
   // ==========================================================================
   // INITIALIZE TEXT-TO-SPEECH (TTS)
@@ -299,9 +357,9 @@ export function useVoiceStream(options: UseVoiceStreamOptions = {}) {
       recognitionRef.current?.start();
     } catch (err) {
       if (isListeningRef.current) return;
-      onError?.('Failed to start speech recognition');
+      onErrorRef.current?.('Failed to start speech recognition');
     }
-  }, [initSTT, continuous, onError]);
+  }, [initSTT, continuous]);
 
   const stopListening = useCallback(() => {
     shouldRestartRef.current = false;
@@ -312,8 +370,8 @@ export function useVoiceStream(options: UseVoiceStreamOptions = {}) {
       // Already stopped
     }
     setState(prev => ({ ...prev, status: 'idle' }));
-    onStatusChange?.('idle');
-  }, [onStatusChange]);
+    onStatusChangeRef.current?.('idle');
+  }, []);
 
   // ==========================================================================
   // TTS CONTROLS — Server proxy (primary) → Kokoro direct → browser fallback
@@ -322,7 +380,32 @@ export function useVoiceStream(options: UseVoiceStreamOptions = {}) {
   const activeAudioRef = useRef<HTMLAudioElement | null>(null);
   const activeUrlRef = useRef<string | null>(null);
 
-  const KOKORO_TTS_URL = import.meta.env.VITE_KOKORO_TTS_URL || '';
+  /** Kokoro blob playback — Web Audio analyser for immersive blob reactivity */
+  const ttsAudioCtxRef = useRef<AudioContext | null>(null);
+  const ttsSourceNodeRef = useRef<MediaElementAudioSourceNode | null>(null);
+  const ttsAnalyserNodeRef = useRef<AnalyserNode | null>(null);
+  const ttsRafRef = useRef<number | null>(null);
+  /** VU peak follower state for `playAudioBlob` path (persists across RAF ticks; reset in cleanup). */
+  const ttsVuEnvelopeRef = useRef(0);
+  const [ttsOutputLevel, setTtsOutputLevel] = useState(0);
+  /** Aborts chunked landing Kokoro playback when `speak`/`stopSpeaking` interrupts. */
+  const landingKokoroAbortRef = useRef<AbortController | null>(null);
+
+  const cleanupTtsAnalyzer = useCallback(() => {
+    if (ttsRafRef.current != null) {
+      cancelAnimationFrame(ttsRafRef.current);
+      ttsRafRef.current = null;
+    }
+    try {
+      ttsSourceNodeRef.current?.disconnect();
+    } catch {
+      /* already disconnected */
+    }
+    ttsSourceNodeRef.current = null;
+    ttsAnalyserNodeRef.current = null;
+    ttsVuEnvelopeRef.current = 0;
+    setTtsOutputLevel(0);
+  }, []);
 
   const selectVoice = useCallback((voiceName?: string): SpeechSynthesisVoice | null => {
     if (!availableVoices.length) return null;
@@ -347,37 +430,122 @@ export function useVoiceStream(options: UseVoiceStreamOptions = {}) {
     return availableVoices.find(v => v.lang.startsWith('en')) || availableVoices[0];
   }, [availableVoices]);
 
-  /** Play an audio blob, resolving when playback completes */
-  const playAudioBlob = useCallback((blob: Blob): Promise<void> => {
-    const url = URL.createObjectURL(blob);
-    activeUrlRef.current = url;
+  /** Play an audio blob, resolving when playback completes. Routes through AnalyserNode for `ttsOutputLevel`. */
+  const playAudioBlob = useCallback(
+    (blob: Blob): Promise<void> => {
+      const url = URL.createObjectURL(blob);
+      activeUrlRef.current = url;
 
-    return new Promise<void>((resolve) => {
-      const audio = new Audio(url);
-      activeAudioRef.current = audio;
+      return new Promise<void>((resolve) => {
+        const audio = new Audio(url);
+        audio.preload = 'auto';
+        activeAudioRef.current = audio;
 
-      const cleanup = () => {
-        URL.revokeObjectURL(url);
-        activeAudioRef.current = null;
-        activeUrlRef.current = null;
-        setIsSpeaking(false);
-        setState(prev => ({ ...prev, status: 'idle' }));
-        onStatusChange?.('idle');
-        resolve();
-      };
+        let alive = true;
 
-      audio.onended = cleanup;
-      audio.onerror = cleanup;
-      audio.play().catch(cleanup);
-    });
-  }, [onStatusChange]);
+        const finish = () => {
+          if (!alive) return;
+          alive = false;
+          cleanupTtsAnalyzer();
+          if (activeUrlRef.current === url) {
+            URL.revokeObjectURL(url);
+            activeUrlRef.current = null;
+          }
+          if (activeAudioRef.current === audio) {
+            activeAudioRef.current = null;
+          }
+          setIsSpeaking(false);
+          setState(prev => ({ ...prev, status: 'idle' }));
+          onStatusChangeRef.current?.('idle');
+          resolve();
+        };
+
+        const tryWebAudio = (): boolean => {
+          try {
+            const AC =
+              window.AudioContext ||
+              (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+            if (!AC) return false;
+
+            let ctx = ttsAudioCtxRef.current;
+            if (!ctx || ctx.state === 'closed') {
+              ctx = new AC();
+              ttsAudioCtxRef.current = ctx;
+            }
+
+            const analyser = ctx.createAnalyser();
+            analyser.fftSize = 512;
+            /** Higher = less jitter in RMS (smoother orb; tiny tradeoff in peak “snap”). */
+            analyser.smoothingTimeConstant = 0.93;
+
+            const source = ctx.createMediaElementSource(audio);
+            source.connect(analyser);
+            analyser.connect(ctx.destination);
+
+            ttsSourceNodeRef.current = source;
+            ttsAnalyserNodeRef.current = analyser;
+
+            const data = new Uint8Array(analyser.fftSize);
+            let lastSet = 0;
+
+            const tick = () => {
+              const node = ttsAnalyserNodeRef.current;
+              if (!alive || !node) return;
+              node.getByteTimeDomainData(data);
+              let sum = 0;
+              for (let i = 0; i < data.length; i++) {
+                const v = (data[i] - 128) / 128;
+                sum += v * v;
+              }
+              const rms = Math.sqrt(sum / data.length);
+              const level = Math.min(1, rms * 6.2);
+              ttsVuEnvelopeRef.current = stepVuEnvelope(level, ttsVuEnvelopeRef.current);
+
+              const now = performance.now();
+              if (now - lastSet > 52) {
+                lastSet = now;
+                setTtsOutputLevel(ttsVuEnvelopeRef.current);
+              }
+
+              ttsRafRef.current = requestAnimationFrame(tick);
+            };
+
+            ttsRafRef.current = requestAnimationFrame(tick);
+            return true;
+          } catch (err) {
+            console.warn('[TTS] Web Audio routing failed, using built-in output', err);
+            return false;
+          }
+        };
+
+        const webOk = tryWebAudio();
+
+        const startPlayback = async () => {
+          if (webOk && ttsAudioCtxRef.current) {
+            await ttsAudioCtxRef.current.resume().catch(() => {});
+          }
+          try {
+            await audio.play();
+          } catch {
+            finish();
+          }
+        };
+
+        audio.onended = finish;
+        audio.onerror = () => finish();
+
+        void startPlayback();
+      });
+    },
+    [cleanupTtsAnalyzer],
+  );
 
   /** Speak using browser SpeechSynthesis as a last resort */
   const speakBrowserFallback = useCallback((request: TTSRequest): Promise<void> => {
     if (!synthRef.current) {
       setIsSpeaking(false);
       setState(prev => ({ ...prev, status: 'idle' }));
-      onStatusChange?.('idle');
+      onStatusChangeRef.current?.('idle');
       return Promise.resolve();
     }
 
@@ -398,7 +566,7 @@ export function useVoiceStream(options: UseVoiceStreamOptions = {}) {
         setIsSpeaking(false);
         currentUtteranceRef.current = null;
         setState(prev => ({ ...prev, status: 'idle' }));
-        onStatusChange?.('idle');
+        onStatusChangeRef.current?.('idle');
         resolve();
       };
 
@@ -407,13 +575,14 @@ export function useVoiceStream(options: UseVoiceStreamOptions = {}) {
       currentUtteranceRef.current = utterance;
       synthRef.current!.speak(utterance);
     });
-  }, [selectVoice, ttsVoice, ttsRate, ttsPitch, onStatusChange]);
+  }, [selectVoice, ttsVoice, ttsRate, ttsPitch]);
 
   /**
    * Speak text using the best available TTS engine.
    * Chain: /api/ai/tts proxy (works in both dev + prod) → direct Kokoro → browser fallback.
    */
   const speak = useCallback(async (request: TTSRequest): Promise<void> => {
+    cleanupTtsAnalyzer();
     if (activeAudioRef.current) {
       activeAudioRef.current.pause();
       activeAudioRef.current = null;
@@ -423,90 +592,154 @@ export function useVoiceStream(options: UseVoiceStreamOptions = {}) {
       activeUrlRef.current = null;
     }
     synthRef.current?.cancel();
+    landingKokoroAbortRef.current?.abort();
+    landingKokoroAbortRef.current = null;
 
     if (!request.text?.trim()) return;
 
+    voiceLatencyMark('tts_speak_enter');
+    voiceLatencyMeasure('tts_precall_to_speak_enter', 'tts_precall', 'tts_speak_enter');
+
+    const rumStart = typeof performance !== 'undefined' ? performance.now() : 0;
+
     setIsSpeaking(true);
     setState(prev => ({ ...prev, status: 'speaking' }));
-    onStatusChange?.('speaking');
+    onStatusChangeRef.current?.('speaking');
 
     const resolveVoice = (): string => {
       if (request.config?.voice) return request.config.voice;
       const emotion = request.emotion?.primary;
       if (emotion === 'stressed' || emotion === 'sad') return 'gentle';
       if (emotion === 'excited' || emotion === 'happy') return 'playful';
-      return 'nexus';
+      /** Match Nexus + desktop companion Kokoro preset (`cortana` custom voice). */
+      return 'cortana';
     };
 
     const voicePreset = resolveVoice();
     const speed = request.config?.speed || 1.0;
 
-    // --- Attempt 1: /api/ai/tts proxy (dev: Vite middleware, prod: Vercel function) ---
-    if (!isTtsProxyDisabled()) {
-      try {
-        console.info(`[TTS] Trying /api/ai/tts proxy (voice: ${voicePreset}, speed: ${speed})…`);
-        const res = await fetch('/api/ai/tts', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ text: request.text, voice: voicePreset, speed }),
-        });
+    // --- Landing-identical Nexus: chunked prosody + voice fallbacks + trimmed Web Audio (+ cold replay) ---
+    if (voicePreset === NEXUS_LANDING_KOKORO_VOICE_ID) {
+      const runLanding = async (): Promise<boolean> => {
+        const ac = new AbortController();
+        landingKokoroAbortRef.current = ac;
+        try {
+          console.info('[TTS] Nexus landing pipeline (chunked prosody + cortana→natural→nexus→professional)…');
+          return await playNexusLandingKokoroTTS(request.text, ac.signal, setTtsOutputLevel);
+        } catch (err) {
+          console.warn('[TTS] Landing Kokoro pipeline error — will retry or fall back', err);
+          return false;
+        } finally {
+          landingKokoroAbortRef.current = null;
+        }
+      };
 
-        if (res.ok) {
-          const ct = res.headers.get('content-type') || '';
-          if (ct.startsWith('audio/')) {
+      let played = await runLanding();
+      if (!played) {
+        console.warn('[TTS] Landing pipeline produced no audio — cold replay after 450ms (ONNX warm-up)');
+        await delayMs(450);
+        played = await runLanding();
+      }
+      if (played) {
+        reportTtsRum({
+          outcome: 'ok',
+          path: 'landing',
+          voicePreset,
+          durationMs: typeof performance !== 'undefined' ? performance.now() - rumStart : 0,
+        });
+        setIsSpeaking(false);
+        setState(prev => ({ ...prev, status: 'idle' }));
+        onStatusChangeRef.current?.('idle');
+        return;
+      }
+      console.warn('[TTS] Landing Kokoro pipeline produced no audio — trying monolithic proxy');
+    }
+
+    // --- Monolithic /api/ai/tts proxy with transient retries (primary + server-side fallback Kokoro) ---
+    console.info(`[TTS] Trying /api/ai/tts proxy (voice: ${voicePreset}, speed: ${speed})…`);
+    const proxyBlob = await fetchTtsProxyAudio(request.text, voicePreset, speed);
+    if (proxyBlob) {
+      console.info(`[TTS] ✅ Kokoro via proxy — ${proxyBlob.size} bytes`);
+      reportTtsRum({
+        outcome: 'ok',
+        path: 'proxy',
+        voicePreset,
+        durationMs: typeof performance !== 'undefined' ? performance.now() - rumStart : 0,
+      });
+      return playAudioBlob(proxyBlob);
+    }
+
+    // --- Direct Kokoro: primary + optional fallback origin from GET /api/ai/tts (Oracle / second tunnel) ---
+    await ensureKokoroOriginsLoaded();
+    const kokoroBases = getKokoroDirectBases();
+    if (kokoroBases.length > 0) {
+      for (let bi = 0; bi < kokoroBases.length; bi += 1) {
+        const base = kokoroBases[bi];
+        try {
+          console.info(`[TTS] Trying direct Kokoro at ${base} (voice: ${voicePreset})…`);
+          const res = await fetch(`${base}/v1/audio/speech`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              model: 'kokoro',
+              input: request.text,
+              voice: voicePreset,
+              speed,
+            }),
+          });
+          if (res.ok) {
             const blob = await res.blob();
             if (blob.size > 100) {
-              console.info(`[TTS] ✅ Kokoro via proxy — ${blob.size} bytes, ${ct}`);
+              console.info(`[TTS] ✅ Direct Kokoro — ${blob.size} bytes`);
+              reportTtsRum({
+                outcome: 'ok',
+                path: bi === 0 ? 'direct_0' : 'direct_1',
+                voicePreset,
+                durationMs: typeof performance !== 'undefined' ? performance.now() - rumStart : 0,
+              });
               return playAudioBlob(blob);
             }
           }
-          console.warn(`[TTS] Proxy returned OK but content-type="${ct}" — not audio`);
-        } else {
-          const errData = (await res.json().catch(() => ({}))) as { code?: string; error?: string };
-          if (errData.code === 'NO_TTS_URL') {
-            disableTtsProxyForSession();
-          }
-          console.warn(`[TTS] Proxy failed: HTTP ${res.status} — ${errData.code || errData.error || ''}`);
+          console.warn(`[TTS] Direct Kokoro failed: HTTP ${res.status} (${base})`);
+        } catch (err: unknown) {
+          console.warn(`[TTS] Direct Kokoro error (${base}):`, err);
         }
-      } catch (err: any) {
-        console.warn(`[TTS] Proxy unreachable: ${err.message}`);
       }
     }
 
-    // --- Attempt 2: Direct Kokoro (if VITE_KOKORO_TTS_URL is set, may face CORS) ---
-    if (KOKORO_TTS_URL) {
-      try {
-        console.info(`[TTS] Trying direct Kokoro at ${KOKORO_TTS_URL} (voice: ${voicePreset})…`);
-        const res = await fetch(`${KOKORO_TTS_URL}/v1/audio/speech`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            model: 'kokoro',
-            input: request.text,
-            voice: voicePreset,
-            speed,
-          }),
-        });
-
-        if (res.ok) {
-          const blob = await res.blob();
-          if (blob.size > 100) {
-            console.info(`[TTS] ✅ Direct Kokoro — ${blob.size} bytes`);
-            return playAudioBlob(blob);
-          }
-        }
-        console.warn(`[TTS] Direct Kokoro failed: HTTP ${res.status}`);
-      } catch (err: any) {
-        console.warn(`[TTS] Direct Kokoro blocked (likely CORS): ${err.message}`);
-      }
+    // --- Cortana / Nexus neural preset: never degrade to robotic browser SpeechSynthesis ---
+    if (voicePreset === NEXUS_LANDING_KOKORO_VOICE_ID) {
+      reportTtsRum({
+        outcome: 'fail',
+        path: 'fail',
+        voicePreset,
+        durationMs: typeof performance !== 'undefined' ? performance.now() - rumStart : 0,
+        err: 'neural_unavailable',
+      });
+      setIsSpeaking(false);
+      setState(prev => ({ ...prev, status: 'idle' }));
+      onStatusChangeRef.current?.('idle');
+      const msg =
+        'Neural Cortana voice is unavailable (Kokoro unreachable). Check KOKORO_TTS_URL / tunnel — browser fallback is disabled for this preset.';
+      console.error('[TTS]', msg);
+      onErrorRef.current?.(msg);
+      return;
     }
 
-    // --- Attempt 3: Browser SpeechSynthesis (robotic, last resort) ---
-    console.warn('[TTS] ⚠️ All Kokoro attempts failed — falling back to browser SpeechSynthesis');
+    console.warn('[TTS] ⚠️ All Kokoro attempts failed — browser SpeechSynthesis (non-Cortana preset)');
+    reportTtsRum({
+      outcome: 'ok',
+      path: 'browser',
+      voicePreset,
+      durationMs: typeof performance !== 'undefined' ? performance.now() - rumStart : 0,
+    });
     return speakBrowserFallback(request);
-  }, [playAudioBlob, speakBrowserFallback, onStatusChange]);
+  }, [cleanupTtsAnalyzer, playAudioBlob, speakBrowserFallback]);
 
   const stopSpeaking = useCallback(() => {
+    landingKokoroAbortRef.current?.abort();
+    landingKokoroAbortRef.current = null;
+    cleanupTtsAnalyzer();
     if (activeAudioRef.current) {
       activeAudioRef.current.pause();
       activeAudioRef.current.currentTime = 0;
@@ -523,9 +756,9 @@ export function useVoiceStream(options: UseVoiceStreamOptions = {}) {
     currentUtteranceRef.current = null;
     if (state.status === 'speaking') {
       setState(prev => ({ ...prev, status: 'idle' }));
-      onStatusChange?.('idle');
+      onStatusChangeRef.current?.('idle');
     }
-  }, [state.status, onStatusChange]);
+  }, [cleanupTtsAnalyzer, state.status]);
 
   // ==========================================================================
   // FULL CONVERSATION TURN
@@ -541,6 +774,21 @@ export function useVoiceStream(options: UseVoiceStreamOptions = {}) {
     setState(prev => ({ ...prev, interimTranscript: '' }));
   }, []);
 
+  /** Clears live STT interim only — use after committing a final utterance so UI can show “thinking” without stale partial text. */
+  const clearInterimTranscript = useCallback(() => {
+    setInterimText('');
+    setState(prev => ({ ...prev, interimTranscript: '' }));
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (ttsAudioCtxRef.current && ttsAudioCtxRef.current.state !== 'closed') {
+        ttsAudioCtxRef.current.close().catch(() => {});
+      }
+      ttsAudioCtxRef.current = null;
+    };
+  }, []);
+
   // ==========================================================================
   // RETURN
   // ==========================================================================
@@ -551,6 +799,8 @@ export function useVoiceStream(options: UseVoiceStreamOptions = {}) {
     status: state.status,
     isListening: state.status === 'listening',
     isSpeaking,
+    /** 0–1 RMS envelope while Kokoro blob audio is playing (Web Audio). 0 for browser SpeechSynthesis fallback. */
+    ttsOutputLevel,
     sttReady: state.sttReady,
     ttsReady: state.ttsReady,
     
@@ -559,6 +809,7 @@ export function useVoiceStream(options: UseVoiceStreamOptions = {}) {
     interimText,
     getFullTranscript,
     clearTranscript,
+    clearInterimTranscript,
 
     // STT Controls
     startListening,

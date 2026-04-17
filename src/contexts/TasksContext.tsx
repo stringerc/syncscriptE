@@ -177,6 +177,23 @@ export function TasksProvider({ children }: TasksProviderProps) {
   useEffect(() => {
     refreshTasks();
   }, [refreshTasks]);
+
+  useEffect(() => {
+    const onNexusTools = (ev: Event) => {
+      const detail = (ev as CustomEvent<{ toolTrace?: Array<{ ok?: boolean; tool?: string }> }>).detail;
+      const trace = detail?.toolTrace;
+      if (
+        Array.isArray(trace) &&
+        trace.some(
+          (t) => t?.ok && (t.tool === 'create_task' || t.tool === 'add_note' || t.tool === 'propose_calendar_hold'),
+        )
+      ) {
+        void refreshTasks();
+      }
+    };
+    window.addEventListener('syncscript:nexus-tool-trace', onNexusTools);
+    return () => window.removeEventListener('syncscript:nexus-tool-trace', onNexusTools);
+  }, [refreshTasks]);
   
   // ==================== CRUD OPERATIONS ====================
   

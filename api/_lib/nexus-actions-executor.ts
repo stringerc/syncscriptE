@@ -313,7 +313,9 @@ export async function executeNexusTool(
       applied: false,
     };
 
-    if (meta.surface === 'phone') {
+    /** Phone: persist a scheduled task (Twilio path). Voice + text: return proposal only — voice client materializes a calendar Event via addEvent + EventModal. */
+    const persistCalendarHold = meta.surface === 'phone';
+    if (persistCalendarHold) {
       const startLabel = startDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
       const endLabel = endDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
       const dateLabel = startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
@@ -493,8 +495,8 @@ export async function executeNexusTool(
     }
 
     const trackingPixelUrl = `https://www.syncscript.app/api/invoice/track?id=${encodeURIComponent(invoiceNumber)}&uid=${encodeURIComponent(userIdFromActor(actor))}`;
-    invoiceData.paymentUrl = paymentUrl;
-    invoiceData.trackingPixelUrl = trackingPixelUrl;
+    invoiceData.paymentUrl = paymentUrl || (args as any).paymentUrl || 'https://buy.stripe.com/test';
+    invoiceData.trackingPixelUrl = (args as any).trackingPixelUrl || trackingPixelUrl;
     const html = generateInvoiceHtml(invoiceData);
 
     const resendKey = process.env.RESEND_API_KEY;
@@ -787,9 +789,46 @@ export async function executeNexusTool(
         { tool: 'send_document_for_signature', ok: false, error: e?.message || 'failed' },
         JSON.stringify({ ok: false, error: String(e?.message || 'failed') }),
       );
+  }
+
+  if (name === 'search_places') {
+    const query = String(args.query || '').trim();
+    if (!query) {
+      return await finish(
+        { tool: 'search_places', ok: false, error: 'missing_query' },
+        JSON.stringify({ ok: false, error: 'query required' }),
+      );
+    }
+    try {
+      const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=5`, {
+        headers: { 'User-Agent': 'SyncScript/1.0' }
+      });
+      if (!res.ok) throw new Error('Search API request blocked or failed');
+      const data = await res.json() as any[];
+      
+      const places = data.map(d => ({
+        name: d.name || d.display_name?.split(',')[0],
+        full_address: d.display_name,
+        type: d.type || d.class,
+      }));
+
+      return await finish(
+        { tool: 'search_places', ok: true, detail: { query, count: places.length } },
+        JSON.stringify({ 
+          ok: true, 
+          results: places.length > 0 ? places : 'No places found. Tell the user you could not find specific venues.' 
+        }),
+      );
+    } catch (e: any) {
+      // Fallback response so voice doesn't completely fail
+      return await finish(
+        { tool: 'search_places', ok: false, error: e?.message || 'search_failed' },
+        JSON.stringify({ ok: false, error: String(e?.message || 'Network error fetching places. Ask the user for another location.') }),
+      );
     }
   }
 
   const unknownTrace: NexusToolTraceEntry = { tool: name, ok: false, error: 'unknown_tool' };
   return await finish(unknownTrace, JSON.stringify({ ok: false, error: 'unknown tool' }));
+}
 }

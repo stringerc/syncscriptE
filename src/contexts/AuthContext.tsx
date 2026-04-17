@@ -30,6 +30,10 @@ interface User {
   hasLoggedEnergy?: boolean; // True after first energy log
   onboardingStep?: number; // 0-5 for progressive tooltips
   firstEnergyLogAt?: string; // Timestamp of first energy log
+  /** Supabase Auth: set when session loaded (password/OAuth). */
+  emailConfirmedAt?: string | null;
+  /** If email change is pending confirmation, the new address (Supabase `new_email`). */
+  pendingEmail?: string | null;
 }
 
 interface AuthContextType {
@@ -42,6 +46,10 @@ interface AuthContextType {
   signInWithMicrosoft: () => Promise<{ success: boolean; error?: string }>;
   signOut: () => Promise<void>;
   updateProfile: (updates: Partial<User>) => Promise<{ success: boolean; error?: string }>;
+  /** Start Supabase secure email change (user receives confirmation link). */
+  requestEmailChange: (email: string) => Promise<{ success: boolean; error?: string }>;
+  /** Resend signup confirmation for accounts not yet verified (Supabase Auth). */
+  resendVerificationEmail: () => Promise<{ success: boolean; error?: string }>;
   uploadPhoto: (file: File) => Promise<{ success: boolean; photoUrl?: string; error?: string }>;
   completeOnboarding: () => Promise<void>;
   // Guest mode functions
@@ -132,6 +140,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         } else if (event === 'TOKEN_REFRESHED' && session) {
           setAccessToken(session.access_token);
           localStorage.setItem('syncscript_auth_user_id', session.user.id);
+        } else if (event === 'USER_UPDATED' && session) {
+          setAccessToken(session.access_token);
+          localStorage.setItem('syncscript_auth_user_id', session.user.id);
+          await fetchUserProfile(session.user.id, session.access_token);
         }
       }
     );
@@ -197,12 +209,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), PROFILE_FETCH_TIMEOUT_MS);
     try {
+      const { data: authUserResult } = await supabase.auth.getUser(token);
+      const authUser = authUserResult?.user;
+      const overlayAuthEmail = (u: User): User =>
+        authUser && u.id === authUser.id
+          ? {
+              ...u,
+              email: authUser.email ?? u.email,
+              emailConfirmedAt: authUser.email_confirmed_at ?? null,
+              pendingEmail: authUser.new_email ?? null,
+            }
+          : u;
+
       const response = await fetch(
         `https://${projectId}.supabase.co/functions/v1/make-server-57781ad9/user/profile`,
         {
           headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
+            Authorization: `Bearer ${token}`,
+            apikey: publicAnonKey,
+            'Content-Type': 'application/json',
           },
           signal: controller.signal,
         }
@@ -210,7 +235,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (response.ok) {
         const userData = await response.json();
-        setUser(userData);
+        setUser(overlayAuthEmail(userData));
         localStorage.setItem('syncscript_auth_user_id', userData?.id || userId);
         if (!userData?.isGuest) {
           clearStoredGuestSession();
@@ -219,39 +244,67 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // Avoid noisy repeated logs when backend auth/CORS is not aligned yet.
         disableRemoteProfileFetchRef.current = true;
         setDisableRemoteProfileFetch(true);
-        setUser((prev) => prev ?? {
-          id: userId,
-          email: '',
-          name: 'User',
-          onboardingCompleted: false,
-          createdAt: new Date().toISOString(),
-          isFirstTime: true,
-          hasLoggedEnergy: false,
-        });
+        setUser((prev) =>
+          prev
+            ? overlayAuthEmail(prev)
+            : overlayAuthEmail({
+                id: userId,
+                email: authUser?.email || '',
+                name: 'User',
+                onboardingCompleted: false,
+                createdAt: new Date().toISOString(),
+                isFirstTime: true,
+                hasLoggedEnergy: false,
+              }),
+        );
       } else {
-        setUser((prev) => prev ?? {
-          id: userId,
-          email: '',
-          name: 'User',
-          onboardingCompleted: false,
-          createdAt: new Date().toISOString(),
-          isFirstTime: true,
-          hasLoggedEnergy: false,
-        });
+        setUser((prev) =>
+          prev
+            ? overlayAuthEmail(prev)
+            : overlayAuthEmail({
+                id: userId,
+                email: authUser?.email || '',
+                name: 'User',
+                onboardingCompleted: false,
+                createdAt: new Date().toISOString(),
+                isFirstTime: true,
+                hasLoggedEnergy: false,
+              }),
+        );
       }
     } catch (error) {
       // Network/CORS failures can happen when function CORS config drifts from app host.
       disableRemoteProfileFetchRef.current = true;
       setDisableRemoteProfileFetch(true);
-      setUser((prev) => prev ?? {
-        id: userId,
-        email: '',
-        name: 'User',
-        onboardingCompleted: false,
-        createdAt: new Date().toISOString(),
-        isFirstTime: true,
-        hasLoggedEnergy: false,
-      });
+      let auCatch: import('@supabase/supabase-js').User | null = null;
+      try {
+        const pack = await supabase.auth.getUser(token);
+        auCatch = pack.data?.user ?? null;
+      } catch {
+        auCatch = null;
+      }
+      const overlayCatch = (u: User): User =>
+        auCatch && u.id === auCatch.id
+          ? {
+              ...u,
+              email: auCatch.email ?? u.email,
+              emailConfirmedAt: auCatch.email_confirmed_at ?? null,
+              pendingEmail: auCatch.new_email ?? null,
+            }
+          : u;
+      setUser((prev) =>
+        prev
+          ? overlayCatch(prev)
+          : overlayCatch({
+              id: userId,
+              email: auCatch?.email || '',
+              name: 'User',
+              onboardingCompleted: false,
+              createdAt: new Date().toISOString(),
+              isFirstTime: true,
+              hasLoggedEnergy: false,
+            }),
+      );
     } finally {
       profileFetchInFlightRef.current = null;
       clearTimeout(timeoutId);
@@ -428,8 +481,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         {
           method: 'PUT',
           headers: {
-            'Authorization': `Bearer ${accessToken}`,
-            'Content-Type': 'application/json'
+            Authorization: `Bearer ${accessToken}`,
+            apikey: publicAnonKey,
+            'Content-Type': 'application/json',
           },
           body: JSON.stringify(updates)
         }
@@ -583,7 +637,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${accessToken}`
+            Authorization: `Bearer ${accessToken}`,
+            apikey: publicAnonKey,
           },
           body: formData
         }
@@ -825,6 +880,60 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { isGuest: false };
   }
 
+  async function requestEmailChange(email: string) {
+    if (!user || user.isGuest) {
+      return { success: false, error: 'Sign in with a full account to change your email.' };
+    }
+    const trimmed = email.trim();
+    if (!trimmed) {
+      return { success: false, error: 'Enter an email address.' };
+    }
+    try {
+      const redirect =
+        typeof window !== 'undefined' ? `${window.location.origin}/settings?tab=account` : undefined;
+      const { error } = await supabase.auth.updateUser(
+        { email: trimmed },
+        { emailRedirectTo: redirect },
+      );
+      if (error) {
+        return { success: false, error: error.message };
+      }
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.access_token && session.user?.id) {
+        await fetchUserProfile(session.user.id, session.access_token);
+      }
+      return { success: true };
+    } catch {
+      return { success: false, error: 'Could not update email. Try again.' };
+    }
+  }
+
+  async function resendVerificationEmail() {
+    try {
+      if (user?.isGuest) {
+        return { success: false, error: 'Guest sessions cannot verify email here.' };
+      }
+      const { data: { session } } = await supabase.auth.getSession();
+      const em = session?.user?.email;
+      if (!em) {
+        return { success: false, error: 'No email address on this session.' };
+      }
+      const redirect =
+        typeof window !== 'undefined' ? `${window.location.origin}/settings?tab=account` : undefined;
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email: em,
+        options: { emailRedirectTo: redirect },
+      });
+      if (error) {
+        return { success: false, error: error.message };
+      }
+      return { success: true };
+    } catch {
+      return { success: false, error: 'Could not resend verification email.' };
+    }
+  }
+
   async function exportGuestData() {
     if (!accessToken) {
       return { success: false, error: 'Not authenticated' };
@@ -872,6 +981,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         signInWithMicrosoft,
         signOut,
         updateProfile,
+        requestEmailChange,
+        resendVerificationEmail,
         uploadPhoto,
         completeOnboarding,
         // Guest mode functions

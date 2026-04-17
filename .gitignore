@@ -7,6 +7,12 @@ build/
 .env.vercel*.pull
 .DS_Store
 *.log
+
+# Lighthouse CI local runs (see lighthouserc.cjs, npm run lighthouse:ci)
+.lighthouseci/
+
+# Regenerated skill/MCP discovery audits (see scripts/skill-source-audit.sh)
+reports/skill-audit/
 .vercel
 
 # User-local symlink to ~/.cursor/rules-global (do not commit absolute paths — run scripts/link-global-cursor-brain.sh)
