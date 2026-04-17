@@ -13,6 +13,11 @@ on:
         description: 'Origin (no trailing slash)'
         required: false
         default: 'https://www.syncscript.app'
+      skip_prod_fingerprint:
+        description: 'Skip verify-prod-build (use when www has not deployed latest main yet)'
+        type: boolean
+        required: false
+        default: false
 
 jobs:
   nexus-signed-in-smoke:
@@ -32,6 +37,7 @@ jobs:
         run: npx playwright install chromium --with-deps
 
       - name: Prod index.html matches this git SHA
+        if: ${{ !inputs.skip_prod_fingerprint }}
         run: node scripts/verify-prod-build.mjs "${BASE_URL}"
         env:
           BASE_URL: ${{ github.event.inputs.base_url || 'https://www.syncscript.app' }}
