@@ -174,7 +174,7 @@ app.use(
       // Default: allow same-origin requests (no origin header)
       return origin || '*';
     },
-    allowHeaders: ["Content-Type", "Authorization", "X-Request-ID"],
+    allowHeaders: ["Content-Type", "Authorization", "X-Request-ID", "apikey"],
     allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     exposeHeaders: ["Content-Length"],
     maxAge: 600,
