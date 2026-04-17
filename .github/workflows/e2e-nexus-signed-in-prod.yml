@@ -1,0 +1,59 @@
+# Manual: signed-in Playwright against production (or staging) — profile CORS, Nexus tool traces, voice shell.
+# Requires repository secrets (Settings → Secrets and variables → Actions):
+#   NEXUS_LIVE_TEST_EMAIL, NEXUS_LIVE_TEST_PASSWORD
+# Optional aliases (same values): E2E_LOGIN_EMAIL, E2E_LOGIN_PASSWORD — if your org prefers that naming.
+#
+# Create/reset the verify user locally: npm run bootstrap:nexus-verify-user (needs SUPABASE_SERVICE_ROLE_KEY).
+name: E2E Nexus signed-in (prod)
+
+on:
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: 'Origin (no trailing slash)'
+        required: false
+        default: 'https://www.syncscript.app'
+
+jobs:
+  nexus-signed-in-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Install Playwright Chromium
+        run: npx playwright install chromium --with-deps
+
+      - name: Prod index.html matches this git SHA
+        run: node scripts/verify-prod-build.mjs "${BASE_URL}"
+        env:
+          BASE_URL: ${{ github.event.inputs.base_url || 'https://www.syncscript.app' }}
+
+      - name: Signed-in smoke (profile + calendar toolTrace)
+        run: npm run test:e2e:nexus-signed-in-smoke
+        env:
+          CI: true
+          PLAYWRIGHT_BASE_URL: ${{ github.event.inputs.base_url || 'https://www.syncscript.app' }}
+          NEXUS_LIVE_TEST_EMAIL: ${{ secrets.NEXUS_LIVE_TEST_EMAIL }}
+          NEXUS_LIVE_TEST_PASSWORD: ${{ secrets.NEXUS_LIVE_TEST_PASSWORD }}
+          E2E_LOGIN_EMAIL: ${{ secrets.E2E_LOGIN_EMAIL }}
+          E2E_LOGIN_PASSWORD: ${{ secrets.E2E_LOGIN_PASSWORD }}
+
+      - name: Deep parity (task, calendar, document; places + voice opt-in)
+        run: npm run test:e2e:nexus-app-ai-parity-deep
+        env:
+          CI: true
+          PLAYWRIGHT_BASE_URL: ${{ github.event.inputs.base_url || 'https://www.syncscript.app' }}
+          NEXUS_LIVE_TEST_EMAIL: ${{ secrets.NEXUS_LIVE_TEST_EMAIL }}
+          NEXUS_LIVE_TEST_PASSWORD: ${{ secrets.NEXUS_LIVE_TEST_PASSWORD }}
+          E2E_LOGIN_EMAIL: ${{ secrets.E2E_LOGIN_EMAIL }}
+          E2E_LOGIN_PASSWORD: ${{ secrets.E2E_LOGIN_PASSWORD }}
+          NEXUS_E2E_INCLUDE_PLACES: ${{ secrets.NEXUS_E2E_INCLUDE_PLACES }}
+          NEXUS_E2E_INCLUDE_VOICE: ${{ secrets.NEXUS_E2E_INCLUDE_VOICE }}

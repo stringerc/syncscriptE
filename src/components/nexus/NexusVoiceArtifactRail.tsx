@@ -131,6 +131,8 @@ export function NexusVoiceArtifactRail({
 
   return (
     <div
+      data-testid="nexus-voice-artifact-rail"
+      aria-label="Nexus voice tool confirmations"
       className={cn(
         'pointer-events-none flex flex-col items-end gap-2',
         immersive ? 'absolute right-3 top-[4.5rem] z-20 max-w-[min(92vw,340px)]' : 'relative w-full max-w-sm ml-auto',

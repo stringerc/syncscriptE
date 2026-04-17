@@ -7,52 +7,23 @@
  */
 import { test, expect } from '@playwright/test';
 import { getNexusE2ECredentials } from './helpers/nexus-e2e-env';
+import { loginToSyncScript } from './helpers/nexus-app-ai-login';
+import { parseToolTrace } from './helpers/nexus-tool-trace';
 
 const { email, password } = getNexusE2ECredentials();
-
-type ToolTraceEntry = { tool?: string; ok?: boolean; error?: string };
-
-function parseToolTrace(body: unknown): ToolTraceEntry[] {
-  if (!body || typeof body !== 'object') return [];
-  const t = (body as { toolTrace?: unknown }).toolTrace;
-  return Array.isArray(t) ? (t as ToolTraceEntry[]) : [];
-}
-
-async function loginAndOpenAppAI(page: import('@playwright/test').Page) {
-  await page.goto('/login', { waitUntil: 'domcontentloaded' });
-
-  const acceptCookies = page.getByRole('button', { name: /Accept All Cookies/i });
-  if (await acceptCookies.isVisible({ timeout: 5000 }).catch(() => false)) {
-    await acceptCookies.click();
-  }
-
-  const profileWait = page.waitForResponse(
-    (r) =>
-      r.url().includes('make-server-57781ad9/user/profile') &&
-      r.request().method() === 'GET',
-    { timeout: 90_000 },
-  );
-
-  await page.getByPlaceholder('you@example.com').fill(email);
-  await page.getByPlaceholder('••••••••').fill(password);
-  await page.getByRole('button', { name: /^Sign in$/ }).click();
-
-  const profileRes = await profileWait;
-  await expect(page).not.toHaveURL(/\/login/, { timeout: 60_000 });
-  return profileRes;
-}
 
 test.describe('Signed-in profile + Nexus calendar tool', () => {
   test.skip(!email || !password, 'Set E2E_LOGIN_* or NEXUS_LIVE_TEST_* in .env (see bootstrap:nexus-verify-user)');
 
   test('Edge GET /user/profile returns 200 after login', async ({ page }) => {
     test.setTimeout(120_000);
-    const profileRes = await loginAndOpenAppAI(page);
+    const { profileResponse: profileRes } = await loginToSyncScript(page, email, password);
+    expect(profileRes, 'profile response').toBeTruthy();
     expect(
-      profileRes.ok(),
-      `profile HTTP ${profileRes.status()} — check Edge CORS allowHeaders includes apikey`,
+      profileRes!.ok(),
+      `profile HTTP ${profileRes!.status()} — check Edge CORS allowHeaders includes apikey`,
     ).toBeTruthy();
-    const acao = profileRes.headers()['access-control-allow-origin'];
+    const acao = profileRes!.headers()['access-control-allow-origin'];
     if (acao) {
       expect(acao === '*' || acao.includes('syncscript'), acao).toBeTruthy();
     }
@@ -61,7 +32,7 @@ test.describe('Signed-in profile + Nexus calendar tool', () => {
   test('App AI chat: calendar hold uses propose_calendar_hold in toolTrace', async ({ page }) => {
     test.setTimeout(300_000);
 
-    await loginAndOpenAppAI(page);
+    await loginToSyncScript(page, email, password);
 
     await page.goto('/app/ai-assistant', { waitUntil: 'domcontentloaded' });
     const composer = page.getByRole('textbox', { name: /Message to Nexus/i });
