@@ -171,7 +171,7 @@ export function VoiceConversationEngine({
   };
 
   // Hooks
-  const { tasks } = useTasks();
+  const { tasks, refreshTasks } = useTasks();
   const { events, addEvent, updateEvent, bulkUpdateEvents } = useCalendarEvents();
   const { user, accessToken } = useAuth();
   const nexusPrivateContext = useNexusPrivateContext();
@@ -953,6 +953,14 @@ export function VoiceConversationEngine({
                 </AnimatePresence>
               </div>
             </div>
+            <NexusVoiceArtifactRail
+              immersive
+              chips={artifactChips}
+              mapUrlHint={mapUrlHint}
+              mapEmbedCoords={mapEmbedCoords}
+              onOpenDocument={voiceCanvasDoc ? () => setVoiceCanvasOpen(true) : undefined}
+              onOpenTaskPanel={voiceTaskFocusId ? () => setVoiceTaskSheetOpen(true) : undefined}
+            />
             {isActive && (
               <div className="flex shrink-0 flex-col items-center gap-2 border-t border-white/[0.08] bg-black/80 px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-5">
                 <button

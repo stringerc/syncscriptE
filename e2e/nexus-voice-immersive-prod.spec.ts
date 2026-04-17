@@ -30,7 +30,9 @@ test.describe('Nexus immersive voice (prod)', () => {
       timeout: 45_000,
     });
     /** Fails fast if deploy lacks `data-testid` on immersive Voice buttons (`AppAIPage`). */
-    await expect(page.getByTestId('nexus-app-ai-open-immersive-voice').first()).toBeVisible({
+    await expect(
+      page.getByTestId('nexus-app-ai-open-immersive-voice').and(page.locator(':visible')).first(),
+    ).toBeVisible({
       timeout: 45_000,
     });
 
