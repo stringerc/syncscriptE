@@ -1,0 +1,53 @@
+# Dedicated voice surface E2E (first-touch before phone call): immersive shell + artifact rail.
+# Longer per-step timeouts than the combined "deep parity" suite; retries=2 in spec.
+#
+# Secrets: NEXUS_LIVE_TEST_EMAIL, NEXUS_LIVE_TEST_PASSWORD (optional E2E_LOGIN_* aliases).
+# Local bootstrap: npm run bootstrap:nexus-verify-user
+name: E2E Nexus voice immersive (prod)
+
+on:
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: 'Origin (no trailing slash)'
+        required: false
+        default: 'https://www.syncscript.app'
+      skip_prod_fingerprint:
+        description: 'Skip verify-prod-build (when www has not deployed latest main yet)'
+        type: boolean
+        required: false
+        default: false
+
+jobs:
+  voice-immersive:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Install Playwright Chromium
+        run: npx playwright install chromium --with-deps
+
+      - name: Prod index.html matches this git SHA
+        if: ${{ !inputs.skip_prod_fingerprint }}
+        run: node scripts/verify-prod-build.mjs "${BASE_URL}"
+        env:
+          BASE_URL: ${{ github.event.inputs.base_url || 'https://www.syncscript.app' }}
+
+      - name: Immersive voice (overlay + orb + artifact rail)
+        run: npm run test:e2e:nexus-voice-immersive-prod
+        env:
+          CI: true
+          PLAYWRIGHT_BASE_URL: ${{ github.event.inputs.base_url || 'https://www.syncscript.app' }}
+          NEXUS_LIVE_TEST_EMAIL: ${{ secrets.NEXUS_LIVE_TEST_EMAIL }}
+          NEXUS_LIVE_TEST_PASSWORD: ${{ secrets.NEXUS_LIVE_TEST_PASSWORD }}
+          E2E_LOGIN_EMAIL: ${{ secrets.E2E_LOGIN_EMAIL }}
+          E2E_LOGIN_PASSWORD: ${{ secrets.E2E_LOGIN_PASSWORD }}

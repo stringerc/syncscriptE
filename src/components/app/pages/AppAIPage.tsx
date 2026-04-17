@@ -570,6 +570,7 @@ export function AppAIPage() {
                 </button>
                 <button
                   type="button"
+                  data-testid="nexus-app-ai-open-immersive-voice"
                   onClick={openVoice}
                   aria-label="Voice — conversational AI (live speech and replies)"
                   className={cn(
@@ -608,6 +609,7 @@ export function AppAIPage() {
                 </button>
                 <button
                   type="button"
+                  data-testid="nexus-app-ai-open-immersive-voice"
                   onClick={openVoice}
                   aria-label="Voice — conversational AI (live speech and replies)"
                   className={cn(
@@ -740,6 +742,7 @@ export function AppAIPage() {
                 </button>
                 <button
                   type="button"
+                  data-testid="nexus-app-ai-open-immersive-voice"
                   onClick={openVoice}
                   aria-label="Voice — conversational AI (live speech and replies)"
                   className={cn(

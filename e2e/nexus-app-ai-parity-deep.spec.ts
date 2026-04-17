@@ -9,6 +9,10 @@ import { test, expect } from '@playwright/test';
 import { getNexusE2ECredentials } from './helpers/nexus-e2e-env';
 import { loginToSyncScript } from './helpers/nexus-app-ai-login';
 import { parseToolTrace, hasToolOk, hasToolCalled } from './helpers/nexus-tool-trace';
+import {
+  clickImmersiveVoiceEntry,
+  assertImmersiveVoiceShell,
+} from './helpers/nexus-voice-immersive-smoke';
 
 const { email, password } = getNexusE2ECredentials();
 
@@ -42,10 +46,6 @@ async function openAppAIComposer(page: import('@playwright/test').Page) {
   const composer = page.getByRole('textbox', { name: /Message to Nexus/i });
   await expect(composer).toBeVisible({ timeout: 30_000 });
   return composer;
-}
-
-async function clickImmersiveVoiceEntry(page: import('@playwright/test').Page) {
-  await page.getByRole('button', { name: /Voice — conversational AI/i }).first().click();
 }
 
 test.describe('Nexus App AI parity (deep)', () => {
@@ -116,22 +116,16 @@ test.describe('Nexus App AI parity (deep)', () => {
     await context.grantPermissions(['microphone']);
 
     await loginToSyncScript(page, email, password);
-    /** `/ai` is behind `ProtectedRoute` + same `AppAIPage` as `/app/ai-assistant`; portal voice shell is more reliable here in headless. */
-    await page.goto('/ai', { waitUntil: 'domcontentloaded' });
+    /** AppLayout + AppAIPage — same surface as chat tests (`/app/ai-assistant`). */
+    await page.goto('/app/ai-assistant', { waitUntil: 'domcontentloaded' });
     await expect(page.getByRole('textbox', { name: /Message to Nexus/i })).toBeVisible({ timeout: 30_000 });
 
     await clickImmersiveVoiceEntry(page);
-
-    /** Prod builds may omit some `data-testid`s — use stable shell marker + chrome from VoiceConversationEngine. */
-    await expect(page.locator('[data-voice-shell="immersive"]').first()).toBeVisible({ timeout: 90_000 });
-    await expect(page.getByRole('button', { name: /^Close voice$/ })).toBeVisible({ timeout: 30_000 });
-    await expect(
-      page.getByRole('button', { name: /Start voice session/ }).or(page.getByRole('img', { name: /Voice level/ })),
-    ).toBeVisible({ timeout: 60_000 });
-    /** Rail: testid (older builds) or aria-label (a11y + E2E) */
-    const rail = page
-      .locator('[data-testid="nexus-voice-artifact-rail"]')
-      .or(page.getByLabel('Nexus voice tool confirmations'));
-    await expect(rail.first()).toBeAttached({ timeout: 15_000 });
+    await assertImmersiveVoiceShell(page, {
+      shellTimeoutMs: 90_000,
+      closeTimeoutMs: 30_000,
+      startTimeoutMs: 60_000,
+      railTimeoutMs: 15_000,
+    });
   });
 });
