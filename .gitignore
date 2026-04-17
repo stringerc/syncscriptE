@@ -95,6 +95,7 @@ scripts/*
 !scripts/verify-hermes-edge-live.mjs
 !scripts/verify-prod-build.mjs
 !scripts/report-external-tooling-versions.mjs
+!scripts/push-nexus-e2e-secrets-to-github.mjs
 
 # Large optional clone (run integrations/setup-engram.sh)
 integrations/engram_translator/

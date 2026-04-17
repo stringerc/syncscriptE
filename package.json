@@ -306,6 +306,7 @@
     "native:open:ios": "npx cap open ios",
     "native:doctor": "npx cap doctor",
     "bootstrap:nexus-verify-user": "node scripts/bootstrap-nexus-individual-verify-user.mjs",
+    "secrets:github:nexus-e2e": "node scripts/push-nexus-e2e-secrets-to-github.mjs",
     "verify:nexus-tools-live": "npx --yes tsx scripts/verify-nexus-tools-live.ts",
     "verify:smoke:full": "npm run verify:nexus-tools-live && npm run verify:tts:production:post",
     "verify:phone-nexus-edge": "node scripts/verify-phone-nexus-edge-post.mjs"
