@@ -12,6 +12,7 @@ import {
 } from './ui/dropdown-menu';
 import { Badge } from './ui/badge';
 import { Progress } from './ui/progress';
+import { Switch } from './ui/switch';
 import { useGamification } from '../utils/gamification-preferences';
 import { motion, AnimatePresence } from 'motion/react';
 import { CURRENT_USER } from '../utils/user-constants';
@@ -40,6 +41,8 @@ export function ProfileMenu({
   energyLevel = CURRENT_USER.energyLevel,
   dailyStreak = CURRENT_USER.dailyStreak,
   onNavigate,
+  lowEnergyMode,
+  onLowEnergyModeChange,
 }: ProfileMenuProps) {
   // Get current user from context - this is the SINGLE SOURCE OF TRUTH
   const { profile } = useUserProfile();
@@ -169,6 +172,34 @@ export function ProfileMenu({
               )}
             </div>
           </div>
+
+          {onLowEnergyModeChange && typeof lowEnergyMode === 'boolean' && (
+            <div
+              className="mb-2 mx-2 px-2 py-2.5 rounded-lg border border-gray-600/80 bg-[#252a34]/90"
+              onPointerDown={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2 min-w-0">
+                  <Zap
+                    className={`w-4 h-4 flex-shrink-0 ${lowEnergyMode ? 'text-red-400' : 'text-emerald-400'}`}
+                  />
+                  <div className="min-w-0">
+                    <p className="text-sm text-white">Low energy mode</p>
+                    <p className="text-[11px] text-gray-500 leading-snug">
+                      Softer motion when you need to slow down
+                    </p>
+                  </div>
+                </div>
+                <Switch
+                  checked={!lowEnergyMode}
+                  onCheckedChange={(checked) => onLowEnergyModeChange(!checked)}
+                  data-nav="low-energy-mode-toggle"
+                  className="data-[state=checked]:bg-emerald-500 data-[state=unchecked]:bg-red-500 flex-shrink-0"
+                  onClick={(e) => e.stopPropagation()}
+                />
+              </div>
+            </div>
+          )}
 
           <DropdownMenuSeparator className="bg-gray-700" />
 

@@ -136,22 +136,23 @@ export function MobileNav() {
       <AnimatePresence>
         {isDrawerOpen && (
           <>
-            {/* Backdrop */}
+            {/* Backdrop — dim main content without washing out the drawer */}
             <motion.div
               initial={{ opacity: 0 }}
-              animate={{ opacity: 0.6 }}
+              animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
               onClick={() => setIsDrawerOpen(false)}
-              className="md:hidden fixed inset-0 bg-black/75 backdrop-blur-sm z-[390]"
+              className="md:hidden fixed inset-0 z-[390] bg-black/45 backdrop-blur-[2px]"
             />
 
-            {/* Drawer */}
+            {/* Drawer — higher-contrast panel so nav is readable on small screens */}
             <motion.div
               initial={{ x: '-100%' }}
               animate={{ x: 0 }}
               exit={{ x: '-100%' }}
               transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-              className="md:hidden fixed left-0 top-0 bottom-0 w-[280px] bg-gradient-to-b from-[#1f252f] via-[#1a2029] to-[#171c25] border-r border-gray-700/70 shadow-[inset_-1px_0_0_rgba(45,212,191,0.08),0_0_40px_rgba(45,212,191,0.08)] z-[391] overflow-y-auto ambient-scrollbar"
+              className="md:hidden fixed left-0 top-0 bottom-0 w-[min(88vw,300px)] bg-[#1e242e] border-r border-gray-600/90 shadow-[0_0_0_1px_rgba(255,255,255,0.06),8px_0_40px_rgba(0,0,0,0.55)] z-[391] overflow-y-auto ambient-scrollbar"
             >
               {/* Header */}
               <div className="flex items-center justify-between p-4 border-b border-gray-800">
@@ -183,7 +184,7 @@ export function MobileNav() {
                       className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
                         isActive
                           ? 'bg-teal-600 text-white shadow-lg shadow-teal-600/30'
-                          : 'text-gray-400 hover:bg-gray-700/50 hover:text-white'
+                          : 'text-gray-200 hover:bg-white/10 hover:text-white'
                       }`}
                     >
                       <Icon className="w-5 h-5 flex-shrink-0" />
@@ -202,7 +203,7 @@ export function MobileNav() {
                   className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
                     location.pathname === navigationLinks.sidebar.settings
                       ? 'bg-teal-600 text-white shadow-lg shadow-teal-600/30'
-                      : 'text-gray-400 hover:bg-gray-700/50 hover:text-white'
+                      : 'text-gray-200 hover:bg-white/10 hover:text-white'
                   }`}
                 >
                   <Settings className="w-5 h-5 flex-shrink-0" />

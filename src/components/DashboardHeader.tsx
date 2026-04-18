@@ -1,16 +1,12 @@
-import { Bell, Search, Sparkles, Zap, Lock, Brain, Calendar as CalendarIcon, Target, CheckCircle2, TrendingUp, Plus, Edit, Settings, Users, Plug, Award, FileText, BarChart3, Activity } from 'lucide-react';
+import { Bell, Search, Lock, Brain, Calendar as CalendarIcon, Target, CheckCircle2, TrendingUp, Plus, Edit, Settings, Users, Plug, Award, FileText, BarChart3, Activity } from 'lucide-react';
 import { ProfileMenu } from './ProfileMenuNew';
-import { ImageWithFallback } from './figma/ImageWithFallback';
 import { WeatherWidget } from './WeatherWidget';
 import { NotificationsSheet } from './NotificationsSheet';
-import { ConversationExtractionDialog } from './ConversationExtractionDialog';
-import { Switch } from './ui/switch';
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router';
 import imgImageSyncScript from "figma:asset/32f9c29c68f7ed10b9efd8ff6ac4135b7a2a4290.png";
 import { motion, AnimatePresence } from 'motion/react';
 import { CURRENT_USER } from '../utils/user-constants';
-import { EnergyDisplay } from './energy/EnergyDisplay';
 import { toast } from 'sonner';
 import { useEnergy } from '../contexts/EnergyContext';
 import { useCurrentReadiness } from '../hooks/useCurrentReadiness';
@@ -479,10 +475,10 @@ export function DashboardHeader({ isAIInsightsOpen, onToggleAIInsights }: Dashbo
   };
 
   return (
-    <header className="h-16 bg-[#1e2128] border-b border-gray-800 flex items-center justify-between px-6">
+    <header className="min-h-14 md:h-16 shrink-0 bg-[#1e2128] border-b border-gray-800 flex items-center justify-between gap-2 px-3 sm:px-4 md:px-6">
       {/* Left: Logo */}
-      <div className="flex items-center gap-3">
-        <div className="relative shrink-0 h-[32px] w-[152px]">
+      <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+        <div className="relative shrink-0 h-[28px] w-[132px] sm:h-[32px] sm:w-[152px]">
           <img 
             alt="SyncScript" 
             className="absolute inset-0 w-full h-full object-contain object-left" 
@@ -491,21 +487,21 @@ export function DashboardHeader({ isAIInsightsOpen, onToggleAIInsights }: Dashbo
         </div>
       </div>
 
-      {/* Center: Universal Search Bar + Conversation Extraction */}
-      <div className="flex-1 max-w-3xl mx-8 flex items-center gap-2">
-        <div className="flex-1 relative" ref={searchRef}>
+      {/* Center: Universal Search */}
+      <div className="flex-1 max-w-3xl mx-2 sm:mx-4 md:mx-8 flex items-center gap-2 min-w-0">
+        <div className="flex-1 relative min-w-0" ref={searchRef}>
           <form onSubmit={handleSearchSubmit}>
-            <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 w-4 h-4" />
+            <Lock className="absolute left-2 sm:left-3 top-1/2 transform -translate-y-1/2 text-gray-500 w-4 h-4 pointer-events-none" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               onFocus={() => suggestion && setShowDropdown(true)}
-              placeholder="Universal Search & Command"
-              className="w-full bg-[#2a2d35] border border-gray-700 rounded-lg pl-10 pr-10 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-teal-600 transition-colors"
+              placeholder="Search & commands"
+              className="w-full min-w-0 bg-[#2a2d35] border border-gray-700 rounded-lg pl-9 sm:pl-10 pr-9 sm:pr-10 py-2 text-sm sm:text-base text-white placeholder-gray-500 focus:outline-none focus:border-teal-600 transition-colors"
               data-nav="universal-search"
             />
-            <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 w-4 h-4" />
+            <Search className="absolute right-2 sm:right-3 top-1/2 transform -translate-y-1/2 text-gray-500 w-4 h-4 pointer-events-none" />
           </form>
 
           {/* Dropdown for search results and suggestions */}
@@ -627,30 +623,15 @@ export function DashboardHeader({ isAIInsightsOpen, onToggleAIInsights }: Dashbo
             )}
           </AnimatePresence>
         </div>
-
-        {/* Conversation Extraction - Right next to search */}
-        <button 
-          onClick={() => setConversationExtractionOpen(true)}
-          className="flex items-center gap-1.5 text-teal-400 hover:text-teal-300 transition-colors hover:bg-teal-900/20 px-3 py-2 rounded-lg whitespace-nowrap border border-teal-600/20 hover:border-teal-600/40"
-          data-nav="conversation-extraction"
-          aria-label="Conversation Extraction"
-        >
-          <Sparkles className="w-4 h-4" />
-          <span className="text-xs">AI Extract</span>
-        </button>
-
-        {/* Conversation Extraction Dialog */}
-        <ConversationExtractionDialog
-          open={conversationExtractionOpen}
-          onOpenChange={setConversationExtractionOpen}
-        />
       </div>
 
       {/* Right Section */}
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-2 sm:gap-3 md:gap-4 shrink-0">
 
-        {/* Weather Widget */}
-        <WeatherWidget />
+        {/* Weather: hide on very narrow screens so header + profile stay visible */}
+        <div className="hidden sm:flex items-center">
+          <WeatherWidget />
+        </div>
 
         {/* Notifications */}
         <button 
@@ -669,25 +650,13 @@ export function DashboardHeader({ isAIInsightsOpen, onToggleAIInsights }: Dashbo
           onOpenChange={setNotificationsOpen}
         />
 
-        {/* Low Energy Mode Toggle */}
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-2 px-3 py-1.5 bg-[#2a2d35] rounded-lg border border-gray-700">
-            <Zap className={`w-4 h-4 transition-colors ${lowEnergyMode ? 'text-red-400' : 'text-emerald-400'}`} />
-            <span className="text-xs text-gray-400 whitespace-nowrap">Low Energy Mode</span>
-            <Switch 
-              checked={!lowEnergyMode}
-              onCheckedChange={(checked) => setLowEnergyMode(!checked)}
-              data-nav="low-energy-mode-toggle"
-              className="data-[state=checked]:bg-emerald-500 data-[state=unchecked]:bg-red-500"
-            />
-          </div>
-        </div>
-
-        {/* User Profile Menu with Animated Avatar */}
+        {/* User Profile Menu (includes Low energy mode on mobile / all sizes) */}
         <ProfileMenu 
           energyLevel={energyPercentage}
           dailyStreak={CURRENT_USER.dailyStreak}
           onNavigate={handleProfileNavigation}
+          lowEnergyMode={lowEnergyMode}
+          onLowEnergyModeChange={setLowEnergyMode}
         />
       </div>
     </header>
