@@ -86,8 +86,8 @@ SYNCSCRIPT_VISUAL_ARCHITECTURE.md
 test-*.html
 test-*.js
 
-# Temp directories
-lib/
+# Temp directories (root only — do not ignore `src/lib` app sources)
+/lib/
 social/
 scripts/*
 !scripts/engram-public-supabase-url.mjs
