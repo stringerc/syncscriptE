@@ -302,6 +302,23 @@ export function ResourceHubSection() {
         });
       }
     }
+
+    // Evergreen: when few contextual rules match, keep the rail useful (layout fix also surfaces this block)
+    if (insights.length < 2) {
+      const incomplete = tasks.filter((t) => !t.completed);
+      if (incomplete.length > 0) {
+        insights.push({
+          id: 'triage-open-work',
+          type: 'insight',
+          icon: <Sparkles className="h-4 w-4 text-cyan-400" />,
+          title: 'Clear the next step',
+          description: `${incomplete.length} open task${incomplete.length > 1 ? 's' : ''} — open Tasks and start one focused block.`,
+          action: () => navigate(sideNav.tasks),
+          priority: 'medium',
+          color: 'teal',
+        });
+      }
+    }
     
     // 6. QUICK ACTION: Add new task
     insights.push({
@@ -377,10 +394,10 @@ export function ResourceHubSection() {
   };
   
   return (
-    <div className="h-full flex flex-col pb-4">
+    <div className="flex min-h-0 flex-col pb-4 lg:h-full">
       <h2 className="text-white mb-4">RESOURCE HUB</h2>
 
-      <div className="flex flex-col gap-4 flex-1">
+      <div className="flex min-h-0 flex-col gap-4 lg:flex-1">
         {/* Financial Health Snapshot - REVOLUTIONARY RESEARCH-BACKED DESIGN */}
         {/* 
           RESEARCH FOUNDATION (2024 State-of-the-Art):
@@ -403,7 +420,7 @@ export function ResourceHubSection() {
           10. Von Restorff Effect: Highlight anomalies
         */}
         <motion.div 
-          className="bg-gradient-to-br from-[#1a1d24] via-[#1e2128] to-[#1a1d24] rounded-2xl p-4 border border-gray-800/60 flex-1 flex flex-col shadow-[0_8px_32px_rgba(0,0,0,0.4)] relative overflow-hidden"
+          className="relative flex shrink-0 flex-col overflow-hidden rounded-2xl border border-gray-800/60 bg-gradient-to-br from-[#1a1d24] via-[#1e2128] to-[#1a1d24] p-4 shadow-[0_8px_32px_rgba(0,0,0,0.4)] lg:flex-1"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, ease: [0.23, 1, 0.32, 1] }}
@@ -844,7 +861,7 @@ export function ResourceHubSection() {
         </motion.div>
 
         {/* Achievement Progress Rail */}
-        <div className="bg-[#1e2128] rounded-2xl p-4 sm:p-5 border border-gray-800 flex-1 flex flex-col card-hover shadow-lg hover:border-gray-700 transition-all">
+        <div className="flex shrink-0 flex-col rounded-2xl border border-gray-800 bg-[#1e2128] p-4 card-hover shadow-lg transition-all hover:border-gray-700 sm:p-5 lg:min-h-[12rem] lg:flex-1">
           <div className="mb-3 flex flex-col items-center gap-2 text-center">
             <Sparkles className="h-6 w-6 shrink-0 text-purple-400" aria-hidden />
             <div className="min-w-0 w-full">

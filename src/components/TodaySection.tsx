@@ -212,10 +212,10 @@ export function TodaySection() {
   const allConflicts = conflictDetectionResult.conflicts;
 
   return (
-    <div className="h-full flex flex-col pb-4">
+    <div className="flex min-h-0 flex-col pb-4 lg:h-full">
       <h2 className="text-white mb-4">TODAY'S ORCHESTRATION</h2>
 
-      <div className="flex flex-col gap-4 flex-1">
+      <div className="flex min-h-0 flex-col gap-4 lg:flex-1">
         {/* My Day - REFINED DESIGN WITH FIXED HEIGHT + SCROLL */}
         {/* RESEARCH: Things 3 (2024), Todoist (2023) - "Fixed height prevents layout shift by 89%" */}
         {/* RESEARCH: Apple Reminders (2024) - "Smooth internal scrolling increases user control by 91%" */}

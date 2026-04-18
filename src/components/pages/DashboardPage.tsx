@@ -166,19 +166,29 @@ export function DashboardPage() {
           </motion.div>
         )}
         
-        <div className="flex flex-col lg:flex-row gap-6 lg:gap-6 max-w-[1600px] mx-auto h-full min-h-0">
+        {/* Mobile: single vertical scroll (no 3-way height split). lg+: column scroll for dense desktop layout. */}
+        <div className="flex max-w-[1600px] mx-auto min-h-0 flex-col gap-8 lg:h-full lg:min-h-0 lg:flex-row lg:gap-6">
           {/* Left Column - AI & FOCUS */}
-          <div id="ai-suggestions" className="flex-1 min-h-0 h-full overflow-y-auto hide-scrollbar lg:min-w-0">
+          <div
+            id="ai-suggestions"
+            className="min-h-0 w-full min-w-0 shrink-0 lg:flex-1 lg:overflow-y-auto lg:overscroll-contain hide-scrollbar"
+          >
             <AIFocusSection />
           </div>
 
           {/* Middle Column - TODAY'S ORCHESTRATION */}
-          <div id="energy-meter" className="flex-1 min-h-0 h-full overflow-y-auto hide-scrollbar lg:min-w-0">
+          <div
+            id="energy-meter"
+            className="min-h-0 w-full min-w-0 shrink-0 lg:flex-1 lg:overflow-y-auto lg:overscroll-contain hide-scrollbar"
+          >
             <TodaySection />
           </div>
 
           {/* Right Column - RESOURCE HUB */}
-          <div id="roygbiv-ring" className="flex-1 min-h-0 h-full overflow-y-auto hide-scrollbar lg:min-w-0">
+          <div
+            id="roygbiv-ring"
+            className="min-h-0 w-full min-w-0 shrink-0 lg:flex-1 lg:overflow-y-auto lg:overscroll-contain hide-scrollbar"
+          >
             <ResourceHubSection />
           </div>
         </div>
