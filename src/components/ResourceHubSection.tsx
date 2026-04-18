@@ -32,20 +32,28 @@ import { defaultCollaboratorImage } from '../utils/task-avatar-display';
 
 const sideNav = navigationLinks.sidebar;
 
-/** Overlapping faces for goals that list collaborators (matches dashboard task stacks). */
+/** Overlapping faces for goals (matches task stacks: footer row, owner ring when creator is known). */
 function goalParticipantFaces(goal: {
   collaborators?: Array<{ id?: string; name?: string; image?: string; fallback?: string }>;
+  createdBy?: string;
 }) {
   const list = goal?.collaborators;
-  if (!Array.isArray(list) || list.length < 2) return [];
-  return list.map((c) => ({
-    id: c.id,
-    name: (c.name || 'Member').trim(),
-    image: c.image || defaultCollaboratorImage(),
-    fallback: String(c.fallback || c.name || '?')
-      .slice(0, 2)
-      .toUpperCase(),
-  }));
+  if (!Array.isArray(list) || list.length === 0) return [];
+  const created = String(goal.createdBy || '').trim();
+  return list.map((c) => {
+    const cid = String(c.id || '').trim();
+    const role =
+      created && (created === cid || (c.name && created === c.name.trim())) ? ('owner' as const) : ('contributor' as const);
+    return {
+      id: c.id,
+      name: (c.name || 'Member').trim(),
+      image: c.image || defaultCollaboratorImage(),
+      fallback: String(c.fallback || c.name || '?')
+        .slice(0, 2)
+        .toUpperCase(),
+      role,
+    };
+  });
 }
 
 export function ResourceHubSection() {
@@ -551,7 +559,7 @@ export function ResourceHubSection() {
                     </div>
                   </div>
 
-                  {budgetGoalFaces.length >= 2 && (
+                  {budgetGoalFaces.length > 0 && (
                     <TaskParticipantAvatarStack
                       people={budgetGoalFaces}
                       accent="orange"
@@ -678,7 +686,7 @@ export function ResourceHubSection() {
                     </div>
                   </div>
 
-                  {savingsGoalFaces.length >= 2 && (
+                  {savingsGoalFaces.length > 0 && (
                     <TaskParticipantAvatarStack
                       people={savingsGoalFaces}
                       accent="teal"

@@ -27,6 +27,34 @@ export type TaskLikeForAvatar = {
   createdBy?: string;
 };
 
+/** Faces for dashboard stacks — includes owner role for subtle ring in UI. */
+export type TaskParticipantFace = {
+  id?: string;
+  name: string;
+  image: string;
+  fallback: string;
+  role?: 'owner' | 'contributor';
+};
+
+function isOwnerRow(
+  c: CollaboratorEntry,
+  isMe: boolean,
+  createdBy: string | undefined,
+  profile: ProfileForTaskAvatar,
+): boolean {
+  const cb = String(createdBy || '').trim();
+  if (!cb) return false;
+  const cid = String(c.id || '').trim();
+  if (cid && cb === cid) return true;
+  if (profile.id && cb === profile.id && isMe) return true;
+  const em = norm(c.email);
+  const ce = norm(cb);
+  if (em && ce && ce === em) return true;
+  const cn = norm(c.name);
+  if (cn && ce === cn) return true;
+  return false;
+}
+
 const STOCK_AVATAR =
   'https://images.unsplash.com/photo-1656313826909-1f89d1702a81?w=100&h=100&fit=crop';
 
@@ -87,12 +115,35 @@ export function defaultCollaboratorImage(): string {
 export function getTaskParticipantFaces(
   task: TaskLikeForAvatar,
   profile: ProfileForTaskAvatar,
-): Array<{ id?: string; name: string; image: string; fallback: string }> {
+): TaskParticipantFace[] {
   const list = Array.isArray(task.collaborators) ? task.collaborators : [];
-  if (list.length === 0) return [];
 
   const seen = new Set<string>();
-  const out: Array<{ id?: string; name: string; image: string; fallback: string }> = [];
+  const out: TaskParticipantFace[] = [];
+
+  if (list.length === 0) {
+    const created = String(task.createdBy || '').trim();
+    if (profile.id && created === profile.id) {
+      const name = profile.name.trim() || 'You';
+      const fallback =
+        name
+          .split(/\s+/)
+          .map((n) => n[0])
+          .join('')
+          .slice(0, 2)
+          .toUpperCase() || 'YO';
+      return [
+        {
+          id: profile.id,
+          name,
+          image: profile.avatar,
+          fallback,
+          role: 'owner',
+        },
+      ];
+    }
+    return [];
+  }
 
   for (const c of list) {
     const key = String(c.id || c.email || c.name || '').trim() || JSON.stringify(c);
@@ -111,8 +162,9 @@ export function getTaskParticipantFaces(
         .toUpperCase() ||
       '?';
     const image = isMe ? profile.avatar : c.image || defaultCollaboratorImage();
+    const role = isOwnerRow(c, isMe, task.createdBy, profile) ? 'owner' : 'contributor';
 
-    out.push({ id: c.id, name, image, fallback });
+    out.push({ id: c.id, name, image, fallback, role });
   }
 
   return out;

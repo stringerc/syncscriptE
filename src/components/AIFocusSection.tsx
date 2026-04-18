@@ -1,7 +1,6 @@
 import { useState, useMemo } from 'react';
 import { withDashboardScheduleDemoFallback } from '../utils/dashboard-schedule-demo';
-import { HelpCircle, Zap, ArrowRight, Sparkles, Brain, Activity, Crown, CloudRain, Navigation, Users } from 'lucide-react';
-import { AnimatedAvatar } from './AnimatedAvatar';
+import { HelpCircle, Zap, ArrowRight, Sparkles, Brain, Activity, Crown, CloudRain, Navigation } from 'lucide-react';
 import { useUserProfile } from '../utils/user-profile';
 import { useTasks } from '../hooks/useTasks';
 import { getTopPriorityTasks } from '../utils/intelligent-task-selector';
@@ -10,7 +9,7 @@ import { motion } from 'motion/react';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
 import { Clock } from 'lucide-react';
-import { calculateCollaboratorProgress, getROYGBIVProgress } from '../utils/progress-calculations';
+import { getROYGBIVProgress } from '../utils/progress-calculations';
 import { useCurrentReadiness } from '../hooks/useCurrentReadiness';
 import { useWeatherRoute } from '../hooks/useWeatherRoute';
 import { useCalendarEvents } from '../hooks/useCalendarEvents';
@@ -18,7 +17,7 @@ import { buildWeekOutlookRows } from '../utils/weather-event-conflicts';
 import { WeatherRouteConflictModal } from './WeatherRouteConflictModal';
 import { WeatherWeekOutlookModal } from './WeatherWeekOutlookModal';
 import { TaskDetailModal } from './TaskDetailModal';
-import { defaultCollaboratorImage, getTaskParticipantFaces, resolveTaskCardAvatar } from '../utils/task-avatar-display';
+import { getTaskParticipantFaces } from '../utils/task-avatar-display';
 import { TaskParticipantAvatarStack } from './TaskParticipantAvatarStack';
 
 /**
@@ -198,10 +197,7 @@ export function AIFocusSection() {
               <div className="space-y-4">
                 {topPriorityTasks.map((taskScore) => {
                   const task = taskScore.task;
-                  const { showAsSelf, peer } = resolveTaskCardAvatar(task, profile);
-                  const displayPeer = peer;
                   const faces = getTaskParticipantFaces(task, profile);
-                  const multi = faces.length >= 2;
 
                   return (
                     <div 
@@ -215,46 +211,15 @@ export function AIFocusSection() {
                           setSelectedTaskId(task.id);
                         }
                       }}
-                      className="group flex cursor-pointer flex-col items-center gap-3 rounded-lg border border-transparent bg-black/20 p-3 transition-all hover:bg-black/30 hover:border-teal-500/30 active:scale-[0.99] touch-manipulation sm:p-4"
+                      className="group flex cursor-pointer flex-col items-stretch gap-2 rounded-lg border border-transparent bg-black/20 p-3 text-left transition-all hover:bg-black/30 hover:border-teal-500/30 active:scale-[0.99] touch-manipulation sm:p-4"
                     >
-                      {/* Match Weather & Route: hero on top, copy, then overlapping faces under */}
-                      <div className="flex w-full shrink-0 justify-center">
-                        {multi ? (
-                          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-teal-500/20 ring-2 ring-teal-500/30 transition-transform group-hover:scale-105 sm:h-20 sm:w-20 sm:ring-teal-500/40">
-                            <Users className="h-8 w-8 text-teal-300 sm:h-9 sm:w-9" aria-hidden />
-                          </div>
-                        ) : (
-                          <AnimatedAvatar
-                            name={showAsSelf ? profile.name : (displayPeer?.name || 'Task')}
-                            image={showAsSelf ? profile.avatar : (displayPeer?.image || defaultCollaboratorImage())}
-                            fallback={
-                              showAsSelf
-                                ? profile.name.split(' ').map((n) => n[0]).join('').toUpperCase()
-                                : (displayPeer?.fallback || task.title.substring(0, 2).toUpperCase())
-                            }
-                            progress={
-                              showAsSelf
-                                ? calculatedEnergy
-                                : calculateCollaboratorProgress(
-                                    task,
-                                    displayPeer?.id,
-                                    displayPeer?.name || '',
-                                  )
-                            }
-                            animationType={showAsSelf ? 'none' : (displayPeer?.animationType || 'pulse')}
-                            className="h-16 w-16 shrink-0 transition-transform group-hover:scale-105 sm:h-20 sm:w-20 sm:group-hover:scale-110"
-                            size={64}
-                            status={showAsSelf ? profile.status : (displayPeer?.status || 'online')}
-                          />
-                        )}
-                      </div>
-                      <div className="w-full min-w-0 text-left">
+                      <div className="w-full min-w-0">
                         <p className="break-words text-sm font-medium text-white sm:text-base">{task.title}</p>
                         <p className="mt-1 text-xs leading-relaxed text-gray-400 sm:text-sm">{taskScore.reasoning}</p>
-                        {faces.length >= 2 && (
-                          <TaskParticipantAvatarStack people={faces} accent="teal" className="mt-2" />
-                        )}
                       </div>
+                      {faces.length > 0 && (
+                        <TaskParticipantAvatarStack people={faces} accent="teal" className="mt-1" />
+                      )}
                     </div>
                   );
                 })}

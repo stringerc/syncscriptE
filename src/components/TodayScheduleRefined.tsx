@@ -182,7 +182,6 @@
 
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { ChevronRight, Check, Plus, Zap, Clock, Users, Target, Flame, AlertTriangle, Sparkles, CheckCircle2, Circle, ChevronDown, ChevronUp } from 'lucide-react';
-import { AnimatedAvatar } from './AnimatedAvatar';
 import { TaskDetailModal } from './TaskDetailModal';
 import { NewTaskDialog } from './QuickActionsDialogs';
 import { useTasks } from '../hooks/useTasks';
@@ -190,11 +189,9 @@ import { useEnergy } from '../contexts/EnergyContext';
 import { formatAppDate, getCurrentDate } from '../utils/app-date';
 import { motion, AnimatePresence } from 'motion/react';
 import { toast } from 'sonner@2.0.3';
-import { calculateCollaboratorProgress } from '../utils/progress-calculations';
 import { useUserProfile } from '../utils/user-profile';
-import { defaultCollaboratorImage, getTaskParticipantFaces, resolveTaskCardAvatar } from '../utils/task-avatar-display';
+import { getTaskParticipantFaces } from '../utils/task-avatar-display';
 import { TaskParticipantAvatarStack } from './TaskParticipantAvatarStack';
-import { useCurrentReadiness } from '../hooks/useCurrentReadiness';
 import { Task } from '../utils/event-task-types';
 import {
   isDashboardDemoTask,
@@ -214,15 +211,6 @@ interface TemporalSection {
   timeRange: string;
   tasks: TaskWithTime[];
   isNow: boolean;
-}
-
-/** Active tasks for the dashboard schedule (same rules as the rest of the app). */
-function isOpenScheduleTask(task: Task): boolean {
-  if (task.completed) return false;
-  if ((task as { archived?: boolean }).archived) return false;
-  const st = (task as { status?: string }).status;
-  if (st === 'completed') return false;
-  return true;
 }
 
 export interface TodayScheduleRefinedProps {
@@ -470,9 +458,7 @@ export function TodayScheduleRefined({ tasks: tasksProp, loading: loadingProp }:
   // RENDER TASK CARD
   // ══════════════════════════════════════════════════════════════════════════════
   const renderTaskCard = (task: TaskWithTime, isNextUp: boolean = false) => {
-    const { showAsSelf, peer } = resolveTaskCardAvatar(task, profile);
     const faces = getTaskParticipantFaces(task, profile);
-    const multi = faces.length >= 2;
     const isCompleting = completingTaskIds.has(task.id);
     const urgency = formatUrgency(task.urgencyMinutes);
     const energyFitDisplay = getEnergyFitDisplay(task.energyFit);
@@ -594,49 +580,8 @@ export function TodayScheduleRefined({ tasks: tasksProp, loading: loadingProp }:
               </div>
             </motion.div>
             
-            {/* Weather-style column: hero on top, copy, metadata, faces under */}
+            {/* Title and metadata first; participant stack below (scan title before faces). */}
             <div className="flex min-w-0 flex-1 flex-col gap-2">
-              <div className="flex w-full justify-center">
-                {multi ? (
-                  <div
-                    className={`flex shrink-0 items-center justify-center rounded-full bg-teal-500/15 ring-2 ring-teal-500/35 ${
-                      isNextUp ? 'h-14 w-14 sm:h-16 sm:w-16' : 'h-12 w-12 sm:h-14 sm:w-14'
-                    }`}
-                  >
-                    <Users className="h-7 w-7 text-teal-300 sm:h-8 sm:w-8" aria-hidden />
-                  </div>
-                ) : (showAsSelf || peer) ? (
-                  <AnimatedAvatar
-                    name={showAsSelf ? profile.name : (peer?.name || 'Task')}
-                    image={showAsSelf ? profile.avatar : (peer?.image || defaultCollaboratorImage())}
-                    fallback={
-                      showAsSelf
-                        ? profile.name.split(' ').map((n) => n[0]).join('').toUpperCase()
-                        : (peer?.fallback || task.title.substring(0, 2).toUpperCase())
-                    }
-                    progress={
-                      showAsSelf
-                        ? currentUserEnergy
-                        : calculateCollaboratorProgress(task, peer?.id, peer?.name || '')
-                    }
-                    animationType={showAsSelf ? 'none' : (peer?.animationType || 'pulse')}
-                    className={
-                      isNextUp ? 'h-14 w-14 shrink-0 sm:h-16 sm:w-16' : 'h-12 w-12 shrink-0 sm:h-14 sm:w-14'
-                    }
-                    size={isNextUp ? 56 : 48}
-                    status={showAsSelf ? profile.status : (peer?.status || 'online')}
-                  />
-                ) : (
-                  <div
-                    className={`flex shrink-0 items-center justify-center rounded-full bg-gray-700/90 ring-2 ring-gray-600/50 ${
-                      isNextUp ? 'h-14 w-14' : 'h-12 w-12'
-                    }`}
-                  >
-                    <Target className="h-6 w-6 text-gray-300" aria-hidden />
-                  </div>
-                )}
-              </div>
-
               <div className="w-full min-w-0">
                 <div className="mb-1 flex flex-wrap items-start gap-2">
                   <h4
@@ -702,7 +647,7 @@ export function TodayScheduleRefined({ tasks: tasksProp, loading: loadingProp }:
                     </motion.div>
                   )}
 
-                {faces.length >= 2 && (
+                {faces.length > 0 && (
                   <TaskParticipantAvatarStack people={faces} accent="slate" className="mt-2" />
                 )}
               </div>

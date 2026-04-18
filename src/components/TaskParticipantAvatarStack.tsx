@@ -5,6 +5,8 @@ export type ParticipantFace = {
   name: string;
   image: string;
   fallback: string;
+  /** Creator / accountable party — subtle ring (Teams/Slack-style accountability cue) */
+  role?: 'owner' | 'contributor';
 };
 
 const ACCENT_BORDER: Record<'teal' | 'blue' | 'orange' | 'purple' | 'slate', string> = {
@@ -47,11 +49,12 @@ export function TaskParticipantAvatarStack({
             className={cn(
               '-ml-1 h-7 w-7 overflow-hidden rounded-full border-2 bg-gray-800 first:ml-0 sm:h-6 sm:w-6',
               ACCENT_BORDER[accent],
+              p.role === 'owner' && 'ring-2 ring-amber-400/65',
             )}
             style={{ zIndex: visible.length - i }}
-            title={p.name}
+            title={p.role === 'owner' ? `${p.name} (owner)` : p.name}
           >
-            <img src={p.image} alt={p.name} className="h-full w-full object-cover" />
+            <img src={p.image} alt="" className="h-full w-full object-cover" />
           </div>
         ))}
         {overflow > 0 && (
@@ -68,6 +71,9 @@ export function TaskParticipantAvatarStack({
       <span className="text-[10px] text-gray-400">
         {label ?? `${people.length} ${people.length === 1 ? 'person' : 'people'}`}
       </span>
+      {visible.some((p) => p.role === 'owner') && (
+        <span className="text-[9px] text-amber-400/80">· Owner ring</span>
+      )}
     </div>
   );
 }
