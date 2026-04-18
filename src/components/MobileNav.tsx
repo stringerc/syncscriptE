@@ -136,14 +136,15 @@ export function MobileNav() {
       <AnimatePresence>
         {isDrawerOpen && (
           <>
-            {/* Backdrop — dim main content without washing out the drawer */}
+            {/* Backdrop — strong scrim so the drawer is clearly the foreground */}
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.2 }}
               onClick={() => setIsDrawerOpen(false)}
-              className="md:hidden fixed inset-0 z-[390] bg-black/45 backdrop-blur-[2px]"
+              className="md:hidden fixed inset-0 z-[390] bg-black/72 backdrop-blur-sm"
+              aria-hidden
             />
 
             {/* Drawer — higher-contrast panel so nav is readable on small screens */}
