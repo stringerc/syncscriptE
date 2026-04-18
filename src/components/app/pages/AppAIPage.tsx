@@ -2,12 +2,8 @@ import { useState, useEffect, useRef, useCallback, startTransition, lazy, Suspen
 import { createPortal } from 'react-dom'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Button } from '@/components/ui/button'
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from '@/components/ui/sheet'
+import { AnimatePresence, motion } from 'motion/react'
+import logoImage from 'figma:asset/914d5787f554946c037cbfbb2cf65fcc0de06278.png'
 import { DashboardLayout } from '../../../components/layout/DashboardLayout'
 import {} from '@/components/ui/collapsible'
 import { api } from '@/lib/railway-api'
@@ -215,6 +211,15 @@ export function AppAIPage() {
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' })
   }, [activeChat?.messages])
+
+  useEffect(() => {
+    if (!mobileChatsOpen) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setMobileChatsOpen(false)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [mobileChatsOpen])
 
   const chatMutation = useMutation({
     mutationFn: async (message: string) => {
@@ -971,71 +976,104 @@ export function AppAIPage() {
       )}
     </div>
 
-    <Sheet open={mobileChatsOpen} onOpenChange={setMobileChatsOpen}>
-      <SheetContent
-        side="left"
-        data-testid="mobile-chat-sheet"
-        className="flex h-full w-[min(100vw-1.5rem,20rem)] flex-col gap-0 border-gray-800 bg-[#13141a] p-0 sm:max-w-sm [&>button.absolute]:text-gray-400"
-      >
-        <SheetHeader className="space-y-0 border-b border-gray-800 p-4">
-          <div className="flex items-center justify-between gap-3 pr-8">
-            <SheetTitle className="text-left text-base text-white">Chats</SheetTitle>
-            <button
-              type="button"
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-800 hover:text-white"
-              onClick={() => {
-                handleNewChat()
-                setMobileChatsOpen(false)
-              }}
-              aria-label="New chat"
-            >
-              <Plus className="h-4 w-4" />
-            </button>
-          </div>
-        </SheetHeader>
-        <div className="min-h-0 flex-1 overflow-y-auto p-2">
-          {chats.length === 0 ? (
-            <p className="px-3 py-6 text-center text-xs text-gray-500">No chats yet. Tap + to start.</p>
-          ) : (
-            <div className="space-y-0.5">
-              {chats.map((chat) => (
-                <div
-                  key={chat.id}
-                  className={cn(
-                    'group flex items-center justify-between gap-1.5 rounded-lg px-2.5 py-2.5 text-xs transition-colors',
-                    activeChatId === chat.id
-                      ? 'border border-purple-500/30 bg-purple-500/10 text-purple-300'
-                      : 'cursor-pointer text-gray-400 hover:bg-gray-800/50 hover:text-gray-200'
-                  )}
+    {/* Mobile Chats drawer — matches MobileNav “More” panel (backdrop + spring slide) */}
+    <AnimatePresence>
+      {mobileChatsOpen && (
+        <>
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            onClick={() => setMobileChatsOpen(false)}
+            className="md:hidden fixed inset-0 z-[390] bg-black/72 backdrop-blur-sm"
+            aria-hidden
+          />
+          <motion.div
+            data-testid="mobile-chat-sheet"
+            initial={{ x: '-100%' }}
+            animate={{ x: 0 }}
+            exit={{ x: '-100%' }}
+            transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+            className="md:hidden fixed left-0 top-0 bottom-0 z-[391] flex w-[min(88vw,300px)] flex-col overflow-hidden bg-[#0b0f16]/95 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),8px_0_48px_rgba(0,0,0,0.65)] backdrop-blur-xl backdrop-saturate-150 border-r border-gray-700/75"
+          >
+            <div className="flex shrink-0 items-center justify-between gap-3 border-b border-gray-800 p-4">
+              <div className="flex min-w-0 items-center gap-3">
+                <img src={logoImage} alt="SyncScript" className="h-10 w-10 shrink-0 rounded-lg" width={40} height={40} />
+                <div className="min-w-0">
+                  <p className="font-semibold text-white">Chats</p>
+                  <p className="truncate text-[11px] text-gray-500">Nexus threads</p>
+                </div>
+              </div>
+              <div className="flex shrink-0 items-center gap-1">
+                <button
+                  type="button"
+                  className="flex h-9 w-9 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-700/50 hover:text-white"
                   onClick={() => {
-                    setActiveChatId(chat.id)
+                    handleNewChat()
                     setMobileChatsOpen(false)
                   }}
+                  aria-label="New chat"
                 >
-                  {chat.type === 'group' ? (
-                    <Users className="h-3 w-3 shrink-0" />
-                  ) : (
-                    <MessageSquare className="h-3 w-3 shrink-0" />
-                  )}
-                  <span className="min-w-0 flex-1 truncate">{chat.title || 'New chat'}</span>
-                  <button
-                    type="button"
-                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded text-gray-500 hover:text-red-400 active:bg-gray-800/80"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      handleDeleteChat(chat.id)
-                    }}
-                    aria-label="Delete chat"
-                  >
-                    <Trash2 className="h-3 w-3" />
-                  </button>
-                </div>
-              ))}
+                  <Plus className="h-5 w-5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMobileChatsOpen(false)}
+                  className="p-2 hover:bg-gray-700/50 rounded-lg transition-colors"
+                  aria-label="Close chats"
+                >
+                  <X className="h-5 w-5 text-gray-400" />
+                </button>
+              </div>
             </div>
-          )}
-        </div>
-      </SheetContent>
-    </Sheet>
+            <div className="ambient-scrollbar min-h-0 flex-1 overflow-y-auto p-4">
+              {chats.length === 0 ? (
+                <p className="py-6 text-center text-xs text-gray-500">No chats yet. Tap + to start.</p>
+              ) : (
+                <nav className="space-y-2">
+                  {chats.map((chat) => (
+                    <div
+                      key={chat.id}
+                      className={cn(
+                        'group flex items-center justify-between gap-2 rounded-lg px-4 py-3 text-sm transition-all',
+                        activeChatId === chat.id
+                          ? 'border border-purple-500/35 bg-purple-500/10 text-purple-200 shadow-lg shadow-purple-900/20'
+                          : 'cursor-pointer border border-transparent text-gray-200 hover:bg-white/10 hover:text-white'
+                      )}
+                      onClick={() => {
+                        setActiveChatId(chat.id)
+                        setMobileChatsOpen(false)
+                      }}
+                    >
+                      <span className="flex min-w-0 flex-1 items-center gap-3">
+                        {chat.type === 'group' ? (
+                          <Users className="h-5 w-5 shrink-0 text-gray-400" />
+                        ) : (
+                          <MessageSquare className="h-5 w-5 shrink-0 text-gray-400" />
+                        )}
+                        <span className="truncate">{chat.title || 'New chat'}</span>
+                      </span>
+                      <button
+                        type="button"
+                        className="flex h-8 w-8 shrink-0 items-center justify-center rounded text-gray-500 hover:bg-gray-800/50 hover:text-red-400"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleDeleteChat(chat.id)
+                        }}
+                        aria-label="Delete chat"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ))}
+                </nav>
+              )}
+            </div>
+          </motion.div>
+        </>
+      )}
+    </AnimatePresence>
 
     {showVoiceEngine &&
       typeof document !== 'undefined' &&
