@@ -122,7 +122,11 @@ export function TodaySection() {
   // Ensure events is always an array (guard against undefined)
   const safeEvents = events || [];
   const safeTasks = tasks || [];
-  
+  const tasksForSchedule = useMemo(
+    () => withDashboardScheduleDemoFallback(safeTasks),
+    [safeTasks],
+  );
+
   // Get top priority tasks (excluding those in AI Focus section)
   const topPriorityTasks = getTopPriorityTasks(safeTasks, 2);
   const topPriorityTaskIds = topPriorityTasks.map(t => t.task.id);
