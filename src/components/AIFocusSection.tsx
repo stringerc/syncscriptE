@@ -16,6 +16,7 @@ import { useCalendarEvents } from '../hooks/useCalendarEvents';
 import { buildWeekOutlookRows } from '../utils/weather-event-conflicts';
 import { WeatherRouteConflictModal } from './WeatherRouteConflictModal';
 import { WeatherWeekOutlookModal } from './WeatherWeekOutlookModal';
+import { TaskDetailModal } from './TaskDetailModal';
 import { defaultCollaboratorImage, resolveTaskCardAvatar } from '../utils/task-avatar-display';
 
 /**
@@ -715,6 +716,14 @@ export function AIFocusSection() {
         isOpen={showRouteModal}
         onClose={() => setShowRouteModal(false)}
         type="route"
+      />
+
+      <TaskDetailModal
+        task={(tasks || []).find((t) => t.id === selectedTaskId) ?? null}
+        open={selectedTaskId !== null}
+        onOpenChange={(open) => {
+          if (!open) setSelectedTaskId(null);
+        }}
       />
     </div>
   );

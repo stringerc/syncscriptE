@@ -127,7 +127,7 @@ export function DashboardPage() {
       )}
       
       <motion.div 
-        className="flex-1 overflow-auto hide-scrollbar p-6 space-y-6"
+        className="flex-1 overflow-auto hide-scrollbar p-4 sm:p-6 space-y-4 sm:space-y-6"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3 }}
@@ -141,8 +141,8 @@ export function DashboardPage() {
             animate={{ opacity: 1, y: 0 }}
             className="max-w-[1600px] mx-auto mb-4"
           >
-            <div className="bg-indigo-500/10 border border-indigo-400/30 rounded-lg p-4 flex items-center justify-between">
-              <div className="flex items-center gap-3">
+            <div className="bg-indigo-500/10 border border-indigo-400/30 rounded-lg p-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-center gap-3 min-w-0">
                 <motion.div
                   animate={{ rotate: [0, 10, -10, 0] }}
                   transition={{ duration: 2, repeat: Infinity }}
@@ -159,26 +159,26 @@ export function DashboardPage() {
                   </div>
                 </div>
               </div>
-              <div className="text-xs text-indigo-400/50 font-mono">
+              <div className="text-xs text-indigo-400/50 font-mono shrink-0">
                 {sampleData.stats.totalLogs} sample logs • {sampleData.stats.streak} day streak
               </div>
             </div>
           </motion.div>
         )}
         
-        <div className="flex gap-6 max-w-[1600px] mx-auto h-full">
+        <div className="flex flex-col lg:flex-row gap-6 lg:gap-6 max-w-[1600px] mx-auto h-full min-h-0">
           {/* Left Column - AI & FOCUS */}
-          <div id="ai-suggestions" className="flex-1 h-full overflow-y-auto hide-scrollbar">
+          <div id="ai-suggestions" className="flex-1 min-h-0 h-full overflow-y-auto hide-scrollbar lg:min-w-0">
             <AIFocusSection />
           </div>
 
           {/* Middle Column - TODAY'S ORCHESTRATION */}
-          <div id="energy-meter" className="flex-1 h-full overflow-y-auto hide-scrollbar">
+          <div id="energy-meter" className="flex-1 min-h-0 h-full overflow-y-auto hide-scrollbar lg:min-w-0">
             <TodaySection />
           </div>
 
           {/* Right Column - RESOURCE HUB */}
-          <div id="roygbiv-ring" className="flex-1 h-full overflow-y-auto hide-scrollbar">
+          <div id="roygbiv-ring" className="flex-1 min-h-0 h-full overflow-y-auto hide-scrollbar lg:min-w-0">
             <ResourceHubSection />
           </div>
         </div>

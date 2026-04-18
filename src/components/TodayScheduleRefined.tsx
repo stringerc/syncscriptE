@@ -474,8 +474,9 @@ export function TodayScheduleRefined() {
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, x: -50, scale: 0.95 }}
         whileHover={{ scale: 1.01 }}
+        whileTap={{ scale: 0.995 }}
         className={`
-          relative rounded-xl border transition-all cursor-pointer overflow-hidden group
+          relative rounded-xl border transition-all cursor-pointer overflow-hidden group touch-manipulation
           ${isNextUp 
             ? 'bg-gradient-to-br from-teal-500/20 via-blue-500/10 to-purple-500/10 border-teal-500/50 shadow-lg shadow-teal-500/20' 
             : 'bg-[#2a2d35] border-gray-700 hover:border-gray-600'
@@ -503,12 +504,12 @@ export function TodayScheduleRefined() {
         )}
         
         {/* RESEARCH: Linear (2024) - "Compact cards increase density by 40% without reducing usability" */}
-        <div className={`pl-4 ${isNextUp ? 'p-3' : 'p-2'}`}>
+        <div className={`pl-3 pr-2 py-3 sm:pl-4 sm:pr-2 ${isNextUp ? 'sm:p-3' : 'sm:py-2'}`}>
           {/* Header row */}
           <div className={`flex items-start gap-3 ${isNextUp ? 'mb-2' : 'mb-1'}`}>
-            {/* Checkbox */}
+            {/* Checkbox — expanded hit target on touch */}
             <motion.div
-              className="completion-checkbox flex-shrink-0 mt-0.5"
+              className="completion-checkbox flex-shrink-0 mt-0.5 p-2 -m-2 sm:p-0 sm:m-0"
               whileHover={{ scale: 1.15 }}
               whileTap={{ scale: 0.9 }}
               onClick={async (e) => {
@@ -587,14 +588,16 @@ export function TodayScheduleRefined() {
               )}
             {/* Title and urgency */}
             <div className="w-full min-w-0">
-              <div className="flex items-center gap-2 mb-1">
-                <h4 className="text-white font-medium text-sm truncate">{task.title}</h4>
+              <div className="flex flex-col gap-1.5 sm:flex-row sm:items-start sm:gap-2 mb-1">
+                <h4 className={`text-white font-semibold text-[15px] leading-snug break-words line-clamp-4 md:line-clamp-2 md:text-sm md:font-medium ${isNextUp ? 'pr-12 sm:pr-14' : ''}`}>
+                  {task.title}
+                </h4>
                 {urgency && (
                   <motion.span
                     animate={{ scale: task.urgencyMinutes && task.urgencyMinutes < 30 ? [1, 1.1, 1] : 1 }}
                     transition={{ duration: 2, repeat: Infinity }}
                     className={`
-                      text-[10px] font-semibold px-1.5 py-0.5 rounded flex items-center gap-1
+                      hidden sm:inline-flex shrink-0 text-[10px] font-semibold px-1.5 py-0.5 rounded items-center gap-1
                       ${task.urgencyMinutes && task.urgencyMinutes < 30 
                         ? 'bg-red-500/20 text-red-400' 
                         : task.urgencyMinutes && task.urgencyMinutes < 120
@@ -609,8 +612,13 @@ export function TodayScheduleRefined() {
                 )}
               </div>
               
-              {/* Metadata pills */}
-              <div className="flex items-center gap-2 flex-wrap">
+              {/* Mobile: one quiet line — time + urgency only (full detail in modal) */}
+              <p className="text-[11px] text-gray-500 sm:hidden mt-0.5 line-clamp-2">
+                {[task.suggestedTime, urgency].filter(Boolean).join(' · ') || 'Tap for details'}
+              </p>
+              
+              {/* Metadata pills — desktop / tablet only (frees title space on phones) */}
+              <div className="hidden md:flex items-center gap-2 flex-wrap">
                 {/* Energy level */}
                 <div className="flex items-center gap-1 px-1.5 py-0.5 bg-yellow-500/10 text-yellow-400 text-[10px] rounded">
                   <Zap className="w-2.5 h-2.5" />
@@ -641,12 +649,12 @@ export function TodayScheduleRefined() {
                 )}
               </div>
               
-              {/* Energy fit indicator - only show for Next Up or poor fits to save space */}
+              {/* Energy fit indicator — md+ only; poor timing still visible in modal on mobile */}
               {(isNextUp || task.energyFit === 'poor' || task.energyFit === 'caution') && task.energyFit && task.energyFit !== 'good' && (
                 <motion.div
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: 'auto' }}
-                  className={`flex items-center gap-1.5 mt-1 px-1.5 py-0.5 rounded ${energyFitDisplay.bg}`}
+                  className={`hidden md:flex items-center gap-1.5 mt-1 px-1.5 py-0.5 rounded ${energyFitDisplay.bg}`}
                 >
                   <energyFitDisplay.icon className={`w-2.5 h-2.5 ${energyFitDisplay.color}`} />
                   <span className={`text-[9px] ${energyFitDisplay.color}`}>{energyFitDisplay.text}</span>

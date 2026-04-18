@@ -76,8 +76,8 @@ export function DashboardBriefing() {
       transition={{ duration: 0.4 }}
       className="max-w-[1600px] mx-auto mb-2"
     >
-      <div className="bg-gradient-to-r from-[#1a1d24]/80 via-[#1e2128]/80 to-[#1a1d24]/80 border border-gray-800/50 rounded-xl px-4 py-3">
-        <div className="flex items-center justify-between gap-3 flex-wrap">
+      <div className="bg-gradient-to-r from-[#1a1d24]/80 via-[#1e2128]/80 to-[#1a1d24]/80 border border-gray-800/50 rounded-xl px-3 py-3 sm:px-4">
+        <div className="flex items-center justify-center gap-x-3 gap-y-4 sm:justify-between flex-wrap min-w-0">
           
           {/* Peak Window */}
           <div className="flex items-center gap-2">

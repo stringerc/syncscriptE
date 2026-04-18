@@ -428,12 +428,13 @@ export function ResourceHubSection() {
             {budgetGoal ? (
               <motion.div 
                 onClick={() => handleGoalClick(budgetGoal)}
-                className="bg-gradient-to-br from-orange-950/40 via-red-950/30 to-orange-950/20 rounded-xl p-3 border border-orange-700/40 hover:border-orange-500/60 transition-all duration-300 cursor-pointer group relative overflow-hidden"
+                className="bg-gradient-to-br from-orange-950/40 via-red-950/30 to-orange-950/20 rounded-xl p-4 sm:p-3 border border-orange-700/40 hover:border-orange-500/60 transition-all duration-300 cursor-pointer group relative overflow-hidden touch-manipulation min-h-[5.5rem]"
                 data-nav="budget-goal-card"
                 initial={{ opacity: 0, y: -20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.2, duration: 0.4 }}
                 whileHover={{ scale: 1.01, y: -2 }}
+                whileTap={{ scale: 0.99 }}
               >
                 {/* Hover glow effect - Linear 2024 */}
                 <div className="absolute inset-0 bg-gradient-to-br from-orange-500/0 to-red-500/0 group-hover:from-orange-500/10 group-hover:to-red-500/10 transition-all duration-300" />
@@ -507,15 +508,15 @@ export function ResourceHubSection() {
                   </div>
                   
                   {/* Status indicator with smart messaging */}
-                  <div className="flex items-center justify-between pt-2 border-t border-gray-800/50">
-                    <span className={`text-[10px] font-semibold tracking-wide ${
+                  <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between pt-2 border-t border-gray-800/50">
+                    <span className={`text-[10px] font-semibold tracking-wide text-center sm:text-left ${
                       budgetGoal.status === 'at-risk' ? 'text-orange-400' : 
                       budgetGoal.status === 'on-track' ? 'text-yellow-400' : 'text-gray-400'
                     }`}>
                       {budgetGoal.status === 'at-risk' ? '⚠️ OVERTRENDING' : 
                        budgetGoal.status === 'on-track' ? '✓ ON TRACK' : '○ PENDING'}
                     </span>
-                    <span className="text-[9px] text-gray-500 group-hover:text-gray-400 transition-colors">
+                    <span className="text-[9px] text-gray-500 group-hover:text-gray-400 transition-colors text-center sm:text-right">
                       TAP →
                     </span>
                   </div>
@@ -549,12 +550,13 @@ export function ResourceHubSection() {
             {savingsGoal ? (
               <motion.div 
                 onClick={() => handleGoalClick(savingsGoal)}
-                className="bg-gradient-to-br from-emerald-950/40 via-teal-950/30 to-emerald-950/20 rounded-xl p-3 border border-emerald-700/40 hover:border-emerald-500/60 transition-all duration-300 cursor-pointer group relative overflow-hidden"
+                className="bg-gradient-to-br from-emerald-950/40 via-teal-950/30 to-emerald-950/20 rounded-xl p-4 sm:p-3 border border-emerald-700/40 hover:border-emerald-500/60 transition-all duration-300 cursor-pointer group relative overflow-hidden touch-manipulation min-h-[5.5rem]"
                 data-nav="savings-goal-card"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.3, duration: 0.4 }}
                 whileHover={{ scale: 1.01, y: -2 }}
+                whileTap={{ scale: 0.99 }}
               >
                 {/* Hover glow effect */}
                 <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/0 to-teal-500/0 group-hover:from-emerald-500/10 group-hover:to-teal-500/10 transition-all duration-300" />
@@ -593,20 +595,20 @@ export function ResourceHubSection() {
                     <h4 className="text-white text-sm font-medium mb-1 group-hover:text-emerald-200 transition-colors">
                       {savingsGoal.title}
                     </h4>
-                    <div className="flex items-baseline gap-1.5">
+                    <div className="flex flex-wrap items-baseline gap-x-1.5 gap-y-1 min-w-0">
                       <motion.span 
-                        className="text-white font-bold text-lg"
+                        className="text-white font-bold text-base sm:text-lg tabular-nums break-all"
                         initial={{ scale: 0.8, opacity: 0 }}
                         animate={{ scale: 1, opacity: 1 }}
                         transition={{ delay: 0.5 }}
                       >
                         {savingsGoal.currentAmount || `$${savingsGoal.keyResults?.[0]?.currentValue || 0}`}
                       </motion.span>
-                      <span className="text-gray-500 text-sm">/</span>
-                      <span className="text-gray-400 text-sm">
+                      <span className="text-gray-500 text-sm shrink-0">/</span>
+                      <span className="text-gray-400 text-sm tabular-nums break-all">
                         {savingsGoal.targetAmount || `$${savingsGoal.keyResults?.[0]?.targetValue || 0}`}
                       </span>
-                      <span className="text-gray-500 text-xs ml-1">
+                      <span className="text-gray-500 text-xs w-full sm:w-auto sm:ml-1 basis-full sm:basis-auto">
                         ({Math.round(savingsGoal.progress)}%)
                       </span>
                     </div>
@@ -625,15 +627,15 @@ export function ResourceHubSection() {
                   </div>
                   
                   {/* Status indicator with smart messaging */}
-                  <div className="flex items-center justify-between pt-2 border-t border-gray-800/50">
-                    <span className={`text-[10px] font-semibold tracking-wide ${
+                  <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between pt-2 border-t border-gray-800/50">
+                    <span className={`text-[10px] font-semibold tracking-wide text-center sm:text-left ${
                       savingsGoal.status === 'ahead' ? 'text-emerald-400' : 
                       savingsGoal.status === 'on-track' ? 'text-green-400' : 'text-gray-400'
                     }`}>
                       {savingsGoal.status === 'ahead' ? '🚀 AHEAD' : 
                        savingsGoal.status === 'on-track' ? '✓ ON TRACK' : '○ PENDING'}
                     </span>
-                    <span className="text-[9px] text-gray-500 group-hover:text-gray-400 transition-colors">
+                    <span className="text-[9px] text-gray-500 group-hover:text-gray-400 transition-colors text-center sm:text-right">
                       TAP →
                     </span>
                   </div>
