@@ -212,8 +212,25 @@ interface TemporalSection {
   isNow: boolean;
 }
 
-export function TodayScheduleRefined() {
-  const { tasks, loading, toggleTaskCompletion } = useTasks();
+/** Active tasks for the dashboard schedule (same rules as the rest of the app). */
+function isOpenScheduleTask(task: Task): boolean {
+  if (task.completed) return false;
+  if ((task as { archived?: boolean }).archived) return false;
+  const st = (task as { status?: string }).status;
+  if (st === 'completed') return false;
+  return true;
+}
+
+export interface TodayScheduleRefinedProps {
+  /** When set, uses this list (e.g. from TodaySection) so the card matches the same task source. */
+  tasks?: Task[];
+  loading?: boolean;
+}
+
+export function TodayScheduleRefined({ tasks: tasksProp, loading: loadingProp }: TodayScheduleRefinedProps = {}) {
+  const { tasks: tasksFromCtx, loading: loadingFromCtx, toggleTaskCompletion } = useTasks();
+  const tasks = tasksProp ?? tasksFromCtx;
+  const loading = loadingProp ?? loadingFromCtx;
   const { energy } = useEnergy();
   const { profile } = useUserProfile();
   const currentUserEnergy = useCurrentReadiness();
@@ -258,9 +275,7 @@ export function TodayScheduleRefined() {
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const todayEnd = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000);
     
-    // Include every open task in the "today" working queue (sorted below). A strict
-    // due-today-only filter hid tasks with future due dates and made the schedule look empty.
-    const availableTasks = (tasks || []).filter((task) => !task.completed);
+    const availableTasks = (tasks || []).filter(isOpenScheduleTask);
     
     // Score and assign time slots
     const scoredTasks = availableTasks.map(task => {

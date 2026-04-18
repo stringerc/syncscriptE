@@ -215,7 +215,7 @@ export function TodaySection() {
         <div 
           className="bg-[#1e2128] rounded-2xl p-4 sm:p-6 border border-gray-800 flex flex-col card-hover shadow-lg hover:border-gray-700 transition-all overflow-y-auto scroll-smooth hide-scrollbar max-h-[min(70vh,28rem)] lg:max-h-[480px]" 
         >
-          <TodayScheduleRefined />
+          <TodayScheduleRefined tasks={safeTasks} loading={loading} />
         </div>
         
         {/* Unified Conflict Detection Card - Between Tasks and Calendar */}
