@@ -311,23 +311,72 @@ export function ResourceHubSection() {
       }
     }
 
-    // Evergreen: when few contextual rules match, keep the rail useful (layout fix also surfaces this block)
-    if (insights.length < 2) {
-      const incomplete = tasks.filter((t) => !t.completed);
-      if (incomplete.length > 0) {
+    const incompleteOpen = tasks.filter((t) => !t.completed);
+    const incompleteCount = incompleteOpen.length;
+
+    // Evergreen: when few contextual rules match, keep the rail useful
+    if (insights.length < 2 && incompleteCount > 0) {
+      if (!insights.some((i) => i.id === 'triage-open-work')) {
         insights.push({
           id: 'triage-open-work',
           type: 'insight',
           icon: <Sparkles className="h-4 w-4 text-cyan-400" />,
           title: 'Clear the next step',
-          description: `${incomplete.length} open task${incomplete.length > 1 ? 's' : ''} — open Tasks and start one focused block.`,
+          description: `${incompleteCount} open task${incompleteCount > 1 ? 's' : ''} — open Tasks and start one focused block.`,
           action: () => navigate(sideNav.tasks),
           priority: 'medium',
           color: 'teal',
         });
       }
     }
-    
+
+    // Second anchor when the rail is still thin (avoid duplicating peak/low energy rows)
+    const hasEnergyBandRow = insights.some((i) =>
+      ['high-energy-window', 'low-energy-tasks'].includes(i.id),
+    );
+    if (!hasEnergyBandRow && insights.length < 3) {
+      const curve = getCircadianCurve(currentHour);
+      const band =
+        curve > 0.65 ? 'Higher' : curve < 0.4 ? 'Lower' : 'Moderate';
+      insights.push({
+        id: 'energy-curve-context',
+        type: 'insight',
+        icon: <Activity className="h-4 w-4 text-violet-400" />,
+        title: `${band} energy band`,
+        description: 'Match demanding work to peaks; keep light work for dips.',
+        action: () => navigate('/resonance-engine'),
+        priority: 'medium',
+        color: 'purple',
+      });
+    }
+
+    // No tasks yet — explicit CTA (still followed by Quick Add)
+    if (tasks.length === 0 && !insights.some((i) => i.id === 'bootstrap-first-task')) {
+      insights.push({
+        id: 'bootstrap-first-task',
+        type: 'action',
+        icon: <Plus className="h-4 w-4 text-emerald-400" />,
+        title: 'Add your first task',
+        description: 'Insights sharpen once you have work on the board.',
+        action: () => navigate(sideNav.tasks),
+        priority: 'high',
+        color: 'emerald',
+      });
+    } else if (incompleteCount === 0 && tasks.length > 0) {
+      if (!insights.some((i) => i.id === 'inbox-zero')) {
+        insights.push({
+          id: 'inbox-zero',
+          type: 'insight',
+          icon: <Check className="h-4 w-4 text-emerald-400" />,
+          title: 'All tasks complete',
+          description: 'Queue the next outcome when you are ready.',
+          action: () => navigate(sideNav.tasks),
+          priority: 'medium',
+          color: 'emerald',
+        });
+      }
+    }
+
     // 6. QUICK ACTION: Add new task
     insights.push({
       id: 'quick-add-task',
@@ -340,11 +389,14 @@ export function ResourceHubSection() {
       color: 'gray'
     });
     
-    // Sort by priority (high first)
-    return insights.sort((a, b) => {
-      const priorityOrder = { high: 0, medium: 1, low: 2 };
-      return priorityOrder[a.priority] - priorityOrder[b.priority];
-    }).slice(0, 5); // Show max 5 items
+    // Sort by priority (high first); always keep Quick Add visible (it is low priority)
+    const priorityOrder = { high: 0, medium: 1, low: 2 };
+    const sorted = [...insights].sort(
+      (a, b) => priorityOrder[a.priority] - priorityOrder[b.priority],
+    );
+    const quick = sorted.find((i) => i.id === 'quick-add-task');
+    const rest = sorted.filter((i) => i.id !== 'quick-add-task').slice(0, 4);
+    return quick ? [...rest, quick] : rest.slice(0, 5);
   }, [tasks, globalResonanceScore, navigate]);
   
   // ========================================
@@ -869,17 +921,20 @@ export function ResourceHubSection() {
         </motion.div>
 
         {/* Smart Insights — contextual suggestions & quick actions */}
-        <div className="flex shrink-0 flex-col rounded-2xl border border-gray-800 bg-[#1e2128] p-4 card-hover shadow-lg transition-all hover:border-gray-700 sm:p-5 lg:min-h-[12rem] lg:flex-1">
-          <div className="mb-3 flex flex-col items-center gap-2 text-center">
+        <div
+          className="flex min-h-[14rem] shrink-0 flex-col rounded-2xl border border-gray-800 bg-[#1e2128] p-4 card-hover shadow-lg transition-all hover:border-gray-700 sm:p-5 lg:min-h-[14rem] lg:flex-1"
+          data-testid="smart-insights-card"
+        >
+          <div className="mb-3 flex shrink-0 flex-col items-center gap-2 text-center">
             <Sparkles className="h-6 w-6 shrink-0 text-purple-400" aria-hidden />
             <div className="min-w-0 w-full">
               <h3 className="text-white text-base sm:text-lg">Smart Insights</h3>
-              <p className="text-gray-400 text-xs mt-0.5">AI-powered suggestions & quick actions</p>
+              <p className="text-gray-400 text-xs mt-0.5">Suggestions & quick actions</p>
             </div>
           </div>
 
-          <div className="flex flex-1 flex-col justify-center">
-            <div className="hide-scrollbar space-y-2 overflow-y-auto">
+          <div className="flex min-h-[10rem] flex-1 flex-col">
+            <div className="hide-scrollbar flex-1 space-y-2 overflow-y-auto overscroll-contain">
               {smartInsights.map((insight) => (
                 <motion.div
                   key={insight.id}
