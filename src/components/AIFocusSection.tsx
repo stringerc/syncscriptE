@@ -81,7 +81,8 @@ export function AIFocusSection() {
   const [showWeatherModal, setShowWeatherModal] = useState(false);
   const [showRouteModal, setShowRouteModal] = useState(false);
   const [showWeekOutlook, setShowWeekOutlook] = useState(false);
-  
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+
   const { tasks, loading } = useTasks();
   const { energy } = useEnergy();
   const { profile } = useUserProfile(); // Get current user from context
@@ -196,7 +197,16 @@ export function AIFocusSection() {
                   return (
                     <div 
                       key={task.id}
-                      className="group flex cursor-pointer flex-col items-center gap-3 rounded-lg border border-transparent bg-black/20 p-3 transition-all hover:bg-black/30 hover:border-teal-500/30 sm:p-4"
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => setSelectedTaskId(task.id)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          setSelectedTaskId(task.id);
+                        }
+                      }}
+                      className="group flex cursor-pointer flex-col items-center gap-3 rounded-lg border border-transparent bg-black/20 p-3 transition-all hover:bg-black/30 hover:border-teal-500/30 active:scale-[0.99] touch-manipulation sm:p-4"
                     >
                       <AnimatedAvatar
                         name={showAsSelf ? profile.name : (displayPeer?.name || 'Task')}
