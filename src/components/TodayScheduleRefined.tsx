@@ -192,7 +192,8 @@ import { motion, AnimatePresence } from 'motion/react';
 import { toast } from 'sonner@2.0.3';
 import { calculateCollaboratorProgress } from '../utils/progress-calculations';
 import { useUserProfile } from '../utils/user-profile';
-import { defaultCollaboratorImage, resolveTaskCardAvatar } from '../utils/task-avatar-display';
+import { defaultCollaboratorImage, getTaskParticipantFaces, resolveTaskCardAvatar } from '../utils/task-avatar-display';
+import { TaskParticipantAvatarStack } from './TaskParticipantAvatarStack';
 import { useCurrentReadiness } from '../hooks/useCurrentReadiness';
 import { Task } from '../utils/event-task-types';
 
@@ -476,7 +477,7 @@ export function TodayScheduleRefined() {
         whileHover={{ scale: 1.01 }}
         whileTap={{ scale: 0.995 }}
         className={`
-          relative rounded-xl border transition-all cursor-pointer overflow-hidden group touch-manipulation
+          relative rounded-xl border transition-all cursor-pointer overflow-visible group touch-manipulation
           ${isNextUp 
             ? 'bg-gradient-to-br from-teal-500/20 via-blue-500/10 to-purple-500/10 border-teal-500/50 shadow-lg shadow-teal-500/20' 
             : 'bg-[#2a2d35] border-gray-700 hover:border-gray-600'
@@ -562,105 +563,118 @@ export function TodayScheduleRefined() {
               </div>
             </motion.div>
             
-            {/* Avatar above title when task has assignee/collab (matches AI & Focus cards) */}
-            <div
-              className={`flex-1 min-w-0 ${(showAsSelf || peer) ? 'flex flex-col items-center gap-2' : ''}`}
-            >
-              {(showAsSelf || peer) && (
-                <AnimatedAvatar
-                  name={showAsSelf ? profile.name : (peer?.name || 'Task')}
-                  image={showAsSelf ? profile.avatar : (peer?.image || defaultCollaboratorImage())}
-                  fallback={
-                    showAsSelf
-                      ? profile.name.split(' ').map((n) => n[0]).join('').toUpperCase()
-                      : (peer?.fallback || task.title.substring(0, 2).toUpperCase())
-                  }
-                  progress={
-                    showAsSelf
-                      ? currentUserEnergy
-                      : calculateCollaboratorProgress(task, peer?.id, peer?.name || '')
-                  }
-                  animationType={showAsSelf ? 'none' : (peer?.animationType || 'pulse')}
-                  className={isNextUp ? 'h-8 w-8 shrink-0' : 'h-7 w-7 shrink-0'}
-                  size={isNextUp ? 32 : 28}
-                  status={showAsSelf ? profile.status : (peer?.status || 'online')}
-                />
-              )}
-            {/* Title and urgency */}
-            <div className="w-full min-w-0">
-              <div className="flex flex-col gap-1.5 sm:flex-row sm:items-start sm:gap-2 mb-1">
-                <h4 className={`text-white font-semibold text-[15px] leading-snug break-words line-clamp-4 md:line-clamp-2 md:text-sm md:font-medium ${isNextUp ? 'pr-12 sm:pr-14' : ''}`}>
-                  {task.title}
-                </h4>
-                {urgency && (
-                  <motion.span
-                    animate={{ scale: task.urgencyMinutes && task.urgencyMinutes < 30 ? [1, 1.1, 1] : 1 }}
-                    transition={{ duration: 2, repeat: Infinity }}
-                    className={`
-                      hidden sm:inline-flex shrink-0 text-[10px] font-semibold px-1.5 py-0.5 rounded items-center gap-1
-                      ${task.urgencyMinutes && task.urgencyMinutes < 30 
-                        ? 'bg-red-500/20 text-red-400' 
-                        : task.urgencyMinutes && task.urgencyMinutes < 120
-                        ? 'bg-orange-500/20 text-orange-400'
-                        : 'bg-blue-500/20 text-blue-400'
-                      }
-                    `}
+            {/* Weather-style column: hero on top, copy, metadata, faces under */}
+            <div className="flex min-w-0 flex-1 flex-col gap-2">
+              <div className="flex w-full justify-center">
+                {multi ? (
+                  <div
+                    className={`flex shrink-0 items-center justify-center rounded-full bg-teal-500/15 ring-2 ring-teal-500/35 ${
+                      isNextUp ? 'h-14 w-14 sm:h-16 sm:w-16' : 'h-12 w-12 sm:h-14 sm:w-14'
+                    }`}
                   >
-                    {task.urgencyMinutes && task.urgencyMinutes < 30 && <Flame className="w-2.5 h-2.5" />}
-                    {urgency}
-                  </motion.span>
+                    <Users className="h-7 w-7 text-teal-300 sm:h-8 sm:w-8" aria-hidden />
+                  </div>
+                ) : (showAsSelf || peer) ? (
+                  <AnimatedAvatar
+                    name={showAsSelf ? profile.name : (peer?.name || 'Task')}
+                    image={showAsSelf ? profile.avatar : (peer?.image || defaultCollaboratorImage())}
+                    fallback={
+                      showAsSelf
+                        ? profile.name.split(' ').map((n) => n[0]).join('').toUpperCase()
+                        : (peer?.fallback || task.title.substring(0, 2).toUpperCase())
+                    }
+                    progress={
+                      showAsSelf
+                        ? currentUserEnergy
+                        : calculateCollaboratorProgress(task, peer?.id, peer?.name || '')
+                    }
+                    animationType={showAsSelf ? 'none' : (peer?.animationType || 'pulse')}
+                    className={
+                      isNextUp ? 'h-14 w-14 shrink-0 sm:h-16 sm:w-16' : 'h-12 w-12 shrink-0 sm:h-14 sm:w-14'
+                    }
+                    size={isNextUp ? 56 : 48}
+                    status={showAsSelf ? profile.status : (peer?.status || 'online')}
+                  />
+                ) : (
+                  <div
+                    className={`flex shrink-0 items-center justify-center rounded-full bg-gray-700/90 ring-2 ring-gray-600/50 ${
+                      isNextUp ? 'h-14 w-14' : 'h-12 w-12'
+                    }`}
+                  >
+                    <Target className="h-6 w-6 text-gray-300" aria-hidden />
+                  </div>
                 )}
               </div>
-              
-              {/* Mobile: one quiet line — time + urgency only (full detail in modal) */}
-              <p className="text-[11px] text-gray-500 sm:hidden mt-0.5 line-clamp-2">
-                {[task.suggestedTime, urgency].filter(Boolean).join(' · ') || 'Tap for details'}
-              </p>
-              
-              {/* Metadata pills — desktop / tablet only (frees title space on phones) */}
-              <div className="hidden md:flex items-center gap-2 flex-wrap">
-                {/* Energy level */}
-                <div className="flex items-center gap-1 px-1.5 py-0.5 bg-yellow-500/10 text-yellow-400 text-[10px] rounded">
-                  <Zap className="w-2.5 h-2.5" />
-                  <span>{task.energyLevel === 'high' ? '85%' : task.energyLevel === 'medium' ? '65%' : '45%'}</span>
+
+              <div className="w-full min-w-0">
+                <div className="mb-1 flex flex-wrap items-start gap-2">
+                  <h4
+                    className={`min-w-0 flex-1 text-[15px] font-semibold leading-snug break-words text-white line-clamp-4 md:line-clamp-2 md:text-sm md:font-medium ${isNextUp ? 'pr-10 sm:pr-12' : ''}`}
+                  >
+                    {task.title}
+                  </h4>
+                  {urgency && (
+                    <motion.span
+                      animate={{ scale: task.urgencyMinutes && task.urgencyMinutes < 30 ? [1, 1.1, 1] : 1 }}
+                      transition={{ duration: 2, repeat: Infinity }}
+                      className={`
+                        inline-flex shrink-0 items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-semibold
+                        ${task.urgencyMinutes && task.urgencyMinutes < 30 
+                          ? 'bg-red-500/20 text-red-400' 
+                          : task.urgencyMinutes && task.urgencyMinutes < 120
+                          ? 'bg-orange-500/20 text-orange-400'
+                          : 'bg-blue-500/20 text-blue-400'
+                        }
+                      `}
+                    >
+                      {task.urgencyMinutes && task.urgencyMinutes < 30 && <Flame className="w-2.5 h-2.5" />}
+                      {urgency}
+                    </motion.span>
+                  )}
                 </div>
-                
-                {/* Time estimate */}
-                {task.estimatedTime && (
-                  <div className="flex items-center gap-1 px-1.5 py-0.5 bg-blue-500/10 text-blue-400 text-[10px] rounded">
-                    <Clock className="w-2.5 h-2.5" />
-                    <span>{task.estimatedTime}</span>
+
+                {/* Metadata pills — full width, wrap on all breakpoints */}
+                <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+                  <div className="flex items-center gap-1 rounded bg-yellow-500/10 px-1.5 py-0.5 text-[10px] text-yellow-400">
+                    <Zap className="h-2.5 w-2.5 shrink-0" />
+                    <span>{task.energyLevel === 'high' ? '85%' : task.energyLevel === 'medium' ? '65%' : '45%'}</span>
                   </div>
-                )}
-                
-                {/* Collaborators count */}
-                {task.collaborators && task.collaborators.length > 1 && (
-                  <div className="flex items-center gap-1 px-1.5 py-0.5 bg-purple-500/10 text-purple-400 text-[10px] rounded">
-                    <Users className="w-2.5 h-2.5" />
-                    <span>{task.collaborators.length}</span>
-                  </div>
-                )}
-                
-                {/* Scheduled time */}
-                {task.suggestedTime && (
-                  <div className="flex items-center gap-1 px-1.5 py-0.5 bg-gray-500/10 text-gray-400 text-[10px] rounded">
-                    {task.suggestedTime}
-                  </div>
+                  {task.estimatedTime && (
+                    <div className="flex items-center gap-1 rounded bg-blue-500/10 px-1.5 py-0.5 text-[10px] text-blue-400">
+                      <Clock className="h-2.5 w-2.5 shrink-0" />
+                      <span>{task.estimatedTime}</span>
+                    </div>
+                  )}
+                  {task.collaborators && task.collaborators.length > 1 && (
+                    <div className="flex items-center gap-1 rounded bg-purple-500/10 px-1.5 py-0.5 text-[10px] text-purple-400">
+                      <Users className="h-2.5 w-2.5 shrink-0" />
+                      <span>{task.collaborators.length}</span>
+                    </div>
+                  )}
+                  {task.suggestedTime && (
+                    <div className="flex items-center gap-1 rounded bg-gray-500/10 px-1.5 py-0.5 text-[10px] text-gray-400">
+                      {task.suggestedTime}
+                    </div>
+                  )}
+                </div>
+
+                {(isNextUp || task.energyFit === 'poor' || task.energyFit === 'caution') &&
+                  task.energyFit &&
+                  task.energyFit !== 'good' && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      className={`mt-1.5 flex items-center gap-1.5 rounded px-1.5 py-0.5 ${energyFitDisplay.bg}`}
+                    >
+                      <energyFitDisplay.icon className={`h-2.5 w-2.5 ${energyFitDisplay.color}`} />
+                      <span className={`text-[9px] ${energyFitDisplay.color}`}>{energyFitDisplay.text}</span>
+                    </motion.div>
+                  )}
+
+                {faces.length >= 2 && (
+                  <TaskParticipantAvatarStack people={faces} accent="slate" className="mt-2" />
                 )}
               </div>
-              
-              {/* Energy fit indicator — md+ only; poor timing still visible in modal on mobile */}
-              {(isNextUp || task.energyFit === 'poor' || task.energyFit === 'caution') && task.energyFit && task.energyFit !== 'good' && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  className={`hidden md:flex items-center gap-1.5 mt-1 px-1.5 py-0.5 rounded ${energyFitDisplay.bg}`}
-                >
-                  <energyFitDisplay.icon className={`w-2.5 h-2.5 ${energyFitDisplay.color}`} />
-                  <span className={`text-[9px] ${energyFitDisplay.color}`}>{energyFitDisplay.text}</span>
-                </motion.div>
-              )}
-            </div>
             </div>
           </div>
         </div>

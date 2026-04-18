@@ -27,8 +27,26 @@ import {
   Check, 
   X 
 } from 'lucide-react';
+import { TaskParticipantAvatarStack } from './TaskParticipantAvatarStack';
+import { defaultCollaboratorImage } from '../utils/task-avatar-display';
 
 const sideNav = navigationLinks.sidebar;
+
+/** Overlapping faces for goals that list collaborators (matches dashboard task stacks). */
+function goalParticipantFaces(goal: {
+  collaborators?: Array<{ id?: string; name?: string; image?: string; fallback?: string }>;
+}) {
+  const list = goal?.collaborators;
+  if (!Array.isArray(list) || list.length < 2) return [];
+  return list.map((c) => ({
+    id: c.id,
+    name: (c.name || 'Member').trim(),
+    image: c.image || defaultCollaboratorImage(),
+    fallback: String(c.fallback || c.name || '?')
+      .slice(0, 2)
+      .toUpperCase(),
+  }));
+}
 
 export function ResourceHubSection() {
   const navigate = useNavigate();
@@ -329,6 +347,15 @@ export function ResourceHubSection() {
     g.title.toLowerCase().includes('fund')) &&
     g.id !== budgetGoal?.id // Ensure it's different from budget goal
   );
+
+  const budgetGoalFaces = useMemo(
+    () => (budgetGoal ? goalParticipantFaces(budgetGoal) : []),
+    [budgetGoal],
+  );
+  const savingsGoalFaces = useMemo(
+    () => (savingsGoal ? goalParticipantFaces(savingsGoal) : []),
+    [savingsGoal],
+  );
   
   // RESEARCH: MIT study shows max 2-3 key metrics optimal for financial dashboards
   // We show exactly 2: 1 budget control + 1 wealth building
@@ -506,6 +533,14 @@ export function ResourceHubSection() {
                       />
                     </div>
                   </div>
+
+                  {budgetGoalFaces.length >= 2 && (
+                    <TaskParticipantAvatarStack
+                      people={budgetGoalFaces}
+                      accent="orange"
+                      className="mb-2"
+                    />
+                  )}
                   
                   {/* Status indicator with smart messaging */}
                   <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between pt-2 border-t border-gray-800/50">
@@ -625,6 +660,14 @@ export function ResourceHubSection() {
                       />
                     </div>
                   </div>
+
+                  {savingsGoalFaces.length >= 2 && (
+                    <TaskParticipantAvatarStack
+                      people={savingsGoalFaces}
+                      accent="teal"
+                      className="mb-2"
+                    />
+                  )}
                   
                   {/* Status indicator with smart messaging */}
                   <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between pt-2 border-t border-gray-800/50">

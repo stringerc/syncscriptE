@@ -82,3 +82,38 @@ export function resolveTaskCardAvatar(
 export function defaultCollaboratorImage(): string {
   return STOCK_AVATAR;
 }
+
+/** Faces for overlapping stacks (Weather & Route–style). Deduped; uses profile avatar when a row is “you”. */
+export function getTaskParticipantFaces(
+  task: TaskLikeForAvatar,
+  profile: ProfileForTaskAvatar,
+): Array<{ id?: string; name: string; image: string; fallback: string }> {
+  const list = Array.isArray(task.collaborators) ? task.collaborators : [];
+  if (list.length === 0) return [];
+
+  const seen = new Set<string>();
+  const out: Array<{ id?: string; name: string; image: string; fallback: string }> = [];
+
+  for (const c of list) {
+    const key = String(c.id || c.email || c.name || '').trim() || JSON.stringify(c);
+    if (seen.has(key)) continue;
+    seen.add(key);
+
+    const isMe = collaboratorMatchesProfile(c, profile);
+    const name = (c.name || 'Teammate').trim();
+    const fallback =
+      (c.fallback && String(c.fallback).trim()) ||
+      name
+        .split(/\s+/)
+        .map((n) => n[0])
+        .join('')
+        .slice(0, 2)
+        .toUpperCase() ||
+      '?';
+    const image = isMe ? profile.avatar : c.image || defaultCollaboratorImage();
+
+    out.push({ id: c.id, name, image, fallback });
+  }
+
+  return out;
+}

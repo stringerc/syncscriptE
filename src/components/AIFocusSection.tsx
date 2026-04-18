@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { HelpCircle, Zap, ArrowRight, Sparkles, Brain, Activity, Crown, CloudRain, Navigation } from 'lucide-react';
+import { HelpCircle, Zap, ArrowRight, Sparkles, Brain, Activity, Crown, CloudRain, Navigation, Users } from 'lucide-react';
 import { AnimatedAvatar } from './AnimatedAvatar';
 import { useUserProfile } from '../utils/user-profile';
 import { useTasks } from '../hooks/useTasks';
@@ -17,7 +17,8 @@ import { buildWeekOutlookRows } from '../utils/weather-event-conflicts';
 import { WeatherRouteConflictModal } from './WeatherRouteConflictModal';
 import { WeatherWeekOutlookModal } from './WeatherWeekOutlookModal';
 import { TaskDetailModal } from './TaskDetailModal';
-import { defaultCollaboratorImage, resolveTaskCardAvatar } from '../utils/task-avatar-display';
+import { defaultCollaboratorImage, getTaskParticipantFaces, resolveTaskCardAvatar } from '../utils/task-avatar-display';
+import { TaskParticipantAvatarStack } from './TaskParticipantAvatarStack';
 
 /**
  * 🧠 AI FOCUS SECTION WITH ENERGY ADAPTIVE AGENT
@@ -193,6 +194,8 @@ export function AIFocusSection() {
                   const task = taskScore.task;
                   const { showAsSelf, peer } = resolveTaskCardAvatar(task, profile);
                   const displayPeer = peer;
+                  const faces = getTaskParticipantFaces(task, profile);
+                  const multi = faces.length >= 2;
 
                   return (
                     <div 
@@ -208,31 +211,43 @@ export function AIFocusSection() {
                       }}
                       className="group flex cursor-pointer flex-col items-center gap-3 rounded-lg border border-transparent bg-black/20 p-3 transition-all hover:bg-black/30 hover:border-teal-500/30 active:scale-[0.99] touch-manipulation sm:p-4"
                     >
-                      <AnimatedAvatar
-                        name={showAsSelf ? profile.name : (displayPeer?.name || 'Task')}
-                        image={showAsSelf ? profile.avatar : (displayPeer?.image || defaultCollaboratorImage())}
-                        fallback={
-                          showAsSelf
-                            ? profile.name.split(' ').map((n) => n[0]).join('').toUpperCase()
-                            : (displayPeer?.fallback || task.title.substring(0, 2).toUpperCase())
-                        }
-                        progress={
-                          showAsSelf
-                            ? calculatedEnergy
-                            : calculateCollaboratorProgress(
-                                task,
-                                displayPeer?.id,
-                                displayPeer?.name || '',
-                              )
-                        }
-                        animationType={showAsSelf ? 'none' : (displayPeer?.animationType || 'pulse')}
-                        className="h-16 w-16 shrink-0 transition-transform group-hover:scale-105 sm:h-20 sm:w-20 sm:group-hover:scale-110"
-                        size={64}
-                        status={showAsSelf ? profile.status : (displayPeer?.status || 'online')}
-                      />
+                      {/* Match Weather & Route: hero on top, copy, then overlapping faces under */}
+                      <div className="flex w-full shrink-0 justify-center">
+                        {multi ? (
+                          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-teal-500/20 ring-2 ring-teal-500/30 transition-transform group-hover:scale-105 sm:h-20 sm:w-20 sm:ring-teal-500/40">
+                            <Users className="h-8 w-8 text-teal-300 sm:h-9 sm:w-9" aria-hidden />
+                          </div>
+                        ) : (
+                          <AnimatedAvatar
+                            name={showAsSelf ? profile.name : (displayPeer?.name || 'Task')}
+                            image={showAsSelf ? profile.avatar : (displayPeer?.image || defaultCollaboratorImage())}
+                            fallback={
+                              showAsSelf
+                                ? profile.name.split(' ').map((n) => n[0]).join('').toUpperCase()
+                                : (displayPeer?.fallback || task.title.substring(0, 2).toUpperCase())
+                            }
+                            progress={
+                              showAsSelf
+                                ? calculatedEnergy
+                                : calculateCollaboratorProgress(
+                                    task,
+                                    displayPeer?.id,
+                                    displayPeer?.name || '',
+                                  )
+                            }
+                            animationType={showAsSelf ? 'none' : (displayPeer?.animationType || 'pulse')}
+                            className="h-16 w-16 shrink-0 transition-transform group-hover:scale-105 sm:h-20 sm:w-20 sm:group-hover:scale-110"
+                            size={64}
+                            status={showAsSelf ? profile.status : (displayPeer?.status || 'online')}
+                          />
+                        )}
+                      </div>
                       <div className="w-full min-w-0 text-left">
-                        <p className="break-words text-sm text-white sm:text-base">{task.title}</p>
+                        <p className="break-words text-sm font-medium text-white sm:text-base">{task.title}</p>
                         <p className="mt-1 text-xs leading-relaxed text-gray-400 sm:text-sm">{taskScore.reasoning}</p>
+                        {faces.length >= 2 && (
+                          <TaskParticipantAvatarStack people={faces} accent="teal" className="mt-2" />
+                        )}
                       </div>
                     </div>
                   );
@@ -420,7 +435,7 @@ export function AIFocusSection() {
 
         {/* Weather & Route Intelligence - RESEARCH-BACKED AHEAD-OF-TIME VERSION */}
         <motion.div 
-          className="bg-gradient-to-br from-gray-900/80 to-gray-800/80 rounded-2xl p-4 sm:p-6 border border-gray-700/50 flex-[0.7] flex flex-col justify-start gap-3 card-hover shadow-lg hover:border-purple-500/40 transition-all relative overflow-visible group"
+          className="bg-gradient-to-br from-gray-900/80 to-gray-800/80 rounded-2xl p-4 sm:p-6 border border-gray-700/50 flex-[0.7] flex min-h-0 flex-col justify-start gap-3 overflow-x-clip overflow-y-visible card-hover shadow-lg hover:border-purple-500/40 transition-all group"
           whileHover={{ scale: 1.02 }}
         >
           {/* Animated background gradient — must not intercept clicks */}
@@ -535,17 +550,18 @@ export function AIFocusSection() {
                   </div>
                   
                   {alert.suggestion && (
-                    <div className="flex justify-center">
+                    <div className="mt-2 flex w-full shrink-0 justify-center border-t border-blue-500/20 pt-3">
                       <Button
+                        type="button"
                         size="sm"
                         variant="outline"
-                        className="text-xs h-7 border-blue-500/30 text-blue-300 hover:bg-blue-500/20 hover:border-blue-400/50 px-4"
+                        className="h-auto min-h-11 w-full max-w-sm justify-center whitespace-normal px-4 py-2.5 text-xs leading-snug border-blue-500/30 text-blue-200 hover:bg-blue-500/20 hover:border-blue-400/50 sm:min-h-10"
                         onClick={(e) => {
                           e.stopPropagation();
                           console.log('Weather action:', alert.suggestion);
                         }}
                       >
-                        <Clock className="w-3 h-3 mr-1 shrink-0" />
+                        <Clock className="mr-1 h-3 w-3 shrink-0" />
                         Reschedule Event
                       </Button>
                     </div>
@@ -571,14 +587,14 @@ export function AIFocusSection() {
               return (
                 <motion.div 
                   key={`route-${index}`}
-                  className="bg-gradient-to-r from-orange-950/40 to-red-950/40 hover:from-orange-950/60 hover:to-red-950/60 rounded-lg p-4 transition-all cursor-pointer group/card border border-orange-500/20 hover:border-orange-400/40"
+                  className="flex flex-col overflow-visible rounded-lg border border-orange-500/20 bg-gradient-to-r from-orange-950/40 to-red-950/40 p-4 transition-all hover:border-orange-400/40 hover:from-orange-950/60 hover:to-red-950/60 group/card cursor-pointer"
                   whileHover={{ x: 4 }}
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: (1 + index) * 0.1 }}
                   onClick={() => setShowRouteModal(true)}
                 >
-                  <div className="mb-3 flex flex-col items-center gap-3">
+                  <div className="mb-3 flex min-h-0 flex-col items-center gap-3">
                     <div className="flex shrink-0 justify-center">
                       <div className="flex h-14 w-14 items-center justify-center rounded-full bg-orange-500/20 transition-transform group-hover/card:scale-110 sm:h-16 sm:w-16">
                         <Navigation className="h-7 w-7 text-orange-400 sm:h-8 sm:w-8" />
@@ -586,12 +602,12 @@ export function AIFocusSection() {
                     </div>
                     <div className="w-full min-w-0 flex-1 text-left">
                       <div className="mb-1 flex flex-col items-start gap-2">
-                        <p className="text-sm font-medium text-white">{alert.message}</p>
+                        <p className="text-sm font-medium leading-snug text-white">{alert.message}</p>
                         <Badge variant="outline" className="w-fit shrink-0 border-orange-400/40 px-1.5 py-0 text-[10px] text-orange-300">
                           +{alert.delay} min
                         </Badge>
                       </div>
-                      <p className="mb-2 text-xs text-gray-400">
+                      <p className="mb-2 text-xs leading-relaxed text-gray-400">
                         🚗 {alert.route}
                         {alert.affectedEvents && alert.affectedEvents.length > 0 && 
                           ` • Affects: ${alert.affectedEvents[0]}`}
@@ -624,24 +640,28 @@ export function AIFocusSection() {
                   </div>
                   
                   {alert.suggestion && (
-                    <>
-                      {/* Departure time suggestion */}
-                      <div className="flex items-center gap-2 mb-3">
-                        <div className="flex-1 bg-black/30 rounded px-2 py-1">
+                    <div className="mt-1 w-full shrink-0 space-y-3 border-t border-orange-500/25 pt-3">
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-stretch">
+                        <div className="min-w-0 flex-1 rounded bg-black/30 px-2 py-1.5">
                           <p className="text-[10px] text-gray-400">Suggested departure</p>
-                          <p className="text-white text-xs font-medium">{alert.delay} min early</p>
+                          <p className="text-xs font-medium text-white">{alert.delay} min early</p>
                         </div>
-                        <div className="flex-1 bg-black/30 rounded px-2 py-1">
+                        <div className="min-w-0 flex-1 rounded bg-black/30 px-2 py-1.5">
                           <p className="text-[10px] text-gray-400">Alternative</p>
-                          <p className="text-emerald-300 text-xs font-medium">{alert.suggestion.split('Take ')[1] || 'Available'}</p>
+                          <p className="break-words text-xs font-medium text-emerald-300">
+                            {alert.suggestion.includes('Take ')
+                              ? alert.suggestion.split('Take ').slice(1).join('Take ') || 'Available'
+                              : alert.suggestion}
+                          </p>
                         </div>
                       </div>
                       
-                      <div className="flex flex-col gap-2 sm:flex-row">
+                      <div className="flex flex-col gap-2 sm:flex-row sm:gap-2">
                         <Button
+                          type="button"
                           size="sm"
                           variant="outline"
-                          className="h-auto min-h-9 w-full justify-center whitespace-normal px-3 py-2 text-xs border-orange-500/30 text-orange-300 hover:bg-orange-500/20 hover:border-orange-400/50 sm:flex-1"
+                          className="h-auto min-h-11 w-full shrink-0 justify-center whitespace-normal px-3 py-2.5 text-xs leading-snug border-orange-500/30 text-orange-200 hover:bg-orange-500/20 hover:border-orange-400/50 sm:min-h-10 sm:flex-1"
                           onClick={(e) => {
                             e.stopPropagation();
                             console.log('Set departure alert');
@@ -651,9 +671,10 @@ export function AIFocusSection() {
                           Set Alert
                         </Button>
                         <Button
+                          type="button"
                           size="sm"
                           variant="outline"
-                          className="h-auto min-h-9 w-full justify-center whitespace-normal px-3 py-2 text-xs border-purple-500/30 text-purple-300 hover:bg-purple-500/20 hover:border-purple-400/50 sm:flex-1"
+                          className="h-auto min-h-11 w-full shrink-0 justify-center whitespace-normal px-3 py-2.5 text-xs leading-snug border-purple-500/30 text-purple-200 hover:bg-purple-500/20 hover:border-purple-400/50 sm:min-h-10 sm:flex-1"
                           onClick={(e) => {
                             e.stopPropagation();
                             console.log('Show alternate routes');
@@ -663,7 +684,7 @@ export function AIFocusSection() {
                           Alt Routes
                         </Button>
                       </div>
-                    </>
+                    </div>
                   )}
                 </motion.div>
               );
