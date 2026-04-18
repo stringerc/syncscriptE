@@ -471,6 +471,8 @@ export function TodayScheduleRefined({ tasks: tasksProp, loading: loadingProp }:
   // ══════════════════════════════════════════════════════════════════════════════
   const renderTaskCard = (task: TaskWithTime, isNextUp: boolean = false) => {
     const { showAsSelf, peer } = resolveTaskCardAvatar(task, profile);
+    const faces = getTaskParticipantFaces(task, profile);
+    const multi = faces.length >= 2;
     const isCompleting = completingTaskIds.has(task.id);
     const urgency = formatUrgency(task.urgencyMinutes);
     const energyFitDisplay = getEnergyFitDisplay(task.energyFit);
