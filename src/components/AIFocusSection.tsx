@@ -656,31 +656,31 @@ export function AIFocusSection() {
                         </div>
                       </div>
                       
-                      <div className="flex flex-col gap-2 sm:flex-row sm:gap-2">
+                      <div className="grid w-full grid-cols-2 gap-2">
                         <Button
                           type="button"
                           size="sm"
                           variant="outline"
-                          className="h-auto min-h-11 w-full shrink-0 justify-center whitespace-normal px-3 py-2.5 text-xs leading-snug border-orange-500/30 text-orange-200 hover:bg-orange-500/20 hover:border-orange-400/50 sm:min-h-10 sm:flex-1"
+                          className="h-auto min-h-11 min-w-0 justify-center whitespace-normal px-2 py-2.5 text-[11px] leading-tight border-orange-500/30 text-orange-100 hover:bg-orange-500/20 hover:border-orange-400/50 sm:min-h-10 sm:px-3 sm:text-xs"
                           onClick={(e) => {
                             e.stopPropagation();
                             console.log('Set departure alert');
                           }}
                         >
-                          <Clock className="mr-1.5 h-3.5 w-3.5 shrink-0" />
+                          <Clock className="mr-1 h-3.5 w-3.5 shrink-0" />
                           Set Alert
                         </Button>
                         <Button
                           type="button"
                           size="sm"
                           variant="outline"
-                          className="h-auto min-h-11 w-full shrink-0 justify-center whitespace-normal px-3 py-2.5 text-xs leading-snug border-purple-500/30 text-purple-200 hover:bg-purple-500/20 hover:border-purple-400/50 sm:min-h-10 sm:flex-1"
+                          className="h-auto min-h-11 min-w-0 justify-center whitespace-normal px-2 py-2.5 text-[11px] leading-tight border-purple-400/50 text-purple-100 hover:bg-purple-500/20 hover:border-purple-300/60 sm:min-h-10 sm:px-3 sm:text-xs"
                           onClick={(e) => {
                             e.stopPropagation();
                             console.log('Show alternate routes');
                           }}
                         >
-                          <ArrowRight className="mr-1.5 h-3.5 w-3.5 shrink-0" />
+                          <ArrowRight className="mr-1 h-3.5 w-3.5 shrink-0" />
                           Alt Routes
                         </Button>
                       </div>

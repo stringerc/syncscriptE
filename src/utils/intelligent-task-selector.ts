@@ -219,71 +219,11 @@ function generateReasoning(task: Task, context: CurrentContext, scores: TaskScor
 }
 
 /**
- * Select the #1 priority task RIGHT NOW based on all factors
+ * Select the #1 priority task RIGHT NOW — same ranking as "What should I be doing" (all open tasks).
  */
 export function selectTopPriorityTask(tasks: Task[]): TaskScore | null {
-  const context = getCurrentContext();
-  
-  // Filter: Only incomplete tasks with team members
-  const eligibleTasks = tasks.filter(task => 
-    !task.completed && 
-    task.collaborators && 
-    task.collaborators.length > 0
-  );
-  
-  if (eligibleTasks.length === 0) {
-    // Fallback: Allow tasks without collaborators
-    const fallbackTasks = tasks.filter(task => !task.completed);
-    if (fallbackTasks.length === 0) return null;
-    
-    // Use first available task
-    const fallbackTask = fallbackTasks[0];
-    const breakdown = {
-      timeEnergy: scoreTimeEnergyAlignment(fallbackTask, context),
-      deadlineUrgency: scoreDeadlineUrgency(fallbackTask),
-      momentum: scoreMomentum(fallbackTask),
-      priority: scorePriority(fallbackTask.priority),
-      dependencies: scoreDependencies(fallbackTask),
-    };
-    
-    return {
-      task: fallbackTask,
-      totalScore: Object.values(breakdown).reduce((sum, score) => sum + score, 0) / 5,
-      reasoning: generateReasoning(fallbackTask, context, breakdown),
-      breakdown,
-    };
-  }
-  
-  // Score all eligible tasks
-  const scoredTasks: TaskScore[] = eligibleTasks.map(task => {
-    const breakdown = {
-      timeEnergy: scoreTimeEnergyAlignment(task, context),
-      deadlineUrgency: scoreDeadlineUrgency(task),
-      momentum: scoreMomentum(task),
-      priority: scorePriority(task.priority),
-      dependencies: scoreDependencies(task),
-    };
-    
-    // Weighted average (adjust weights based on research)
-    const totalScore = 
-      breakdown.timeEnergy * 0.25 +      // 25% - Energy alignment
-      breakdown.deadlineUrgency * 0.30 + // 30% - Deadline urgency (highest weight)
-      breakdown.momentum * 0.15 +        // 15% - Momentum
-      breakdown.priority * 0.20 +        // 20% - Priority level
-      breakdown.dependencies * 0.10;     // 10% - Dependencies
-    
-    return {
-      task,
-      totalScore,
-      reasoning: generateReasoning(task, context, breakdown),
-      breakdown,
-    };
-  });
-  
-  // Sort by total score (descending)
-  scoredTasks.sort((a, b) => b.totalScore - a.totalScore);
-  
-  return scoredTasks[0] || null;
+  const ranked = getTopPriorityTasks(tasks, 1);
+  return ranked[0] ?? null;
 }
 
 function scoreTaskForNow(task: Task, context: CurrentContext): TaskScore {
@@ -312,7 +252,8 @@ function scoreTaskForNow(task: Task, context: CurrentContext): TaskScore {
 
 /**
  * Get top N priority tasks for "What should I be doing right now" card.
- * Prefers tasks with collaborators; falls back to all incomplete tasks (same as selectTopPriorityTask).
+ * Scores **all** incomplete tasks (same pool as Today's schedule). Collaboration is a small tie-breaker only,
+ * so solo tasks are never excluded just because a team task exists elsewhere.
  */
 export function getTopPriorityTasks(tasks: Task[], count: number = 2): TaskScore[] {
   const context = getCurrentContext();
@@ -320,13 +261,15 @@ export function getTopPriorityTasks(tasks: Task[], count: number = 2): TaskScore
   const incomplete = tasks.filter((task) => !task.completed);
   if (incomplete.length === 0) return [];
 
-  const withCollaborators = incomplete.filter(
-    (task) => task.collaborators && task.collaborators.length > 0,
-  );
-
-  const eligibleTasks = withCollaborators.length > 0 ? withCollaborators : incomplete;
-
-  const scoredTasks: TaskScore[] = eligibleTasks.map((task) => scoreTaskForNow(task, context));
+  const scoredTasks: TaskScore[] = incomplete.map((task) => {
+    const base = scoreTaskForNow(task, context);
+    const collabNudge =
+      task.collaborators && task.collaborators.length > 0 ? 2 : 0;
+    return {
+      ...base,
+      totalScore: base.totalScore + collabNudge,
+    };
+  });
 
   return scoredTasks
     .sort((a, b) => b.totalScore - a.totalScore)

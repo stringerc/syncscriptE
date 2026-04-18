@@ -76,11 +76,11 @@ export function DashboardBriefing() {
       transition={{ duration: 0.4 }}
       className="max-w-[1600px] mx-auto mb-2"
     >
-      <div className="bg-gradient-to-r from-[#1a1d24]/80 via-[#1e2128]/80 to-[#1a1d24]/80 border border-gray-800/50 rounded-xl px-3 py-3 sm:px-4">
-        <div className="flex items-center justify-center gap-x-3 gap-y-4 sm:justify-between flex-wrap min-w-0">
+      <div className="bg-gradient-to-r from-[#1a1d24]/80 via-[#1e2128]/80 to-[#1a1d24]/80 border border-gray-800/50 rounded-xl px-3 py-4 sm:px-5">
+        <div className="flex min-w-0 flex-wrap items-center justify-center gap-x-6 gap-y-5 sm:justify-between sm:gap-x-8">
           
           {/* Peak Window */}
-          <div className="flex items-center gap-2">
+          <div className="flex min-w-0 items-center gap-2.5 px-1 sm:px-0">
             <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${
               peakWindow.isInPeak 
                 ? 'bg-emerald-500/20 text-emerald-400' 
@@ -100,10 +100,10 @@ export function DashboardBriefing() {
           </div>
 
           {/* Divider */}
-          <div className="w-px h-8 bg-gray-700/50 hidden sm:block" />
+          <div className="hidden h-8 w-px bg-gray-700/50 sm:block" aria-hidden />
 
           {/* Tasks Today */}
-          <div className="flex items-center gap-2">
+          <div className="flex min-w-0 items-center gap-2.5 px-1 sm:px-0">
             <div className="w-7 h-7 rounded-lg bg-blue-500/20 flex items-center justify-center">
               <Target className="w-3.5 h-3.5 text-blue-400" />
             </div>
@@ -122,10 +122,10 @@ export function DashboardBriefing() {
           </div>
 
           {/* Divider */}
-          <div className="w-px h-8 bg-gray-700/50 hidden sm:block" />
+          <div className="hidden h-8 w-px bg-gray-700/50 sm:block" aria-hidden />
 
           {/* Streak */}
-          <div className="flex items-center gap-2">
+          <div className="flex min-w-0 items-center gap-2.5 px-1 sm:px-0">
             <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${
               streak >= 7 ? 'bg-orange-500/20' : streak >= 3 ? 'bg-yellow-500/20' : 'bg-gray-700/50'
             }`}>
@@ -147,10 +147,10 @@ export function DashboardBriefing() {
           </div>
 
           {/* Divider */}
-          <div className="w-px h-8 bg-gray-700/50 hidden sm:block" />
+          <div className="hidden h-8 w-px bg-gray-700/50 sm:block" aria-hidden />
 
           {/* Level + XP */}
-          <div className="flex items-center gap-2">
+          <div className="flex min-w-0 items-center gap-2.5 px-1 sm:px-0">
             <div className="w-7 h-7 rounded-lg bg-purple-500/20 flex items-center justify-center">
               <Zap className="w-3.5 h-3.5 text-purple-400" />
             </div>
@@ -171,10 +171,10 @@ export function DashboardBriefing() {
           </div>
 
           {/* Divider */}
-          <div className="w-px h-8 bg-gray-700/50 hidden md:block" />
+          <div className="hidden h-8 w-px bg-gray-700/50 md:block" aria-hidden />
 
           {/* Energy Sparkline */}
-          <div className="flex items-center gap-2 hidden md:flex">
+          <div className="hidden min-w-0 items-center gap-2.5 px-1 md:flex">
             <div className="w-7 h-7 rounded-lg bg-teal-500/20 flex items-center justify-center">
               <TrendingUp className="w-3.5 h-3.5 text-teal-400" />
             </div>

@@ -9,13 +9,14 @@ import { dirname, join } from 'node:path';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 
-test('getTopPriorityTasks falls back to solo incomplete tasks', () => {
+test('getTopPriorityTasks scores all incomplete tasks (solo + team)', () => {
   const src = readFileSync(join(root, 'src/utils/intelligent-task-selector.ts'), 'utf8');
   assert.match(
     src,
-    /withCollaborators\.length > 0 \? withCollaborators : incomplete/,
-    'eligible pool should fall back to all incomplete tasks when none have collaborators',
+    /incomplete\.map\(\(task\)/,
+    'eligible pool must include every incomplete task, not only collaborator rows',
   );
+  assert.match(src, /collabNudge/, 'soft tie-break for collaboration should remain');
 });
 
 test('AIFocusSection documents empty state + link to tasks', () => {
