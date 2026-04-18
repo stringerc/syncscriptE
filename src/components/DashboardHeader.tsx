@@ -9,7 +9,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { CURRENT_USER } from '../utils/user-constants';
 import { toast } from 'sonner';
 import { useEnergy } from '../contexts/EnergyContext';
-import { useCurrentReadiness } from '../hooks/useCurrentReadiness';
+import { getReadinessPercentFromTotalEnergy } from '../hooks/useCurrentReadiness';
 import { navigationLinks } from '../utils/navigation';
 
 const sideNav = navigationLinks.sidebar;
@@ -282,7 +282,7 @@ export function DashboardHeader({ isAIInsightsOpen, onToggleAIInsights }: Dashbo
   // Research: Oura Ring (2023), Whoop (2024), Apple Watch (2024)
   // ══════════════════════════════════════════════════════════════════════════════
   
-  const energyPercentage = useCurrentReadiness();
+  const energyPercentage = getReadinessPercentFromTotalEnergy(energy.totalEnergy);
 
   const handleProfileNavigation = (route: string) => {
     console.log('Navigating to:', route);

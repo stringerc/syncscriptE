@@ -70,7 +70,7 @@ import { DashboardLayout } from '../layout/DashboardLayout';
 import { StartFocusDialog } from '../QuickActionsDialogs';
 import { PAGE_INSIGHTS_CONFIG } from '../../utils/insights-config';
 import { useEnergy } from '../../contexts/EnergyContext';
-import { useCurrentReadiness } from '../../hooks/useCurrentReadiness';
+import { getReadinessPercentFromTotalEnergy } from '../../hooks/useCurrentReadiness';
 import { COLOR_LEVELS } from '../../utils/energy-system';
 import { useUserProfile } from '../../utils/user-profile';
 import { useTasks } from '../../hooks/useTasks';
@@ -86,7 +86,7 @@ export function EnergyFocusPage() {
   const { energy } = useEnergy();
   const { profile } = useUserProfile();
   const { tasks } = useTasks();
-  const currentReadiness = useCurrentReadiness();
+  const currentReadiness = getReadinessPercentFromTotalEnergy(energy.totalEnergy);
   const [isFocusDialogOpen, setIsFocusDialogOpen] = useState(false);
   const [selectedTimeframe, setSelectedTimeframe] = useState<'today' | 'week' | 'month'>('today');
   const [graphTimeframe, setGraphTimeframe] = useState<'day' | 'week' | 'month' | 'year'>('week');

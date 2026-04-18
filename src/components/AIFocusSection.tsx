@@ -10,7 +10,7 @@ import { Badge } from './ui/badge';
 import { Button } from './ui/button';
 import { Clock } from 'lucide-react';
 import { getROYGBIVProgress } from '../utils/progress-calculations';
-import { useCurrentReadiness } from '../hooks/useCurrentReadiness';
+import { getReadinessPercentFromTotalEnergy } from '../hooks/useCurrentReadiness';
 import { useWeatherRoute } from '../hooks/useWeatherRoute';
 import { useCalendarEvents } from '../hooks/useCalendarEvents';
 import { buildWeekOutlookRows } from '../utils/weather-event-conflicts';
@@ -105,7 +105,7 @@ export function AIFocusSection() {
   // Research: Oura Ring (2023), Whoop (2024), Duolingo (2023), Chronotype Studies
   // ══════════════════════════════════════════════════════════════════════════════
   
-  const calculatedEnergy = useCurrentReadiness();
+  const calculatedEnergy = getReadinessPercentFromTotalEnergy(energy.totalEnergy);
   
   // ══════════════════════════════════════════════════════════════════════════════
   // REAL-TIME WEATHER & ROUTE INTELLIGENCE

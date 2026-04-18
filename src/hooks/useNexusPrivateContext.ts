@@ -2,14 +2,14 @@ import { useMemo } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useEnergy } from '../contexts/EnergyContext';
 import { useUserPreferences } from '../utils/user-preferences';
-import { useCurrentReadiness } from './useCurrentReadiness';
+import { getReadinessPercentFromTotalEnergy } from './useCurrentReadiness';
 import { useDashboardMetrics } from './useDashboardMetrics';
 
 export function useNexusPrivateContext() {
   const { user } = useAuth();
   const { energy } = useEnergy();
   const { preferences } = useUserPreferences();
-  const readiness = useCurrentReadiness();
+  const readiness = getReadinessPercentFromTotalEnergy(energy.totalEnergy);
   const metrics = useDashboardMetrics();
 
   return useMemo(() => {

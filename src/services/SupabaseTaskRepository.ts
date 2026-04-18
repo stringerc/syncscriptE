@@ -6,14 +6,56 @@ import { supabase } from '../utils/supabase/client';
 const API_BASE = `https://${projectId}.supabase.co/functions/v1/make-server-57781ad9`;
 const LEGACY_TASKS_STORAGE_KEY = 'syncscript_tasks_v1';
 const LEGACY_MIGRATION_FLAG_PREFIX = 'syncscript_tasks_migrated_to_supabase';
+/** Same key as AuthContext — guest / hydration tokens live here when `getSession()` is still empty. */
+const LOCAL_ACCESS_TOKEN_KEY = 'syncscript_access_token';
+const LOCAL_AUTH_USER_ID_KEY = 'syncscript_auth_user_id';
 
 export class SupabaseTaskRepository implements ITaskRepository {
-  private async getAuthContext(): Promise<{ token: string; userId: string | null; isAuthenticated: boolean }> {
+  /**
+   * Edge `/tasks` uses `supabase.auth.getUser(jwt)` — only real Supabase JWTs work.
+   * Custom guest tokens (`gst_*` / `gst_local_*`) and the anon key always get 401; avoid calling the network for those.
+   */
+  private async getAuthContext(): Promise<{
+    token: string;
+    userId: string | null;
+    /** True only when Supabase Auth has a real session (used for server-side migration). */
+    isAuthenticated: boolean;
+    /** Bearer token is a JWT the Edge task routes can resolve via `getUser`. */
+    canSyncTasksToEdge: boolean;
+  }> {
     const { data: { session } } = await supabase.auth.getSession();
+    let token = session?.access_token || '';
+    let userId = session?.user?.id || null;
+
+    if (!token && typeof window !== 'undefined') {
+      try {
+        const stored = window.localStorage.getItem(LOCAL_ACCESS_TOKEN_KEY);
+        if (stored) {
+          token = stored;
+          if (!userId) userId = window.localStorage.getItem(LOCAL_AUTH_USER_ID_KEY);
+        }
+      } catch {
+        // ignore storage failures
+      }
+    }
+
+    if (!token) token = publicAnonKey;
+
+    /** Custom guest sessions use opaque `gst_*` tokens — Edge `getUser` cannot resolve them. */
+    const isGuestOpaqueToken = token !== publicAnonKey && token.startsWith('gst');
+    const jwtLike = token.startsWith('eyJ');
+    const hasSupabaseSession = Boolean(session?.access_token && session?.user?.id);
+    /** Only call Edge when we have a JWT Supabase can verify (session or hydrated LS). */
+    const canSyncTasksToEdge =
+      !isGuestOpaqueToken &&
+      token !== publicAnonKey &&
+      (hasSupabaseSession || (jwtLike && Boolean(userId)));
+
     return {
-      token: session?.access_token || publicAnonKey,
-      userId: session?.user?.id || null,
+      token,
+      userId,
       isAuthenticated: Boolean(session?.access_token && session?.user?.id),
+      canSyncTasksToEdge,
     };
   }
 
@@ -21,6 +63,7 @@ export class SupabaseTaskRepository implements ITaskRepository {
     const { token } = await this.getAuthContext();
     return {
       Authorization: `Bearer ${token}`,
+      apikey: publicAnonKey,
       'Content-Type': 'application/json',
     };
   }
@@ -72,7 +115,7 @@ export class SupabaseTaskRepository implements ITaskRepository {
     return migratedCount > 0;
   }
 
-  private async request<T>(path: string, init?: RequestInit): Promise<T> {
+  private async request<T>(path: string, init?: RequestInit, didRefresh = false): Promise<T> {
     const headers = await this.getAuthHeaders();
     const response = await fetch(`${API_BASE}${path}`, {
       ...init,
@@ -81,6 +124,13 @@ export class SupabaseTaskRepository implements ITaskRepository {
         ...(init?.headers || {}),
       },
     });
+
+    if (response.status === 401 && !didRefresh) {
+      const { data } = await supabase.auth.refreshSession();
+      if (data.session?.access_token) {
+        return this.request<T>(path, init, true);
+      }
+    }
 
     if (!response.ok) {
       const text = await response.text().catch(() => response.statusText);
@@ -114,9 +164,13 @@ export class SupabaseTaskRepository implements ITaskRepository {
     const query = params.toString();
     const path = `/tasks${query ? `?${query}` : ''}`;
 
+    const auth = await this.getAuthContext();
+    if (!auth.canSyncTasksToEdge) {
+      return this.filterTasks(this.getLegacyLocalTasks(), filters);
+    }
+
     try {
       const tasks = await this.request<Task[]>(path);
-      const auth = await this.getAuthContext();
 
       // One-time migration: if backend is empty for this signed-in user, import legacy browser tasks.
       if (auth.isAuthenticated && auth.userId && (!tasks || tasks.length === 0)) {

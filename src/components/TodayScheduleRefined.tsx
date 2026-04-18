@@ -225,8 +225,7 @@ export function TodayScheduleRefined({ tasks: tasksProp, loading: loadingProp }:
   const loading = loadingProp ?? loadingFromCtx;
   const { energy } = useEnergy();
   const { profile } = useUserProfile();
-  const currentUserEnergy = useCurrentReadiness();
-  
+
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [completingTaskIds, setCompletingTaskIds] = useState<Set<string>>(new Set());
   const [completedTaskIds, setCompletedTaskIds] = useState<Set<string>>(new Set());

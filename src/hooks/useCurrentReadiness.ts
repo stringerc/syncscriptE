@@ -33,30 +33,22 @@ import { useEnergy } from '../contexts/EnergyContext';
 
 const MAX_ENERGY_PER_LOOP = 700; // One complete ROYGBIV cycle
 
+/** Pure readiness % from total energy — use this + `useEnergy()` in components to avoid chunk/minify issues with the hook name in production. */
+export function getReadinessPercentFromTotalEnergy(totalEnergy: number): number {
+  const energyInCurrentLoop = totalEnergy % MAX_ENERGY_PER_LOOP;
+  const progressPercentage = (energyInCurrentLoop / MAX_ENERGY_PER_LOOP) * 100;
+  return Math.max(0, Math.min(100, progressPercentage));
+}
+
 export function useCurrentReadiness(): number {
   const { energy } = useEnergy();
-  
-  // ═══════════════════════════════════════════════════════════════════════════
-  // ROYGBIV LOOP PROGRESSION
-  // ═══════════════════════════════════════════════════════════════════════════
-  // Convert totalEnergy to 0-100% progress within current loop
-  // Example: 450 energy → 64.28% progress (Blue level, 12.86% into it)
-  // Example: 750 energy → 7.14% progress (Orange level, loop restarted after Violet)
-  // ═══════════════════════════════════════════════════════════════════════════
-  
-  const energyInCurrentLoop = energy.totalEnergy % MAX_ENERGY_PER_LOOP;
-  const progressPercentage = (energyInCurrentLoop / MAX_ENERGY_PER_LOOP) * 100;
-  
-  // Clamp to 0-100 range (safety)
-  const clampedProgress = Math.max(0, Math.min(100, progressPercentage));
-  
+  const clampedProgress = getReadinessPercentFromTotalEnergy(energy.totalEnergy);
   console.log('🎯 [useCurrentReadiness] Progress calculation:', {
     totalEnergy: energy.totalEnergy,
-    energyInCurrentLoop,
+    energyInCurrentLoop: energy.totalEnergy % MAX_ENERGY_PER_LOOP,
     progressPercentage: clampedProgress.toFixed(2) + '%',
     currentColor: energy.currentColor?.name || 'Unknown',
-    loopNumber: Math.floor(energy.totalEnergy / MAX_ENERGY_PER_LOOP) + 1
+    loopNumber: Math.floor(energy.totalEnergy / MAX_ENERGY_PER_LOOP) + 1,
   });
-  
   return clampedProgress;
 }

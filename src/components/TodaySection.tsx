@@ -16,7 +16,6 @@ import { motion, AnimatePresence } from 'motion/react';
 import { toast } from 'sonner@2.0.3';
 import { calculateCollaboratorProgress } from '../utils/progress-calculations';
 import { useUserProfile } from '../utils/user-profile';
-import { useCurrentReadiness } from '../hooks/useCurrentReadiness';
 import { withDashboardScheduleDemoFallback } from '../utils/dashboard-schedule-demo';
 
 /**
@@ -130,17 +129,6 @@ export function TodaySection() {
   // Get top priority tasks (excluding those in AI Focus section)
   const topPriorityTasks = getTopPriorityTasks(safeTasks, 2);
   const topPriorityTaskIds = topPriorityTasks.map(t => t.task.id);
-  
-  // ══════════════════════════════════════════════════════════════════════════════
-  // UNIFIED ENERGY FOR CURRENT USER
-  // ══════════════════════════════════════════════════════════════════════════════
-  // Use shared readiness hook to ensure PERFECT SYNCHRONIZATION:
-  // - Header avatar: Same %
-  // - AI Focus card: Same %
-  // - Energy tab: Same %
-  // - My Day card: Same % (this file)
-  // ══════════════════════════════════════════════════════════════════════════════
-  const currentUserEnergy = useCurrentReadiness();
   
   // Smart auto-schedule: Select and schedule 4 tasks based on energy + priority + deadlines
   // EXCLUDE tasks already shown in "What should I be doing right now"

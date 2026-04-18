@@ -138,6 +138,8 @@
     "test:e2e:voice-visual": "npx playwright install chromium && CI= PLAYWRIGHT_BASE_URL=${PLAYWRIGHT_BASE_URL:-https://www.syncscript.app} npx playwright test e2e/app-ai-voice-immersive-visual.spec.ts --project=chromium",
     "test:e2e:dashboard-nav": "CI=true npm run build && npx playwright install chromium && CI=true npx playwright test e2e/dashboard-nav.spec.ts e2e/dashboard-nav-legacy-redirect.spec.ts",
     "test:e2e:dashboard-nav:prod": "npx playwright install chromium && PLAYWRIGHT_BASE_URL=${PLAYWRIGHT_BASE_URL:-https://www.syncscript.app} CI=true npx playwright test e2e/dashboard-nav.spec.ts e2e/dashboard-nav-legacy-redirect.spec.ts",
+    "test:e2e:dashboard-health": "CI=true npm run build && npx playwright install chromium && CI=true E2E_PREVIEW_PORT=4177 npx playwright test e2e/dashboard-page-health.spec.ts --project=chromium",
+    "test:e2e:dashboard-health:prod": "npx playwright install chromium && PLAYWRIGHT_BASE_URL=${PLAYWRIGHT_BASE_URL:-https://www.syncscript.app} CI=true npx playwright test e2e/dashboard-page-health.spec.ts --project=chromium",
     "smoke:prod": "node scripts/prod-human-smoke.mjs https://www.syncscript.app",
     "verify:prod:live": "node scripts/verify-production-live.mjs",
     "verify:prod:live:strict": "STRICT_TTS=1 node scripts/verify-production-live.mjs",

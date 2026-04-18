@@ -48,7 +48,7 @@ import { CURRENT_USER } from '../utils/user-constants';
 import { toast } from 'sonner';
 import { useEnergy } from '../contexts/EnergyContext';
 import { EnergyDisplay } from './energy/EnergyDisplay';
-import { useCurrentReadiness } from '../hooks/useCurrentReadiness';
+import { getReadinessPercentFromTotalEnergy } from '../hooks/useCurrentReadiness';
 import { useUserProfile } from '../utils/user-profile';
 
 interface ProfileLink {
@@ -85,7 +85,7 @@ export function IndividualProfileView() {
   // ══════════════════════════════════════════════════════════════════════════════
   const { energy } = useEnergy();
   const { profile } = useUserProfile(); // Name, avatar, status from context
-  const energyPercentage = useCurrentReadiness(); // Same energy as header
+  const energyPercentage = getReadinessPercentFromTotalEnergy(energy.totalEnergy);
   
   // Profile data state (editable fields)
   const [displayName, setDisplayName] = useState(profile.name);
