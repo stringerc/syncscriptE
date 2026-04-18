@@ -144,18 +144,11 @@ export function TodaySection() {
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const todayEnd = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000);
     
-    // Filter available tasks (not completed, either due today or overdue or no due date)
-    // EXCLUDE top priority tasks already shown above
-    const availableTasks = safeTasks.filter(task => {
+    // Working queue: all open tasks except the two shown in "What should I be doing" (no strict due-date gate).
+    const availableTasks = safeTasks.filter((task) => {
       if (task.completed) return false;
       if (topPriorityTaskIds.includes(task.id)) return false;
-      
-      const dueDate = new Date(task.dueDate);
-      const isOverdue = dueDate < todayStart;
-      const isDueToday = dueDate >= todayStart && dueDate < todayEnd;
-      const hasNoDueDate = !task.dueDate;
-      
-      return isOverdue || isDueToday || hasNoDueDate;
+      return true;
     });
     
     // Score tasks for smart scheduling

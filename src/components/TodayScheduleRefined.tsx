@@ -258,19 +258,9 @@ export function TodayScheduleRefined() {
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const todayEnd = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000);
     
-    const availableTasks = (tasks || []).filter(task => {
-      if (task.completed) return false;
-      
-      const dueDate = new Date(task.dueDate);
-      const isOverdue = dueDate < todayStart;
-      const isDueToday = dueDate >= todayStart && dueDate < todayEnd;
-      const hasNoDueDate = !task.dueDate;
-      const isCreatedToday = task.createdAt
-        && new Date(task.createdAt) >= todayStart
-        && new Date(task.createdAt) < todayEnd;
-      
-      return isOverdue || isDueToday || hasNoDueDate || isCreatedToday;
-    });
+    // Include every open task in the "today" working queue (sorted below). A strict
+    // due-today-only filter hid tasks with future due dates and made the schedule look empty.
+    const availableTasks = (tasks || []).filter((task) => !task.completed);
     
     // Score and assign time slots
     const scoredTasks = availableTasks.map(task => {
