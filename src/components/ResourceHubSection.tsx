@@ -796,13 +796,13 @@ export function ResourceHubSection() {
         </motion.div>
 
         {/* Achievement Progress Rail */}
-        <div className="bg-[#1e2128] rounded-2xl p-4 border border-gray-800 flex-1 flex flex-col card-hover shadow-lg hover:border-gray-700 transition-all">
-          <div className="flex items-start justify-between mb-3">
-            <div>
-              <h3 className="text-white">Smart Insights</h3>
-              <p className="text-gray-400 text-xs">AI-powered suggestions & quick actions</p>
+        <div className="bg-[#1e2128] rounded-2xl p-4 sm:p-5 border border-gray-800 flex-1 flex flex-col card-hover shadow-lg hover:border-gray-700 transition-all">
+          <div className="mb-3 flex flex-col items-center gap-2 text-center sm:flex-row sm:items-start sm:justify-between sm:text-left">
+            <div className="min-w-0">
+              <h3 className="text-white text-base sm:text-lg">Smart Insights</h3>
+              <p className="text-gray-400 text-xs mt-0.5">AI-powered suggestions & quick actions</p>
             </div>
-            <Sparkles className="w-4 h-4 text-purple-400" />
+            <Sparkles className="h-5 w-5 shrink-0 text-purple-400 sm:mt-1" aria-hidden />
           </div>
 
           <div className="flex-1 flex flex-col justify-center">
@@ -812,26 +812,44 @@ export function ResourceHubSection() {
               {smartInsights.map((insight) => (
                 <motion.div
                   key={insight.id}
-                  className={`flex items-start gap-2.5 bg-[#2a2d35] rounded-lg p-3 hover:bg-[#32353d] transition-all cursor-pointer group border border-transparent hover:border-${insight.color}-500/30`}
+                  className="group flex cursor-pointer flex-col gap-3 rounded-lg border border-transparent bg-[#2a2d35] p-3 transition-all hover:bg-[#32353d] sm:flex-row sm:items-start sm:gap-3"
                   onClick={insight.action}
-                  whileHover={{ scale: 1.02, x: 4 }}
+                  whileHover={{ scale: 1.01 }}
                   transition={{ duration: 0.15 }}
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                 >
-                  <div className={`shrink-0 p-1.5 rounded-md bg-${insight.color}-500/10`}>
-                    {insight.icon}
+                  <div className="flex justify-center sm:block shrink-0">
+                    <div
+                      className={`rounded-md p-2 ${
+                        insight.color === 'yellow'
+                          ? 'bg-yellow-500/10'
+                          : insight.color === 'blue'
+                            ? 'bg-blue-500/10'
+                            : insight.color === 'orange'
+                              ? 'bg-orange-500/10'
+                              : insight.color === 'teal'
+                                ? 'bg-teal-500/10'
+                                : insight.color === 'emerald'
+                                  ? 'bg-emerald-500/10'
+                                  : insight.color === 'gray'
+                                    ? 'bg-gray-500/10'
+                                    : 'bg-purple-500/10'
+                      }`}
+                    >
+                      {insight.icon}
+                    </div>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-white text-sm font-medium mb-0.5 group-hover:text-gray-100 transition-colors">
+                  <div className="min-w-0 flex-1 text-center sm:text-left">
+                    <p className="text-sm font-medium text-white group-hover:text-gray-100">
                       {insight.title}
                     </p>
-                    <p className="text-gray-400 text-xs leading-relaxed">
+                    <p className="text-xs leading-relaxed text-gray-400 mt-1">
                       {insight.description}
                     </p>
                   </div>
-                  <div className={`shrink-0 opacity-0 group-hover:opacity-100 transition-opacity text-${insight.color}-400`}>
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <div className="hidden shrink-0 text-gray-500 opacity-0 transition-opacity group-hover:opacity-100 sm:block">
+                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                     </svg>
                   </div>

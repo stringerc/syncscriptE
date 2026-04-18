@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { HelpCircle, Mic, MoreHorizontal, Zap, TrendingUp, ArrowRight, Sparkles, Brain, Activity, Crown, CircleDot, BarChart3, ChevronRight, CloudRain, Navigation } from 'lucide-react';
+import { HelpCircle, Zap, ArrowRight, Sparkles, Brain, Activity, Crown, CloudRain, Navigation } from 'lucide-react';
 import { AnimatedAvatar } from './AnimatedAvatar';
 import { useUserProfile } from '../utils/user-profile';
 import { useTasks } from '../hooks/useTasks';
@@ -148,10 +148,10 @@ export function AIFocusSection() {
 
       <div className="flex flex-col gap-4 flex-1">
         {/* What Should I Be Doing Card */}
-        <div className="bg-gradient-to-br from-teal-900/40 to-blue-900/40 rounded-2xl p-8 border border-teal-800/30 flex-[1.4] flex flex-col justify-evenly card-hover shadow-lg shadow-teal-900/20 cursor-pointer">
-          <div className="flex items-start justify-between">
-            <h3 className="text-white">What Should I Be Doing Right Now?</h3>
-            <HelpCircle className="w-5 h-5 text-gray-400 hover:text-teal-400 transition-colors cursor-pointer" />
+        <div className="bg-gradient-to-br from-teal-900/40 to-blue-900/40 rounded-2xl p-4 sm:p-8 border border-teal-800/30 flex-[1.4] flex flex-col justify-evenly card-hover shadow-lg shadow-teal-900/20 cursor-pointer">
+          <div className="flex items-start justify-between gap-2">
+            <h3 className="text-white text-base sm:text-lg leading-snug pr-1">What Should I Be Doing Right Now?</h3>
+            <HelpCircle className="w-5 h-5 text-gray-400 hover:text-teal-400 transition-colors cursor-pointer shrink-0 mt-0.5" />
           </div>
           
           {loading ? (
@@ -195,12 +195,9 @@ export function AIFocusSection() {
                   return (
                     <div 
                       key={task.id}
-                      className="flex items-center gap-3 bg-black/20 rounded-lg p-4 hover:bg-black/30 transition-all cursor-pointer border border-transparent hover:border-teal-500/30 group"
+                      className="flex flex-col items-center gap-3 sm:flex-row sm:items-center sm:gap-4 bg-black/20 rounded-lg p-3 sm:p-4 hover:bg-black/30 transition-all cursor-pointer border border-transparent hover:border-teal-500/30 group"
                     >
-                      {/* RESEARCH: Use AnimatedAvatar for ALL users to maintain visual consistency 
-                          - Nielsen Norman Group (2023): "Similar elements should behave similarly"
-                          - Material Design (2024): "Information parity for all users in collaborative contexts"
-                          - For current user, use 'none' animation to maintain consistency without distraction */}
+                      {/* Narrow screens: avatar above copy (F-pattern, no horizontal squeeze). */}
                       <AnimatedAvatar
                         name={showAsSelf ? profile.name : (displayPeer?.name || 'Task')}
                         image={showAsSelf ? profile.avatar : (displayPeer?.image || defaultCollaboratorImage())}
@@ -210,15 +207,6 @@ export function AIFocusSection() {
                             : (displayPeer?.fallback || task.title.substring(0, 2).toUpperCase())
                         }
                         progress={
-                          // ══════════════════════════════════════════════════════════════════════
-                          // CRITICAL UX: Current user's avatar ALWAYS shows their ENERGY
-                          // ══════════════════════════════════════════════════════════════════════
-                          // Research: Apple HIG (2024), Material Design (2024)
-                          // "User avatars should show consistent personal metrics across contexts"
-                          // 
-                          // Current user → Energy (87%) - matches header & Energy tab
-                          // Other collaborators → Task-specific progress
-                          // ══════════════════════════════════════════════════════════════════════
                           showAsSelf
                             ? calculatedEnergy
                             : calculateCollaboratorProgress(
@@ -228,13 +216,13 @@ export function AIFocusSection() {
                               )
                         }
                         animationType={showAsSelf ? 'none' : (displayPeer?.animationType || 'pulse')}
-                        className="w-20 h-20 transition-transform group-hover:scale-110"
-                        size={80}
+                        className="w-16 h-16 sm:w-20 sm:h-20 shrink-0 transition-transform group-hover:scale-105 sm:group-hover:scale-110"
+                        size={64}
                         status={showAsSelf ? profile.status : (displayPeer?.status || 'online')}
                       />
-                      <div className="flex-1">
-                        <p className="text-white">{task.title}</p>
-                        <p className="text-gray-400 text-sm">{taskScore.reasoning}</p>
+                      <div className="flex-1 min-w-0 w-full text-center sm:text-left">
+                        <p className="text-white text-sm sm:text-base break-words">{task.title}</p>
+                        <p className="text-gray-400 text-xs sm:text-sm mt-1 leading-relaxed">{taskScore.reasoning}</p>
                       </div>
                     </div>
                   );
@@ -246,7 +234,7 @@ export function AIFocusSection() {
 
         {/* Energy Adaptive Agent - RESEARCH-BACKED AHEAD-OF-TIME VERSION */}
         <motion.div 
-          className="bg-gradient-to-br from-gray-900/80 to-gray-800/80 rounded-2xl p-6 border border-gray-700/50 flex-1 flex flex-col justify-center card-hover shadow-lg hover:border-teal-500/40 transition-all cursor-pointer group relative overflow-hidden"
+          className="bg-gradient-to-br from-gray-900/80 to-gray-800/80 rounded-2xl p-4 sm:p-6 border border-gray-700/50 flex-1 flex flex-col justify-center card-hover shadow-lg hover:border-teal-500/40 transition-all cursor-pointer group relative overflow-hidden"
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
         >
@@ -414,19 +402,17 @@ export function AIFocusSection() {
 
             {/* RESEARCH: Google Calendar (2023) - One-tap action button */}
             <Button 
-              className="w-full bg-gradient-to-r from-teal-600 to-blue-600 hover:from-teal-500 hover:to-blue-500 text-white rounded-lg py-3 flex items-center justify-center gap-2 transition-all hover:shadow-lg hover:scale-105 active:scale-95"
+              className="w-full bg-gradient-to-r from-teal-600 to-blue-600 hover:from-teal-500 hover:to-blue-500 text-white rounded-lg py-3 flex items-center justify-center transition-all hover:shadow-lg hover:scale-[1.02] active:scale-[0.98]"
               onClick={navigateToEnergy}
             >
-              <TrendingUp className="w-4 h-4" />
               View Full Analysis
-              <ArrowRight className="w-4 h-4 ml-auto" />
             </Button>
           </div>
         </motion.div>
 
         {/* Weather & Route Intelligence - RESEARCH-BACKED AHEAD-OF-TIME VERSION */}
         <motion.div 
-          className="bg-gradient-to-br from-gray-900/80 to-gray-800/80 rounded-2xl p-6 border border-gray-700/50 flex-[0.7] flex flex-col justify-start gap-3 card-hover shadow-lg hover:border-purple-500/40 transition-all relative overflow-visible group"
+          className="bg-gradient-to-br from-gray-900/80 to-gray-800/80 rounded-2xl p-4 sm:p-6 border border-gray-700/50 flex-[0.7] flex flex-col justify-start gap-3 card-hover shadow-lg hover:border-purple-500/40 transition-all relative overflow-visible group"
           whileHover={{ scale: 1.02 }}
         >
           {/* Animated background gradient — must not intercept clicks */}
@@ -437,18 +423,24 @@ export function AIFocusSection() {
             }}
           />
           
-          <div className="flex items-start justify-between mb-4 relative z-10">
-            <div>
-              <h3 className="text-white flex items-center gap-2">
-                <Sparkles className="w-5 h-5 text-purple-400" />
-                Weather & Route Intelligence
-              </h3>
-              <p className="text-gray-400 text-xs mt-1">
-                Proactive suggestions based on your day — tap weather for a 7-day outlook and calendar
-                cross-check
-              </p>
+          <div className="relative z-10 mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div className="flex min-w-0 flex-col items-center gap-2 text-center sm:items-start sm:text-left">
+              <Sparkles className="h-6 w-6 shrink-0 text-purple-400 sm:hidden" aria-hidden />
+              <div className="w-full">
+                <h3 className="text-white flex flex-col items-center gap-2 sm:flex-row sm:items-center">
+                  <Sparkles className="hidden h-5 w-5 shrink-0 text-purple-400 sm:block" aria-hidden />
+                  <span className="text-base leading-snug">Weather & Route Intelligence</span>
+                </h3>
+                <p className="text-gray-400 mt-1 text-xs leading-relaxed">
+                  Proactive suggestions based on your day — tap weather for a 7-day outlook and calendar
+                  cross-check
+                </p>
+              </div>
             </div>
-            <Badge variant="outline" className="border-purple-400/40 text-purple-300 text-xs">
+            <Badge
+              variant="outline"
+              className="mx-auto shrink-0 border-purple-400/40 text-purple-300 text-xs sm:mx-0"
+            >
               <Brain className="w-3 h-3 mr-1" />
               AI
             </Badge>
@@ -494,14 +486,16 @@ export function AIFocusSection() {
                     }
                   }}
                 >
-                  <div className="flex items-start gap-3 mb-3">
-                    <div className="w-16 h-16 rounded-full bg-blue-500/20 flex items-center justify-center text-3xl shrink-0 group-hover/card:scale-110 transition-transform">
-                      {alert.icon}
+                  <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-start sm:gap-3">
+                    <div className="flex justify-center sm:justify-start shrink-0">
+                      <div className="flex h-14 w-14 items-center justify-center rounded-full bg-blue-500/20 text-2xl sm:h-16 sm:w-16 sm:text-3xl group-hover/card:scale-110 transition-transform">
+                        {alert.icon}
+                      </div>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between gap-2 mb-1">
-                        <p className="text-white font-medium text-sm">{alert.message}</p>
-                        <Badge variant="outline" className="border-blue-400/40 text-blue-300 text-[10px] px-1.5 py-0 shrink-0">
+                    <div className="min-w-0 flex-1 text-center sm:text-left">
+                      <div className="mb-1 flex flex-col items-center gap-2 sm:flex-row sm:items-start sm:justify-between">
+                        <p className="text-center text-sm font-medium text-white sm:text-left">{alert.message}</p>
+                        <Badge variant="outline" className="shrink-0 border-blue-400/40 px-1.5 py-0 text-[10px] text-blue-300">
                           {alert.time}
                         </Badge>
                       </div>
@@ -511,27 +505,26 @@ export function AIFocusSection() {
                           : alert.suggestion}
                       </p>
                       
-                      {/* Attendee Avatars */}
-                      <div className="flex items-center gap-1.5">
+                      <div className="mt-2 flex flex-wrap items-center justify-center gap-2 sm:justify-start">
                         {attendees.slice(0, 3).map((attendee, i) => (
                           <div 
                             key={i}
-                            className="w-6 h-6 rounded-full border-2 border-blue-500/30 overflow-hidden bg-gray-800 -ml-1 first:ml-0"
+                            className="h-6 w-6 overflow-hidden rounded-full border-2 border-blue-500/30 bg-gray-800 first:ml-0 sm:-ml-1 sm:first:ml-0"
                             style={{ zIndex: attendees.length - i }}
                           >
                             <img 
                               src={attendee.image} 
                               alt={attendee.name}
-                              className="w-full h-full object-cover"
+                              className="h-full w-full object-cover"
                             />
                           </div>
                         ))}
                         {attendees.length > 3 && (
-                          <div className="w-6 h-6 rounded-full border-2 border-blue-500/30 bg-gray-700 flex items-center justify-center -ml-1 text-[9px] text-gray-300">
+                          <div className="flex h-6 w-6 items-center justify-center rounded-full border-2 border-blue-500/30 bg-gray-700 text-[9px] text-gray-300 sm:-ml-1">
                             +{attendees.length - 3}
                           </div>
                         )}
-                        <span className="text-gray-400 text-[10px] ml-1">
+                        <span className="w-full text-center text-[10px] text-gray-400 sm:ml-1 sm:w-auto sm:text-left">
                           {attendees.length} attendee{attendees.length !== 1 ? 's' : ''}
                         </span>
                       </div>
@@ -582,14 +575,16 @@ export function AIFocusSection() {
                   transition={{ delay: (1 + index) * 0.1 }}
                   onClick={() => setShowRouteModal(true)}
                 >
-                  <div className="flex items-start gap-3 mb-3">
-                    <div className="w-16 h-16 rounded-full bg-orange-500/20 flex items-center justify-center shrink-0 group-hover/card:scale-110 transition-transform">
-                      <Navigation className="w-8 h-8 text-orange-400" />
+                  <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-start sm:gap-3">
+                    <div className="flex justify-center sm:justify-start shrink-0">
+                      <div className="flex h-14 w-14 items-center justify-center rounded-full bg-orange-500/20 sm:h-16 sm:w-16 group-hover/card:scale-110 transition-transform">
+                        <Navigation className="h-7 w-7 text-orange-400 sm:h-8 sm:w-8" />
+                      </div>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between gap-2 mb-1">
-                        <p className="text-white font-medium text-sm">{alert.message}</p>
-                        <Badge variant="outline" className="border-orange-400/40 text-orange-300 text-[10px] px-1.5 py-0 shrink-0">
+                    <div className="min-w-0 flex-1 text-center sm:text-left">
+                      <div className="mb-1 flex flex-col items-center gap-2 sm:flex-row sm:items-start sm:justify-between">
+                        <p className="text-center text-sm font-medium text-white sm:text-left">{alert.message}</p>
+                        <Badge variant="outline" className="shrink-0 border-orange-400/40 px-1.5 py-0 text-[10px] text-orange-300">
                           +{alert.delay} min
                         </Badge>
                       </div>
@@ -599,27 +594,26 @@ export function AIFocusSection() {
                           ` • Affects: ${alert.affectedEvents[0]}`}
                       </p>
                       
-                      {/* Attendee Avatars */}
-                      <div className="flex items-center gap-1.5">
+                      <div className="mt-2 flex flex-wrap items-center justify-center gap-2 sm:justify-start">
                         {attendees.slice(0, 3).map((attendee, i) => (
                           <div 
                             key={i}
-                            className="w-6 h-6 rounded-full border-2 border-orange-500/30 overflow-hidden bg-gray-800 -ml-1 first:ml-0"
+                            className="h-6 w-6 overflow-hidden rounded-full border-2 border-orange-500/30 bg-gray-800 first:ml-0 sm:-ml-1 sm:first:ml-0"
                             style={{ zIndex: attendees.length - i }}
                           >
                             <img 
                               src={attendee.image} 
                               alt={attendee.name}
-                              className="w-full h-full object-cover"
+                              className="h-full w-full object-cover"
                             />
                           </div>
                         ))}
                         {attendees.length > 3 && (
-                          <div className="w-6 h-6 rounded-full border-2 border-orange-500/30 bg-gray-700 flex items-center justify-center -ml-1 text-[9px] text-gray-300">
+                          <div className="flex h-6 w-6 items-center justify-center rounded-full border-2 border-orange-500/30 bg-gray-700 text-[9px] text-gray-300 sm:-ml-1">
                             +{attendees.length - 3}
                           </div>
                         )}
-                        <span className="text-gray-400 text-[10px] ml-1">
+                        <span className="w-full text-center text-[10px] text-gray-400 sm:ml-1 sm:w-auto sm:text-left">
                           {attendees.length} attendee{attendees.length !== 1 ? 's' : ''}
                         </span>
                       </div>
@@ -640,29 +634,29 @@ export function AIFocusSection() {
                         </div>
                       </div>
                       
-                      <div className="flex gap-2">
+                      <div className="flex flex-col gap-2 sm:flex-row">
                         <Button
                           size="sm"
                           variant="outline"
-                          className="text-xs h-7 border-orange-500/30 text-orange-300 hover:bg-orange-500/20 hover:border-orange-400/50 flex-1"
+                          className="h-auto min-h-9 w-full justify-center whitespace-normal px-3 py-2 text-xs border-orange-500/30 text-orange-300 hover:bg-orange-500/20 hover:border-orange-400/50 sm:flex-1"
                           onClick={(e) => {
                             e.stopPropagation();
                             console.log('Set departure alert');
                           }}
                         >
-                          <Clock className="w-3 h-3 mr-1 shrink-0" />
+                          <Clock className="mr-1.5 h-3.5 w-3.5 shrink-0" />
                           Set Alert
                         </Button>
                         <Button
                           size="sm"
                           variant="outline"
-                          className="text-xs h-7 border-purple-500/30 text-purple-300 hover:bg-purple-500/20 hover:border-purple-400/50 flex-1"
+                          className="h-auto min-h-9 w-full justify-center whitespace-normal px-3 py-2 text-xs border-purple-500/30 text-purple-300 hover:bg-purple-500/20 hover:border-purple-400/50 sm:flex-1"
                           onClick={(e) => {
                             e.stopPropagation();
                             console.log('Show alternate routes');
                           }}
                         >
-                          <ArrowRight className="w-3 h-3 mr-1 shrink-0" />
+                          <ArrowRight className="mr-1.5 h-3.5 w-3.5 shrink-0" />
                           Alt Routes
                         </Button>
                       </div>
@@ -688,16 +682,16 @@ export function AIFocusSection() {
                   }
                 }}
               >
-                <div className="flex items-center gap-3 mb-2">
-                  <CloudRain className="w-8 h-8 text-emerald-400" />
-                  <div className="flex-1">
-                    <p className="text-white font-medium text-sm">{weather.condition} in {weather.city}</p>
-                    <p className="text-gray-400 text-xs">{Math.round(weather.temp)}°F • {weather.description}</p>
+                <div className="mb-3 flex flex-col items-center gap-2 text-center sm:flex-row sm:items-center sm:gap-3 sm:text-left">
+                  <CloudRain className="h-9 w-9 shrink-0 text-emerald-400 sm:h-8 sm:w-8" aria-hidden />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-white">{weather.condition} in {weather.city}</p>
+                    <p className="text-xs text-gray-400">{Math.round(weather.temp)}°F • {weather.description}</p>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
-                  <p className="text-emerald-300 text-xs font-medium">Clear conditions ahead</p>
+                <div className="flex flex-col items-center gap-1.5 sm:flex-row sm:gap-2">
+                  <Sparkles className="h-4 w-4 shrink-0 text-emerald-400" aria-hidden />
+                  <p className="text-center text-xs font-medium text-emerald-300 sm:text-left">Clear conditions ahead</p>
                 </div>
                 <p className="text-gray-300 text-xs">
                   ✨ Tap for the week ahead and any calendar weather flags
