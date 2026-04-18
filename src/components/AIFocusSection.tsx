@@ -362,6 +362,16 @@ export function AIFocusSection() {
             </div>
           </div>
 
+          {/* Readiness insight — restored (logic existed but was not rendered after layout pass) */}
+          <div className="relative z-10 mb-4 space-y-1 px-1 text-center">
+            <p className="text-sm leading-snug text-gray-200">{getEnergyRecommendation()}</p>
+            <p className={`text-xs ${shouldOptimize ? 'text-amber-400/90' : 'text-gray-500'}`}>
+              {shouldOptimize
+                ? `~${cognitiveHours}h focus capacity — favor lighter work or breaks.`
+                : `~${cognitiveHours}h productive bandwidth in this energy band.`}
+            </p>
+          </div>
+
           <div className="space-y-4 relative z-10">
             {/* NEW: Quick Stats Grid - Points & Auras */}
             <div className="grid grid-cols-2 gap-2">
