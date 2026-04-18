@@ -687,15 +687,18 @@ export function ResourceHubSection() {
           <div className="absolute inset-0 bg-gradient-to-br from-teal-500/5 to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
           
           <div className="relative z-10">
-            {/* Header with live score badge */}
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <Waves className="w-4 h-4 text-teal-400 group-hover:animate-pulse" />
-                <h3 className="text-white group-hover:text-teal-100 transition-colors">Resonance Engine</h3>
-                {/* RESEARCH: GitHub (2024) - Status indicators increase transparency by 73% */}
-                <Sparkles className="w-3 h-3 text-teal-400/60 group-hover:text-teal-300 transition-colors" />
+            {/* Header: hero icon above title (matches AI Focus / Smart Insights stacking) */}
+            <div className="mb-3 flex flex-col items-center gap-2 text-center sm:items-stretch sm:text-left">
+              <div className="flex justify-center sm:justify-start">
+                <Waves className="h-6 w-6 text-teal-400 group-hover:animate-pulse" aria-hidden />
               </div>
-              <ResonanceBadge score={globalResonanceScore} size="sm" />
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex min-w-0 items-center gap-2">
+                  <h3 className="text-white group-hover:text-teal-100 transition-colors">Resonance Engine</h3>
+                  <Sparkles className="w-3 h-3 shrink-0 text-teal-400/60 group-hover:text-teal-300 transition-colors" aria-hidden />
+                </div>
+                <ResonanceBadge score={globalResonanceScore} size="sm" />
+              </div>
             </div>
             
             {/* AHEAD-OF-ITS-TIME: 24-Hour Resonance Timeline Graph (HERO ELEMENT) */}
@@ -797,12 +800,12 @@ export function ResourceHubSection() {
 
         {/* Achievement Progress Rail */}
         <div className="bg-[#1e2128] rounded-2xl p-4 sm:p-5 border border-gray-800 flex-1 flex flex-col card-hover shadow-lg hover:border-gray-700 transition-all">
-          <div className="mb-3 flex flex-col items-center gap-2 text-center sm:flex-row sm:items-start sm:justify-between sm:text-left">
-            <div className="min-w-0">
+          <div className="mb-3 flex flex-col items-center gap-2 text-center">
+            <Sparkles className="h-6 w-6 shrink-0 text-purple-400" aria-hidden />
+            <div className="min-w-0 w-full">
               <h3 className="text-white text-base sm:text-lg">Smart Insights</h3>
               <p className="text-gray-400 text-xs mt-0.5">AI-powered suggestions & quick actions</p>
             </div>
-            <Sparkles className="h-5 w-5 shrink-0 text-purple-400 sm:mt-1" aria-hidden />
           </div>
 
           <div className="flex-1 flex flex-col justify-center">
@@ -812,14 +815,14 @@ export function ResourceHubSection() {
               {smartInsights.map((insight) => (
                 <motion.div
                   key={insight.id}
-                  className="group flex cursor-pointer flex-col gap-3 rounded-lg border border-transparent bg-[#2a2d35] p-3 transition-all hover:bg-[#32353d] sm:flex-row sm:items-start sm:gap-3"
+                  className="group flex cursor-pointer flex-col items-center gap-3 rounded-lg border border-transparent bg-[#2a2d35] p-3 transition-all hover:bg-[#32353d]"
                   onClick={insight.action}
                   whileHover={{ scale: 1.01 }}
                   transition={{ duration: 0.15 }}
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                 >
-                  <div className="flex justify-center sm:block shrink-0">
+                  <div className="flex shrink-0 justify-center">
                     <div
                       className={`rounded-md p-2 ${
                         insight.color === 'yellow'
@@ -840,7 +843,7 @@ export function ResourceHubSection() {
                       {insight.icon}
                     </div>
                   </div>
-                  <div className="min-w-0 flex-1 text-center sm:text-left">
+                  <div className="w-full min-w-0 flex-1 text-left">
                     <p className="text-sm font-medium text-white group-hover:text-gray-100">
                       {insight.title}
                     </p>
@@ -848,8 +851,8 @@ export function ResourceHubSection() {
                       {insight.description}
                     </p>
                   </div>
-                  <div className="hidden shrink-0 text-gray-500 opacity-0 transition-opacity group-hover:opacity-100 sm:block">
-                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <div className="flex w-full justify-end text-gray-500 opacity-0 transition-opacity group-hover:opacity-100">
+                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden>
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                     </svg>
                   </div>

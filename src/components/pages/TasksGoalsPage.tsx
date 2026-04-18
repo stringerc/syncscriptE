@@ -2865,7 +2865,7 @@ function TaskManagementSection({
                       {expandedCollaborators[task.id] ? (
                         <div className="mt-3 space-y-3 pl-2">
                           {task.collaborators.map((collaborator: any, idx: number) => (
-                            <div key={idx} className="flex items-center gap-3 bg-gray-900/40 border border-gray-700/30 rounded-lg p-3">
+                            <div key={idx} className="flex flex-col items-center gap-3 bg-gray-900/40 border border-gray-700/30 rounded-lg p-3">
                               <div className="relative shrink-0">
                                 {/* Use UserAvatar for current user, AnimatedAvatar for others */}
                                 {collaborator.name === profile.name ? (
@@ -2909,7 +2909,7 @@ function TaskManagementSection({
                                   <Eye className="absolute -top-1 -right-1 w-4 h-4 text-gray-400" />
                                 )}
                               </div>
-                              <div className="flex-1 min-w-0">
+                              <div className="w-full min-w-0 flex-1 text-left">
                                 <div className="flex items-center gap-2 mb-1 flex-wrap">
                                   <span className="text-sm text-gray-300 truncate">{collaborator.name}</span>
                                   {/* PHASE 2: Updated badge colors for 4-role system */}

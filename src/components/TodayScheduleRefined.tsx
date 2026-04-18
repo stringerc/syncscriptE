@@ -561,30 +561,32 @@ export function TodayScheduleRefined() {
               </div>
             </motion.div>
             
-            {/* Avatar - larger for Next Up; solo tasks use header profile (not collaborators[0]) */}
-            {(showAsSelf || peer) && (
-              <AnimatedAvatar
-                name={showAsSelf ? profile.name : (peer?.name || 'Task')}
-                image={showAsSelf ? profile.avatar : (peer?.image || defaultCollaboratorImage())}
-                fallback={
-                  showAsSelf
-                    ? profile.name.split(' ').map((n) => n[0]).join('').toUpperCase()
-                    : (peer?.fallback || task.title.substring(0, 2).toUpperCase())
-                }
-                progress={
-                  showAsSelf
-                    ? currentUserEnergy
-                    : calculateCollaboratorProgress(task, peer?.id, peer?.name || '')
-                }
-                animationType={showAsSelf ? 'none' : (peer?.animationType || 'pulse')}
-                className={isNextUp ? "w-8 h-8" : "w-7 h-7"}
-                size={isNextUp ? 32 : 28}
-                status={showAsSelf ? profile.status : (peer?.status || 'online')}
-              />
-            )}
-            
+            {/* Avatar above title when task has assignee/collab (matches AI & Focus cards) */}
+            <div
+              className={`flex-1 min-w-0 ${(showAsSelf || peer) ? 'flex flex-col items-center gap-2' : ''}`}
+            >
+              {(showAsSelf || peer) && (
+                <AnimatedAvatar
+                  name={showAsSelf ? profile.name : (peer?.name || 'Task')}
+                  image={showAsSelf ? profile.avatar : (peer?.image || defaultCollaboratorImage())}
+                  fallback={
+                    showAsSelf
+                      ? profile.name.split(' ').map((n) => n[0]).join('').toUpperCase()
+                      : (peer?.fallback || task.title.substring(0, 2).toUpperCase())
+                  }
+                  progress={
+                    showAsSelf
+                      ? currentUserEnergy
+                      : calculateCollaboratorProgress(task, peer?.id, peer?.name || '')
+                  }
+                  animationType={showAsSelf ? 'none' : (peer?.animationType || 'pulse')}
+                  className={isNextUp ? 'h-8 w-8 shrink-0' : 'h-7 w-7 shrink-0'}
+                  size={isNextUp ? 32 : 28}
+                  status={showAsSelf ? profile.status : (peer?.status || 'online')}
+                />
+              )}
             {/* Title and urgency */}
-            <div className="flex-1 min-w-0">
+            <div className="w-full min-w-0">
               <div className="flex items-center gap-2 mb-1">
                 <h4 className="text-white font-medium text-sm truncate">{task.title}</h4>
                 {urgency && (
@@ -650,6 +652,7 @@ export function TodayScheduleRefined() {
                   <span className={`text-[9px] ${energyFitDisplay.color}`}>{energyFitDisplay.text}</span>
                 </motion.div>
               )}
+            </div>
             </div>
           </div>
         </div>

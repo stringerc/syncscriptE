@@ -195,9 +195,8 @@ export function AIFocusSection() {
                   return (
                     <div 
                       key={task.id}
-                      className="flex flex-col items-center gap-3 sm:flex-row sm:items-center sm:gap-4 bg-black/20 rounded-lg p-3 sm:p-4 hover:bg-black/30 transition-all cursor-pointer border border-transparent hover:border-teal-500/30 group"
+                      className="group flex cursor-pointer flex-col items-center gap-3 rounded-lg border border-transparent bg-black/20 p-3 transition-all hover:bg-black/30 hover:border-teal-500/30 sm:p-4"
                     >
-                      {/* Narrow screens: avatar above copy (F-pattern, no horizontal squeeze). */}
                       <AnimatedAvatar
                         name={showAsSelf ? profile.name : (displayPeer?.name || 'Task')}
                         image={showAsSelf ? profile.avatar : (displayPeer?.image || defaultCollaboratorImage())}
@@ -216,13 +215,13 @@ export function AIFocusSection() {
                               )
                         }
                         animationType={showAsSelf ? 'none' : (displayPeer?.animationType || 'pulse')}
-                        className="w-16 h-16 sm:w-20 sm:h-20 shrink-0 transition-transform group-hover:scale-105 sm:group-hover:scale-110"
+                        className="h-16 w-16 shrink-0 transition-transform group-hover:scale-105 sm:h-20 sm:w-20 sm:group-hover:scale-110"
                         size={64}
                         status={showAsSelf ? profile.status : (displayPeer?.status || 'online')}
                       />
-                      <div className="flex-1 min-w-0 w-full text-center sm:text-left">
-                        <p className="text-white text-sm sm:text-base break-words">{task.title}</p>
-                        <p className="text-gray-400 text-xs sm:text-sm mt-1 leading-relaxed">{taskScore.reasoning}</p>
+                      <div className="w-full min-w-0 text-left">
+                        <p className="break-words text-sm text-white sm:text-base">{task.title}</p>
+                        <p className="mt-1 text-xs leading-relaxed text-gray-400 sm:text-sm">{taskScore.reasoning}</p>
                       </div>
                     </div>
                   );
@@ -255,15 +254,13 @@ export function AIFocusSection() {
             }}
           />
           
-          {/* Header with badge */}
-          <div className="flex items-center justify-between mb-5 relative z-10">
-            <h3 className="text-white flex items-center gap-2">
-              <Brain className="w-5 h-5 text-teal-400" />
-              Energy Adaptive Agent
-            </h3>
+          {/* Header: icon above title at all breakpoints (no sm:flex-row — row reads as "icon beside" on desktop) */}
+          <div className="relative z-10 mb-5 flex flex-col items-center gap-2 text-center">
+            <Brain className="h-6 w-6 text-teal-400" aria-hidden />
+            <h3 className="text-white text-base sm:text-lg">Energy Adaptive Agent</h3>
             <Badge 
               variant="outline" 
-              className="border-teal-400/40 text-teal-300 text-xs"
+              className="shrink-0 border-teal-400/40 text-teal-300 text-xs"
             >
               <Activity className="w-3 h-3 mr-1" />
               Live
@@ -423,23 +420,18 @@ export function AIFocusSection() {
             }}
           />
           
-          <div className="relative z-10 mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-            <div className="flex min-w-0 flex-col items-center gap-2 text-center sm:items-start sm:text-left">
-              <Sparkles className="h-6 w-6 shrink-0 text-purple-400 sm:hidden" aria-hidden />
-              <div className="w-full">
-                <h3 className="text-white flex flex-col items-center gap-2 sm:flex-row sm:items-center">
-                  <Sparkles className="hidden h-5 w-5 shrink-0 text-purple-400 sm:block" aria-hidden />
-                  <span className="text-base leading-snug">Weather & Route Intelligence</span>
-                </h3>
-                <p className="text-gray-400 mt-1 text-xs leading-relaxed">
-                  Proactive suggestions based on your day — tap weather for a 7-day outlook and calendar
-                  cross-check
-                </p>
-              </div>
+          <div className="relative z-10 mb-4 flex flex-col items-center gap-3 text-center">
+            <Sparkles className="h-6 w-6 shrink-0 text-purple-400" aria-hidden />
+            <div className="w-full min-w-0">
+              <h3 className="text-base leading-snug text-white">Weather & Route Intelligence</h3>
+              <p className="mt-1 text-xs leading-relaxed text-gray-400">
+                Proactive suggestions based on your day — tap weather for a 7-day outlook and calendar
+                cross-check
+              </p>
             </div>
             <Badge
               variant="outline"
-              className="mx-auto shrink-0 border-purple-400/40 text-purple-300 text-xs sm:mx-0"
+              className="shrink-0 border-purple-400/40 text-purple-300 text-xs"
             >
               <Brain className="w-3 h-3 mr-1" />
               AI
@@ -486,16 +478,16 @@ export function AIFocusSection() {
                     }
                   }}
                 >
-                  <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-start sm:gap-3">
-                    <div className="flex justify-center sm:justify-start shrink-0">
-                      <div className="flex h-14 w-14 items-center justify-center rounded-full bg-blue-500/20 text-2xl sm:h-16 sm:w-16 sm:text-3xl group-hover/card:scale-110 transition-transform">
+                  <div className="mb-3 flex flex-col items-center gap-3">
+                    <div className="flex shrink-0 justify-center">
+                      <div className="flex h-14 w-14 items-center justify-center rounded-full bg-blue-500/20 text-2xl transition-transform group-hover/card:scale-110 sm:h-16 sm:w-16 sm:text-3xl">
                         {alert.icon}
                       </div>
                     </div>
-                    <div className="min-w-0 flex-1 text-center sm:text-left">
-                      <div className="mb-1 flex flex-col items-center gap-2 sm:flex-row sm:items-start sm:justify-between">
-                        <p className="text-center text-sm font-medium text-white sm:text-left">{alert.message}</p>
-                        <Badge variant="outline" className="shrink-0 border-blue-400/40 px-1.5 py-0 text-[10px] text-blue-300">
+                    <div className="w-full min-w-0 flex-1 text-left">
+                      <div className="mb-1 flex flex-col items-start gap-2">
+                        <p className="text-sm font-medium text-white">{alert.message}</p>
+                        <Badge variant="outline" className="w-fit shrink-0 border-blue-400/40 px-1.5 py-0 text-[10px] text-blue-300">
                           {alert.time}
                         </Badge>
                       </div>
@@ -505,11 +497,11 @@ export function AIFocusSection() {
                           : alert.suggestion}
                       </p>
                       
-                      <div className="mt-2 flex flex-wrap items-center justify-center gap-2 sm:justify-start">
+                      <div className="mt-2 flex flex-wrap items-center gap-2">
                         {attendees.slice(0, 3).map((attendee, i) => (
                           <div 
                             key={i}
-                            className="h-6 w-6 overflow-hidden rounded-full border-2 border-blue-500/30 bg-gray-800 first:ml-0 sm:-ml-1 sm:first:ml-0"
+                            className="-ml-1 h-6 w-6 overflow-hidden rounded-full border-2 border-blue-500/30 bg-gray-800 first:ml-0"
                             style={{ zIndex: attendees.length - i }}
                           >
                             <img 
@@ -520,11 +512,11 @@ export function AIFocusSection() {
                           </div>
                         ))}
                         {attendees.length > 3 && (
-                          <div className="flex h-6 w-6 items-center justify-center rounded-full border-2 border-blue-500/30 bg-gray-700 text-[9px] text-gray-300 sm:-ml-1">
+                          <div className="-ml-1 flex h-6 w-6 items-center justify-center rounded-full border-2 border-blue-500/30 bg-gray-700 text-[9px] text-gray-300">
                             +{attendees.length - 3}
                           </div>
                         )}
-                        <span className="w-full text-center text-[10px] text-gray-400 sm:ml-1 sm:w-auto sm:text-left">
+                        <span className="ml-1 text-[10px] text-gray-400">
                           {attendees.length} attendee{attendees.length !== 1 ? 's' : ''}
                         </span>
                       </div>
@@ -575,30 +567,30 @@ export function AIFocusSection() {
                   transition={{ delay: (1 + index) * 0.1 }}
                   onClick={() => setShowRouteModal(true)}
                 >
-                  <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-start sm:gap-3">
-                    <div className="flex justify-center sm:justify-start shrink-0">
-                      <div className="flex h-14 w-14 items-center justify-center rounded-full bg-orange-500/20 sm:h-16 sm:w-16 group-hover/card:scale-110 transition-transform">
+                  <div className="mb-3 flex flex-col items-center gap-3">
+                    <div className="flex shrink-0 justify-center">
+                      <div className="flex h-14 w-14 items-center justify-center rounded-full bg-orange-500/20 transition-transform group-hover/card:scale-110 sm:h-16 sm:w-16">
                         <Navigation className="h-7 w-7 text-orange-400 sm:h-8 sm:w-8" />
                       </div>
                     </div>
-                    <div className="min-w-0 flex-1 text-center sm:text-left">
-                      <div className="mb-1 flex flex-col items-center gap-2 sm:flex-row sm:items-start sm:justify-between">
-                        <p className="text-center text-sm font-medium text-white sm:text-left">{alert.message}</p>
-                        <Badge variant="outline" className="shrink-0 border-orange-400/40 px-1.5 py-0 text-[10px] text-orange-300">
+                    <div className="w-full min-w-0 flex-1 text-left">
+                      <div className="mb-1 flex flex-col items-start gap-2">
+                        <p className="text-sm font-medium text-white">{alert.message}</p>
+                        <Badge variant="outline" className="w-fit shrink-0 border-orange-400/40 px-1.5 py-0 text-[10px] text-orange-300">
                           +{alert.delay} min
                         </Badge>
                       </div>
-                      <p className="text-gray-400 text-xs mb-2">
+                      <p className="mb-2 text-xs text-gray-400">
                         🚗 {alert.route}
                         {alert.affectedEvents && alert.affectedEvents.length > 0 && 
                           ` • Affects: ${alert.affectedEvents[0]}`}
                       </p>
                       
-                      <div className="mt-2 flex flex-wrap items-center justify-center gap-2 sm:justify-start">
+                      <div className="mt-2 flex flex-wrap items-center gap-2">
                         {attendees.slice(0, 3).map((attendee, i) => (
                           <div 
                             key={i}
-                            className="h-6 w-6 overflow-hidden rounded-full border-2 border-orange-500/30 bg-gray-800 first:ml-0 sm:-ml-1 sm:first:ml-0"
+                            className="-ml-1 h-6 w-6 overflow-hidden rounded-full border-2 border-orange-500/30 bg-gray-800 first:ml-0"
                             style={{ zIndex: attendees.length - i }}
                           >
                             <img 
@@ -609,11 +601,11 @@ export function AIFocusSection() {
                           </div>
                         ))}
                         {attendees.length > 3 && (
-                          <div className="flex h-6 w-6 items-center justify-center rounded-full border-2 border-orange-500/30 bg-gray-700 text-[9px] text-gray-300 sm:-ml-1">
+                          <div className="-ml-1 flex h-6 w-6 items-center justify-center rounded-full border-2 border-orange-500/30 bg-gray-700 text-[9px] text-gray-300">
                             +{attendees.length - 3}
                           </div>
                         )}
-                        <span className="w-full text-center text-[10px] text-gray-400 sm:ml-1 sm:w-auto sm:text-left">
+                        <span className="ml-1 text-[10px] text-gray-400">
                           {attendees.length} attendee{attendees.length !== 1 ? 's' : ''}
                         </span>
                       </div>
@@ -682,16 +674,16 @@ export function AIFocusSection() {
                   }
                 }}
               >
-                <div className="mb-3 flex flex-col items-center gap-2 text-center sm:flex-row sm:items-center sm:gap-3 sm:text-left">
-                  <CloudRain className="h-9 w-9 shrink-0 text-emerald-400 sm:h-8 sm:w-8" aria-hidden />
-                  <div className="min-w-0 flex-1">
+                <div className="mb-3 flex flex-col items-center gap-2 text-center">
+                  <CloudRain className="h-9 w-9 shrink-0 text-emerald-400" aria-hidden />
+                  <div className="w-full min-w-0 text-left">
                     <p className="text-sm font-medium text-white">{weather.condition} in {weather.city}</p>
                     <p className="text-xs text-gray-400">{Math.round(weather.temp)}°F • {weather.description}</p>
                   </div>
                 </div>
-                <div className="flex flex-col items-center gap-1.5 sm:flex-row sm:gap-2">
+                <div className="flex flex-col items-center gap-2 text-center">
                   <Sparkles className="h-4 w-4 shrink-0 text-emerald-400" aria-hidden />
-                  <p className="text-center text-xs font-medium text-emerald-300 sm:text-left">Clear conditions ahead</p>
+                  <p className="w-full text-left text-xs font-medium text-emerald-300">Clear conditions ahead</p>
                 </div>
                 <p className="text-gray-300 text-xs">
                   ✨ Tap for the week ahead and any calendar weather flags

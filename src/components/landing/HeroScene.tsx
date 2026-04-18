@@ -1,5 +1,6 @@
 import { useRef, useEffect } from 'react';
 import * as THREE from 'three';
+import { Timer } from 'three';
 
 const DEVICE_MEMORY =
   typeof navigator !== 'undefined' && 'deviceMemory' in navigator
@@ -422,7 +423,7 @@ export function HeroScene({
 
     const mouse = new THREE.Vector2(10, 10);
     const targetMouse = new THREE.Vector2(10, 10);
-    const clock = new THREE.Timer();
+    const clock = new Timer();
     let currentOrbX = 0;
     let currentOrbY = 0;
     let currentTiltX = Math.PI * 0.15;
