@@ -744,76 +744,6 @@ export function ResourceHubSection() {
           />
         )}
 
-        {/* Smart Insights — above Resonance (pre-redesign: visible without scrolling past the graph) */}
-        <div className="flex shrink-0 flex-col rounded-2xl border border-gray-800 bg-[#1e2128] p-4 card-hover shadow-lg transition-all hover:border-gray-700 sm:p-5 lg:min-h-[12rem] lg:flex-1">
-          <div className="mb-3 flex flex-col items-center gap-2 text-center">
-            <Sparkles className="h-6 w-6 shrink-0 text-purple-400" aria-hidden />
-            <div className="min-w-0 w-full">
-              <h3 className="text-white text-base sm:text-lg">Smart Insights</h3>
-              <p className="text-gray-400 text-xs mt-0.5">AI-powered suggestions & quick actions</p>
-            </div>
-          </div>
-
-          <div className="flex flex-1 flex-col justify-center">
-            <div className="hide-scrollbar space-y-2 overflow-y-auto">
-              {smartInsights.map((insight) => (
-                <motion.div
-                  key={insight.id}
-                  className="group flex cursor-pointer flex-col items-center gap-3 rounded-lg border border-transparent bg-[#2a2d35] p-3 transition-all hover:bg-[#32353d]"
-                  onClick={insight.action}
-                  whileHover={{ scale: 1.01 }}
-                  transition={{ duration: 0.15 }}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                >
-                  <div className="flex shrink-0 justify-center">
-                    <div
-                      className={`rounded-md p-2 ${
-                        insight.color === 'yellow'
-                          ? 'bg-yellow-500/10'
-                          : insight.color === 'blue'
-                            ? 'bg-blue-500/10'
-                            : insight.color === 'orange'
-                              ? 'bg-orange-500/10'
-                              : insight.color === 'teal'
-                                ? 'bg-teal-500/10'
-                                : insight.color === 'emerald'
-                                  ? 'bg-emerald-500/10'
-                                  : insight.color === 'gray'
-                                    ? 'bg-gray-500/10'
-                                    : 'bg-purple-500/10'
-                      }`}
-                    >
-                      {insight.icon}
-                    </div>
-                  </div>
-                  <div className="w-full min-w-0 flex-1 text-left">
-                    <p className="text-sm font-medium text-white group-hover:text-gray-100">
-                      {insight.title}
-                    </p>
-                    <p className="mt-1 text-xs leading-relaxed text-gray-400">
-                      {insight.description}
-                    </p>
-                  </div>
-                  <div className="flex w-full justify-end text-gray-500 opacity-0 transition-opacity group-hover:opacity-100">
-                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden>
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                    </svg>
-                  </div>
-                </motion.div>
-              ))}
-
-              {smartInsights.length === 0 && (
-                <div className="flex flex-col items-center justify-center py-8 text-center">
-                  <Sparkles className="mb-2 h-8 w-8 text-gray-600" />
-                  <p className="text-sm text-gray-500">All caught up!</p>
-                  <p className="mt-1 text-xs text-gray-600">We&apos;ll notify you when there are new insights</p>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-
         {/* Resonance Engine - AHEAD-OF-ITS-TIME UX */}
         {/* RESEARCH: Stripe Dashboard (2024), Linear Status Cards (2024), GitHub Activity Feed (2024) */}
         <motion.div 
@@ -937,6 +867,76 @@ export function ResourceHubSection() {
             </div>
           </div>
         </motion.div>
+
+        {/* Smart Insights — contextual suggestions & quick actions */}
+        <div className="flex shrink-0 flex-col rounded-2xl border border-gray-800 bg-[#1e2128] p-4 card-hover shadow-lg transition-all hover:border-gray-700 sm:p-5 lg:min-h-[12rem] lg:flex-1">
+          <div className="mb-3 flex flex-col items-center gap-2 text-center">
+            <Sparkles className="h-6 w-6 shrink-0 text-purple-400" aria-hidden />
+            <div className="min-w-0 w-full">
+              <h3 className="text-white text-base sm:text-lg">Smart Insights</h3>
+              <p className="text-gray-400 text-xs mt-0.5">AI-powered suggestions & quick actions</p>
+            </div>
+          </div>
+
+          <div className="flex flex-1 flex-col justify-center">
+            <div className="hide-scrollbar space-y-2 overflow-y-auto">
+              {smartInsights.map((insight) => (
+                <motion.div
+                  key={insight.id}
+                  className="group flex cursor-pointer flex-col items-center gap-3 rounded-lg border border-transparent bg-[#2a2d35] p-3 transition-all hover:bg-[#32353d]"
+                  onClick={insight.action}
+                  whileHover={{ scale: 1.01 }}
+                  transition={{ duration: 0.15 }}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                >
+                  <div className="flex shrink-0 justify-center">
+                    <div
+                      className={`rounded-md p-2 ${
+                        insight.color === 'yellow'
+                          ? 'bg-yellow-500/10'
+                          : insight.color === 'blue'
+                            ? 'bg-blue-500/10'
+                            : insight.color === 'orange'
+                              ? 'bg-orange-500/10'
+                              : insight.color === 'teal'
+                                ? 'bg-teal-500/10'
+                                : insight.color === 'emerald'
+                                  ? 'bg-emerald-500/10'
+                                  : insight.color === 'gray'
+                                    ? 'bg-gray-500/10'
+                                    : 'bg-purple-500/10'
+                      }`}
+                    >
+                      {insight.icon}
+                    </div>
+                  </div>
+                  <div className="w-full min-w-0 flex-1 text-left">
+                    <p className="text-sm font-medium text-white group-hover:text-gray-100">
+                      {insight.title}
+                    </p>
+                    <p className="mt-1 text-xs leading-relaxed text-gray-400">
+                      {insight.description}
+                    </p>
+                  </div>
+                  <div className="flex w-full justify-end text-gray-500 opacity-0 transition-opacity group-hover:opacity-100">
+                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden>
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </div>
+                </motion.div>
+              ))}
+
+              {smartInsights.length === 0 && (
+                <div className="flex flex-col items-center justify-center py-8 text-center">
+                  <Sparkles className="mb-2 h-8 w-8 text-gray-600" />
+                  <p className="text-sm text-gray-500">All caught up!</p>
+                  <p className="mt-1 text-xs text-gray-600">We&apos;ll notify you when there are new insights</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
