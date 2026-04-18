@@ -2,6 +2,12 @@ import { useState, useEffect, useRef, useCallback, startTransition, lazy, Suspen
 import { createPortal } from 'react-dom'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Button } from '@/components/ui/button'
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet'
 import { DashboardLayout } from '../../../components/layout/DashboardLayout'
 import {} from '@/components/ui/collapsible'
 import { api } from '@/lib/railway-api'
@@ -165,6 +171,15 @@ export function AppAIPage() {
   const [canvasDocKey, setCanvasDocKey] = useState(0)
   const scrollRef = useRef<HTMLDivElement>(null)
   const recognitionRef = useRef<SpeechRecognition | null>(null)
+  const [mobileChatsOpen, setMobileChatsOpen] = useState(false)
+
+  const scrollMessagesToBottom = useCallback(() => {
+    requestAnimationFrame(() => {
+      const el = scrollRef.current
+      if (!el) return
+      el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' })
+    })
+  }, [])
 
   /**
    * INP: the handler must return immediately. Never call getUserMedia in this path (often 300–500ms+).
@@ -191,6 +206,7 @@ export function AppAIPage() {
   }, [])
 
   const activeChat = chats.find((c) => c.id === activeChatId)
+  const showMobileFooterVoice = Boolean(activeChat && activeChat.messages.length > 0)
 
   useEffect(() => {
     saveChats(chats)
@@ -516,8 +532,34 @@ export function AppAIPage() {
     <DashboardLayout>
     <div className="flex h-full gap-0">
       <div className="flex-1 flex flex-col min-w-0">
+        <div className="flex lg:hidden shrink-0 items-center gap-2 border-b border-gray-800/90 bg-[#101218]/95 px-3 py-2.5 backdrop-blur-sm">
+          <button
+            type="button"
+            className="shrink-0 rounded-lg border border-gray-700/90 bg-[#1a1d26] px-3 py-2 text-xs font-medium text-gray-200 hover:bg-gray-800/80"
+            onClick={() => setMobileChatsOpen(true)}
+          >
+            Chats
+          </button>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-medium text-white">
+              {!activeChat ? 'Nexus AI' : activeChat.title?.trim() || 'New chat'}
+            </p>
+            <p className="text-[10px] text-gray-500">Nexus</p>
+          </div>
+          <button
+            type="button"
+            className="shrink-0 rounded-lg p-2.5 text-gray-400 hover:bg-gray-800 hover:text-white"
+            onClick={() => {
+              handleNewChat()
+            }}
+            aria-label="New chat"
+          >
+            <Plus className="h-5 w-5" />
+          </button>
+        </div>
+
         {activeChat?.type === 'group' && activeChat.agents && (
-          <div className="px-6 py-2 border-b border-gray-800 flex items-center gap-2 flex-wrap">
+          <div className="px-3 md:px-6 py-2 border-b border-gray-800 flex items-center gap-2 flex-wrap">
             <Users className="w-3.5 h-3.5 text-gray-500" />
             {activeChat.agents.map((id) => {
               const a = getAgentPersona(id);
@@ -532,7 +574,7 @@ export function AppAIPage() {
         )}
         <div
           ref={scrollRef}
-          className="flex-1 overflow-y-auto px-3 md:px-6 py-4 space-y-4"
+          className="flex-1 overflow-y-auto px-3 md:px-6 py-4 pb-8 space-y-4"
         >
           {!activeChat && (
             <div className="flex flex-col items-center justify-center min-h-[42vh] text-center py-16">
@@ -554,9 +596,12 @@ export function AppAIPage() {
                   <Users className="w-4 h-4" /> Group Chat
                 </button>
               </div>
-              <p className="text-xs text-gray-500 max-w-md mt-6 text-center leading-snug">
+              <p className="hidden md:block text-xs text-gray-500 max-w-md mt-6 text-center leading-snug">
                 <span className="text-cyan-300/90">Voice</span> opens the animated orb and HUD.{' '}
                 <span className="text-gray-400">Call Nexus</span> opens the classic waveform console. Sign in for Nexus tools.
+              </p>
+              <p className="md:hidden text-[11px] text-gray-500 max-w-md mt-4 text-center leading-snug">
+                <span className="text-cyan-300/90">Voice</span> = orb · <span className="text-gray-400">Call</span> = console. Sign in for tools.
               </p>
               <div className="flex flex-wrap items-center justify-center gap-2 mt-3">
                 <button
@@ -723,7 +768,8 @@ export function AppAIPage() {
         </div>
         <div className="px-3 md:px-6 py-3 border-t border-gray-800/90 bg-gradient-to-t from-[#0c0d12] to-transparent">
           <div className="max-w-3xl mx-auto space-y-3">
-            <div className="flex flex-col gap-2">
+            {/* Desktop: full helper + voice shortcuts */}
+            <div className="hidden md:flex flex-col gap-2">
               <p className="text-xs text-gray-500 leading-snug">
                 <span className="text-gray-400">Voice</span> opens the <span className="text-cyan-300/90">immersive orb</span> (animated rings + artifact rail).{' '}
                 <span className="text-gray-400">Call Nexus</span> opens the classic waveform console. You need to be{' '}
@@ -757,6 +803,58 @@ export function AppAIPage() {
                 </button>
               </div>
             </div>
+
+            {/* Mobile: short line + optional details; Voice/Call only while in an active thread */}
+            <div className="md:hidden flex flex-col gap-2">
+              <p className="text-[11px] text-gray-500 leading-snug">
+                {showMobileFooterVoice
+                  ? 'Mic adds text. Voice and Call open full sessions.'
+                  : 'Mic adds text. Use Voice or Call in the area above.'}
+              </p>
+              <details className="rounded-lg border border-gray-800/80 bg-[#12141f]/80">
+                <summary className="cursor-pointer list-none px-3 py-2 text-[11px] font-medium text-gray-400 [&::-webkit-details-marker]:hidden">
+                  Voice vs Call · sign-in · mic
+                </summary>
+                <div className="border-t border-gray-800/70 px-3 py-2 text-[11px] text-gray-500 leading-relaxed space-y-1.5">
+                  <p>
+                    <span className="text-gray-400">Voice</span> opens the immersive orb (rings + artifact rail).{' '}
+                    <span className="text-gray-400">Call Nexus</span> opens the classic waveform console.
+                  </p>
+                  <p>
+                    Sign in for Nexus tools (documents, tasks, maps). The inline mic only dictates into this box. Phone calls use the icon inside the voice panel; nothing auto-dials.
+                  </p>
+                </div>
+              </details>
+              {showMobileFooterVoice && (
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={openClassicVoice}
+                    aria-label="Call Nexus — full voice session"
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-green-400 bg-green-500/10 border border-green-500/20 hover:bg-green-500/20 hover:border-green-400/30 transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-green-400/40"
+                  >
+                    <Phone className="w-3.5 h-3.5 shrink-0" aria-hidden />
+                    Call Nexus
+                  </button>
+                  <button
+                    type="button"
+                    data-testid="nexus-app-ai-open-immersive-voice-footer-mobile"
+                    onClick={openVoice}
+                    aria-label="Voice — conversational AI (live speech and replies)"
+                    className={cn(
+                      'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-all',
+                      'text-cyan-100 bg-gradient-to-r from-violet-600/35 to-cyan-600/35 border-cyan-500/25',
+                      'hover:from-violet-500/45 hover:to-cyan-500/45 hover:border-cyan-400/35',
+                      'focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0c0d12]'
+                    )}
+                  >
+                    <AudioWaveform className="w-3.5 h-3.5 shrink-0" aria-hidden />
+                    Voice
+                  </button>
+                </div>
+              )}
+            </div>
+
             <div className="flex gap-2 items-end">
               <div
                 className={cn(
@@ -770,6 +868,7 @@ export function AppAIPage() {
                   placeholder={isListening ? 'Listening… speak now' : 'Type a message…'}
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
+                  onFocus={scrollMessagesToBottom}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && !e.shiftKey) {
                       e.preventDefault()
@@ -813,7 +912,7 @@ export function AppAIPage() {
                 type="button"
                 onClick={handleSend}
                 disabled={chatMutation.isPending || !input.trim()}
-                className="h-[3.25rem] min-w-[3.25rem] px-4 bg-gradient-to-br from-violet-600 to-cyan-600 hover:from-violet-500 hover:to-cyan-500 text-white border-0 rounded-2xl shadow-lg shadow-violet-950/30 disabled:opacity-40"
+                className="h-11 w-11 min-w-[2.75rem] shrink-0 p-0 md:h-[3.25rem] md:min-w-[3.25rem] md:px-4 bg-gradient-to-br from-violet-600 to-cyan-600 hover:from-violet-500 hover:to-cyan-500 text-white border-0 rounded-2xl shadow-lg shadow-violet-950/30 disabled:opacity-40"
                 aria-label="Send message"
               >
                 <Send className="w-5 h-5" />
@@ -871,6 +970,72 @@ export function AppAIPage() {
         </div>
       )}
     </div>
+
+    <Sheet open={mobileChatsOpen} onOpenChange={setMobileChatsOpen}>
+      <SheetContent
+        side="left"
+        data-testid="mobile-chat-sheet"
+        className="flex h-full w-[min(100vw-1.5rem,20rem)] flex-col gap-0 border-gray-800 bg-[#13141a] p-0 sm:max-w-sm [&>button.absolute]:text-gray-400"
+      >
+        <SheetHeader className="space-y-0 border-b border-gray-800 p-4">
+          <div className="flex items-center justify-between gap-3 pr-8">
+            <SheetTitle className="text-left text-base text-white">Chats</SheetTitle>
+            <button
+              type="button"
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-800 hover:text-white"
+              onClick={() => {
+                handleNewChat()
+                setMobileChatsOpen(false)
+              }}
+              aria-label="New chat"
+            >
+              <Plus className="h-4 w-4" />
+            </button>
+          </div>
+        </SheetHeader>
+        <div className="min-h-0 flex-1 overflow-y-auto p-2">
+          {chats.length === 0 ? (
+            <p className="px-3 py-6 text-center text-xs text-gray-500">No chats yet. Tap + to start.</p>
+          ) : (
+            <div className="space-y-0.5">
+              {chats.map((chat) => (
+                <div
+                  key={chat.id}
+                  className={cn(
+                    'group flex items-center justify-between gap-1.5 rounded-lg px-2.5 py-2.5 text-xs transition-colors',
+                    activeChatId === chat.id
+                      ? 'border border-purple-500/30 bg-purple-500/10 text-purple-300'
+                      : 'cursor-pointer text-gray-400 hover:bg-gray-800/50 hover:text-gray-200'
+                  )}
+                  onClick={() => {
+                    setActiveChatId(chat.id)
+                    setMobileChatsOpen(false)
+                  }}
+                >
+                  {chat.type === 'group' ? (
+                    <Users className="h-3 w-3 shrink-0" />
+                  ) : (
+                    <MessageSquare className="h-3 w-3 shrink-0" />
+                  )}
+                  <span className="min-w-0 flex-1 truncate">{chat.title || 'New chat'}</span>
+                  <button
+                    type="button"
+                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded text-gray-500 hover:text-red-400 active:bg-gray-800/80"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      handleDeleteChat(chat.id)
+                    }}
+                    aria-label="Delete chat"
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </SheetContent>
+    </Sheet>
 
     {showVoiceEngine &&
       typeof document !== 'undefined' &&
