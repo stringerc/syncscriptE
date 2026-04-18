@@ -147,13 +147,13 @@ export function MobileNav() {
               aria-hidden
             />
 
-            {/* Drawer — higher-contrast panel so nav is readable on small screens */}
+            {/* Drawer — darker frosted panel (blur only on this strip, not the full screen) */}
             <motion.div
               initial={{ x: '-100%' }}
               animate={{ x: 0 }}
               exit={{ x: '-100%' }}
               transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-              className="md:hidden fixed left-0 top-0 bottom-0 w-[min(88vw,300px)] bg-[#1e242e] border-r border-gray-600/90 shadow-[0_0_0_1px_rgba(255,255,255,0.06),8px_0_40px_rgba(0,0,0,0.55)] z-[391] overflow-y-auto ambient-scrollbar"
+              className="md:hidden fixed left-0 top-0 bottom-0 w-[min(88vw,300px)] z-[391] overflow-y-auto ambient-scrollbar bg-[#0b0f16]/95 backdrop-blur-xl backdrop-saturate-150 border-r border-gray-700/75 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),8px_0_48px_rgba(0,0,0,0.65)]"
             >
               {/* Header */}
               <div className="flex items-center justify-between p-4 border-b border-gray-800">
