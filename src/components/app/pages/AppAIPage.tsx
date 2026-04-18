@@ -721,7 +721,7 @@ export function AppAIPage() {
             </div>
           )}
         </div>
-        <div className="px-3 md:px-6 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] border-t border-gray-800/90 bg-gradient-to-t from-[#0c0d12] to-transparent">
+        <div className="px-3 md:px-6 py-3 border-t border-gray-800/90 bg-gradient-to-t from-[#0c0d12] to-transparent">
           <div className="max-w-3xl mx-auto space-y-3">
             <div className="flex flex-col gap-2">
               <p className="text-xs text-gray-500 leading-snug">

@@ -248,7 +248,8 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             <div
               className={
                 isFullBleedView
-                  ? 'flex min-h-0 flex-1 flex-col p-0'
+                  ? /* Full-bleed pages (e.g. /ai): reserve space for fixed mobile bottom nav — same as pb-20 on other routes */
+                    'flex min-h-0 flex-1 flex-col p-0 pb-20 md:pb-0'
                   : 'p-4 md:p-6 pb-20 md:pb-6'
               }
             >
