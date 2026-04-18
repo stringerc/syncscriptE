@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { ChevronRight, Check, Plus } from 'lucide-react';
 import { AnimatedAvatar } from './AnimatedAvatar';
 import { CalendarWidgetV2 } from './CalendarWidgetV2';
@@ -17,6 +17,7 @@ import { toast } from 'sonner@2.0.3';
 import { calculateCollaboratorProgress } from '../utils/progress-calculations';
 import { useUserProfile } from '../utils/user-profile';
 import { useCurrentReadiness } from '../hooks/useCurrentReadiness';
+import { withDashboardScheduleDemoFallback } from '../utils/dashboard-schedule-demo';
 
 /**
  * 🎯 TODAY SECTION - Quick Task Completion & Contextual Creation
@@ -215,7 +216,7 @@ export function TodaySection() {
         <div 
           className="bg-[#1e2128] rounded-2xl p-4 sm:p-6 border border-gray-800 flex flex-col card-hover shadow-lg hover:border-gray-700 transition-all overflow-y-auto scroll-smooth hide-scrollbar max-h-[min(70vh,28rem)] lg:max-h-[480px]" 
         >
-          <TodayScheduleRefined tasks={safeTasks} loading={loading} />
+          <TodayScheduleRefined tasks={tasksForSchedule} loading={loading} />
         </div>
         
         {/* Unified Conflict Detection Card - Between Tasks and Calendar */}

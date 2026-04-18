@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { withDashboardScheduleDemoFallback } from '../utils/dashboard-schedule-demo';
 import { HelpCircle, Zap, ArrowRight, Sparkles, Brain, Activity, Crown, CloudRain, Navigation, Users } from 'lucide-react';
 import { AnimatedAvatar } from './AnimatedAvatar';
 import { useUserProfile } from '../utils/user-profile';
@@ -87,9 +88,14 @@ export function AIFocusSection() {
   const { tasks, loading } = useTasks();
   const { energy } = useEnergy();
   const { profile } = useUserProfile(); // Get current user from context
+
+  const tasksWithScheduleDemo = useMemo(
+    () => withDashboardScheduleDemoFallback(tasks),
+    [tasks],
+  );
   
   // Get top 2 priority tasks using research-backed AI selection
-  const topPriorityTasks = getTopPriorityTasks(tasks, 2);
+  const topPriorityTasks = getTopPriorityTasks(tasksWithScheduleDemo, 2);
   const primaryTask = topPriorityTasks[0];
   
   // ══════════════════════════════════════════════════════════════════════════════
@@ -162,7 +168,7 @@ export function AIFocusSection() {
           ) : !primaryTask ? (
             <div className="text-gray-400 text-center py-8 space-y-4 px-2">
               <p className="text-gray-300">
-                {tasks.some((t) => !t.completed)
+                {tasksWithScheduleDemo.some((t) => !t.completed)
                   ? 'We could not rank your open tasks yet.'
                   : 'No open tasks yet.'}
               </p>
@@ -750,7 +756,7 @@ export function AIFocusSection() {
       />
 
       <TaskDetailModal
-        task={(tasks || []).find((t) => t.id === selectedTaskId) ?? null}
+        task={(tasksWithScheduleDemo || []).find((t) => t.id === selectedTaskId) ?? null}
         open={selectedTaskId !== null}
         onOpenChange={(open) => {
           if (!open) setSelectedTaskId(null);

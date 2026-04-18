@@ -196,6 +196,10 @@ import { defaultCollaboratorImage, getTaskParticipantFaces, resolveTaskCardAvata
 import { TaskParticipantAvatarStack } from './TaskParticipantAvatarStack';
 import { useCurrentReadiness } from '../hooks/useCurrentReadiness';
 import { Task } from '../utils/event-task-types';
+import {
+  isDashboardDemoTask,
+  isDashboardOpenTask,
+} from '../utils/dashboard-schedule-demo';
 
 interface TaskWithTime extends Task {
   suggestedTime?: string;
@@ -275,7 +279,7 @@ export function TodayScheduleRefined({ tasks: tasksProp, loading: loadingProp }:
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const todayEnd = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000);
     
-    const availableTasks = (tasks || []).filter(isOpenScheduleTask);
+    const availableTasks = (tasks || []).filter(isDashboardOpenTask);
     
     // Score and assign time slots
     const scoredTasks = availableTasks.map(task => {
@@ -410,6 +414,13 @@ export function TodayScheduleRefined({ tasks: tasksProp, loading: loadingProp }:
     
     return { total, completed, percentage };
   }, [getSmartSchedule, completedTaskIds]);
+
+  const showSampleScheduleBanner = useMemo(() => {
+    const list = tasks || [];
+    const open = list.filter(isDashboardOpenTask);
+    if (open.length === 0) return false;
+    return open.every(isDashboardDemoTask);
+  }, [tasks]);
   
   // ══════════════════════════════════════════════════════════════════════════════
   // URGENCY FORMATTING
@@ -522,6 +533,19 @@ export function TodayScheduleRefined({ tasks: tasksProp, loading: loadingProp }:
                 e.stopPropagation();
                 
                 if (isCompleting) return;
+
+                if (isDashboardDemoTask(task)) {
+                  setCompletingTaskIds((prev) => new Set([...prev, task.id]));
+                  window.setTimeout(() => {
+                    setCompletedTaskIds((prev) => new Set([...prev, task.id]));
+                    setCompletingTaskIds((prev) => {
+                      const next = new Set(prev);
+                      next.delete(task.id);
+                      return next;
+                    });
+                  }, 200);
+                  return;
+                }
                 
                 setCompletingTaskIds(prev => new Set([...prev, task.id]));
                 
@@ -709,6 +733,11 @@ export function TodayScheduleRefined({ tasks: tasksProp, loading: loadingProp }:
         <div>
           <h3 className="text-white font-semibold">Today's Schedule</h3>
           <p className="text-xs text-gray-400">{formatAppDate('full')}</p>
+          {showSampleScheduleBanner && (
+            <p className="mt-1.5 text-[11px] leading-snug text-indigo-200/90 rounded-md border border-indigo-500/25 bg-indigo-500/10 px-2 py-1.5">
+              Sample tasks — your list appears here when you add open work in Tasks.
+            </p>
+          )}
         </div>
         <motion.button
           onClick={() => setIsNewTaskDialogOpen(true)}
