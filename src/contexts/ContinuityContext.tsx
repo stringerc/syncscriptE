@@ -64,7 +64,6 @@ export function ContinuityProvider({ children }: { children: ReactNode }) {
   const deviceLabelRef = useRef(getDeviceLabel());
   const channelRef = useRef<BroadcastChannel | null>(null);
   const realtimeRef = useRef<RealtimeChannel | null>(null);
-  const supabaseRef = useRef(createClient(`https://${projectId}.supabase.co`, publicAnonKey));
 
   const initialRoute = normalizeRouteContext(routeContext || routeContextFromUrl(location.pathname, location.search));
   const [continuity, setContinuity] = useState<ContinuityState>({
