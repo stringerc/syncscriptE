@@ -1,7 +1,8 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useLocation } from 'react-router';
-import { createClient, type RealtimeChannel } from '@supabase/supabase-js';
+import type { RealtimeChannel } from '@supabase/supabase-js';
 import { projectId, publicAnonKey } from '../utils/supabase/info';
+import { supabase } from '../utils/supabase/client';
 import { useAuth } from './AuthContext';
 import { useAIInsightsRouting } from './AIInsightsRoutingContext';
 import { buildAgentDeepLink, buildRoutePrefix, normalizeRouteContext, routeContextFromUrl } from '../utils/ai-route';
@@ -128,7 +129,7 @@ export function ContinuityProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!user?.id || isGuestSession) return;
-    const channel = supabaseRef.current.channel(`continuity:${user.id}`, {
+    const channel = supabase.channel(`continuity:${user.id}`, {
       config: {
         broadcast: { self: false },
       },
