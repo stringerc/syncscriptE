@@ -12,7 +12,16 @@
  * - Voice memory integration
  */
 
-import { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo } from 'react';
+import {
+  useState,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useCallback,
+  useMemo,
+  lazy,
+  Suspense,
+} from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { createPortal } from 'react-dom';
 import {
@@ -74,7 +83,7 @@ import type {
 } from '../types/voice-engine';
 import { NexusVoiceMinimalCircle } from './nexus/NexusVoiceMinimalCircle';
 import { NexusVoiceSatelliteOrbit } from './nexus/NexusVoiceSatelliteOrbit';
-import { NexusVoicePixieDust } from './nexus/NexusVoicePixieDust';
+import type { NexusPixiePath } from './nexus/NexusVoicePixieDust';
 import type { NexusVoiceOrbPhase } from './nexus/nexus-voice-orb-types';
 import { toolTraceToDelegationHints } from '../utils/nexus-delegation-visual';
 
@@ -83,6 +92,8 @@ import { toolTraceToDelegationHints } from '../utils/nexus-delegation-visual';
 // ============================================================================
 
 const LS_SAVED_PHONE = 'syncscript_phone_number';
+
+const NexusVoicePixieDust = lazy(() => import('./nexus/NexusVoicePixieDust'));
 
 function ImmersiveVoiceStatusLine({
   thinkingVisible,
@@ -504,11 +515,46 @@ export function VoiceConversationEngine({
     ],
   );
 
-  const [pixieToken, setPixieToken] = useState(0);
+  const [pixieBurst, setPixieBurst] = useState<{
+    id: number;
+    path: NexusPixiePath | null;
+  } | null>(null);
+  const nexusOrbMeasureRef = useRef<HTMLDivElement | null>(null);
+  const lastOrbCenterRectRef = useRef<DOMRect | null>(null);
   const prevImmersiveModalRef = useRef(false);
+
   useEffect(() => {
+    if (immersiveModalOpen) return;
+    const el = nexusOrbMeasureRef.current;
+    if (!el) return;
+    const snap = () => {
+      const n = nexusOrbMeasureRef.current;
+      if (n) lastOrbCenterRectRef.current = n.getBoundingClientRect();
+    };
+    snap();
+    const ro = new ResizeObserver(snap);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [immersiveModalOpen]);
+
+  useLayoutEffect(() => {
     if (immersiveModalOpen && !prevImmersiveModalRef.current) {
-      setPixieToken((n) => n + 1);
+      const fromR = lastOrbCenterRectRef.current;
+      const toR = nexusOrbMeasureRef.current?.getBoundingClientRect() ?? null;
+      const path: NexusPixiePath | null =
+        fromR && toR
+          ? {
+              from: {
+                x: fromR.left + fromR.width / 2,
+                y: fromR.top + fromR.height / 2,
+              },
+              to: {
+                x: toR.left + toR.width / 2,
+                y: toR.top + toR.height / 2,
+              },
+            }
+          : null;
+      setPixieBurst({ id: Date.now(), path });
     }
     prevImmersiveModalRef.current = immersiveModalOpen;
   }, [immersiveModalOpen]);
@@ -1094,12 +1140,15 @@ export function VoiceConversationEngine({
                 background: immersiveVoiceTint.background,
               }}
             />
-            {pixieToken > 0 && (
-              <NexusVoicePixieDust
-                key={pixieToken}
-                reduceMotion={Boolean(reduceMotion)}
-                onComplete={() => setPixieToken(0)}
-              />
+            {pixieBurst && (
+              <Suspense fallback={null}>
+                <NexusVoicePixieDust
+                  key={pixieBurst.id}
+                  path={pixieBurst.path}
+                  reduceMotion={Boolean(reduceMotion)}
+                  onComplete={() => setPixieBurst(null)}
+                />
+              </Suspense>
             )}
             {onClose && (
               <div className="pointer-events-none absolute inset-x-0 top-0 z-20 flex justify-end p-4 pt-[max(0.75rem,env(safe-area-inset-top))] pr-[max(0.75rem,env(safe-area-inset-right))]">
@@ -1153,6 +1202,7 @@ export function VoiceConversationEngine({
                     <div className="relative z-20 shrink-0 px-4 pt-14">
                       <div className="flex max-w-full items-start gap-3">
                         <motion.div
+                          ref={nexusOrbMeasureRef}
                           layoutId="nexus-immersive-orb"
                           className="shrink-0"
                           transition={immersiveOrbLayoutTransition}
