@@ -45,6 +45,21 @@ window.addEventListener("unhandledrejection", (e) => {
       sessionStorage.setItem("chunk_reload", "1");
       window.location.reload();
     }
+    return;
+  }
+
+  // Supabase JS can surface lock-queue aborts as unhandled rejections when multiple
+  // clients compete for the same auth storage lock. Prefer a single `createClient`
+  // (see `utils/supabase/client.ts`). Until duplicate clients are removed, avoid
+  // spamming the console for this expected cancellation.
+  const r = e.reason;
+  const name = r?.name ?? (r instanceof DOMException ? r.name : "");
+  if (
+    name === "AbortError" ||
+    msg.includes("signal is aborted") ||
+    msg.includes("The user aborted a request")
+  ) {
+    e.preventDefault();
   }
 });
 
