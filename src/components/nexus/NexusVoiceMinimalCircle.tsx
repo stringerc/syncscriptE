@@ -74,6 +74,7 @@ export function NexusVoiceMinimalCircle({
   sessionActive,
   onTapToStart,
   sttReady = true,
+  compact = false,
 }: {
   phase: NexusVoiceOrbPhase;
   /** Intentionally unused for motion — orb reacts to Nexus (TTS) output, not your mic. */
@@ -82,6 +83,8 @@ export function NexusVoiceMinimalCircle({
   sessionActive: boolean;
   onTapToStart?: () => void;
   sttReady?: boolean;
+  /** Smaller orb shell when docked (e.g. immersive modal open). */
+  compact?: boolean;
 }) {
   const reduce = useReducedMotion();
 
