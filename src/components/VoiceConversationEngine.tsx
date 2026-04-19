@@ -20,7 +20,7 @@ import {
   Brain, Sparkles, Activity, MessageSquare, X, Minimize2,
   Maximize2, Settings, Zap, Heart, ChevronDown, Send, Info,
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence, LayoutGroup, useReducedMotion } from 'motion/react';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { toast } from 'sonner';
@@ -70,15 +70,65 @@ import type {
   VoiceSession,
   EmotionState,
   VoiceEngineStatus,
+  VoiceDelegationHint,
 } from '../types/voice-engine';
 import { NexusVoiceMinimalCircle } from './nexus/NexusVoiceMinimalCircle';
+import { NexusVoiceSatelliteOrbit } from './nexus/NexusVoiceSatelliteOrbit';
+import { NexusVoicePixieDust } from './nexus/NexusVoicePixieDust';
 import type { NexusVoiceOrbPhase } from './nexus/nexus-voice-orb-types';
+import { toolTraceToDelegationHints } from '../utils/nexus-delegation-visual';
 
 // ============================================================================
 // PROPS
 // ============================================================================
 
 const LS_SAVED_PHONE = 'syncscript_phone_number';
+
+function ImmersiveVoiceStatusLine({
+  thinkingVisible,
+  voiceSatellitesLoading,
+  interimText,
+  align,
+}: {
+  thinkingVisible: boolean;
+  voiceSatellitesLoading: boolean;
+  interimText: string;
+  align: 'center' | 'left';
+}) {
+  const wrap =
+    align === 'center'
+      ? 'w-full max-w-[min(92vw,380px)] min-h-[1.25rem] px-2 text-center'
+      : 'min-h-[1.25rem] min-w-0 flex-1 pt-2 text-left [text-wrap:balance]';
+  return (
+    <div className={wrap} aria-live="polite" aria-atomic="true">
+      <AnimatePresence mode="wait">
+        {thinkingVisible ? (
+          <motion.p
+            key="thinking"
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 0.88, y: 0 }}
+            exit={{ opacity: 0, y: -4 }}
+            transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+            className={`text-[14px] font-medium leading-relaxed tracking-tight text-amber-200/90 [text-shadow:0_1px_14px_rgba(0,0,0,0.45)] ${align === 'left' ? '' : 'text-center'}`}
+          >
+            {voiceSatellitesLoading ? 'Let me check…' : 'Nexus is thinking…'}
+          </motion.p>
+        ) : interimText ? (
+          <motion.p
+            key="interim"
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 0.92, y: 0 }}
+            exit={{ opacity: 0, y: -4 }}
+            transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+            className={`text-[15px] font-normal leading-relaxed tracking-tight text-blue-200/95 [text-shadow:0_1px_18px_rgba(0,0,0,0.55)] ${align === 'left' ? '' : 'text-center'}`}
+          >
+            {interimText}
+          </motion.p>
+        ) : null}
+      </AnimatePresence>
+    </div>
+  );
+}
 
 interface VoiceConversationEngineProps {
   mode?: 'panel' | 'fullscreen' | 'compact';
@@ -132,6 +182,12 @@ export function VoiceConversationEngine({
   const queryClient = useQueryClient();
   /** Bumps when canvas content is replaced so DocumentCanvas remounts with new Markdown. */
   const [voiceCanvasRenderKey, setVoiceCanvasRenderKey] = useState(0);
+  /** Delegation satellites: loading = API/tools wait; items = resolved specialists (brief flare, then cleared). */
+  const [voiceSatellites, setVoiceSatellites] = useState<{
+    loading: boolean;
+    items: VoiceDelegationHint[];
+  }>({ loading: false, items: [] });
+  const satelliteClearTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Refs
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -176,6 +232,7 @@ export function VoiceConversationEngine({
   const { user, accessToken } = useAuth();
   const nexusPrivateContext = useNexusPrivateContext();
   const { sendMessage: sendOpenClawMessage } = useOpenClaw();
+  const reduceMotion = useReducedMotion();
 
   useEffect(() => {
     setShowTranscript(!immersiveArt);
@@ -260,6 +317,22 @@ export function VoiceConversationEngine({
   }, [messages]);
 
   // Cleanup all resources on unmount (use refs — deps [] would otherwise freeze stale voiceStream).
+  const clearSatelliteTimer = useCallback(() => {
+    if (satelliteClearTimerRef.current) {
+      clearTimeout(satelliteClearTimerRef.current);
+      satelliteClearTimerRef.current = null;
+    }
+  }, []);
+
+  const scheduleSatelliteFade = useCallback((items: VoiceDelegationHint[]) => {
+    clearSatelliteTimer();
+    if (items.length === 0) return;
+    satelliteClearTimerRef.current = setTimeout(() => {
+      setVoiceSatellites((s) => ({ ...s, items: [] }));
+      satelliteClearTimerRef.current = null;
+    }, 1800);
+  }, [clearSatelliteTimer]);
+
   useEffect(() => {
     return () => {
       try {
@@ -269,6 +342,10 @@ export function VoiceConversationEngine({
         if (pendingUserTextFlushTimerRef.current) {
           clearTimeout(pendingUserTextFlushTimerRef.current);
           pendingUserTextFlushTimerRef.current = null;
+        }
+        if (satelliteClearTimerRef.current) {
+          clearTimeout(satelliteClearTimerRef.current);
+          satelliteClearTimerRef.current = null;
         }
         const s = sessionRef.current;
         const msgs = messagesRef.current;
@@ -304,6 +381,8 @@ export function VoiceConversationEngine({
     setSession(newSession);
     setMessages([]);
     setArtifactChips([]);
+    clearSatelliteTimer();
+    setVoiceSatellites({ loading: false, items: [] });
     setMapUrlHint(null);
     setVoiceCanvasDoc(null);
     setVoiceCanvasOpen(false);
@@ -361,7 +440,7 @@ export function VoiceConversationEngine({
     if (!immersiveArt) {
       toast.success('Voice session started', { description: 'Speak naturally — I\'m listening.' });
     }
-  }, [voiceContext, currentEmotion, voiceStream, startAudioAnalysis, immersiveArt]);
+  }, [voiceContext, currentEmotion, voiceStream, startAudioAnalysis, immersiveArt, clearSatelliteTimer]);
 
   useLayoutEffect(() => {
     if (!immersiveArt || autoDialAttemptedRef.current) return;
@@ -392,6 +471,8 @@ export function VoiceConversationEngine({
     setVoiceCanvasOpen(false);
     setVoiceCanvasDoc(null);
     setArtifactChips([]);
+    clearSatelliteTimer();
+    setVoiceSatellites({ loading: false, items: [] });
     setMapUrlHint(null);
     setVoiceTaskFocusId(null);
     setVoiceTaskSheetOpen(false);
@@ -401,12 +482,36 @@ export function VoiceConversationEngine({
     setVoiceLinkedCalModalOpen(false);
     setVoiceCanvasRenderKey(0);
     toast.info('Voice session ended');
-  }, [session, messages, voiceStream, stopAudioAnalysis]);
+  }, [session, messages, voiceStream, stopAudioAnalysis, clearSatelliteTimer]);
 
   const voiceCalendarEventResolved = useMemo(() => {
     if (!voiceCalendarEvent?.id) return null;
     return events.find((e) => e.id === voiceCalendarEvent.id) ?? voiceCalendarEvent;
   }, [events, voiceCalendarEvent]);
+
+  const immersiveModalOpen = useMemo(
+    () =>
+      voiceTaskSheetOpen ||
+      (voiceEventModalOpen && Boolean(voiceCalendarEventResolved)) ||
+      voiceLinkedCalModalOpen ||
+      voiceCanvasOpen,
+    [
+      voiceTaskSheetOpen,
+      voiceEventModalOpen,
+      voiceCalendarEventResolved,
+      voiceLinkedCalModalOpen,
+      voiceCanvasOpen,
+    ],
+  );
+
+  const [pixieToken, setPixieToken] = useState(0);
+  const prevImmersiveModalRef = useRef(false);
+  useEffect(() => {
+    if (immersiveModalOpen && !prevImmersiveModalRef.current) {
+      setPixieToken((n) => n + 1);
+    }
+    prevImmersiveModalRef.current = immersiveModalOpen;
+  }, [immersiveModalOpen]);
 
   const handleVoiceCalendarSave = useCallback((ev: Event) => {
     updateEvent(ev.id, ev as Partial<Event>);
@@ -442,9 +547,12 @@ export function VoiceConversationEngine({
     const thread = [...messages, userMessage];
     setMessages(thread);
     setIsProcessingAI(true);
+    clearSatelliteTimer();
+    setVoiceSatellites({ loading: true, items: [] });
 
     try {
       let aiText: string;
+      let delegationHints: VoiceDelegationHint[] | undefined;
 
       if (accessToken) {
         const apiMsgs = thread
@@ -462,10 +570,32 @@ export function VoiceConversationEngine({
           personaMode: getStoredNexusPersonaMode(),
         });
 
-        if (nexusRes.error) {
+        if (nexusRes.httpStatus === 401) {
+          // Same JWT would 401 OpenClaw too — avoid extra failed requests + console noise
+          aiText = formatAIResponseForVoice(getFallbackResponse(text, voiceContext, emotion));
+          setArtifactChips([]);
+          setMapUrlHint(null);
+          delegationHints = undefined;
+          clearSatelliteTimer();
+          setVoiceSatellites({ loading: false, items: [] });
+          toast.message(
+            'Session expired or invalid — sign in again for Nexus and cloud assistant. Using an offline reply for this turn.',
+            { duration: 6000 },
+          );
+        } else if (nexusRes.httpStatus === 502 || nexusRes.httpStatus === 503 || nexusRes.httpStatus === 504) {
+          aiText = formatAIResponseForVoice(getFallbackResponse(text, voiceContext, emotion));
+          setArtifactChips([]);
+          setMapUrlHint(null);
+          delegationHints = undefined;
+          clearSatelliteTimer();
+          setVoiceSatellites({ loading: false, items: [] });
+          toast.message(
+            'Nexus took too long or the service was busy. Try again with a shorter request, or retry in a moment.',
+            { duration: 8000 },
+          );
+        } else if (nexusRes.error) {
           throw new Error(nexusRes.error);
-        }
-
+        } else {
         const trace = nexusRes.toolTrace;
         if (Array.isArray(trace) && trace.length > 0) {
           window.dispatchEvent(
@@ -481,6 +611,14 @@ export function VoiceConversationEngine({
         const mapMatch = extractFirstMapUrl(rawContent);
         setMapUrlHint(mapMatch);
         setArtifactChips(toolTraceToVoiceChips(trace, rawContent));
+
+        const delegationHintList = toolTraceToDelegationHints(
+          trace as Record<string, unknown>[] | undefined,
+          rawContent,
+        );
+        delegationHints = delegationHintList.length ? delegationHintList : undefined;
+        setVoiceSatellites({ loading: false, items: delegationHintList });
+        scheduleSatelliteFade(delegationHintList);
 
         const docTr = trace?.find(
           (t) => t && t.ok === true && t.tool === 'create_document' && t.detail && typeof t.detail === 'object',
@@ -601,6 +739,7 @@ export function VoiceConversationEngine({
             });
           }
         }
+        }
       } else {
         const response = await sendOpenClawMessage({
           message: text.trim(),
@@ -625,6 +764,9 @@ export function VoiceConversationEngine({
         );
         setArtifactChips([]);
         setMapUrlHint(null);
+        delegationHints = undefined;
+        clearSatelliteTimer();
+        setVoiceSatellites({ loading: false, items: [] });
       }
 
       const aiMessage: VoiceMessage = {
@@ -632,6 +774,7 @@ export function VoiceConversationEngine({
         role: 'assistant',
         text: aiText,
         timestamp: Date.now(),
+        delegationHints,
       };
 
       setMessages((prev) => [...prev, aiMessage]);
@@ -649,6 +792,8 @@ export function VoiceConversationEngine({
         config: { model: kokoro.model, voice: kokoro.voice, speed: kokoro.speed, pitch: kokoro.pitch },
       });
     } catch (error) {
+      clearSatelliteTimer();
+      setVoiceSatellites({ loading: false, items: [] });
       if (import.meta.env.DEV) {
         console.warn('[VoiceConversationEngine] AI request failed — using offline fallback', error);
       }
@@ -694,6 +839,8 @@ export function VoiceConversationEngine({
     refreshTasks,
     addEvent,
     updateEvent,
+    clearSatelliteTimer,
+    scheduleSatelliteFade,
   ]);
 
   handleUserMessageRef.current = handleUserMessage;
@@ -812,6 +959,37 @@ export function VoiceConversationEngine({
     return mapResolvedCoords;
   }, [mapUrlHint, mapResolvedCoords]);
 
+  const immersiveVoiceTint = useMemo(() => {
+    const listeningTint =
+      isActive &&
+      !voiceStream.isSpeaking &&
+      !isProcessingAI &&
+      voiceStream.isListening;
+    const opacity =
+      voiceStream.isSpeaking ||
+      (isProcessingAI && !voiceStream.isSpeaking) ||
+      listeningTint
+        ? 1
+        : 0;
+    const background = voiceStream.isSpeaking
+      ? 'radial-gradient(ellipse 90% 60% at 50% 36%, rgba(34,211,238,0.13), rgba(3,2,6,0) 58%)'
+      : isProcessingAI && !voiceStream.isSpeaking
+        ? 'radial-gradient(ellipse 90% 60% at 50% 36%, rgba(245,158,11,0.12), rgba(3,2,6,0) 58%)'
+        : listeningTint
+          ? 'radial-gradient(ellipse 94% 62% at 48% 38%, rgba(167,139,250,0.12), rgba(52,211,153,0.07), rgba(3,2,6,0) 62%)'
+          : 'transparent';
+    return { opacity, background };
+  }, [
+    isActive,
+    isProcessingAI,
+    voiceStream.isSpeaking,
+    voiceStream.isListening,
+  ]);
+
+  const immersiveOrbLayoutTransition = reduceMotion
+    ? { duration: 0 }
+    : { type: 'spring' as const, stiffness: 400, damping: 38, mass: 0.82 };
+
   // ==========================================================================
   // RENDER
   // ==========================================================================
@@ -895,7 +1073,34 @@ export function VoiceConversationEngine({
           <div
             className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-[#030206]"
             data-testid="nexus-voice-immersive-main"
+            data-nexus-voice-phase={
+              voiceStream.isSpeaking
+                ? 'speaking'
+                : isProcessingAI && !voiceStream.isSpeaking
+                  ? 'thinking'
+                  : isActive
+                    ? 'listening'
+                    : 'idle'
+            }
           >
+            {/* Subtle full-screen tint: cyan TTS · amber thinking · violet/green listening */}
+            <div
+              className={`pointer-events-none absolute inset-0 z-[1] ${
+                reduceMotion ? '' : 'transition-[opacity,background] duration-500 ease-out'
+              }`}
+              aria-hidden
+              style={{
+                opacity: immersiveVoiceTint.opacity,
+                background: immersiveVoiceTint.background,
+              }}
+            />
+            {pixieToken > 0 && (
+              <NexusVoicePixieDust
+                key={pixieToken}
+                reduceMotion={Boolean(reduceMotion)}
+                onComplete={() => setPixieToken(0)}
+              />
+            )}
             {onClose && (
               <div className="pointer-events-none absolute inset-x-0 top-0 z-20 flex justify-end p-4 pt-[max(0.75rem,env(safe-area-inset-top))] pr-[max(0.75rem,env(safe-area-inset-right))]">
                 <Button
@@ -912,57 +1117,87 @@ export function VoiceConversationEngine({
                 </Button>
               </div>
             )}
-            <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-12 overflow-y-auto px-4 pb-8 pt-14">
-              <NexusVoiceMinimalCircle
-                phase={orbPhase}
-                ttsLevel={voiceStream.ttsOutputLevel}
-                micLevel={micInputLevel}
-                sessionActive={isActive}
-                onTapToStart={startSession}
-                sttReady={voiceStream.sttReady}
-              />
-              <div
-                className="w-full max-w-[min(92vw,380px)] min-h-[1.25rem] px-2"
-                aria-live="polite"
-                aria-atomic="true"
-              >
-                <AnimatePresence mode="wait">
-                  {isProcessingAI ? (
-                    <motion.p
-                      key="thinking"
-                      initial={{ opacity: 0, y: 6 }}
-                      animate={{ opacity: 0.88, y: 0 }}
-                      exit={{ opacity: 0, y: -4 }}
-                      transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
-                      className="text-center text-[14px] font-medium leading-relaxed tracking-tight text-amber-200/90 [text-shadow:0_1px_14px_rgba(0,0,0,0.45)]"
+            <LayoutGroup id="nexus-immersive-voice-orb">
+              <div className="relative z-10 flex min-h-0 flex-1 flex-col overflow-hidden">
+                {!immersiveModalOpen ? (
+                  <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-12 overflow-y-auto px-4 pb-8 pt-14">
+                    <motion.div
+                      layoutId="nexus-immersive-orb"
+                      className="flex shrink-0 flex-col items-center"
+                      transition={immersiveOrbLayoutTransition}
                     >
-                      Nexus is thinking…
-                    </motion.p>
-                  ) : voiceStream.interimText ? (
-                    <motion.p
-                      key="interim"
-                      initial={{ opacity: 0, y: 8 }}
-                      animate={{ opacity: 0.92, y: 0 }}
-                      exit={{ opacity: 0, y: -4 }}
-                      transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
-                      className="text-center text-[15px] font-normal leading-relaxed tracking-tight text-blue-200/95 [text-shadow:0_1px_18px_rgba(0,0,0,0.55)]"
-                    >
-                      {voiceStream.interimText}
-                    </motion.p>
-                  ) : null}
-                </AnimatePresence>
+                      <NexusVoiceSatelliteOrbit
+                        loading={voiceSatellites.loading}
+                        satellites={voiceSatellites.items}
+                      >
+                        <NexusVoiceMinimalCircle
+                          phase={orbPhase}
+                          ttsLevel={voiceStream.ttsOutputLevel}
+                          micLevel={micInputLevel}
+                          sessionActive={isActive}
+                          onTapToStart={startSession}
+                          sttReady={voiceStream.sttReady}
+                          compact={false}
+                        />
+                      </NexusVoiceSatelliteOrbit>
+                    </motion.div>
+                    <ImmersiveVoiceStatusLine
+                      thinkingVisible={isProcessingAI && !voiceStream.isSpeaking}
+                      voiceSatellitesLoading={voiceSatellites.loading}
+                      interimText={voiceStream.interimText}
+                      align="center"
+                    />
+                  </div>
+                ) : (
+                  <div className="relative flex min-h-0 flex-1 flex-col">
+                    <div className="relative z-20 shrink-0 px-4 pt-14">
+                      <div className="flex max-w-full items-start gap-3">
+                        <motion.div
+                          layoutId="nexus-immersive-orb"
+                          className="shrink-0"
+                          transition={immersiveOrbLayoutTransition}
+                        >
+                          <NexusVoiceSatelliteOrbit
+                            compact
+                            loading={voiceSatellites.loading}
+                            satellites={voiceSatellites.items}
+                          >
+                            <NexusVoiceMinimalCircle
+                              phase={orbPhase}
+                              ttsLevel={voiceStream.ttsOutputLevel}
+                              micLevel={micInputLevel}
+                              sessionActive={isActive}
+                              onTapToStart={startSession}
+                              sttReady={voiceStream.sttReady}
+                              compact
+                            />
+                          </NexusVoiceSatelliteOrbit>
+                        </motion.div>
+                        <ImmersiveVoiceStatusLine
+                          thinkingVisible={isProcessingAI && !voiceStream.isSpeaking}
+                          voiceSatellitesLoading={voiceSatellites.loading}
+                          interimText={voiceStream.interimText}
+                          align="left"
+                        />
+                      </div>
+                    </div>
+                    <div className="min-h-0 flex-1" aria-hidden />
+                  </div>
+                )}
               </div>
+            </LayoutGroup>
+            <div className="relative z-10">
+              <NexusVoiceArtifactRail
+                immersive
+                chips={artifactChips}
+                mapUrlHint={mapUrlHint}
+                mapEmbedCoords={mapEmbedCoords}
+                onOpenDocument={voiceCanvasDoc ? () => setVoiceCanvasOpen(true) : undefined}
+                onOpenTaskPanel={voiceTaskFocusId ? () => setVoiceTaskSheetOpen(true) : undefined}
+              />
             </div>
-            <NexusVoiceArtifactRail
-              immersive
-              chips={artifactChips}
-              mapUrlHint={mapUrlHint}
-              mapEmbedCoords={mapEmbedCoords}
-              onOpenDocument={voiceCanvasDoc ? () => setVoiceCanvasOpen(true) : undefined}
-              onOpenTaskPanel={voiceTaskFocusId ? () => setVoiceTaskSheetOpen(true) : undefined}
-            />
             {isActive && (
-              <div className="flex shrink-0 flex-col items-center gap-2 border-t border-white/[0.08] bg-black/80 px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-5">
+              <div className="relative z-10 flex shrink-0 flex-col items-center gap-2 border-t border-white/[0.08] bg-black/80 px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-5">
                 <button
                   type="button"
                   onClick={endSession}
@@ -1112,6 +1347,11 @@ export function VoiceConversationEngine({
                       </div>
                     )}
                     <p className="leading-relaxed">{msg.text}</p>
+                    {msg.role === 'assistant' && msg.delegationHints && msg.delegationHints.length > 0 && (
+                      <p className="mt-1.5 text-[10px] text-cyan-300/80">
+                        {msg.delegationHints.map((h) => `via ${h.label}`).join(' · ')}
+                      </p>
+                    )}
                     <span className="text-[10px] text-slate-500 mt-1 block">
                       {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </span>

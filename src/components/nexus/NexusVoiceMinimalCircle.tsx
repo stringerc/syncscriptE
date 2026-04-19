@@ -40,9 +40,6 @@ const TTS_SMOOTH_SAMPLES = 5;
 const INNER_FILL_GRADIENT =
   'radial-gradient(circle at 50% 44%, rgba(255,255,255,0.98) 0%, rgba(255,255,255,0.55) 38%, rgba(255,255,255,0.2) 62%, rgba(255,255,255,0.07) 82%, transparent 100%)';
 
-/** Explicit square size — flex + only abspos children collapses to ~0×0 in browsers (reads as a “dot”). */
-const ORB_SIZE = 'min(39vw, 190px)';
-
 const innerBaseStyle: CSSProperties = {
   pointerEvents: 'none',
   position: 'absolute',
@@ -51,18 +48,21 @@ const innerBaseStyle: CSSProperties = {
   background: INNER_FILL_GRADIENT,
 };
 
-function orbShellStyle(ringStyle: Record<string, string | undefined>): CSSProperties {
+function orbShellStyle(
+  ringStyle: Record<string, string | undefined>,
+  compact: boolean,
+): CSSProperties {
   return {
     ...ringStyle,
     position: 'relative',
     display: 'block',
     boxSizing: 'border-box',
-    width: ORB_SIZE,
-    height: ORB_SIZE,
-    minWidth: 110,
-    minHeight: 110,
-    maxWidth: 190,
-    maxHeight: 190,
+    width: compact ? 'min(28vw, 120px)' : 'min(39vw, 190px)',
+    height: compact ? 'min(28vw, 120px)' : 'min(39vw, 190px)',
+    minWidth: compact ? 72 : 110,
+    minHeight: compact ? 72 : 110,
+    maxWidth: compact ? 120 : 190,
+    maxHeight: compact ? 120 : 190,
     flexShrink: 0,
   };
 }
@@ -144,7 +144,7 @@ export function NexusVoiceMinimalCircle({
         type="button"
         data-testid="nexus-voice-minimal-root"
         className={`${commonClass} cursor-pointer transition-opacity disabled:cursor-not-allowed disabled:opacity-40 focus-visible:ring-2 focus-visible:ring-white/30`}
-        style={orbShellStyle(ringStyle)}
+        style={orbShellStyle(ringStyle, compact)}
         disabled={!sttReady}
         onClick={() => sttReady && onTapToStart?.()}
         aria-label={sttReady ? 'Start voice session' : 'Voice not ready'}
@@ -171,26 +171,33 @@ export function NexusVoiceMinimalCircle({
     );
   }
 
+  const thinkingBreath =
+    sessionActive && phase === 'thinking' && !reduce && !syntheticSpeechPulse;
+
   const outerPulse =
     !reduce && syntheticSpeechPulse
       ? { scale: [1, 1.028, 0.995, 1.034, 1] as const }
-      : { scale };
+      : thinkingBreath
+        ? { scale: [1, 1.05, 1.02, 1.055, 1] as const }
+        : { scale };
 
   const outerTransition =
     !reduce && syntheticSpeechPulse
       ? { duration: 1.45, repeat: Infinity, ease: 'easeInOut' as const }
-      : {
-          type: 'spring' as const,
-          stiffness: 150,
-          damping: 34,
-          mass: 0.85,
-        };
+      : thinkingBreath
+        ? { duration: 2.1, repeat: Infinity, ease: 'easeInOut' as const }
+        : {
+            type: 'spring' as const,
+            stiffness: 150,
+            damping: 34,
+            mass: 0.85,
+          };
 
   return (
     <motion.div
       data-testid="nexus-voice-minimal-root"
       className={commonClass}
-      style={orbShellStyle(ringStyle)}
+      style={orbShellStyle(ringStyle, compact)}
       animate={reduce ? { scale: 1 } : outerPulse}
       transition={reduce ? { duration: 0 } : outerTransition}
       role="img"
