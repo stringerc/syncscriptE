@@ -782,10 +782,18 @@ export function useVoiceStream(options: UseVoiceStreamOptions = {}) {
 
   useEffect(() => {
     return () => {
-      if (ttsAudioCtxRef.current && ttsAudioCtxRef.current.state !== 'closed') {
-        ttsAudioCtxRef.current.close().catch(() => {});
-      }
+      const ctx = ttsAudioCtxRef.current;
       ttsAudioCtxRef.current = null;
+      if (!ctx) return;
+      void (async () => {
+        try {
+          if (ctx.state !== 'closed') await ctx.close();
+        } catch {
+          /* InvalidStateError: already closed (Strict Mode / race) */
+        }
+      })().catch(() => {
+        /* Some browsers reject close() promise if already closed */
+      });
     };
   }, []);
 

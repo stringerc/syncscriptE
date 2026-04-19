@@ -53,6 +53,34 @@ import { detectEventConflicts, formatConflictMessage } from '../utils/calendar-c
 import { getEventEnergyValue } from '../utils/energy-system'; // PHASE 1.6: Energy system
 import { cn } from '@/lib/utils';
 
+/**
+ * Nexus voice / API may omit nested task arrays (`subtasks`, `assignedTo`, …) — those
+ * cause `.find` / `.length` crashes when the modal renders or toggles tasks.
+ */
+function normalizeTaskDeep(t: Task): Task {
+  return {
+    ...t,
+    subtasks: (t.subtasks ?? []).map(normalizeTaskDeep),
+    assignedTo: t.assignedTo ?? [],
+    resources: t.resources ?? [],
+    linksNotes: t.linksNotes ?? [],
+  };
+}
+
+/** Nexus voice / partial merges may omit arrays — prevents `.length` / `.map` crashes. */
+function withEventArrayDefaults(e: Event): Event {
+  return {
+    ...e,
+    tasks: (e.tasks ?? []).map(normalizeTaskDeep),
+    teamMembers: e.teamMembers ?? [],
+    resources: e.resources ?? [],
+    linksNotes: e.linksNotes ?? [],
+    childEventIds: e.childEventIds ?? [],
+    linkedCalendarInstances: e.linkedCalendarInstances ?? [],
+    permissionOverrides: e.permissionOverrides ?? [],
+  };
+}
+
 interface EventModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -86,43 +114,46 @@ export function EventModal({
 }: EventModalProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [showAISuggestions, setShowAISuggestions] = useState(false);
-  const [editedEvent, setEditedEvent] = useState<Event | null>(event);
+  const [editedEvent, setEditedEvent] = useState<Event | null>(() => (event ? withEventArrayDefaults(event) : null));
   const [activeTab, setActiveTab] = useState('overview');
 
   // Reset editing state when modal opens/closes or event changes
   useEffect(() => {
     setIsEditing(false);
-    setEditedEvent(event);
+    setEditedEvent(event ? withEventArrayDefaults(event) : null);
     setActiveTab('overview');
   }, [open, event]);
 
   if (!event || !editedEvent) return null;
 
-  // Check permissions
-  const canEdit = event.allowTeamEdits || event.createdBy === currentUserId;
+  const safeEvent = withEventArrayDefaults(event);
+  const safeEdited = withEventArrayDefaults(editedEvent);
 
-  const resourceCount = getResourceCount(event);
-  const linksNotesCount = getLinksNotesCount(event);
-  const taskCount = event.tasks.length;
-  const completedTaskCount = event.tasks.filter(t => t.completed).length;
+  // Check permissions
+  const canEdit = safeEvent.allowTeamEdits || safeEvent.createdBy === currentUserId;
+
+  const resourceCount = getResourceCount(safeEvent);
+  const linksNotesCount = getLinksNotesCount(safeEvent);
+  const taskCount = safeEvent.tasks.length;
+  const completedTaskCount = safeEvent.tasks.filter(t => t.completed).length;
 
   // Detect conflicts
-  const conflicts = allEvents && editedEvent.startTime && editedEvent.endTime
-    ? detectEventConflicts(editedEvent, allEvents.filter(e => e.id !== editedEvent.id))
+  const conflicts = allEvents && safeEdited.startTime && safeEdited.endTime
+    ? detectEventConflicts(safeEdited, allEvents.filter(e => e.id !== safeEdited.id))
     : [];
 
   // Check if event is past/completed
-  const isPastOrCompleted = event.completed || isEventPast(event);
+  const isPastOrCompleted = safeEvent.completed || isEventPast(safeEvent);
 
   // Handle task completion toggle
   const handleToggleTaskComplete = (taskId: string, parentTaskId?: string) => {
-    const updatedEvent = { ...editedEvent };
+    const updatedEvent = { ...safeEdited };
     
     if (parentTaskId) {
       // It's a subtask
       const parentTask = updatedEvent.tasks.find(t => t.id === parentTaskId);
       if (parentTask) {
-        const subtask = parentTask.subtasks.find(st => st.id === taskId);
+        const subtask = (parentTask.subtasks ?? []).find((st) => st.id === taskId);
         if (subtask) {
           subtask.completed = !subtask.completed;
         }
@@ -140,18 +171,19 @@ export function EventModal({
 
   // Handle milestone completion toggle
   const handleToggleMilestone = (taskId: string, milestoneId: string) => {
-    const updatedEvent = { ...editedEvent };
+    const updatedEvent = { ...safeEdited };
     const task = updatedEvent.tasks.find(t => t.id === taskId);
     if (task) {
-      const milestone = task.subtasks.find(m => m.id === milestoneId);
+      const milestone = (task.subtasks ?? []).find((m) => m.id === milestoneId);
       if (milestone) {
         // Check if there are incomplete steps
-        const hasIncompleteSteps = milestone.steps && milestone.steps.some(step => !step.completed);
-        
+        const steps = milestone.steps ?? [];
+        const hasIncompleteSteps = steps.some((step) => !step.completed);
+
         if (!milestone.completed && hasIncompleteSteps) {
           // Warn user before completing milestone with incomplete steps
           const confirmed = window.confirm(
-            `This milestone has ${milestone.steps.filter(s => !s.completed).length} incomplete step(s). Mark as complete anyway?`
+            `This milestone has ${steps.filter((s) => !s.completed).length} incomplete step(s). Mark as complete anyway?`
           );
           if (!confirmed) return;
         }
@@ -174,17 +206,17 @@ export function EventModal({
 
   // Handle step completion toggle
   const handleToggleStep = (taskId: string, milestoneId: string, stepId: string) => {
-    const updatedEvent = { ...editedEvent };
+    const updatedEvent = { ...safeEdited };
     const task = updatedEvent.tasks.find(t => t.id === taskId);
     if (task) {
-      const milestone = task.subtasks.find(m => m.id === milestoneId);
+      const milestone = (task.subtasks ?? []).find((m) => m.id === milestoneId);
       if (milestone && milestone.steps) {
         const step = milestone.steps.find(s => s.id === stepId);
         if (step) {
           step.completed = !step.completed;
           
           // Check if all steps are now complete
-          if (step.completed && milestone.steps.every(s => s.completed)) {
+          if (step.completed && (milestone.steps ?? []).every((s) => s.completed)) {
             toast.success('All steps complete!', {
               description: `Consider marking "${milestone.title}" as complete`,
               action: {
@@ -202,10 +234,10 @@ export function EventModal({
 
   // Handle adding a new step to a milestone
   const handleAddStep = (taskId: string, milestoneId: string, stepTitle: string) => {
-    const updatedEvent = { ...editedEvent };
+    const updatedEvent = { ...safeEdited };
     const task = updatedEvent.tasks.find(t => t.id === taskId);
     if (task) {
-      const milestone = task.subtasks.find(m => m.id === milestoneId);
+      const milestone = (task.subtasks ?? []).find((m) => m.id === milestoneId);
       if (milestone) {
         if (!milestone.steps) {
           milestone.steps = [];
@@ -227,7 +259,7 @@ export function EventModal({
 
   // Handle AI task suggestions
   const handleAITasksSelected = (tasks: Partial<Task>[]) => {
-    const updatedEvent = { ...editedEvent };
+    const updatedEvent = { ...safeEdited };
     const newTasks: Task[] = tasks.map(t => ({
       ...t,
       id: t.id || `task-${Date.now()}-${Math.random()}`,
@@ -240,9 +272,9 @@ export function EventModal({
       createdBy: currentUserId,
       createdAt: new Date(),
       updatedAt: new Date(),
-      parentEventId: event.id,
-      prepForEventId: event.id,
-      prepForEventName: event.title,
+      parentEventId: safeEvent.id,
+      prepForEventId: safeEvent.id,
+      prepForEventName: safeEvent.title,
     } as Task));
     
     updatedEvent.tasks = [...updatedEvent.tasks, ...newTasks];
@@ -254,8 +286,8 @@ export function EventModal({
   // Handle save
   const handleSave = () => {
     if (!editedEvent) return;
-    
-    onSave(editedEvent);
+
+    onSave(withEventArrayDefaults(editedEvent));
     setIsEditing(false);
     
     toast.success('Event updated', {
@@ -267,7 +299,7 @@ export function EventModal({
   const handleSaveAsScript = () => {
     if (!onSaveAsScript) return;
     
-    onSaveAsScript(event);
+    onSaveAsScript(safeEvent);
     
     toast.success('Saved as script', {
       description: 'Script available in Scripts & Templates tab',
@@ -320,10 +352,10 @@ export function EventModal({
                     className="text-2xl mb-2 bg-[#2a2d35] border-gray-700 text-white"
                   />
                 ) : (
-                  <DialogTitle className="text-2xl text-white">{event.title}</DialogTitle>
+                  <DialogTitle className="text-2xl text-white">{safeEvent.title}</DialogTitle>
                 )}
                 <DialogDescription className="sr-only">
-                  {event.description || `Event details for ${event.title}`}
+                  {safeEvent.description || `Event details for ${safeEvent.title}`}
                 </DialogDescription>
               </div>
               
@@ -358,12 +390,12 @@ export function EventModal({
                 )}
                 
                 {/* PHASE 1.6: Mark Event as Complete */}
-                {onCompleteEvent && !event.completed && (
+                {onCompleteEvent && !safeEvent.completed && (
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={() => {
-                      onCompleteEvent(event.id);
+                      onCompleteEvent(safeEvent.id);
                       onOpenChange(false);
                     }}
                     className="gap-2 border-teal-500/50 text-teal-400 hover:bg-teal-500/10 hover:border-teal-500"
@@ -400,7 +432,7 @@ export function EventModal({
               </TabsTrigger>
               <TabsTrigger value="team" className="data-[state=active]:bg-purple-600/20 data-[state=active]:text-purple-400">
                 <Users className="w-4 h-4 mr-2" />
-                Team ({event.teamMembers.length})
+                Team ({safeEvent.teamMembers.length})
               </TabsTrigger>
               <TabsTrigger value="resources" className="data-[state=active]:bg-yellow-600/20 data-[state=active]:text-yellow-400">
                 <Paperclip className="w-4 h-4 mr-2" />
@@ -428,7 +460,7 @@ export function EventModal({
                       className="bg-[#2a2d35] border-gray-700 text-white"
                     />
                   ) : (
-                    <p className="text-gray-300">{event.description || 'No description'}</p>
+                    <p className="text-gray-300">{safeEvent.description || 'No description'}</p>
                   )}
                 </div>
 
@@ -451,7 +483,7 @@ export function EventModal({
                       />
                     ) : (
                       <p className="text-gray-300">
-                        {new Date(event.startTime).toLocaleString()}
+                        {new Date(safeEvent.startTime).toLocaleString()}
                       </p>
                     )}
                   </div>
@@ -473,15 +505,15 @@ export function EventModal({
                       />
                     ) : (
                       <p className="text-gray-300">
-                        {new Date(event.endTime).toLocaleString()}
+                        {new Date(safeEvent.endTime).toLocaleString()}
                       </p>
                     )}
                   </div>
                 </div>
 
-                {event.syncGroupId &&
-                  event.linkedCalendarInstances &&
-                  event.linkedCalendarInstances.length > 0 &&
+                {safeEvent.syncGroupId &&
+                  safeEvent.linkedCalendarInstances &&
+                  safeEvent.linkedCalendarInstances.length > 0 &&
                   onManageLinkedCalendars && (
                     <div className="rounded-lg border border-teal-500/30 bg-teal-500/5 p-4 space-y-3">
                       <h4 className="text-sm text-gray-300 flex items-center gap-2">
@@ -489,7 +521,7 @@ export function EventModal({
                         Connected calendars
                       </h4>
                       <div className="flex flex-wrap gap-2">
-                        {event.linkedCalendarInstances.map((i) => {
+                        {safeEvent.linkedCalendarInstances.map((i) => {
                           const p = (i.provider || '').toLowerCase();
                           const label = p.includes('google')
                             ? 'Google'
@@ -516,7 +548,7 @@ export function EventModal({
                   )}
 
                 {/* Location */}
-                {event.location && (
+                {safeEvent.location && (
                   <div>
                     <h4 className="text-sm text-gray-400 mb-2 flex items-center gap-2">
                       <MapPin className="w-4 h-4" />
@@ -529,13 +561,13 @@ export function EventModal({
                         className="bg-[#2a2d35] border-gray-700 text-white"
                       />
                     ) : (
-                      <p className="text-gray-300">{event.location}</p>
+                      <p className="text-gray-300">{safeEvent.location}</p>
                     )}
                   </div>
                 )}
 
                 {/* PHASE 1.6: Energy Reward Display */}
-                {!event.completed && (
+                {!safeEvent.completed && (
                   <div className="bg-gradient-to-r from-teal-500/10 to-blue-500/10 border border-teal-500/30 rounded-lg p-4">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
@@ -583,7 +615,7 @@ export function EventModal({
                     Event Permissions
                   </h4>
                   <EventAdminManager
-                    event={event}
+                    event={safeEvent}
                     currentUserId={currentUserId}
                     onUpdateEvent={(updated) => {
                       setEditedEvent(updated);
@@ -626,7 +658,7 @@ export function EventModal({
                 ) : (
                   <div className="space-y-3">
                     <AnimatePresence mode="popLayout">
-                      {event.tasks.map((task: Task) => (
+                      {safeEvent.tasks.map((task: Task) => (
                         <motion.div
                           key={task.id}
                           initial={{ opacity: 0, y: -10 }}
@@ -706,7 +738,7 @@ export function EventModal({
               <TabsContent value="team" className="mt-0 space-y-6">
                 <div className="flex items-center justify-between">
                   <h4 className="text-lg text-white font-semibold">
-                    Team Members ({event.teamMembers.length})
+                    Team Members ({safeEvent.teamMembers.length})
                   </h4>
                   {canEdit && (
                     <Button variant="outline" size="sm" className="gap-2">
@@ -717,7 +749,7 @@ export function EventModal({
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {event.teamMembers.map((member: TeamMember) => (
+                  {safeEvent.teamMembers.map((member: TeamMember) => (
                     <div
                       key={member.id}
                       className="bg-[#1a1f2e] border border-gray-800 rounded-lg p-4"
@@ -758,7 +790,7 @@ export function EventModal({
                       Files & Documents ({resourceCount})
                     </h4>
                     <div className="space-y-2">
-                      {event.resources.map((resource: Resource) => (
+                      {safeEvent.resources.map((resource: Resource) => (
                         <div
                           key={resource.id}
                           className="flex items-center justify-between bg-[#1a1f2e] rounded-lg p-3 hover:bg-[#1e2433] transition-colors"
@@ -791,7 +823,7 @@ export function EventModal({
                       Links & Notes ({linksNotesCount})
                     </h4>
                     <div className="space-y-2">
-                      {event.linksNotes.map((linkNote: LinkNote) => (
+                      {safeEvent.linksNotes.map((linkNote: LinkNote) => (
                         <div
                           key={linkNote.id}
                           className="flex items-center justify-between bg-[#1a1f2e] rounded-lg p-3 hover:bg-[#1e2433] transition-colors"
@@ -829,7 +861,7 @@ export function EventModal({
               {/* Agenda Tab */}
               <TabsContent value="agenda" className="mt-0 space-y-6">
                 <EventAgendaTab
-                  event={event}
+                  event={safeEvent}
                   allEvents={allEvents || []}
                   onUpdateEvents={(updatedEvents) => {
                     console.log('🎯 EventModal.onUpdateEvents called', {
@@ -845,10 +877,11 @@ export function EventModal({
                     }
                     
                     // Also update the parent event in the modal's local state
-                    const updatedEvent = updatedEvents.find(e => e.id === event.id);
+                    const updatedEvent = updatedEvents.find(e => e.id === safeEvent.id);
                     if (updatedEvent) {
-                      setEditedEvent(updatedEvent);
-                      onSave(updatedEvent);
+                      const u = withEventArrayDefaults(updatedEvent);
+                      setEditedEvent(u);
+                      onSave(u);
                     }
                   }}
                   currentUserId={currentUserId}
