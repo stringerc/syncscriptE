@@ -639,8 +639,18 @@ export function VoiceConversationEngine({
             'Nexus took too long or the service was busy. Try again with a shorter request, or retry in a moment.',
             { duration: 8000 },
           );
-        } else if (nexusRes.error) {
-          throw new Error(nexusRes.error);
+        } else if (nexusRes.httpStatus >= 400) {
+          aiText = formatAIResponseForVoice(getFallbackResponse(text, voiceContext, emotion));
+          setArtifactChips([]);
+          setMapUrlHint(null);
+          delegationHints = undefined;
+          clearSatelliteTimer();
+          setVoiceSatellites({ loading: false, items: [] });
+          const hint =
+            nexusRes.errorCode === 'ai_unconfigured'
+              ? 'Server AI keys are missing — set GROQ_API_KEY or another provider on Vercel.'
+              : nexusRes.error || `Nexus request failed (${nexusRes.httpStatus})`;
+          toast.message(hint, { duration: 10000 });
         } else {
         const trace = nexusRes.toolTrace;
         if (Array.isArray(trace) && trace.length > 0) {

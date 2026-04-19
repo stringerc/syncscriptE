@@ -62,15 +62,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const isAuthed = await validateAuth(req, res);
   if (!isAuthed) return;
 
-  const rawBody =
-    req.body && typeof req.body === 'object' ? (req.body as { personaMode?: string }) : {};
   const headerPersona =
     typeof req.headers['x-nexus-persona-mode'] === 'string'
       ? req.headers['x-nexus-persona-mode']
       : undefined;
+
+  let bodyParsed: Record<string, unknown> = {};
+  try {
+    if (req.body == null) bodyParsed = {};
+    else if (typeof req.body === 'string') bodyParsed = JSON.parse(req.body) as Record<string, unknown>;
+    else if (typeof req.body === 'object') bodyParsed = req.body as Record<string, unknown>;
+  } catch {
+    return res.status(400).json({ error: 'Invalid JSON body', errorCode: 'invalid_json_body', requestId });
+  }
+
   const personaMode = resolvePersonaMode(
     process.env.NEXUS_PERSONA_MODE,
-    rawBody.personaMode ?? headerPersona,
+    typeof bodyParsed.personaMode === 'string' ? bodyParsed.personaMode : headerPersona,
   );
 
   if (!isAIConfigured()) {
@@ -85,11 +93,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       httpStatus: 500,
       errorCode: 'ai_unconfigured',
     });
-    return res.status(500).json({ error: 'AI service not configured' });
+    return res.status(500).json({
+      error: 'AI service not configured',
+      errorCode: 'ai_unconfigured',
+      requestId,
+    });
   }
 
   try {
-    const { message, messages, privateContext } = req.body || {};
+    const { message, messages, privateContext } = bodyParsed;
 
     const privateContextResult = sanitizePrivateContext(privateContext);
     if (!privateContextResult.valid) {
@@ -153,11 +165,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       'utf8',
     );
 
-    const body = req.body || {};
-    const enableTools = Boolean(body.enableTools);
-    const voiceMode = Boolean(body.voiceMode);
-    const agentId = typeof body.agentId === 'string' ? body.agentId.trim() : '';
-    const agentPersonaPrompt = typeof body.agentPersonaPrompt === 'string' ? body.agentPersonaPrompt.trim() : '';
+    const enableTools = Boolean(bodyParsed.enableTools);
+    const voiceMode = Boolean(bodyParsed.voiceMode);
+    const agentId = typeof bodyParsed.agentId === 'string' ? bodyParsed.agentId.trim() : '';
+    const agentPersonaPrompt =
+      typeof bodyParsed.agentPersonaPrompt === 'string' ? bodyParsed.agentPersonaPrompt.trim() : '';
 
     if (enableTools) {
       const user = await getAuthenticatedSupabaseUser(req);
@@ -276,8 +288,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       content: result.content,
       source: 'nexus-user',
     });
-  } catch (error: any) {
-    console.error('Nexus user handler error:', error);
+  } catch (error: unknown) {
+    const err = error instanceof Error ? error : new Error(String(error));
+    console.error('Nexus user handler error:', err);
+    const detail = err.message?.slice(0, 600) || 'unknown';
     emitNexusTrace({
       surface: 'user',
       requestId,
@@ -289,6 +303,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       httpStatus: 500,
       errorCode: 'llm_failed',
     });
-    return res.status(500).json({ error: 'Something went wrong. Please try again.' });
+    return res.status(500).json({
+      error: 'Something went wrong. Please try again.',
+      errorCode: 'llm_failed',
+      detail,
+      requestId,
+    });
   }
 }
