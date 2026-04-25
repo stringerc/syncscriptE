@@ -1,0 +1,78 @@
+/**
+ * Nexus immersive voice — award-caliber atmosphere (grain, aurora keyframes).
+ * Imported only by NexusVoiceResonanceOrb.
+ */
+
+@keyframes nexus-voice-aurora-a {
+  0%,
+  100% {
+    transform: translate(-8%, -12%) scale(1);
+    opacity: 0.35;
+  }
+  50% {
+    transform: translate(6%, 10%) scale(1.12);
+    opacity: 0.5;
+  }
+}
+
+@keyframes nexus-voice-aurora-b {
+  0%,
+  100% {
+    transform: translate(10%, 6%) scale(1.05);
+    opacity: 0.28;
+  }
+  50% {
+    transform: translate(-10%, -8%) scale(1.15);
+    opacity: 0.42;
+  }
+}
+
+@keyframes nexus-voice-shimmer {
+  0% {
+    background-position: 0% 50%;
+  }
+  100% {
+    background-position: 200% 50%;
+  }
+}
+
+.nexus-voice-aurora-a {
+  animation: nexus-voice-aurora-a 22s ease-in-out infinite;
+}
+
+.nexus-voice-aurora-b {
+  animation: nexus-voice-aurora-b 28s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nexus-voice-aurora-a,
+  .nexus-voice-aurora-b {
+    animation: none;
+    opacity: 0.38;
+  }
+}
+
+/* SVG turbulence grain — subtle, overlay blend */
+.nexus-voice-grain {
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
+  opacity: 0.055;
+  mix-blend-mode: overlay;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nexus-voice-grain {
+    opacity: 0.03;
+  }
+}
+
+.nexus-voice-energy-shimmer {
+  background-size: 200% 100%;
+  animation: nexus-voice-shimmer 4s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nexus-voice-energy-shimmer {
+    animation: none;
+  }
+}

@@ -4,6 +4,7 @@ import type { AuthenticatedSupabaseUser } from './auth';
 import { recordNexusToolAudit } from './nexus-audit';
 import type { NexusToolTraceEntry } from './nexus-tools';
 import { generateInvoiceHtml, type InvoiceItem } from './invoice-html';
+import { emitEvent, type SyncScriptEventType } from './events';
 
 /** Vercel often exposes the project URL as VITE_* only; phone tools must hit the real Edge. */
 function supabaseFunctionsBase(): string {
@@ -176,6 +177,138 @@ async function emitAudit(actor: NexusActor, meta: NexusExecMeta, trace: NexusToo
 }
 
 /**
+ * Maps a successful Nexus tool trace to the webhook event catalog.
+ * Returns null when the tool has no user-facing event (e.g. read-only lookups).
+ */
+function eventsForToolTrace(trace: NexusToolTraceEntry): Array<{
+  type: SyncScriptEventType;
+  key?: string;
+  payload: Record<string, unknown>;
+}> {
+  if (!trace.ok) return [];
+  const detail = (trace.detail ?? {}) as Record<string, unknown>;
+
+  switch (trace.tool) {
+    case 'create_task': {
+      const taskId = typeof detail.taskId === 'string' ? detail.taskId : undefined;
+      return [
+        {
+          type: 'task.created',
+          key: taskId,
+          payload: { task_id: taskId, title: detail.title },
+        },
+      ];
+    }
+    case 'add_note': {
+      const taskId = typeof detail.taskId === 'string' ? detail.taskId : undefined;
+      return [
+        {
+          type: 'note.created',
+          key: taskId,
+          payload: { note_item_id: taskId, title: detail.title },
+        },
+      ];
+    }
+    case 'propose_calendar_hold': {
+      const type: SyncScriptEventType = detail.applied ? 'event.created' : 'event.proposed';
+      return [
+        {
+          type,
+          key: typeof detail.taskId === 'string' ? detail.taskId : undefined,
+          payload: detail,
+        },
+      ];
+    }
+    case 'create_document': {
+      const docId = typeof detail.documentId === 'string' ? detail.documentId : undefined;
+      return [
+        {
+          type: 'document.created',
+          key: docId,
+          payload: { document_id: docId, title: detail.title },
+        },
+      ];
+    }
+    case 'update_document': {
+      const docId = typeof detail.documentId === 'string' ? detail.documentId : undefined;
+      return [
+        {
+          type: 'document.updated',
+          key: docId ? `${docId}:${Date.now()}` : undefined,
+          payload: detail,
+        },
+      ];
+    }
+    case 'send_invoice': {
+      const invoiceId = typeof detail.invoiceId === 'string' ? detail.invoiceId : undefined;
+      return [
+        {
+          type: 'invoice.sent',
+          key: invoiceId,
+          payload: detail,
+        },
+      ];
+    }
+    case 'send_document_for_signature': {
+      const reqId = typeof detail.requestId === 'string' ? detail.requestId : undefined;
+      return [
+        {
+          type: 'signature.requested',
+          key: reqId,
+          payload: detail,
+        },
+      ];
+    }
+    case 'enqueue_playbook': {
+      const runId = typeof detail.runId === 'string' ? detail.runId : undefined;
+      return [
+        {
+          type: 'playbook.run.started',
+          key: runId,
+          payload: detail,
+        },
+      ];
+    }
+    default:
+      return [];
+  }
+}
+
+async function emitToolEvents(
+  actor: NexusActor,
+  meta: NexusExecMeta,
+  trace: NexusToolTraceEntry,
+): Promise<void> {
+  const userId = userIdFromActor(actor);
+  if (!userId) return;
+
+  // Always emit a low-cardinality "nexus.tool.called" so subscribers can observe
+  // everything — success or failure — without us enumerating each tool.
+  await emitEvent({
+    userId,
+    eventType: 'nexus.tool.called',
+    eventKey: meta.requestId ? `${meta.requestId}:${trace.tool}` : undefined,
+    payload: {
+      tool: trace.tool,
+      surface: meta.surface,
+      ok: trace.ok,
+      error: trace.ok ? undefined : trace.error,
+      detail: trace.detail ?? null,
+    },
+  });
+
+  // Then emit the typed domain event(s) for successful mutating tools.
+  for (const ev of eventsForToolTrace(trace)) {
+    await emitEvent({
+      userId,
+      eventType: ev.type,
+      eventKey: ev.key,
+      payload: ev.payload,
+    });
+  }
+}
+
+/**
  * Runs one allowlisted tool. Returns a JSON-serializable result for the model.
  */
 export async function executeNexusTool(
@@ -190,6 +323,12 @@ export async function executeNexusTool(
 
   const finish = async (trace: NexusToolTraceEntry, toolMessage: string) => {
     await emitAudit(actor, meta, trace);
+    try {
+      await emitToolEvents(actor, meta, trace);
+    } catch (e) {
+      // Event emission must never break tool execution.
+      console.warn('[nexus-executor] emitToolEvents failed', e);
+    }
     return { trace, toolMessage };
   };
 

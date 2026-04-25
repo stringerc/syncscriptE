@@ -425,6 +425,7 @@ export function TaskDetailModal({ task, open, onOpenChange, stackAboveVoiceShell
           '!max-w-[1400px] w-[95vw] max-h-[90vh] bg-[#1a1d24] border-gray-800 text-white p-0 overflow-hidden !border-l-4 !border-l-blue-500 flex flex-col',
           stackAboveVoiceShell && '!z-[100022]',
         )}
+        onCloseAutoFocus={stackAboveVoiceShell ? (e) => e.preventDefault() : undefined}
       >
         <DialogHeader className="p-6 pb-4 border-b border-gray-800 shrink-0">
           <DialogTitle className="sr-only">{task.title}</DialogTitle>

@@ -12,6 +12,11 @@ import {
   type NexusPersonaMode,
 } from '../../integrations/nexus-persona/nexus-persona-halo-inspired';
 import { userSoundsLikeDocumentEditIntent } from '../_lib/nexus-document-intent';
+import {
+  sanitizeAttachments,
+  buildAttachmentsSystemMessage,
+  attachmentBytesUsed,
+} from '../_lib/nexus-attachments';
 
 const MAX_INPUT_MESSAGES = 12;
 
@@ -125,12 +130,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           .slice(-MAX_INPUT_MESSAGES)
       : [];
 
+    const attachments = sanitizeAttachments(bodyParsed.attachments);
+    const attachmentSystemMessage = buildAttachmentsSystemMessage(attachments);
+    const attachmentBytes = attachmentBytesUsed(attachments);
+
     const chatMessages: AIMessage[] = [
       {
         role: 'system',
         content: buildPrivateSystemPrompt(serializePromptContext(privateContextResult.context), personaMode),
       },
     ];
+
+    if (attachmentSystemMessage) {
+      // After the main persona/role prompt, before user/assistant turns, so the
+      // model treats attached docs as authoritative context for the reply.
+      chatMessages.push({ role: 'system', content: attachmentSystemMessage });
+    }
 
     if (trimmedMessages.length > 0) {
       chatMessages.push(
@@ -197,8 +212,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const personaBlock = agentPersonaPrompt
         ? `\nAGENT PERSONA (you are responding as this specialist):\n${agentPersonaPrompt}\nRespond from this agent's perspective. Stay in character.\n`
         : '';
+      const attachmentBlock = attachmentSystemMessage
+        ? `\n\n${attachmentSystemMessage}`
+        : '';
       const tail = `${NEXUS_TOOLS_APPEND}${voiceMode ? NEXUS_VOICE_TOOLS_APPEND : ''}`;
-      const augmentedSystem = `${systemContent}${personaBlock}\n\n${tail}`;
+      const augmentedSystem = `${systemContent}${personaBlock}${attachmentBlock}\n\n${tail}`;
 
       const userAndAssistantMsgs = chatMessages
         .filter((m) => m.role !== 'system')
@@ -251,6 +269,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         responseChars: content.length,
         toolTraceEntries: toolTrace.length,
         toolRepairNudged: Boolean(toolRepairNudged),
+        ...(attachments.length
+          ? { attachmentCount: attachments.length, attachmentBytes }
+          : {}),
       });
 
       return res.status(200).json({

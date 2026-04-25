@@ -33,6 +33,10 @@ export function emitNexusTrace(ev: {
   toolTraceEntries?: number;
   /** User surface + tools path: tool loop applied a repair/nudge path. */
   toolRepairNudged?: boolean;
+  /** App AI tab: count of user-attached documents passed as system context. */
+  attachmentCount?: number;
+  /** App AI tab: total UTF-8 byte size of attachment context (post server-side cap). */
+  attachmentBytes?: number;
 }): void {
   const line = {
     nexus_trace: 'v1',

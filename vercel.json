@@ -71,7 +71,7 @@
   "functions": {
     "api/**/*.ts": {
       "memory": 256,
-      "maxDuration": 60,
+      "maxDuration": 300,
       "includeFiles": "api/ai/_lib/nexus-brain/**"
     }
   },
@@ -80,6 +80,10 @@
     {
       "source": "/api/discord/interactions",
       "destination": "/api/phone/discord-interactions"
+    },
+    {
+      "source": "/api/ai/nexus-post-call-summary",
+      "destination": "/api/phone/post-call-summary"
     },
     {
       "source": "/((?!api/)(?!\\.well-known/).*)",

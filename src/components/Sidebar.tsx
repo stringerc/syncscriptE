@@ -16,7 +16,6 @@ export function Sidebar() {
     { icon: Calendar, label: 'Calendar', id: 'Calendar', path: navigationLinks.sidebar.calendar },
     { icon: DollarSign, label: 'Financials', id: 'Financials', path: navigationLinks.sidebar.financials },
     { icon: Mail, label: 'Email', id: 'Email', path: navigationLinks.sidebar.email },
-    { icon: FolderOpen, label: 'Library', id: 'Library', path: navigationLinks.sidebar.library },
     { icon: Bot, label: 'AI', id: 'AI', path: navigationLinks.sidebar.ai },
     { icon: Zap, label: 'Energy', id: 'Energy', path: navigationLinks.sidebar.energy },
     { icon: Waves, label: 'Resonance Engine', id: 'Resonance', path: navigationLinks.sidebar.resonance },
@@ -31,7 +30,7 @@ export function Sidebar() {
   return (
     <div
       id="app-sidebar-rail"
-      className="fixed inset-y-0 left-0 hidden md:flex md:w-14 lg:w-[100px] flex-col bg-gradient-to-b from-[#1f232d] via-[#1b2029] to-[#181c25] border-r border-gray-700/70 shadow-[inset_-1px_0_0_rgba(45,212,191,0.08),0_0_40px_rgba(45,212,191,0.08)] py-5 backdrop-blur-sm pointer-events-auto"
+      className="fixed inset-y-0 left-0 z-30 hidden md:flex md:w-14 lg:w-[100px] flex-col bg-gradient-to-b from-[#1f232d] via-[#1b2029] to-[#181c25] border-r border-gray-700/70 shadow-[inset_-1px_0_0_rgba(45,212,191,0.08),0_0_40px_rgba(45,212,191,0.08)] py-5 backdrop-blur-sm pointer-events-auto"
     >
       {/* Logo — w-full + justify-center so the mark stays centered in the rail */}
       <div

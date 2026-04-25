@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, startTransition, lazy, Suspense } from 'react'
+import { useState, useEffect, useRef, useCallback, useMemo, startTransition, Suspense } from 'react'
 import { createPortal } from 'react-dom'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Button } from '@/components/ui/button'
@@ -11,6 +11,7 @@ import { useToast } from '@/hooks/use-app-toast'
 import { cn } from '@/lib/utils'
 import { useAuth } from '../../../contexts/AuthContext'
 import { useNexusPrivateContext } from '../../../hooks/useNexusPrivateContext'
+import { useSetAiPageMobileChatsToolbar } from '@/contexts/AiPageChromeContext'
 import {
   Send,
   Plus,
@@ -31,10 +32,25 @@ import {
 } from 'lucide-react'
 import { DocumentCanvas } from '../../../components/DocumentCanvas'
 import { VoiceConversationEngine } from '../../../components/VoiceConversationEngine'
-import { PRESET_AGENTS, getAgentPersona, getAgentColor, getAgentName, routeToAgents, type AgentPersona } from '../../../utils/agent-personas'
+import { PRESET_AGENTS, getAgentPersona, getAgentName, routeToAgents, type AgentPersona } from '../../../utils/agent-personas'
 import { getStoredNexusPersonaMode } from '../../../utils/nexus-persona-preference'
 import { NEXUS_USER_CHAT_PATH } from '../../../config/nexus-vercel-ai-routes'
-
+import { toolTraceToDelegationHints } from '../../../utils/nexus-delegation-visual'
+import { useAppAiAttachments } from '../../../hooks/useAppAiAttachments'
+import { AppAiDropzoneOverlay } from '../../../components/nexus/AppAiDropzoneOverlay'
+import { AppAiAttachmentsBar } from '../../../components/nexus/AppAiAttachmentsBar'
+import { AppAiSidebarPanel } from '../../../components/nexus/AppAiSidebarPanel'
+import { AgentRunStream } from '../../../components/nexus/AgentRunStream'
+import { useStartAgentRun } from '../../../hooks/useAgentRuns'
+import { useActiveAgentRun } from '../../../hooks/useActiveAgentRun'
+import { detectAgentIntent, userExplicitlyRequestsAgent } from '../../../utils/agent-intent-detector'
+import { useSelectedProject } from '../../../hooks/useProjects'
+import { VoiceDockedFrame } from '../../../components/nexus/VoiceDockedFrame'
+import {
+  attachmentsForServer,
+  type AttachmentForServer,
+  type AppAiAttachment,
+} from '../../../utils/document-attachment'
 const CHAT_STORAGE_KEY = 'syncscript-chats'
 
 interface ChatMessage {
@@ -165,6 +181,56 @@ export function AppAIPage() {
   const [selectedGroupAgents, setSelectedGroupAgents] = useState<string[]>([])
   const [canvasDoc, setCanvasDoc] = useState<{ title: string; content: string; format?: 'document' | 'spreadsheet' | 'invoice' } | null>(null)
   const [canvasDocKey, setCanvasDocKey] = useState(0)
+  /** Selected agent run id (Tasks tab → click a run → opens AgentRunStream as overlay). */
+  const [selectedAgentRunId, setSelectedAgentRunId] = useState<string | null>(null)
+  const startAgentRun = useStartAgentRun()
+  const { selected: selectedProjectId } = useSelectedProject()
+  /** Active agent run (queued/running/waiting/paused). When non-null while voice is open,
+      the voice portal docks to the top-left so the agent screen has the rest of the viewport. */
+  const activeAgentRun = useActiveAgentRun()
+  const voiceDocked = Boolean(showVoiceEngine && activeAgentRun)
+  const dockedAgentStatus = useMemo(() => {
+    if (!activeAgentRun) return ''
+    if (activeAgentRun.status === 'queued') return 'Queued…'
+    if (activeAgentRun.status === 'waiting_user') return 'Needs your approval'
+    if (activeAgentRun.status === 'paused') return 'Paused'
+    // Truncate so it never blows the dock width.
+    const goal = activeAgentRun.goal_text || 'Working…'
+    return goal.length > 36 ? goal.slice(0, 33) + '…' : goal
+  }, [activeAgentRun])
+
+  /**
+   * Drag-and-drop documents (Reference = read-only context, Modify = load into
+   * canvas + Nexus revises in place via update_document). Implementation lives
+   * in `useAppAiAttachments` — this page just wires it to the root + composer.
+   */
+  const handleAttachmentError = useCallback(
+    (msg: string) => toast({ title: 'Attachment', description: msg, variant: 'destructive' }),
+    [toast],
+  )
+  const handleAttachmentWarn = useCallback(
+    (msg: string) => toast({ title: 'Attachment', description: msg }),
+    [toast],
+  )
+  const openModifyCanvas = useCallback((a: AppAiAttachment) => {
+    setCanvasDoc({ title: a.name, content: a.content, format: 'document' })
+    setCanvasDocKey((k) => k + 1)
+  }, [])
+  const {
+    attachments,
+    dragMode,
+    rootDragHandlers,
+    setDragMode,
+    onAttachClick,
+    removeAttachment,
+    clearAttachments,
+    hiddenInput,
+  } = useAppAiAttachments({
+    onError: handleAttachmentError,
+    onWarn: handleAttachmentWarn,
+    onModifyOpen: openModifyCanvas,
+  })
+
   const scrollRef = useRef<HTMLDivElement>(null)
   const recognitionRef = useRef<SpeechRecognition | null>(null)
   const [mobileChatsOpen, setMobileChatsOpen] = useState(false)
@@ -222,7 +288,8 @@ export function AppAIPage() {
   }, [mobileChatsOpen])
 
   const chatMutation = useMutation({
-    mutationFn: async (message: string) => {
+    mutationFn: async (input: { message: string; attachments: AttachmentForServer[] }) => {
+      const { message, attachments: turnAttachments } = input
       if (!accessToken) throw new Error('Please sign in to use Nexus.')
 
       const history = (activeChat?.messages || [])
@@ -240,7 +307,7 @@ export function AppAIPage() {
         targetAgentIds = routeToAgents(message, invitedPersonas);
       }
 
-      const results: any[] = [];
+      const results: Array<Record<string, unknown> & { agentId?: string; agentName?: string; agentColor?: string }> = []
       for (const agentId of targetAgentIds) {
         const persona = getAgentPersona(agentId);
         const res = await fetch(NEXUS_USER_CHAT_PATH, {
@@ -257,6 +324,7 @@ export function AppAIPage() {
             personaMode: getStoredNexusPersonaMode(),
             agentId: agentId !== 'nexus' ? agentId : undefined,
             agentPersonaPrompt: persona?.systemPrompt || undefined,
+            ...(turnAttachments.length > 0 ? { attachments: turnAttachments } : {}),
           }),
         })
 
@@ -271,7 +339,8 @@ export function AppAIPage() {
 
       return results.length === 1 ? results[0] : results;
     },
-    onSuccess: (data: unknown, message) => {
+    onSuccess: (data: unknown, variables) => {
+      const message = variables.message
       const responses = Array.isArray(data) ? data : [data];
 
       for (const payload of responses) {
@@ -283,6 +352,13 @@ export function AppAIPage() {
       const { displayText, createEventData } = parseAIResponse(reply)
 
       let docAttachment: { title: string; content: string; format?: 'document' | 'spreadsheet' | 'invoice' } | undefined
+
+      const delegationHintsFromTrace =
+        Array.isArray(payload?.toolTrace) && (payload.toolTrace as Record<string, unknown>[]).length > 0
+          ? toolTraceToDelegationHints(payload.toolTrace as Record<string, unknown>[], displayText)
+          : undefined
+      const delegationHints =
+        delegationHintsFromTrace && delegationHintsFromTrace.length > 0 ? delegationHintsFromTrace : undefined
 
       if (Array.isArray(payload?.toolTrace) && payload.toolTrace.length > 0) {
         window.dispatchEvent(
@@ -309,7 +385,7 @@ export function AppAIPage() {
           })
         }
         const docResults = payload.toolTrace.filter(
-          (t: { ok?: boolean; tool?: string; detail?: any }) => t?.ok && t.tool === 'create_document' && t.detail,
+          (t: { ok?: boolean; tool?: string; detail?: unknown }) => t?.ok && t.tool === 'create_document' && t.detail,
         )
         if (docResults.length > 0) {
           const doc = docResults[0].detail as { title?: string; content?: string; format?: string }
@@ -361,6 +437,7 @@ export function AppAIPage() {
                       agentId: payload.agentId || undefined,
                       agentName: payload.agentName || undefined,
                       agentColor: payload.agentColor || undefined,
+                      delegationHints,
                     },
                   ],
                 }
@@ -378,6 +455,7 @@ export function AppAIPage() {
               role: 'assistant',
               content: displayText,
               timestamp: Date.now(),
+              delegationHints,
             },
           ],
           createdAt: Date.now(),
@@ -440,6 +518,61 @@ export function AppAIPage() {
     const msg = input.trim()
     if (!msg || chatMutation.isPending) return
 
+    /**
+     * Agent intent detection: if the user says "navigate to google and ..." or
+     * uses an explicit @agent prefix, route to the agent runner instead of
+     * regular chat. This lets the same composer drive both Nexus chat and
+     * Nexus Agent Mode without a mode toggle UI.
+     */
+    const explicit = userExplicitlyRequestsAgent(msg)
+    const intent = detectAgentIntent(msg)
+    if (explicit || intent.isAgentIntent) {
+      const goal = explicit ? msg.replace(/^\s*@(agent|browser|browse|nexus-agent)\s*:?\s*/i, '').trim() : msg
+      if (goal.length >= 6) {
+        setInput('')
+        startAgentRun.mutate(
+          { goal, projectId: selectedProjectId },
+          {
+            onSuccess: ({ runId, runnerHandoff, isByok, provider }) => {
+              setSelectedAgentRunId(runId)
+              toast({
+                title: 'Nexus Agent started',
+                description: `Using ${provider}${isByok ? ' (your key)' : ' (free)'}.${runnerHandoff === 'unreachable' ? ' Runner offline — queued.' : ''}`,
+              })
+            },
+            onError: (e: unknown) => {
+              toast({ title: 'Agent run failed', description: e instanceof Error ? e.message : 'unknown', variant: 'destructive' })
+            },
+          },
+        )
+        return
+      }
+    }
+
+    /**
+     * Build the attachment payload for this turn:
+     *   - Any explicitly staged user attachments
+     *   - Plus the currently-open canvas doc (auto-attached as modify-target so
+     *     "make this more formal" / "shorten" / etc. picks up update_document
+     *     without the user re-pasting).
+     * Dedupe by (name, mode) so an explicit modify-mode upload of the same doc
+     *   doesn't double-include.
+     */
+    const turnAttachments: AttachmentForServer[] = attachmentsForServer(attachments).slice()
+    if (canvasDoc) {
+      const alreadyHaveModifyTarget = turnAttachments.some(
+        (a) => a.mode === 'modify' && a.name === canvasDoc.title,
+      )
+      if (!alreadyHaveModifyTarget) {
+        turnAttachments.push({
+          name: canvasDoc.title || 'Open canvas',
+          mimeType: 'text/markdown',
+          content: canvasDoc.content,
+          mode: 'modify',
+        })
+      }
+    }
+
     if (!activeChatId) {
       const newChat: Chat = {
         id: crypto.randomUUID(),
@@ -467,13 +600,16 @@ export function AppAIPage() {
       )
     }
     setInput('')
-    chatMutation.mutate(msg)
-  }, [input, chatMutation, activeChatId])
+    // Clear staged attachments only if this turn actually carried any —
+    // the open canvas stays attached across turns (that's the whole point of "modify in place").
+    if (attachments.length > 0) clearAttachments()
+    chatMutation.mutate({ message: msg, attachments: turnAttachments })
+  }, [input, chatMutation, activeChatId, attachments, canvasDoc, clearAttachments, selectedProjectId, startAgentRun, toast])
 
-  const handleNewChat = () => {
+  const handleNewChat = useCallback(() => {
     setActiveChatId(null)
     setInput('')
-  }
+  }, [])
 
   const handleDeleteChat = (id: string) => {
     setChats((prev) => prev.filter((c) => c.id !== id))
@@ -533,35 +669,58 @@ export function AppAIPage() {
     setIsListening(false)
   }
 
+  const setMobileToolbar = useSetAiPageMobileChatsToolbar()
+
+  const mobileChatsTopBar = useMemo(
+    () => (
+      <div className="flex w-full shrink-0 items-center gap-2 px-3 py-2.5 backdrop-blur-sm">
+        <button
+          type="button"
+          className="shrink-0 rounded-lg border border-gray-700/90 bg-[#1a1d26] px-3 py-2 text-xs font-medium text-gray-200 hover:bg-gray-800/80"
+          onClick={() => setMobileChatsOpen(true)}
+        >
+          Chats
+        </button>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-medium text-white">
+            {!activeChat ? 'Nexus AI' : activeChat.title?.trim() || 'New chat'}
+          </p>
+          <p className="text-[10px] text-gray-500">Nexus</p>
+        </div>
+        <button
+          type="button"
+          className="shrink-0 rounded-lg p-2.5 text-gray-400 hover:bg-gray-800 hover:text-white"
+          onClick={handleNewChat}
+          aria-label="New chat"
+        >
+          <Plus className="h-5 w-5" />
+        </button>
+      </div>
+    ),
+    [activeChat, handleNewChat]
+  )
+
+  useEffect(() => {
+    if (!setMobileToolbar) return
+    setMobileToolbar(mobileChatsTopBar)
+    return () => setMobileToolbar(null)
+  }, [setMobileToolbar, mobileChatsTopBar])
+
   return (
     <DashboardLayout>
-    <div className="flex h-full gap-0">
-      <div className="flex-1 flex flex-col min-w-0">
-        <div className="flex lg:hidden shrink-0 items-center gap-2 border-b border-gray-800/90 bg-[#101218]/95 px-3 py-2.5 backdrop-blur-sm">
-          <button
-            type="button"
-            className="shrink-0 rounded-lg border border-gray-700/90 bg-[#1a1d26] px-3 py-2 text-xs font-medium text-gray-200 hover:bg-gray-800/80"
-            onClick={() => setMobileChatsOpen(true)}
-          >
-            Chats
-          </button>
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-medium text-white">
-              {!activeChat ? 'Nexus AI' : activeChat.title?.trim() || 'New chat'}
-            </p>
-            <p className="text-[10px] text-gray-500">Nexus</p>
+    <div
+      className="relative flex min-h-0 flex-1 flex-col gap-0 lg:h-full lg:flex-row lg:items-stretch"
+      data-testid="appai-page-root"
+      {...rootDragHandlers}
+    >
+      {hiddenInput}
+      <AppAiDropzoneOverlay mode={dragMode} onModeHover={setDragMode} />
+      <div className="flex min-h-0 flex-1 flex-col min-w-0">
+        {setMobileToolbar === null ? (
+          <div className="flex shrink-0 border-b border-gray-800/90 bg-[#101218]/95 lg:hidden">
+            {mobileChatsTopBar}
           </div>
-          <button
-            type="button"
-            className="shrink-0 rounded-lg p-2.5 text-gray-400 hover:bg-gray-800 hover:text-white"
-            onClick={() => {
-              handleNewChat()
-            }}
-            aria-label="New chat"
-          >
-            <Plus className="h-5 w-5" />
-          </button>
-        </div>
+        ) : null}
 
         {activeChat?.type === 'group' && activeChat.agents && (
           <div className="px-3 md:px-6 py-2 border-b border-gray-800 flex items-center gap-2 flex-wrap">
@@ -637,7 +796,7 @@ export function AppAIPage() {
             </div>
           )}
           {activeChat && activeChat.messages.length === 0 && !chatMutation.isPending && (
-            <div className="flex flex-col items-center justify-center min-h-[42vh] text-center py-12 px-4">
+            <div className="flex min-h-[min(18rem,48dvh)] flex-1 flex-col items-center justify-center px-4 py-10 text-center">
               <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-purple-500/15 to-cyan-500/15 border border-purple-500/25 flex items-center justify-center mb-4">
                 <MessageSquare className="w-7 h-7 text-purple-300/90" />
               </div>
@@ -712,6 +871,19 @@ export function AppAIPage() {
                     simpleMarkdown(msg.content)
                   )}
                 </div>
+                {msg.role === 'assistant' && msg.delegationHints && msg.delegationHints.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 mt-2" aria-label="Delegation">
+                    {msg.delegationHints.map((h) => (
+                      <span
+                        key={h.id}
+                        className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-black/25 px-2 py-0.5 text-[10px] font-medium text-gray-400"
+                      >
+                        <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: h.color }} aria-hidden />
+                        via {h.label}
+                      </span>
+                    ))}
+                  </div>
+                )}
                 {msg.role === 'assistant' && (
                   <div className="flex gap-1 mt-2 pt-2 border-t border-gray-700/50">
                     <Button
@@ -771,25 +943,36 @@ export function AppAIPage() {
             </div>
           )}
         </div>
-        <div className="px-3 md:px-6 py-3 border-t border-gray-800/90 bg-gradient-to-t from-[#0c0d12] to-transparent">
-          <div className="max-w-3xl mx-auto space-y-3">
-            {/* Desktop: full helper + voice shortcuts */}
-            <div className="hidden md:flex flex-col gap-2">
-              <p className="text-xs text-gray-500 leading-snug">
-                <span className="text-gray-400">Voice</span> opens the <span className="text-cyan-300/90">immersive orb</span> (animated rings + artifact rail).{' '}
-                <span className="text-gray-400">Call Nexus</span> opens the classic waveform console. You need to be{' '}
-                <span className="text-gray-300">signed in</span> for Nexus tools (documents, tasks, maps). The{' '}
-                <span className="text-gray-400">inline mic</span> only dictates into the text box. Phone calls: phone icon inside the voice panel; nothing auto-dials.
-              </p>
-              <div className="flex flex-wrap items-center gap-2">
+        {/* Composer: compact field (Slack/Teams-style density); touch targets ≥44px on narrow viewports (WCAG 2.5.5). */}
+        <div className="shrink-0 border-t border-gray-800/90 bg-[#0a0b10]/95 px-3 py-1.5 md:px-4 md:py-1.5">
+          <div className="mx-auto max-w-3xl space-y-1.5">
+            <AppAiAttachmentsBar
+              attachments={attachments}
+              onRemove={removeAttachment}
+              onAttachClick={() => onAttachClick('reference')}
+            />
+            <div className="hidden md:flex flex-wrap items-center justify-between gap-1.5">
+              <details className="group min-w-0 flex-1">
+                <summary className="cursor-pointer list-none text-[10px] leading-tight text-gray-500 [&::-webkit-details-marker]:hidden">
+                  <span className="text-gray-400 underline decoration-gray-600 underline-offset-2 group-open:text-gray-300">
+                    Voice, Call Nexus & mic
+                  </span>
+                  <span className="ml-1 text-gray-600">— how it works</span>
+                </summary>
+                <p className="mt-1.5 max-w-prose text-[11px] leading-relaxed text-gray-500">
+                  <span className="text-gray-400">Voice</span> opens the immersive orb (rings + artifact rail).{' '}
+                  <span className="text-gray-400">Call Nexus</span> is the classic waveform console. Sign in for Nexus tools (documents, tasks, maps). The inline mic only fills this box. Phone calls use the icon inside the voice panel; nothing auto-dials.
+                </p>
+              </details>
+              <div className="flex shrink-0 flex-wrap items-center gap-1">
                 <button
                   type="button"
                   onClick={openClassicVoice}
                   aria-label="Call Nexus — full voice session"
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-green-400 bg-green-500/10 border border-green-500/20 hover:bg-green-500/20 hover:border-green-400/30 transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-green-400/40"
+                  className="inline-flex items-center gap-0.5 rounded-md border border-green-500/20 bg-green-500/10 px-2 py-0.5 text-[10px] font-medium text-green-400 transition-all hover:border-green-400/35 hover:bg-green-500/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-green-400/40"
                 >
-                  <Phone className="w-3.5 h-3.5 shrink-0" aria-hidden />
-                  Call Nexus
+                  <Phone className="h-3 w-3 shrink-0" aria-hidden />
+                  Call
                 </button>
                 <button
                   type="button"
@@ -797,30 +980,29 @@ export function AppAIPage() {
                   onClick={openVoice}
                   aria-label="Voice — conversational AI (live speech and replies)"
                   className={cn(
-                    'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-all',
-                    'text-cyan-100 bg-gradient-to-r from-violet-600/35 to-cyan-600/35 border-cyan-500/25',
-                    'hover:from-violet-500/45 hover:to-cyan-500/45 hover:border-cyan-400/35',
+                    'inline-flex items-center gap-0.5 rounded-md border px-2 py-0.5 text-[10px] font-medium transition-all',
+                    'border-cyan-500/25 bg-gradient-to-r from-violet-600/35 to-cyan-600/35 text-cyan-100',
+                    'hover:border-cyan-400/35 hover:from-violet-500/45 hover:to-cyan-500/45',
                     'focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0c0d12]'
                   )}
                 >
-                  <AudioWaveform className="w-3.5 h-3.5 shrink-0" aria-hidden />
+                  <AudioWaveform className="h-3 w-3 shrink-0" aria-hidden />
                   Voice
                 </button>
               </div>
             </div>
 
-            {/* Mobile: short line + optional details; Voice/Call only while in an active thread */}
-            <div className="md:hidden flex flex-col gap-2">
-              <p className="text-[11px] text-gray-500 leading-snug">
+            <div className="flex flex-col gap-1.5 md:hidden">
+              <p className="text-[10px] leading-tight text-gray-500">
                 {showMobileFooterVoice
                   ? 'Mic adds text. Voice and Call open full sessions.'
                   : 'Mic adds text. Use Voice or Call in the area above.'}
               </p>
-              <details className="rounded-lg border border-gray-800/80 bg-[#12141f]/80">
-                <summary className="cursor-pointer list-none px-3 py-2 text-[11px] font-medium text-gray-400 [&::-webkit-details-marker]:hidden">
+              <details className="rounded-md border border-gray-800/80 bg-[#12141f]/80">
+                <summary className="cursor-pointer list-none px-2 py-1.5 text-[10px] font-medium text-gray-400 [&::-webkit-details-marker]:hidden">
                   Voice vs Call · sign-in · mic
                 </summary>
-                <div className="border-t border-gray-800/70 px-3 py-2 text-[11px] text-gray-500 leading-relaxed space-y-1.5">
+                <div className="space-y-1 border-t border-gray-800/70 px-2 py-1.5 text-[10px] leading-relaxed text-gray-500">
                   <p>
                     <span className="text-gray-400">Voice</span> opens the immersive orb (rings + artifact rail).{' '}
                     <span className="text-gray-400">Call Nexus</span> opens the classic waveform console.
@@ -860,17 +1042,17 @@ export function AppAIPage() {
               )}
             </div>
 
-            <div className="flex gap-2 items-end">
+            <div className="flex items-end gap-1.5">
               <div
                 className={cn(
-                  'flex-1 flex items-end min-w-0 rounded-2xl border bg-[#12131a] shadow-inner transition-all duration-200',
+                  'flex min-h-0 flex-1 items-stretch rounded-lg border bg-[#12131a] shadow-inner transition-all duration-200',
                   isListening
                     ? 'border-violet-400/35 ring-1 ring-violet-500/20'
-                    : 'border-gray-700/90 focus-within:border-violet-500/45 focus-within:ring-1 focus-within:ring-violet-500/15'
+                    : 'border-gray-700/80 focus-within:border-violet-500/40 focus-within:ring-1 focus-within:ring-violet-500/10'
                 )}
               >
                 <textarea
-                  placeholder={isListening ? 'Listening… speak now' : 'Type a message…'}
+                  placeholder={isListening ? 'Listening…' : 'Message Nexus…'}
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onFocus={scrollMessagesToBottom}
@@ -882,16 +1064,16 @@ export function AppAIPage() {
                   }}
                   disabled={chatMutation.isPending}
                   rows={1}
-                  className="flex-1 min-w-0 resize-none bg-transparent text-white placeholder:text-gray-500 focus:outline-none text-sm leading-relaxed max-h-32 overflow-y-auto py-3 pl-4 pr-2"
-                  style={{ height: 'auto', minHeight: '2.75rem' }}
+                  className="max-h-24 min-h-[2.25rem] flex-1 resize-none bg-transparent px-2.5 py-1.5 text-[13px] leading-snug text-white placeholder:text-gray-500 focus:outline-none sm:min-h-[2.25rem] sm:py-1.5"
+                  style={{ height: 'auto', minHeight: '2.25rem' }}
                   onInput={(e) => {
                     const t = e.currentTarget
                     t.style.height = 'auto'
-                    t.style.height = Math.min(t.scrollHeight, 128) + 'px'
+                    t.style.height = `${Math.min(t.scrollHeight, 96)}px`
                   }}
                   aria-label="Message to Nexus"
                 />
-                <div className="shrink-0 flex items-center py-2 pr-2">
+                <div className="flex shrink-0 items-stretch pr-1">
                   <button
                     type="button"
                     aria-pressed={isListening}
@@ -899,16 +1081,16 @@ export function AppAIPage() {
                     title={isListening ? 'Stop dictation' : 'Dictate (speech to text)'}
                     onClick={isListening ? stopSpeechRecognition : startSpeechRecognition}
                     className={cn(
-                      'h-11 w-11 rounded-xl flex items-center justify-center transition-all',
+                      'flex min-h-[44px] min-w-[44px] items-center justify-center rounded-md transition-all sm:h-8 sm:min-h-0 sm:min-w-0 sm:w-8',
                       isListening
-                        ? 'bg-red-500/20 text-red-300 ring-1 ring-red-400/35 shadow-[0_0_20px_-4px_rgba(248,113,113,0.45)]'
-                        : 'text-gray-400 hover:text-violet-200 hover:bg-violet-500/10 active:bg-violet-500/15'
+                        ? 'bg-red-500/20 text-red-300 ring-1 ring-red-400/35'
+                        : 'text-gray-400 hover:bg-violet-500/10 hover:text-violet-200 active:bg-violet-500/15'
                     )}
                   >
                     {isListening ? (
-                      <MicOff className="w-5 h-5" />
+                      <MicOff className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
                     ) : (
-                      <Mic className="w-5 h-5" />
+                      <Mic className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
                     )}
                   </button>
                 </div>
@@ -917,10 +1099,10 @@ export function AppAIPage() {
                 type="button"
                 onClick={handleSend}
                 disabled={chatMutation.isPending || !input.trim()}
-                className="h-11 w-11 min-w-[2.75rem] shrink-0 p-0 md:h-[3.25rem] md:min-w-[3.25rem] md:px-4 bg-gradient-to-br from-violet-600 to-cyan-600 hover:from-violet-500 hover:to-cyan-500 text-white border-0 rounded-2xl shadow-lg shadow-violet-950/30 disabled:opacity-40"
+                className="min-h-[44px] min-w-[44px] shrink-0 rounded-lg border-0 bg-gradient-to-br from-violet-600 to-cyan-600 p-0 text-white shadow-sm shadow-violet-950/20 hover:from-violet-500 hover:to-cyan-500 disabled:opacity-40 sm:h-8 sm:min-h-0 sm:min-w-0 sm:w-8"
                 aria-label="Send message"
               >
-                <Send className="w-5 h-5" />
+                <Send className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
               </Button>
             </div>
           </div>
@@ -936,43 +1118,40 @@ export function AppAIPage() {
           onClose={() => setCanvasDoc(null)}
         />
       ) : (
-        <div className="hidden lg:flex flex-col w-64 border-l border-gray-800 shrink-0">
-          <div className="p-3 border-b border-gray-800 flex items-center justify-between">
-            <h3 className="font-semibold text-sm text-white">Chats</h3>
-            <button
-              onClick={handleNewChat}
-              className="h-7 w-7 flex items-center justify-center rounded-lg text-gray-400 hover:text-white hover:bg-gray-800 transition-colors"
-            >
-              <Plus className="w-3.5 h-3.5" />
-            </button>
-          </div>
-          <div className="flex-1 overflow-y-auto p-1.5 space-y-0.5">
-            {chats.map((chat) => (
-              <div
-                key={chat.id}
-                className={cn(
-                  'group flex items-center justify-between gap-1.5 px-2.5 py-2 rounded-lg cursor-pointer text-xs transition-colors',
-                  activeChatId === chat.id
-                    ? 'bg-purple-500/10 border border-purple-500/30 text-purple-300'
-                    : 'text-gray-400 hover:bg-gray-800/50 hover:text-gray-200'
-                )}
-                onClick={() => setActiveChatId(chat.id)}
-              >
-                {chat.type === 'group' ? <Users className="w-3 h-3 shrink-0" /> : <MessageSquare className="w-3 h-3 shrink-0" />}
-                <span className="truncate flex-1">{chat.title || 'New chat'}</span>
-                <button
-                  className="h-5 w-5 shrink-0 flex items-center justify-center rounded opacity-0 group-hover:opacity-100 text-gray-500 hover:text-red-400 transition-all"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    handleDeleteChat(chat.id)
-                  }}
-                >
-                  <Trash2 className="w-2.5 h-2.5" />
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
+        <AppAiSidebarPanel
+          chats={chats.map((c) => ({ id: c.id, title: c.title, type: c.type, agents: c.agents }))}
+          activeChatId={activeChatId}
+          onSelectChat={setActiveChatId}
+          onNewChat={handleNewChat}
+          onDeleteChat={handleDeleteChat}
+          selectedAgentRunId={selectedAgentRunId}
+          onSelectAgentRun={setSelectedAgentRunId}
+          onNewAgentRun={() => {
+            const goal = window.prompt('What should Nexus do? (e.g. "find me 3 articles about energy-aware scheduling")')
+            if (!goal || goal.trim().length < 6) return
+            startAgentRun.mutate(
+              { goal: goal.trim(), projectId: selectedProjectId },
+              {
+                onSuccess: ({ runId, runnerHandoff }) => {
+                  setSelectedAgentRunId(runId)
+                  if (runnerHandoff === 'unreachable') {
+                    toast({
+                      title: 'Agent runtime not reachable',
+                      description: 'Run is queued — bring up the agent runner per deploy/nexus-agent-runner/README.md to start it.',
+                    })
+                  }
+                },
+                onError: (e: unknown) => {
+                  toast({
+                    title: 'Agent run failed',
+                    description: e instanceof Error ? e.message : 'unknown',
+                    variant: 'destructive',
+                  })
+                },
+              },
+            )
+          }}
+        />
       )}
     </div>
 
@@ -1075,24 +1254,46 @@ export function AppAIPage() {
       )}
     </AnimatePresence>
 
+    {/* Agent run stream — full overlay (z above sidebar+composer, below voice). Click X to close. */}
+    {selectedAgentRunId && typeof document !== 'undefined' &&
+      createPortal(
+        <div
+          className="fixed inset-0 z-[100015] bg-black/72 backdrop-blur-sm flex items-center justify-center p-3"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Nexus Agent Run"
+        >
+          <div className="relative h-[min(90vh,860px)] w-full max-w-5xl overflow-hidden rounded-2xl border border-white/12 shadow-[0_32px_120px_-24px_rgba(0,0,0,0.85)]">
+            <AgentRunStream runId={selectedAgentRunId} onClose={() => setSelectedAgentRunId(null)} />
+          </div>
+        </div>,
+        document.body,
+      )}
+
     {showVoiceEngine &&
       typeof document !== 'undefined' &&
       createPortal(
+        <VoiceDockedFrame
+          docked={voiceDocked}
+          agentStatus={dockedAgentStatus}
+          onExpand={() => setSelectedAgentRunId(activeAgentRun?.id ?? null)}
+        >
         <div
           data-testid={voiceImmersiveArt ? 'nexus-voice-immersive-overlay' : 'nexus-voice-classic-overlay'}
           data-voice-shell={voiceImmersiveArt ? 'immersive' : 'classic'}
           data-syncscript-build-sha={import.meta.env.VITE_BUILD_SHA ?? ''}
           className={cn(
-            'fixed inset-0 z-[100020] h-[100dvh] w-full overflow-hidden',
+            'h-full w-full overflow-hidden',
             voiceImmersiveArt
               ? 'bg-[#030206]'
-              : 'bg-black/60 backdrop-blur-sm flex items-center justify-center p-3'
+              : 'bg-black/60 backdrop-blur-sm flex items-center justify-center p-3',
+            voiceDocked && 'pointer-events-none' // dock click handled by frame; inner content is read-only while docked
           )}
         >
           <div
             className={cn(
               'relative min-h-0 overflow-hidden shadow-2xl',
-              voiceImmersiveArt ? 'h-full w-full' : 'h-[80vh] w-full max-w-4xl rounded-2xl border border-gray-800 bg-[#13141a]'
+              voiceImmersiveArt ? 'h-full w-full' : voiceDocked ? 'h-full w-full' : 'h-[80vh] w-full max-w-4xl rounded-2xl border border-gray-800 bg-[#13141a]'
             )}
           >
             <Suspense
@@ -1121,7 +1322,8 @@ export function AppAIPage() {
               />
             </Suspense>
           </div>
-        </div>,
+        </div>
+        </VoiceDockedFrame>,
         document.body
       )}
 

@@ -49,7 +49,7 @@ import { EventAdminManager, EventMember } from './EventAdminManager';
 import { EventAgendaTab } from './EventAgendaTab';
 import { toast } from 'sonner@2.0.3';
 import { motion, AnimatePresence } from 'motion/react';
-import { detectEventConflicts, formatConflictMessage } from '../utils/calendar-conflicts';
+import { detectEventConflicts, formatConflictMessage, type ConflictInfo } from '../utils/calendar-conflicts';
 import { getEventEnergyValue } from '../utils/energy-system'; // PHASE 1.6: Energy system
 import { cn } from '@/lib/utils';
 
@@ -137,10 +137,12 @@ export function EventModal({
   const taskCount = safeEvent.tasks.length;
   const completedTaskCount = safeEvent.tasks.filter(t => t.completed).length;
 
-  // Detect conflicts
-  const conflicts = allEvents && safeEdited.startTime && safeEdited.endTime
-    ? detectEventConflicts(safeEdited, allEvents.filter(e => e.id !== safeEdited.id))
-    : [];
+  // Detect conflicts (API returns a single ConflictInfo, not an array)
+  const conflictInfo: ConflictInfo | null =
+    allEvents && safeEdited.startTime && safeEdited.endTime
+      ? detectEventConflicts(safeEdited, allEvents.filter((e) => e.id !== safeEdited.id))
+      : null;
+  const conflictCount = conflictInfo?.conflictingEvents.length ?? 0;
 
   // Check if event is past/completed
   const isPastOrCompleted = safeEvent.completed || isEventPast(safeEvent);
@@ -316,6 +318,7 @@ export function EventModal({
             '!max-w-[1400px] w-[95vw] max-h-[90vh] bg-[#1a1d24] border-gray-800 text-white p-0 overflow-hidden flex flex-col !border-l-4 !border-l-teal-500',
             stackAboveVoiceShell && '!z-[100022]',
           )}
+          onCloseAutoFocus={stackAboveVoiceShell ? (e) => e.preventDefault() : undefined}
         >
           {/* Header - Fixed at top */}
           <DialogHeader className="p-6 pb-4 border-b border-gray-800 shrink-0">
@@ -337,10 +340,10 @@ export function EventModal({
                   )}
 
                   {/* Conflict Warning */}
-                  {conflicts.length > 0 && (
+                  {conflictCount > 0 && (
                     <Badge className="bg-red-500/20 text-red-300 border border-red-500/50 px-2 py-1">
                       <AlertTriangle className="w-3.5 h-3.5 mr-1.5" />
-                      {conflicts.length} CONFLICT{conflicts.length > 1 ? 'S' : ''}
+                      {conflictCount} CONFLICT{conflictCount > 1 ? 'S' : ''}
                     </Badge>
                   )}
                 </div>
@@ -588,19 +591,13 @@ export function EventModal({
                 )}
 
                 {/* Conflicts Warning */}
-                {conflicts.length > 0 && (
+                {conflictInfo?.hasConflict && (
                   <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4">
                     <div className="flex items-start gap-3">
                       <AlertTriangle className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
                       <div className="flex-1">
                         <h4 className="text-red-400 font-semibold mb-2">Scheduling Conflicts Detected</h4>
-                        <div className="space-y-2">
-                          {conflicts.map((conflict, idx) => (
-                            <p key={idx} className="text-sm text-red-300">
-                              {formatConflictMessage(conflict)}
-                            </p>
-                          ))}
-                        </div>
+                        <p className="text-sm text-red-300">{formatConflictMessage(conflictInfo)}</p>
                       </div>
                     </div>
                   </div>
@@ -898,8 +895,12 @@ export function EventModal({
         <AITaskSuggestionDialog
           open={showAISuggestions}
           onOpenChange={setShowAISuggestions}
-          event={event}
+          eventTitle={safeEvent.title}
+          eventDescription={safeEvent.description}
+          eventDate={safeEvent.startTime}
           onTasksSelected={handleAITasksSelected}
+          existingTasks={safeEvent.tasks}
+          parentEventEndsAt={safeEvent.endTime}
         />
       )}
     </>

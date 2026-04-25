@@ -11,6 +11,7 @@ import { routeDiscordInteractions } from './_route-discord';
 import { routePhoneCalls } from './_route-calls';
 import { routePhoneManage } from './_route-manage';
 import { routePhoneTwiml } from './_route-twiml';
+import { routePostCallSummary } from './_route-post-call-summary';
 
 export const config = {
   api: {
@@ -40,6 +41,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return routePhoneManage(req, res);
     case 'twiml':
       return routePhoneTwiml(req, res);
+    case 'post-call-summary':
+      return routePostCallSummary(req, res);
     default:
       return res.status(404).json({ error: 'Unknown phone endpoint' });
   }

@@ -21,12 +21,13 @@
 - **Orchestration:** OpenClaw / Hermes / Engram = runtime tools — not a substitute for repo + MEMORY.
 - **Deploy vs repo:** `npm run verify:prod-build` compares **local `git` HEAD** to **`<!-- syncscript-build:sha -->` in live `/` HTML**. If it fails with “no marker,” production is **not** serving a build from current `vite build` (wrong Vercel project/branch, or deploy not run).
 - **UX/UI bar:** **`.cursor/rules/11-ux-ui-excellence.mdc`** (always-on behaviors) + **`integrations/research/UX_UI_REFERENCE_CANON.md`** (Figma Community workflow + world-class links). **Semantic tokens** in **`src/styles/globals.css`** — **`integrations/research/DESIGN_TOKENS_SYNCSCRIPT.md`**. **Antigravity vs Cursor:** **`integrations/research/ANTIGRAVITY_VS_CURSOR.md`**. Kits inspire **tokens and patterns** — code + **03/04** gates remain source of truth.
+- **Design handoff (“design something”):** When the user asks to **design** UI or visuals, follow **`.cursor/rules/13-design-handoff-n8n-figma-cursor.mdc`** and **§ Design handoff pipeline** below — **n8n** orchestrates webhooks/HTTP (Gemini, Imagen, NVIDIA, etc.); **Figma** is visual truth (not magic image→code); **Cursor** implements with **tokens** + **11/03/04**. Not a single unattended end-to-end pipe without human or plugin steps.
 - **OpenClaw / ClawHub / skill audits (read-only):** **`.cursor/rules/12-openclaw-clawhub-cursor-local.mdc`**. Weekly CI runs **`skill:source-audit:ci`** (artifact **`reports/skill-audit/`** in the zip) — **triage one slug per run** with **`clawhub inspect`**, file **`integrations/research/skill-evaluations/`**, optional **`gh issue create`** (labels **`triage`** + **`skills`** — **`npm run gh:labels`** once per repo). Full local audit: **`npm run skill:source-audit`**. **No auto-install** — **`integrations/research/WHY_WE_DO_NOT_AUTO_SHIP_SKILLS.md`**. **Cursor IDE tips:** **`integrations/research/CURSOR_IDE_EXCELLENCE_SYNCSCRIPT.md`**.
 - **Landing UX/perf ritual:** Monthly **Lighthouse** on live `/` — **`.github/workflows/lighthouse-monthly.yml`** (`npm run lighthouse:ci` locally; artifact **`.lighthouseci/`**). Broader live smoke: **Production dashboard smoke** (Playwright prod + fingerprint).
 - **This quick section:** Treat as a **control panel** — update **the same day** when deploy flow, voice stack, or test entrypoints change; stale bullets hurt agents more than a missing research note.
 - **Router (2026-04-11):** Do **not** nest `<Route path="*">` under a **pathless** layout (e.g. `DashboardShell`) — in React Router 7 it can match **`/login`** before the explicit auth route, and `DashboardCatchAll` then **`Navigate`s to `/`** for logged-out users (“Sign in” bounces to landing). Keep the splat as a **root** `<Routes>` child **after** `/login` / `/signup`.
 
-**Last updated:** 2026-04-19 — **`NexusVoiceMinimalCircle`** **`compact`** prop bound (voice click fix); see quick bullet **Nexus voice orb — `compact` prop**. **2026-04-11 — Nexus E2E ops:** **`npm run secrets:github:nexus-e2e`**, **`npm run deploy:vercel:prod`**, **`gh workflow run "E2E Nexus signed-in (prod)"`**; numbered runbook under **§ Nexus “individual user”**. **2026-04-17** — Dashboard weather **geo deadline** + **`useWeatherRoute` finally**; App AI voice **portal + z-index**; immersive voice **short intro** via **`generateImmersiveVoiceIntro`** (**`src/utils/voice-context-builder.ts`**). **2026-04-11** addendum: Nexus voice **~60s latency** (**`postNexusUserVoiceTurn`**, **`maxDuration`**, tool loop). Earlier: **`emitNexusTrace`** **`toolTraceEntries`** + **`toolRepairNudged`**; **`integrations/research/NEXUS_OBSERVABILITY_AND_QUALITY.md`**; **`api/cron/[job].ts`** **`concierge-playbook-tick`**. ROI ops: **`verify:prod-build`**, Lighthouse, **`gh:labels`**. Example eval: **`integrations/research/skill-evaluations/2026-04-17-playwright-mcp.md`**. **2026-04-16** Nexus: **CSP `frame-src`**, **`/api/map/resolve-map-url`**, **`update_document`** nudges (see **§ Nexus Voice**).
+**Last updated:** 2026-04-19 — **Design handoff pipeline** (n8n / Figma / Cursor) saved — **`.cursor/rules/13-design-handoff-n8n-figma-cursor.mdc`** + **§ Design handoff pipeline** below. **Nexus voice orb:** **`NexusVoiceSpeakingDust`**, smaller **`NexusVoiceMinimalCircle`** + **`NexusVoiceSatelliteOrbit`** when shipped to prod. Earlier **`NexusVoiceMinimalCircle`** **`compact`** prop bound (voice click fix). **2026-04-11 — Nexus E2E ops:** **`npm run secrets:github:nexus-e2e`**, **`npm run deploy:vercel:prod`**, **`gh workflow run "E2E Nexus signed-in (prod)"`**; numbered runbook under **§ Nexus “individual user”**. **2026-04-17** — Dashboard weather **geo deadline** + **`useWeatherRoute` finally**; App AI voice **portal + z-index**; immersive voice **short intro** via **`generateImmersiveVoiceIntro`** (**`src/utils/voice-context-builder.ts`**). **2026-04-11** addendum: Nexus voice **~60s latency** (**`postNexusUserVoiceTurn`**, **`maxDuration`**, tool loop). Earlier: **`emitNexusTrace`** **`toolTraceEntries`** + **`toolRepairNudged`**; **`integrations/research/NEXUS_OBSERVABILITY_AND_QUALITY.md`**; **`api/cron/[job].ts`** **`concierge-playbook-tick`**. ROI ops: **`verify:prod-build`**, Lighthouse, **`gh:labels`**. Example eval: **`integrations/research/skill-evaluations/2026-04-17-playwright-mcp.md`**. **2026-04-16** Nexus: **CSP `frame-src`**, **`/api/map/resolve-map-url`**, **`update_document`** nudges (see **§ Nexus Voice**).
 
 **2026-04-17 — Dashboard weather spinner + App AI voice:** **`getWeatherCoords`** hard deadline + **`fetchWeather` finally** end infinite **`weatherLoading`** spinners; **`AppAIPage`** voice shell **`createPortal` → `document.body`**, **`z-[530]`**; immersive auto-start uses **`useLayoutEffect`**; first-line copy from **`generateImmersiveVoiceIntro`** (short, guest-friendly); no success toast in immersive mode.
 
@@ -55,6 +56,20 @@
 **Earlier:** 2026-04-12 — **Docker prune** (~**2.65 GiB**); **INDEX** + study; **`CI=true npm run build`** OK; Xcode **DerivedData**; **`npm ci`**; favicon = `public/favicon.svg`.
 
 **Tracing work:** Curate **this file** for durable ops + decisions; raw session logs go in **`memory/YYYY-MM-DD.md`** (see `AGENTS.md`). After deploy or infra changes (Vercel env, tunnels, Edge), update the relevant section here so the next session does not re-debug from scratch.
+
+## Design handoff pipeline (n8n → Figma → Cursor / OpenClaw / NVIDIA)
+
+**Cursor rule:** **`.cursor/rules/13-design-handoff-n8n-figma-cursor.mdc`** (trigger: user asks to **design** something, new **visuals**, **Figma**, or **n8n** design automation).
+
+**Yes, as a workflow — with realistic limits:**
+
+- **n8n** is a solid **orchestrator**: webhooks, HTTP to **Gemini** / **Imagen** / **NVIDIA-hosted** image APIs, then notify humans or post artifacts.
+- The weak link is **“Gemini draws an image → Figma turns it into a design”**: **Figma does not natively vectorize** a bitmap into production UI. Typical paths: **place image on a frame and trace/rebuild with components** (manual or semi-automated **plugins**), or third-party **image→layout** tools (quality varies).
+- **Figma → Cursor:** usually **Figma MCP** (or export) → **specs, structure, screenshots** → **you or the agent** write **React** to match **`globals.css`** tokens — not a magic paste-code pipe.
+- **OpenClaw** can sit **beside** n8n (same HTTP/webhooks); it does **not** remove **Figma API** limits.
+- **Strong pattern:** **prompt → image (Gemini/NVIDIA/etc.) → human or plugin pass in Figma → design tokens + components → Cursor implements** using **`integrations/research/DESIGN_TOKENS_SYNCSCRIPT.md`**, **11-ux-ui-excellence**, **03/04** where applicable. Deep checklist: **`integrations/research/UX_UI_REFERENCE_CANON.md`**.
+
+**Nexus voice orb (App AI immersive):** **`NexusVoiceSpeakingDust`** (CSS twinkle while TTS), smaller **`NexusVoiceMinimalCircle`** + **`NexusVoiceSatelliteOrbit`**, optional **cyan + rose** immersive tint when speaking — files under **`src/components/nexus/`** and **`VoiceConversationEngine.tsx`**.
 
 ## Work completion — finish what we start
 When we take on a feature, integration, or production fix, **drive it to completion in one coherent effort** (same session / same PR-sized slice when possible): code + **migrations** if needed + **Supabase Edge deploy** when Edge changes + **Vercel** when `api/*` or env changes + **contract / smoke / verify scripts** that prove the path + **this `MEMORY.md`** (and a daily note if useful). **Avoid** landing half-wired routes, stale dashboard URLs, or “we’ll set env later” for **production-critical** flows unless the user explicitly cuts scope.
@@ -177,6 +192,180 @@ You cannot guarantee **infinite** local space; you can make exhaustion **unlikel
 - **Desktop Companion protocol policy:** [`integrations/research/studies/2026-04-11-companion-protocol-policy.md`](integrations/research/studies/2026-04-11-companion-protocol-policy.md) — path guard smoke: `npm run verify:protocol-guard` inside `nature-cortana-platform/desktop-shell`.
 - **Cross-stack script (repo root):** `npm run verify:unified-platform` — Companion path guard + library + push-route contract tests. **`npm run verify:platform:full`** adds Playwright landing capabilities. **`npm run verify:ios:build`** builds the Capacitor iOS app (App Intents Swift). **AASA** in `public/.well-known/apple-app-site-association` uses **`K85GR7XGDP.com.syncscript.app`** (matches Xcode `DEVELOPMENT_TEAM` + bundle id).
 - **Edge deploy:** `npm run deploy:edge:make-server` deploys `make-server-57781ad9` (includes `/push/register`, library search, etc.).
+
+## Nexus Agent Mode — runner deploy + voice dock + persistent contexts (2026-04-25 evening)
+- **GHCR-built Docker image:** `ghcr.io/stringerc/syncscript-nexus-agent-runner:latest`. Auto-built by `.github/workflows/agent-runner-image.yml` on every push to `main` that touches `deploy/nexus-agent-runner/**`. Multi-arch (linux/amd64 + linux/arm64 — Oracle Always-Free is ARM). Cache via GitHub Actions cache.
+- **One-line Oracle bringup:** `curl -fsSL https://raw.githubusercontent.com/stringerc/syncscriptE/main/deploy/nexus-agent-runner/bringup.sh | sudo bash`. Self-installs to `/opt/nexus-agent-runner/bringup.sh`; future updates: `sudo /opt/nexus-agent-runner/bringup.sh`. Validates env, pulls image, replaces container, health-probes `/v1/health` for up to 30s.
+- **Live verifier:** `node scripts/verify-agent-runner-live.mjs` (added to `.gitignore` allowlist). Probes `https://nexus-agent-runner.syncscript.app/v1/health`, asserts `{ ok, started_at, active_runs, max_concurrency }`.
+- **Vercel env (set):** `AGENT_RUNNER_TOKEN` matches `NEXUS_PHONE_EDGE_SECRET`. **Pending until Cloudflare DNS:** `AGENT_RUNNER_BASE_URL=https://nexus-agent-runner.syncscript.app`. Without that, runs queue cleanly and the runner picks them up via 5s poll — no crash, no hang.
+- **Voice docking** — when an `agent_runs` row is in `queued/running/waiting_user/paused`, the voice portal in AppAIPage shrinks to a 240×168 top-left card (spring transition, ChevronUp icon, "Nexus is working: <truncated goal>" banner). Tap (or Enter/Space) opens the AgentRunStream overlay. New: `src/hooks/useActiveAgentRun.ts` + `src/components/nexus/VoiceDockedFrame.tsx`. **No edits to `VoiceConversationEngine.tsx`** — outer container shrinks, inner content scales naturally with `h-full w-full`.
+- **Persistent browser contexts** — Playwright `storageState` (cookies + localStorage + IndexedDB) is captured at the end of every agent run and stored encrypted in Supabase Vault under `browser_ctx_<user>_default`. Next run hydrates it before launch → Gmail / GitHub / etc logins survive across runs.
+  - Migration: `supabase/migrations/20260425220000_browser_contexts.sql` — table `browser_contexts(user_id PK, hostnames TEXT[], bytes, cookie_count, last_used_at)` with RLS, plus four RPCs:
+    - `admin_save_browser_context(user_id, storage_json, hostnames, cookie_count)` — service_role only; rotates vault entry + upserts metadata.
+    - `admin_load_browser_context(user_id)` — service_role only; returns the JSON.
+    - `clear_browser_context()` — `auth.uid()` derived; user-callable to disconnect all sites.
+    - `disconnect_browser_site(p_hostname)` — user-callable; reads vault, filters cookies/origins by hostname (suffix-aware), writes back. Empty result → wipes the row + vault entry.
+  - Runner: `runner/browser.mjs` exports `captureStorageState()`; `runner/agent-loop.mjs` calls `admin_load_browser_context` before launch and `admin_save_browser_context` in `finally`. Both wrapped in try/catch — broken vault state can't crash a run.
+  - UI: `src/components/settings/ConnectedSitesSection.tsx` — Settings → Agent → Connected sites list. Per-host Disconnect button + Clear all. Hostnames + cookie count + last-used timestamp + storage size.
+- **Contract test:** `tests/agent-runner-deploy-contract.test.mjs` — 17 asserts covering GHCR workflow shape, bringup.sh idempotency + env validation, verify script, voice docking hooks/components/wiring, browser_contexts schema + RLS + RPCs + auth grants, runner storageState capture/load wiring, Settings UI integration. **Total suite now 153 + 2 passing** (was 136 + 2).
+- **Owner action remaining:** SSH to Oracle, drop `.env` per `deploy/nexus-agent-runner/env.example`, `curl … | sudo bash` (one line), add Cloudflare Tunnel ingress rule, `vercel env add AGENT_RUNNER_BASE_URL production`. After that, agent runs flow end-to-end with persistent logins.
+
+## Nexus Agent Mode (Phase 1 → 5 foundation, 2026-04-25)
+- **What it is:** Per-user agent runs that drive a real headless Chromium on our Oracle Always-Free VM. The agent has TWO tool sets: browser actions (goto/click/type/scroll/screenshot/extract_text) and existing SyncScript Nexus tools (`create_task`, `add_to_resource_library`, `create_document`, `add_note`) — same `executeNexusTool` audit trail as voice/chat. Default LLM is **NVIDIA NIM** `meta/llama-3.2-90b-vision-instruct` (free); users can BYOK 8 other providers.
+- **DB foundation** — single migration `supabase/migrations/20260425170000_agent_mode_foundation.sql`:
+  - `agent_runs` (one per goal, lifecycle queued→running→done/failed/cancelled/waiting_user/paused), `agent_run_steps` (append-only timeline with screenshots), `agent_run_messages` (mid-run user interjections).
+  - `automation_policies` (Tier A/B/C/D + caps + trusted/blocked sites + global pause). Defaults: Tier A, 5 runs/day, 50¢/day, blocks `*.gov + chase/bofa/wf`.
+  - `byok_keys` metadata + vault-encrypted secret in `vault.secrets` under `byok_<user>_<provider>`. SECURITY DEFINER RPCs `admin_seed_byok_key` / `admin_read_byok_key` are service-role only.
+  - `projects` namespace + `project_id` column added to existing `tasks` / `goals` / `workstreams`. RLS `user_id = auth.uid()`.
+  - RPCs: `claim_next_agent_runs` (FOR UPDATE SKIP LOCKED, lease 300s), `release_agent_run_claim`, `record_agent_step`, `pending_agent_messages` (read+mark-applied), `complete_agent_run`, `check_agent_run_quota`.
+- **Vercel API** — single dispatcher `api/agent/[action].ts` (Hobby cap kept at 12 by folding old `api/ai/nexus-post-call-summary.ts` into `api/phone/[endpoint].ts` + `vercel.json` rewrite):
+  - `POST /api/agent/start` — auth, quota check, LLM-config resolve, INSERT `agent_runs`, fan to runner.
+  - `GET /api/agent/list` (Tasks panel), `GET /api/agent/run` (detail).
+  - `POST /api/agent/cancel`, `interject`, `approve` (decline = cancel).
+  - `GET /api/agent/byok-list`, `POST byok-set`, `byok-delete`. Keys encrypted in vault.
+  - `GET / POST /api/agent/policy` — Tier A/B/C/D + caps + lists + pause toggle.
+- **LLM adapter** — `api/_lib/agent-llm-adapter.ts` + parity in `deploy/nexus-agent-runner/runner/llm.mjs`. **Nine providers, one OpenAI-compatible wire shape**: NVIDIA, OpenRouter, Gemini, OpenAI, Anthropic, Groq, xAI, Mistral, Ollama, custom_openai_compat. Anthropic uses `x-api-key` + `anthropic-version`. `estimateCostCents` per-provider so `daily_cost_cents_cap` actually means something.
+- **Oracle runner (the browser engine)** — `deploy/nexus-agent-runner/`. Single Docker container on the same Oracle VM that runs Kokoro fallback. Polls every 5s via `claim_next_agent_runs` (SKIP LOCKED). Per run: Playwright Chromium, agent loop with screenshot→LLM→action, `record_agent_step` per step, `pending_agent_messages` between iterations for mid-run steering, `complete_agent_run` on done. Max concurrency 4 (4-core ARM A1, 24 GB RAM). One-command deploy via `docker run -p 18790:18790 …`; full bringup runbook in `deploy/nexus-agent-runner/README.md`.
+- **Safety gate (`deploy/nexus-agent-runner/runner/safety.mjs`)**:
+  - Tier A allows only `goto / screenshot / scroll / extract_text / wait / press`.
+  - Destructive label match (`submit / pay / delete / confirm / buy / send …`) on click/type → block in B, request approval in C, require trusted-site whitelist in D.
+  - Site allow/deny enforced regardless of tier.
+- **Frontend (live on prod 3a39980)**:
+  - `src/components/nexus/AppAiSidebarPanel.tsx` — tabbed right panel (💬 Chats / ✅ Tasks / 📁 Projects) with collapse arrow. Drops into AppAIPage replacing the old chats sidebar; localStorage persists tab + collapsed state.
+  - `src/components/nexus/AgentTasksPanel.tsx` — agent_run rows with status icons, click → opens stream.
+  - `src/components/nexus/AgentRunStream.tsx` — full-page overlay: live screenshot (Realtime channel), action timeline, "Steer Nexus mid-run" interject input, Approve/Decline buttons when paused, Stop.
+  - `src/components/projects/ProjectFilterDropdown.tsx` — top-right of TasksGoalsPage. All / + New / list. Selection sticky in localStorage so AgentTasksPanel + Project OS share filter.
+  - `src/components/settings/AgentSettingsTab.tsx` — Settings → Agent: BYOK keys form (provider dropdown, password input, optional model + endpoint), tier picker + caps + global pause, agent run history.
+  - `src/components/settings/FilesLibraryEmbed.tsx` — Settings → Files (existing FilesLibraryPage embedded). `/library` and `/dashboard/library` routes redirect to `/settings?tab=files`. Sidebar Library entry removed.
+  - **AppAIPage routing**: Chat composer detects agent intent (`detectAgentIntent` + `userExplicitlyRequestsAgent`) and routes to `/api/agent/start` instead of `/api/ai/nexus-user`. `@agent` prefix forces it.
+- **Hooks** — `src/hooks/useAgentRuns.ts` (Realtime subscription per run, all controls), `src/hooks/useProjects.ts` (CRUD + selected project sticky).
+- **Tests** — `tests/agent-mode-foundation-contract.test.mjs` (30 asserts covering migration shape, SKIP LOCKED, RLS, dispatcher routes, LLM adapter parity, Oracle runner files, frontend wiring, sidebar/library/settings moves, post-call summary fold). Total suite: **136 + 2 passing**.
+- **What's still owner-action to fully light up:**
+  1. Bring up Oracle runner — `cd deploy/nexus-agent-runner && docker build … && docker run …` per README. Or skip if you only want the schema + UI surface.
+  2. Add Vercel envs: `AGENT_RUNNER_BASE_URL=https://nexus-agent-runner.syncscript.app`, `AGENT_RUNNER_TOKEN=<same as NEXUS_PHONE_EDGE_SECRET or unique>`. Already deploys without these — runs just stay queued until a runner appears.
+  3. Optional: `vercel env add NVIDIA_API_KEY` already exists per Vercel dump. Free-tier works the moment the runner is up.
+- **Shape/UX choices that came from the design ask:**
+  - Tab strip with collapse arrow (▼/▶) replaces old chats sidebar; chats and tasks each have a `+` to start.
+  - Voice orb minimization while agent runs is **not yet wired** — punted to a follow-up so we don't touch `VoiceConversationEngine` (active surface) on the same drop. Voice continues to work as before; agent + voice can run in parallel today via the chat composer + sidebar.
+  - Project overview tab (single-project deep-dive view) is **not yet built** — punted; project filter today scopes the existing tabs to a single project.
+  - Persistent browser context per user (saved Gmail/etc cookies across runs) is **future** — current runs always start fresh. Easy upgrade since Browserbase SDK has parity if/when we swap.
+
+## App AI tab — drag/drop + paste documents (2026-04-25)
+- **What it does:** On the App AI tab (`/app/ai`), the user drags any text-extractable document onto the page. A two-half overlay appears: **left = Reference** (Nexus reads the document for context), **right = Modify** (loads into `DocumentCanvas` and Nexus rewrites in place via `update_document`). Multiple files at once, keyboard-accessible "Attach document" button as fallback. Open canvas auto-attaches itself as a modify-target on every send so revisions work without re-pasting.
+- **Files (additive — AppAIPage edits stayed minimal to respect rule 02 protected-files spirit):**
+  - `src/utils/document-attachment.ts` — pure file-to-attachment parsing, MIME inference, hard caps (`MAX_ATTACHMENT_BYTES = 96 KB`, `MAX_TOTAL = 256 KB`, `MAX_ATTACHMENTS_PER_TURN = 6`, `MAX_FILE_BYTES_BEFORE_READ = 4 MB`), and the `formatAttachmentSystemMessage` serializer.
+  - `src/hooks/useAppAiAttachments.tsx` — drag/drop event handlers (correct `dragEnter` depth-counting), file picker, state, error/warn callbacks. Filters by `dataTransfer.types` containing `'Files'` so plain text drags are ignored.
+  - `src/components/nexus/AppAiDropzoneOverlay.tsx` — page-level overlay with Reference/Modify halves. Pointer-events-none on the wrapper so the actual drop hits the page root; halves re-enable to detect mode swap.
+  - `src/components/nexus/AppAiAttachmentsBar.tsx` — chip rail above composer (role=region, removable, truncation badge, + Add button).
+  - `api/_lib/nexus-attachments.ts` — server-side validator + serializer. Re-caps sizes (defense in depth — never trust the client). Format must stay byte-identical to the client utility; the contract test enforces that.
+- **API change (backwards-compatible):** `/api/ai/nexus-user` accepts optional `attachments: Array<{name, mimeType, content, mode, truncated?}>`. Sanitized + injected as a system message AFTER the main persona prompt and BEFORE user/assistant turns. Old clients without `attachments` see zero behavior change. `emitNexusTrace` now records `attachmentCount` + `attachmentBytes` (no raw text).
+- **Supported file types:** `.txt .md .json .csv .tsv .html .xml .yml .toml .ini .log .sql` + 25+ code extensions. **Rejects with friendly toast:** images (image vision routing not wired here), PDF/DOCX/XLSX (no client-side text extractor today — paste content or save as `.md`), oversized (>4 MB pre-read).
+- **Tests:** `tests/app-ai-attachments-contract.test.mjs` — 16 asserts covering size caps, client/server format parity, error catalog, hook a11y/dragEffect, overlay pointer-events behavior, AppAIPage wiring, and trace fields. In `npm test`. Total suite now **106 + 2 passing** (was 90 + 2).
+- **Auto-canvas wiring:** when `canvasDoc` is open, every send auto-includes it as a `mode: 'modify'` attachment (deduped against any explicit modify-mode upload of the same name). This closes the long-standing UX gap where users had to re-paste a doc to ask Nexus for revisions.
+- **Why two modes (vs one big "attach"):** Anthropic + OpenAI consistently report higher tool-call accuracy when the model knows whether a doc is read-only vs target-of-edit. The system message includes `[REFERENCE]` vs `[MODIFY-TARGET]` tags + an explicit instruction to call `update_document` for modify targets — fewer "Nexus described changes instead of saving them" reports.
+
+## Gap #1 live end-to-end (2026-04-24)
+- **Status: PROVEN.** Nexus tool → `event_outbox` → `fanout_event_outbox` → `webhook_deliveries` → pg_cron flush → HTTPS POST with HMAC → webhook.site received + signature verified. One round-trip in a single 1-minute cron tick. See dated entry below for architecture.
+- **Key runtime learnings captured during bring-up:**
+  1. Vercel prod was missing `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` (only `SUPABASE_ANON_KEY` was set). Added via `vercel env add`. The concierge worker + any Vercel-side service-role client now initializes.
+  2. This Supabase project has **legacy anon JWTs disabled** (error `UNAUTHORIZED_LEGACY_JWT`) AND the modern `sb_publishable_*` keys aren't JWTs (`UNAUTHORIZED_INVALID_JWT_FORMAT`). For `make-server-57781ad9`, the correct pattern is **`verify_jwt = false`** in `supabase/config.toml` — the function handles its own auth (`x-nexus-internal-secret` on `/internal/*`, OAuth signatures on `/stripe/*`, `supabase.auth.getUser(token)` inside per-user routes). Gateway-level JWT pre-check was redundant and incompatible with pg_cron callers.
+  3. `pg_net` deprecates request queue rows after response is recorded → the URL disappears from `net.http_request_queue` shortly after `net._http_response` lands. For forensics you need both tables joined quickly.
+- **Vault (seeded via `admin_seed_syncscript_vault_secret`, scoped to 3 names):**
+  - `syncscript_cron_secret` — Vercel Bearer for `/api/cron/*`
+  - `syncscript_nexus_edge_secret` — `x-nexus-internal-secret` for `/make-server-57781ad9/internal/*`
+  - `syncscript_supabase_anon_key` — left seeded for future use; currently redundant with `verify_jwt=false` but doesn't hurt.
+- **pg_cron jobs live (6 active):** `syncscript.concierge.tick` (1m), `syncscript.phone.dispatch` (2m), `syncscript.process-emails` (5m), `syncscript.tts.slo` (10m), `syncscript.proactive.detect` (15m), `syncscript.webhooks.flush` (1m).
+- **Operator runbook (use daily / on incidents):**
+  ```bash
+  # 1. Full live state in JSON — run from repo root:
+  SERVICE_KEY=$(grep '^SUPABASE_SERVICE_ROLE_KEY=' .env | head -1 | cut -d= -f2-) \
+    && curl -s -X POST "https://kwhnrlzibgfedtxpkbgb.supabase.co/rest/v1/rpc/admin_autonomy_probe" \
+         -H "Content-Type: application/json" -H "apikey: $SERVICE_KEY" -H "Authorization: Bearer $SERVICE_KEY" \
+         -d '{}' | jq
+
+  # 2. Rotate a secret (pattern — drop-and-recreate in-place; pg_cron picks up on next tick):
+  #    only names allowed: syncscript_cron_secret | syncscript_nexus_edge_secret | syncscript_supabase_anon_key
+  curl -s -X POST "…/rpc/admin_seed_syncscript_vault_secret" \
+       -d '{"p_name":"syncscript_cron_secret","p_value":"<new>","p_description":"rotated"}'
+
+  # 3. Pause/resume a single autonomy loop without redeploy:
+  #    (uses cron.alter_job in SQL editor)
+  update cron.job set active = false where jobname = 'syncscript.webhooks.flush';
+
+  # 4. Replay DLQ'd deliveries for a subscription:
+  update webhook_deliveries set status='pending', next_attempt_at=now(), claimed_at=null
+    where status='dlq' and subscription_id='<uuid>';
+  ```
+- **Smoke script:** `scripts/smoke-outbound-webhooks.mjs` — allocates fresh webhook.site bucket, emits a synthetic event, polls to terminal, verifies HMAC against raw body. Run any time: `node scripts/smoke-outbound-webhooks.mjs`. Exit 0 = pipeline healthy.
+- **Edge function setting (in `supabase/config.toml`):**
+  ```toml
+  [functions.make-server-57781ad9]
+  verify_jwt = false
+  ```
+  Do not remove — internal auth is in-function, and the Supabase platform JWT check was mismatching this project's key regime. Client-side JS sets `Authorization` via the Supabase JS SDK anyway so normal user requests still carry a token for in-handler `supabase.auth.getUser(token)`.
+
+## Event outbox + outbound webhooks (Gap #1) — 2026-04-23
+- **What it is:** Per-user webhook subscription layer so n8n / Make / Zapier / custom backends can receive SyncScript events without a code change. Classic outbox-pattern + fanout-with-DLQ.
+- **Schema:** `supabase/migrations/20260423160000_event_outbox_and_webhooks.sql`
+  - `event_outbox(id, user_id, event_type, event_key, payload, created_at, fanout_at, completed_at)` — unique `(user_id, event_type, event_key) WHERE event_key IS NOT NULL` enforces idempotency.
+  - `webhook_subscriptions(id, user_id, label, url, secret, event_types TEXT[], active, consecutive_failures, disabled_reason, …)` — RLS `user_id = auth.uid()` for INSERT/SELECT/UPDATE/DELETE; service_role bypasses.
+  - `webhook_deliveries(id, subscription_id, event_id, status, attempt, next_attempt_at, response_status, response_body_excerpt, last_error, claimed_at, …)` — unique `(subscription_id, event_id)` prevents double delivery.
+  - RPCs (SECURITY DEFINER, `service_role` only): `fanout_event_outbox(batch_n)`, `claim_due_webhook_deliveries(lease_seconds, limit_n)` (FOR UPDATE SKIP LOCKED), `finalize_webhook_delivery(...)`.
+- **Emit path (single source of truth):** `api/_lib/events.ts` → `emitEvent({ userId, eventType, eventKey, payload })`. Fire-and-forget, swallows failures, dedupes on `23505` unique_violation. Event catalog `SYNCSCRIPT_EVENT_TYPES`: task.*, note.created, event.proposed / event.created, document.created / document.updated, invoice.sent / invoice.paid / invoice.overdue, signature.requested, playbook.run.started / step.completed / succeeded / failed, nexus.tool.called, nexus.voice.turn.completed.
+- **Wired in:** `api/_lib/nexus-actions-executor.ts` `finish()` choke point now emits `nexus.tool.called` for every tool + typed events for successful mutating tools (`create_task`, `add_note`, `propose_calendar_hold`, `create_document`, `update_document`, `send_invoice`, `send_document_for_signature`, `enqueue_playbook`). Never throws.
+- **Dispatcher (Edge):** `supabase/functions/make-server-57781ad9/webhook-dispatcher.tsx`. Routes:
+  - `POST /make-server-57781ad9/internal/webhooks/flush` — pg_cron tick.
+  - `GET  /make-server-57781ad9/internal/webhooks/status` — pending/dlq counts.
+  Both gated by `x-nexus-internal-secret: $NEXUS_PHONE_EDGE_SECRET`. Per-delivery: HMAC-SHA256 signature (`X-SyncScript-Signature: sha256=<hex>`), 8s abort, exponential backoff `60s → 12h`, DLQ at 10 attempts. Subscriptions auto-disable at 20 consecutive DLQ'd deliveries.
+- **Heartbeat:** `supabase/migrations/20260423170000_pg_cron_webhooks_flush.sql` adds `syncscript.webhooks.flush` (`* * * * *`) calling the Edge dispatcher via the vault-backed `syncscript_autonomy_post` helper.
+- **Webhook payload shape (for docs / n8n templates):**
+  ```json
+  { "id": "<uuid>", "type": "task.created", "occurred_at": "<iso>", "user_id": "<uuid>", "payload": { ... } }
+  ```
+  Verify signature: `HMAC-SHA256(subscription.secret, raw_request_body) == req.header('X-SyncScript-Signature').replace('sha256=','')`.
+- **Contract test:** `tests/event-outbox-and-webhooks-contract.test.mjs` (in `npm test`) — 11 asserts (schema shape, RLS on each table, SKIP LOCKED, HMAC + backoff + DLQ discipline, event catalog completeness, executor wiring, dispatcher route mounting in both `index.ts` + `index.tsx`).
+- **Operator controls:**
+  ```sql
+  -- Subscribe a user (admin bootstrap until Settings UI ships)
+  insert into webhook_subscriptions (user_id, label, url, secret, event_types)
+    values ('<uuid>', 'My n8n instance', 'https://n8n.example.com/webhook/xyz',
+            encode(gen_random_bytes(32), 'hex'), '{task.created,invoice.paid}');
+
+  -- Delivery health
+  select status, count(*) from webhook_deliveries group by status;
+
+  -- Replay stuck DLQ rows
+  update webhook_deliveries set status='pending', next_attempt_at=now(), claimed_at=null
+   where status='dlq' and subscription_id='<uuid>';
+  ```
+- **Next:** Settings → Integrations → Webhooks UI (create / rotate secret / delivery log / one-click-replay); then the five `INTEGRATION_RECIPES` shipped as downloadable n8n template JSON under `public/integrations/recipes/*.n8n.json`.
+
+## Autonomy heartbeat (pg_cron + pg_net) — 2026-04-23
+- **Why:** Vercel Hobby cron is daily-only and Hobby caps at ≤12 functions; adding minute-level autonomy via `api/*` is a dead end. Supabase ships `pg_cron` + `pg_net` on every project — free, sub-daily, zero function pressure. Research: Supabase docs (pg_cron max 8 concurrent jobs / 10-min runtime), Vercel Hobby cron docs (daily + hour drift).
+- **Migration:** `supabase/migrations/20260423150000_pg_cron_autonomy.sql` — enables `pg_cron` + `pg_net`, ships `public.claim_next_playbook_runs` (FOR UPDATE SKIP LOCKED lease) + `release_playbook_run_claim`, wraps HTTP calls in `public.syncscript_autonomy_post(url, secret_name, auth_scheme, body)` (SECURITY DEFINER, reads `vault.decrypted_secrets`), and schedules five `syncscript.*` cron jobs. Re-runnable: unscheduling step removes any prior `syncscript.*` jobs before re-adding.
+- **Vault secrets required BEFORE enabling (Supabase SQL editor):**
+  ```sql
+  select vault.create_secret('<Vercel CRON_SECRET>', 'syncscript_cron_secret', 'Vercel Bearer CRON_SECRET for /api/cron/*');
+  select vault.create_secret('<NEXUS_PHONE_EDGE_SECRET>', 'syncscript_nexus_edge_secret', 'x-nexus-internal-secret for /make-server-57781ad9/internal/*');
+  ```
+- **Schedules:**
+  | jobname | cron | target | secret / auth |
+  |---|---|---|---|
+  | `syncscript.concierge.tick` | `* * * * *` | `https://www.syncscript.app/api/cron/concierge-playbook-tick` | `syncscript_cron_secret` (Bearer) |
+  | `syncscript.phone.dispatch` | `*/2 * * * *` | `/api/cron/phone-dispatch` | same |
+  | `syncscript.process-emails` | `*/5 * * * *` | `/api/cron/process-emails` | same |
+  | `syncscript.tts.slo` | `*/10 * * * *` | `/api/cron/tts-slo` | same |
+  | `syncscript.proactive.detect` | `*/15 * * * *` | Edge `…/make-server-57781ad9/admin/detect/all` | `syncscript_nexus_edge_secret` (`x-nexus-internal-secret`) |
+- **Concurrency safety (mandatory before enabling 1-min tick):** `runConciergePlaybookTick` now calls `claim_next_playbook_runs(lease_seconds, limit_n)` first. Falls back to legacy select if RPC isn't deployed yet, so rolling deploys are safe. Claims released in a `finally`; stale claims expire after `CLAIM_LEASE_SECONDS = 120s`.
+- **Operator controls (no redeploy):**
+  ```sql
+  update cron.job set active = false where jobname = 'syncscript.concierge.tick';
+  update cron.job set active = true  where jobname = 'syncscript.concierge.tick';
+  select * from cron.job_run_details where jobid in (select jobid from cron.job where jobname like 'syncscript.%') order by start_time desc limit 50;
+  select cron.unschedule('syncscript.concierge.tick'); -- to remove entirely
+  ```
+- **Contract test:** `tests/pg-cron-autonomy-schedule.test.mjs` (in `npm test`) — asserts extensions, claim RPC + SKIP LOCKED, vault helper, and all five schedules by exact name + cron expression. Drift will fail `npm test` / release gate.
+- **Next layer (not shipped yet):** event outbox + per-user outbound webhook subscriptions → n8n / Make / Zapier at user level (not just global env webhooks). Plan in thread [Nexus orb and autonomy plan](70b2d96e-4b0c-44a2-a3f0-2e5fa42a4a66). Keep n8n self-host (rule 09, Oracle free tier) for external orchestration — SyncScript stays authoritative, n8n only invokes via `executeNexusTool`.
 
 ## Autonomous billing, invoices, and crons (verified pattern)
 - **Overdue + reminders + recurring + collection queue:** Supabase Edge `POST /make-server-57781ad9/internal/cron/billing-tick` (header `x-nexus-internal-secret: NEXUS_PHONE_EDGE_SECRET`) scans KV `invoices:v1:*` via `getKeyValueByPrefix`, marks `overdue`, sends tiered Resend reminders (3/7/14 days after due), dispatches recurring invoices from `recurring_invoices:v1:${userId}`, and enqueues Twilio collection calls on `nexus_scheduled_phone_calls` when `to_phone` + `collection_call_consent` and reminders threshold met.

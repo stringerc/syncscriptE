@@ -93,6 +93,7 @@ export function LinkedCalendarEventModal({
           'sm:max-w-md bg-[#1e2128] border-gray-700 text-white',
           stackAboveVoiceShell && '!z-[100031]',
         )}
+        onCloseAutoFocus={stackAboveVoiceShell ? (e) => e.preventDefault() : undefined}
       >
         <DialogHeader>
           <DialogTitle>Calendars for this event</DialogTitle>

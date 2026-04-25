@@ -1,0 +1,376 @@
+/**
+ * Agent loop — the reasoning core for one agent_run.
+ *
+ * Loop:
+ *   1. Open Playwright browser (one Chromium per run).
+ *   2. Repeat until done / cancelled / step cap:
+ *        a. Check for cancel + new user_interjection messages.
+ *        b. Take a screenshot.
+ *        c. Build a multimodal LLM prompt: goal + history + screenshot + tool defs.
+ *        d. Call the LLM (NVIDIA NIM by default, BYOK if the user has one).
+ *        e. Parse: tool_calls (browser action OR SyncScript tool OR finish).
+ *        f. Pass each through the safety gate (tier + blocked sites).
+ *        g. Execute or pause (waiting_user) or block.
+ *        h. Record agent_run_steps row.
+ *   3. Mark complete via complete_agent_run RPC.
+ *
+ * Tool surfaces given to the LLM:
+ *   browser_action(action: 'goto'|'click'|'type'|'press'|'scroll'|'wait'|'extract_text', ...)
+ *   speak_to_user(text)               — friendly status update
+ *   request_user_approval(reason)     — for destructive things in Tier-C
+ *   finish(summary)                   — terminal call
+ *   create_task / add_to_resource_library / create_document / add_note   — bridged to Nexus
+ */
+import { resolveLLMConfig, chatCompletion, estimateCostCents } from './llm.mjs';
+import { launchBrowser, newPage, executeBrowserAction, currentUrl, captureStorageState } from './browser.mjs';
+import { gate } from './safety.mjs';
+import { executeSyncScriptTool, SYNCSCRIPT_TOOL_SCHEMAS } from './syncscript-tools.mjs';
+
+const MAX_STEPS_DEFAULT = 25;
+const MAX_PROMPT_HISTORY = 12;
+
+const BROWSER_TOOL = {
+  type: 'function',
+  function: {
+    name: 'browser_action',
+    description:
+      'Drive a real Chromium browser. The screenshot you receive is what the user sees. Use coordinates from the visible image (1280x800).',
+    parameters: {
+      type: 'object',
+      properties: {
+        action: {
+          type: 'string',
+          enum: ['goto', 'click', 'type', 'press', 'scroll', 'wait', 'extract_text', 'screenshot'],
+        },
+        url: { type: 'string', description: 'For goto. Must start with https://.' },
+        x: { type: 'number', description: 'For click. Pixel x in screenshot.' },
+        y: { type: 'number', description: 'For click. Pixel y.' },
+        text: { type: 'string', description: 'For type.' },
+        clear: { type: 'boolean', description: 'For type. Clear field first.' },
+        key: { type: 'string', description: 'For press, e.g. Enter.' },
+        dy: { type: 'number', description: 'For scroll. Positive scrolls down.' },
+        ms: { type: 'number', description: 'For wait. Capped at 10000.' },
+        label: { type: 'string', description: 'Optional human label (helps safety check).' },
+      },
+      required: ['action'],
+    },
+  },
+};
+
+const SPEAK_TOOL = {
+  type: 'function',
+  function: {
+    name: 'speak_to_user',
+    description: 'Friendly status update or question for the user. Goes to chat + TTS if voice mode.',
+    parameters: { type: 'object', properties: { text: { type: 'string' } }, required: ['text'] },
+  },
+};
+
+const APPROVAL_TOOL = {
+  type: 'function',
+  function: {
+    name: 'request_user_approval',
+    description: 'Pause and ask the user before doing a destructive action (Tier-C only).',
+    parameters: { type: 'object', properties: { reason: { type: 'string' } }, required: ['reason'] },
+  },
+};
+
+const FINISH_TOOL = {
+  type: 'function',
+  function: {
+    name: 'finish',
+    description: 'Terminal — the goal is complete. Provide a 1–3 sentence summary.',
+    parameters: { type: 'object', properties: { summary: { type: 'string' } }, required: ['summary'] },
+  },
+};
+
+const SYSTEM_PROMPT = ({ tier, trustedSites, blockedSites }) => `You are Nexus Agent Mode, a careful assistant that drives a real headless Chromium browser on behalf of the user.
+
+You will receive screenshots after each browser action. You can also call SyncScript tools (create_task, add_to_resource_library, create_document, add_note) when the user asks to save things to their account.
+
+POLICY (this run):
+- Tier: ${tier} (A=read-only, B=read+scoped writes, C=writes with approval, D=full autonomy on whitelist)
+- Trusted sites for autonomy: ${trustedSites.join(', ') || 'none'}
+- Blocked sites: ${blockedSites.join(', ') || 'none'}
+
+Rules:
+- Always start by reasoning briefly (1 sentence) about the next action.
+- Before clicking destructive labels (Submit, Pay, Delete, Confirm, Buy, Send), call request_user_approval first if you're not Tier-D on a trusted site.
+- Use create_task / add_to_resource_library when the user asks to save things — don't try to recreate that as browser actions.
+- Don't loop on the same screenshot more than 2 times — try a different approach.
+- When done, call finish(summary).
+- Hard caps: max 25 steps; if you can't make progress, finish with a short failure summary.`;
+
+function compactHistory(history) {
+  return history.slice(-MAX_PROMPT_HISTORY);
+}
+
+export async function runAgentLoop({ run, sb }) {
+  const userId = run.user_id;
+  const goal = run.goal_text;
+  const tier = run.tier_at_start || 'A';
+
+  const policyRow = await sb.from('automation_policies').select('*').eq('user_id', userId).maybeSingle();
+  const policy = policyRow.data || { tier, trusted_sites: [], blocked_sites: [], per_run_step_cap: MAX_STEPS_DEFAULT, per_run_cost_cents_cap: 1000 };
+  const stepCap = Math.min(MAX_STEPS_DEFAULT, policy.per_run_step_cap || MAX_STEPS_DEFAULT);
+
+  let cfg;
+  try {
+    cfg = await resolveLLMConfig(userId);
+  } catch (e) {
+    await sb.rpc('complete_agent_run', {
+      p_run_id: run.id, p_status: 'failed', p_summary: null,
+      p_error_text: `llm_config_failed: ${e?.message || e}`, p_total_cost_cents: 0,
+    });
+    return { outcome: 'failed', stepsExecuted: 0, totalCostCents: 0 };
+  }
+
+  await sb.from('agent_runs').update({ provider: cfg.provider, model: cfg.model }).eq('id', run.id);
+
+  // Try to hydrate the user's persistent browser context (Gmail/etc. cookies).
+  // Failures are non-fatal — agent just runs in a blank session.
+  let storageState = null;
+  try {
+    const res = await sb.rpc('admin_load_browser_context', { p_user_id: userId });
+    if (!res.error && typeof res.data === 'string' && res.data.length > 8) {
+      storageState = res.data;
+    }
+  } catch (e) {
+    console.warn('[runner] load storageState failed (non-fatal):', e?.message || e);
+  }
+
+  let browser, page, ctx;
+  try {
+    browser = await launchBrowser();
+    const launched = await newPage(browser, storageState ? { storageState } : {});
+    page = launched.page; ctx = launched.ctx;
+  } catch (e) {
+    await sb.rpc('complete_agent_run', {
+      p_run_id: run.id, p_status: 'failed', p_summary: null,
+      p_error_text: `browser_launch_failed: ${e?.message || e}`, p_total_cost_cents: 0,
+    });
+    return { outcome: 'failed', stepsExecuted: 0, totalCostCents: 0 };
+  }
+
+  const history = [
+    { role: 'system', content: SYSTEM_PROMPT({ tier, trustedSites: policy.trusted_sites || [], blockedSites: policy.blocked_sites || [] }) },
+    { role: 'user', content: `Goal: ${goal}` },
+  ];
+
+  let stepsExecuted = 0;
+  let totalCostCents = 0;
+  let outcome = 'failed';
+  let summary = null;
+  let waitingApproval = false;
+
+  try {
+    for (let step = 0; step < stepCap; step += 1) {
+      // 1. Check cancel + interjections
+      const refreshed = await sb.from('agent_runs').select('cancel_requested, status').eq('id', run.id).maybeSingle();
+      if (refreshed.data?.cancel_requested) { outcome = 'cancelled'; break; }
+
+      const { data: pendingMsgs } = await sb.rpc('pending_agent_messages', { p_run_id: run.id });
+      if (Array.isArray(pendingMsgs) && pendingMsgs.length > 0) {
+        for (const m of pendingMsgs) {
+          if (waitingApproval && (m.content === '__APPROVED__' || m.content === '__DECLINED__')) {
+            history.push({ role: 'user', content: m.content === '__APPROVED__' ? 'I approve. Proceed.' : 'Cancel that.' });
+            waitingApproval = false;
+            await sb.from('agent_runs').update({ status: 'running', pause_reason: null }).eq('id', run.id);
+          } else {
+            history.push({ role: 'user', content: `[user, mid-run]: ${m.content}` });
+          }
+        }
+      }
+
+      if (waitingApproval) {
+        await sleep(2500);
+        continue;
+      }
+
+      // 2. Screenshot
+      const shot = await executeBrowserAction(page, { kind: 'screenshot' });
+      const screenshotB64 = shot.ok ? shot.base64 : null;
+      const seenUrl = await currentUrl(page);
+
+      const userTurn = {
+        role: 'user',
+        content: [
+          { type: 'text', text: `Current URL: ${seenUrl || 'about:blank'}\nWhat is the next single action?` },
+          ...(screenshotB64 ? [{ type: 'image_url', image_url: { url: `data:image/png;base64,${screenshotB64}` } }] : []),
+        ],
+      };
+
+      // 3. LLM
+      let resp;
+      try {
+        resp = await chatCompletion(cfg, {
+          messages: [...compactHistory(history), userTurn],
+          tools: [BROWSER_TOOL, SPEAK_TOOL, APPROVAL_TOOL, FINISH_TOOL, ...SYNCSCRIPT_TOOL_SCHEMAS],
+          toolChoice: 'auto',
+          temperature: 0.2,
+          maxTokens: 1024,
+        });
+      } catch (e) {
+        await sb.rpc('record_agent_step', {
+          p_run_id: run.id, p_kind: 'error',
+          p_payload: { phase: 'llm', error: String(e?.message || e).slice(0, 300) },
+        });
+        history.push({ role: 'system', content: `LLM error: ${String(e?.message || e).slice(0, 200)}. Retry with a simpler approach.` });
+        continue;
+      }
+
+      const stepCost = estimateCostCents(cfg.provider, resp.usage);
+      totalCostCents += stepCost;
+
+      if (resp.content) {
+        history.push({ role: 'assistant', content: resp.content });
+        await sb.rpc('record_agent_step', {
+          p_run_id: run.id, p_kind: 'thought',
+          p_payload: { text: resp.content.slice(0, 1500) },
+          p_screenshot_b64: screenshotB64,
+          p_cost_cents: stepCost,
+        });
+      } else if (screenshotB64) {
+        await sb.rpc('record_agent_step', {
+          p_run_id: run.id, p_kind: 'screenshot', p_payload: { url: seenUrl },
+          p_screenshot_b64: screenshotB64, p_cost_cents: stepCost,
+        });
+      }
+
+      // 4. Process tool calls (or finish/no-op)
+      if (!resp.toolCalls || resp.toolCalls.length === 0) {
+        history.push({ role: 'system', content: 'You did not call a tool. Pick one of: browser_action, speak_to_user, finish.' });
+        continue;
+      }
+
+      let didFinish = false;
+      for (const tc of resp.toolCalls) {
+        let parsed = {};
+        try { parsed = JSON.parse(tc.argumentsJson || '{}'); } catch { parsed = {}; }
+
+        if (tc.name === 'finish') {
+          summary = String(parsed.summary || 'Done.');
+          outcome = 'done';
+          didFinish = true;
+          break;
+        }
+
+        if (tc.name === 'speak_to_user') {
+          const text = String(parsed.text || '');
+          await sb.rpc('record_agent_step', {
+            p_run_id: run.id, p_kind: 'agent_message',
+            p_payload: { text }, p_cost_cents: 0,
+          });
+          await sb.from('agent_run_messages').insert({ run_id: run.id, role: 'agent', content: text });
+          history.push({ role: 'assistant', content: `(spoke to user: "${text}")`, tool_calls: [{ id: tc.id, type: 'function', function: { name: 'speak_to_user', arguments: tc.argumentsJson } }] });
+          history.push({ role: 'tool', tool_call_id: tc.id, name: 'speak_to_user', content: 'ok' });
+          continue;
+        }
+
+        if (tc.name === 'request_user_approval') {
+          waitingApproval = true;
+          await sb.from('agent_runs').update({ status: 'waiting_user', pause_reason: parsed.reason || 'user_approval' }).eq('id', run.id);
+          await sb.rpc('record_agent_step', {
+            p_run_id: run.id, p_kind: 'approval_request',
+            p_payload: { reason: parsed.reason || 'destructive_action' }, p_cost_cents: 0,
+          });
+          history.push({ role: 'assistant', content: `(asked user to approve: ${parsed.reason})`, tool_calls: [{ id: tc.id, type: 'function', function: { name: 'request_user_approval', arguments: tc.argumentsJson } }] });
+          history.push({ role: 'tool', tool_call_id: tc.id, name: 'request_user_approval', content: 'paused' });
+          break;
+        }
+
+        if (tc.name === 'browser_action') {
+          const action = parsed;
+          // Safety gate
+          const decision = gate({
+            tier, action: { kind: action.action, ...action }, currentUrl: seenUrl,
+            trustedSites: policy.trusted_sites || [], blockedSites: policy.blocked_sites || [],
+          });
+          if (decision.decision === 'block') {
+            await sb.rpc('record_agent_step', {
+              p_run_id: run.id, p_kind: 'error',
+              p_payload: { phase: 'gate', reason: decision.reason, action }, p_cost_cents: 0,
+            });
+            history.push({ role: 'tool', tool_call_id: tc.id, name: 'browser_action', content: `BLOCKED: ${decision.reason}` });
+            continue;
+          }
+          if (decision.decision === 'request_approval') {
+            waitingApproval = true;
+            await sb.from('agent_runs').update({ status: 'waiting_user', pause_reason: decision.reason }).eq('id', run.id);
+            await sb.rpc('record_agent_step', {
+              p_run_id: run.id, p_kind: 'approval_request',
+              p_payload: { reason: decision.reason, action }, p_cost_cents: 0,
+            });
+            history.push({ role: 'tool', tool_call_id: tc.id, name: 'browser_action', content: `AWAITING USER: ${decision.reason}` });
+            break;
+          }
+
+          // Execute
+          let result;
+          try {
+            result = await executeBrowserAction(page, { kind: action.action, ...action });
+          } catch (e) {
+            result = { ok: false, error: String(e?.message || e).slice(0, 300) };
+          }
+          await sb.rpc('record_agent_step', {
+            p_run_id: run.id, p_kind: 'browser_action',
+            p_payload: { action, result: { ok: result.ok, error: result.error || null, at: result.at, key: result.key, ms: result.ms, dx: result.dx, dy: result.dy } },
+            p_cost_cents: 0,
+          });
+          history.push({ role: 'assistant', content: '', tool_calls: [{ id: tc.id, type: 'function', function: { name: 'browser_action', arguments: tc.argumentsJson } }] });
+          history.push({ role: 'tool', tool_call_id: tc.id, name: 'browser_action', content: result.ok ? `ok${result.text ? ': ' + result.text.slice(0, 600) : ''}` : `failed: ${result.error || 'unknown'}` });
+          stepsExecuted += 1;
+          continue;
+        }
+
+        // SyncScript tool (create_task / add_to_resource_library / create_document / add_note)
+        const ssRes = await executeSyncScriptTool({ userId, name: tc.name, argumentsJson: tc.argumentsJson });
+        await sb.rpc('record_agent_step', {
+          p_run_id: run.id, p_kind: 'tool_call',
+          p_payload: { tool: tc.name, args: tc.argumentsJson, result: ssRes }, p_cost_cents: 0,
+        });
+        history.push({ role: 'assistant', content: '', tool_calls: [{ id: tc.id, type: 'function', function: { name: tc.name, arguments: tc.argumentsJson } }] });
+        history.push({ role: 'tool', tool_call_id: tc.id, name: tc.name, content: JSON.stringify(ssRes).slice(0, 800) });
+        stepsExecuted += 1;
+      }
+
+      if (didFinish) break;
+
+      // Per-run cost cap
+      if (totalCostCents >= (policy.per_run_cost_cents_cap || 1000)) {
+        outcome = 'failed';
+        summary = 'Stopped: per-run cost cap reached.';
+        break;
+      }
+    }
+
+    if (outcome === 'failed' && !summary) summary = 'Stopped: max steps reached.';
+  } finally {
+    // Persist storageState (cookies, localStorage) so the next run starts
+    // already logged in. Best-effort — failure here is non-fatal.
+    try {
+      if (ctx) {
+        const captured = await captureStorageState(ctx);
+        await sb.rpc('admin_save_browser_context', {
+          p_user_id: userId,
+          p_storage_json: captured.json,
+          p_hostnames: captured.hostnames,
+          p_cookie_count: captured.cookieCount,
+        });
+      }
+    } catch (e) {
+      console.warn('[runner] save storageState failed (non-fatal):', e?.message || e);
+    }
+    try { await ctx?.close(); } catch {}
+    try { await browser?.close(); } catch {}
+  }
+
+  await sb.rpc('complete_agent_run', {
+    p_run_id: run.id, p_status: outcome,
+    p_summary: summary, p_error_text: null, p_total_cost_cents: totalCostCents,
+  });
+
+  return { outcome, stepsExecuted, totalCostCents };
+}
+
+function sleep(ms) { return new Promise((r) => setTimeout(r, ms)); }

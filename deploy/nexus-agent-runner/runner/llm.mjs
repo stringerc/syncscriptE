@@ -1,0 +1,131 @@
+/**
+ * Provider-agnostic LLM caller (parity with api/_lib/agent-llm-adapter.ts).
+ * One OpenAI-compatible Chat Completions wire shape, nine providers.
+ */
+import { createClient } from '@supabase/supabase-js';
+
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const NVIDIA_API_KEY = process.env.NVIDIA_API_KEY;
+
+const PROVIDER_BASE_URLS = {
+  nvidia: 'https://integrate.api.nvidia.com/v1',
+  openrouter: 'https://openrouter.ai/api/v1',
+  gemini: 'https://generativelanguage.googleapis.com/v1beta/openai',
+  openai: 'https://api.openai.com/v1',
+  anthropic: 'https://api.anthropic.com/v1',
+  groq: 'https://api.groq.com/openai/v1',
+  xai: 'https://api.x.ai/v1',
+  mistral: 'https://api.mistral.ai/v1',
+};
+
+const DEFAULT_MODELS = {
+  nvidia: 'meta/llama-3.2-90b-vision-instruct',
+  openrouter: 'google/gemini-2.5-pro',
+  gemini: 'gemini-2.5-pro',
+  openai: 'gpt-4o',
+  anthropic: 'claude-sonnet-4-5',
+  groq: 'llama-3.2-90b-vision-preview',
+  xai: 'grok-2-vision-1212',
+  mistral: 'pixtral-large-latest',
+  ollama: 'llama3.2-vision:11b',
+  custom_openai_compat: 'gpt-4o',
+};
+
+const COST_RATES_CENTS_PER_1K = {
+  nvidia: { in: 0.05, out: 0.05 },
+  openrouter: { in: 0.5, out: 1.5 },
+  gemini: { in: 0.125, out: 0.5 },
+  openai: { in: 0.25, out: 1 },
+  anthropic: { in: 0.3, out: 1.5 },
+  groq: { in: 0.09, out: 0.09 },
+  xai: { in: 0.2, out: 1 },
+  mistral: { in: 0.2, out: 0.6 },
+  ollama: { in: 0, out: 0 },
+  custom_openai_compat: { in: 0, out: 0 },
+};
+
+const sb = createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { persistSession: false } });
+
+export async function resolveLLMConfig(userId) {
+  const { data: rows } = await sb
+    .from('byok_keys')
+    .select('provider, default_model, endpoint_url, active')
+    .eq('user_id', userId)
+    .eq('active', true);
+
+  const priority = ['openrouter', 'anthropic', 'openai', 'gemini', 'xai', 'mistral', 'groq', 'ollama', 'custom_openai_compat'];
+  for (const p of priority) {
+    const row = rows?.find((r) => r.provider === p);
+    if (!row) continue;
+    const { data: secret } = await sb.rpc('admin_read_byok_key', { p_user_id: userId, p_provider: p });
+    if (!secret) continue;
+    return makeConfig(p, row.default_model || DEFAULT_MODELS[p], secret, row.endpoint_url, true);
+  }
+
+  if (!NVIDIA_API_KEY) throw new Error('No BYOK and no NVIDIA_API_KEY set');
+  return makeConfig('nvidia', DEFAULT_MODELS.nvidia, NVIDIA_API_KEY, null, false);
+}
+
+function makeConfig(provider, model, apiKey, endpointUrl, isByok) {
+  const authHeaderName = provider === 'anthropic' ? 'x-api-key' : 'Authorization';
+  const authHeader = provider === 'anthropic' ? apiKey : `Bearer ${apiKey}`;
+  let baseUrl;
+  if (provider === 'ollama') baseUrl = (endpointUrl || 'http://127.0.0.1:11434').replace(/\/$/, '') + '/v1';
+  else if (provider === 'custom_openai_compat') baseUrl = (endpointUrl || '').replace(/\/$/, '');
+  else baseUrl = PROVIDER_BASE_URLS[provider];
+  return {
+    provider,
+    model,
+    baseUrl,
+    authHeader: provider === 'ollama' ? null : authHeader,
+    authHeaderName,
+    isByok,
+    label: `${isByok ? 'byok:' : ''}${provider}/${model}`,
+  };
+}
+
+export async function chatCompletion(cfg, { messages, tools, toolChoice = 'auto', temperature = 0.2, maxTokens = 1024, timeoutMs = 120_000 }) {
+  const url = `${cfg.baseUrl}/chat/completions`;
+  const headers = { 'Content-Type': 'application/json' };
+  if (cfg.authHeader) headers[cfg.authHeaderName] = cfg.authHeader;
+  if (cfg.provider === 'anthropic') headers['anthropic-version'] = '2023-06-01';
+  if (cfg.provider === 'openrouter') {
+    headers['HTTP-Referer'] = 'https://www.syncscript.app';
+    headers['X-Title'] = 'SyncScript Nexus Agent';
+  }
+
+  const body = { model: cfg.model, messages, temperature, max_tokens: maxTokens };
+  if (tools && tools.length > 0) {
+    body.tools = tools;
+    body.tool_choice = toolChoice;
+  }
+
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), timeoutMs);
+  try {
+    const res = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body), signal: ctrl.signal });
+    const text = await res.text();
+    if (!res.ok) throw new Error(`[${cfg.label}] HTTP ${res.status}: ${text.slice(0, 400)}`);
+    const json = JSON.parse(text);
+    const choice = json?.choices?.[0] ?? {};
+    const message = choice.message ?? {};
+    const content = typeof message.content === 'string' ? message.content : '';
+    const toolCallsRaw = Array.isArray(message.tool_calls) ? message.tool_calls : [];
+    const toolCalls = toolCallsRaw.map((tc) => ({
+      id: String(tc.id || ''),
+      name: String(tc.function?.name || ''),
+      argumentsJson: String(tc.function?.arguments || '{}'),
+    }));
+    return { content, toolCalls, finishReason: String(choice.finish_reason || 'unknown'), usage: json.usage };
+  } finally {
+    clearTimeout(t);
+  }
+}
+
+export function estimateCostCents(provider, usage) {
+  if (!usage) return 1;
+  const r = COST_RATES_CENTS_PER_1K[provider] || { in: 0.1, out: 0.5 };
+  const cents = (usage.prompt_tokens || 0) / 1000 * r.in + (usage.completion_tokens || 0) / 1000 * r.out;
+  return Math.max(0, Math.ceil(cents));
+}

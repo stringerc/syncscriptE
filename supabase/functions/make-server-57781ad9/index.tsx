@@ -4,6 +4,7 @@ import { logger } from "npm:hono/logger";
 import * as kv from "./kv_store.tsx";
 import { createClient } from "npm:@supabase/supabase-js";
 import { registerOAuthRoutes } from "./oauth-routes.tsx";
+import { registerWebhookDispatcherRoutes } from "./webhook-dispatcher.tsx";
 import { syncCalendarEventToConnected, type CalendarEventInput } from "./integration-actions.tsx";
 import stripeRoutes from "./stripe-routes.tsx";
 import makeRoutes from "./make-routes.tsx";
@@ -1708,6 +1709,14 @@ app.get("/make-server-57781ad9/integrations/action-log", async (c) => {
 // OAUTH INTEGRATION ROUTES (PHASE 4)
 // ====================================================================
 registerOAuthRoutes(app);
+
+// ====================================================================
+// OUTBOUND EVENT WEBHOOKS (Gap #1 — per-user n8n / Make / Zapier bridge)
+// - POST /make-server-57781ad9/internal/webhooks/flush  (pg_cron tick)
+// - GET  /make-server-57781ad9/internal/webhooks/status (operator probe)
+// Migration: 20260423160000_event_outbox_and_webhooks.sql
+// ====================================================================
+registerWebhookDispatcherRoutes(app);
 
 // ====================================================================
 // STRIPE INTEGRATION ROUTES (PHASE 5)

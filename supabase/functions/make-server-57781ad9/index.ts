@@ -4,6 +4,7 @@ import { logger } from "npm:hono/logger";
 import * as kv from "./kv_store.tsx";
 import { createClient } from "npm:@supabase/supabase-js";
 import { registerOAuthRoutes } from "./oauth-routes.tsx";
+import { registerWebhookDispatcherRoutes } from "./webhook-dispatcher.tsx";
 import stripeRoutes from "./stripe-routes.tsx";
 import makeRoutes from "./make-routes.tsx";
 import { registerGuestAuthRoutes } from "./guest-auth-routes.tsx";
@@ -1639,6 +1640,11 @@ app.post("/make-server-57781ad9/user/upload-photo", async (c) => {
 // OAUTH INTEGRATION ROUTES (PHASE 4)
 // ====================================================================
 registerOAuthRoutes(app);
+
+// ====================================================================
+// OUTBOUND EVENT WEBHOOKS (Gap #1 — per-user n8n / Make / Zapier bridge)
+// ====================================================================
+registerWebhookDispatcherRoutes(app);
 
 // ====================================================================
 // STRIPE INTEGRATION ROUTES (PHASE 5)

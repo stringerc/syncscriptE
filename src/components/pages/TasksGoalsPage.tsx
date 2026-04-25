@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef, useEffect, useMemo, Suspense, lazy } from 'react';
+import { ProjectFilterDropdown } from '../projects/ProjectFilterDropdown';
 import { 
   CheckCircle2, Circle, Clock, Target, Zap, Brain, 
   Plus, Filter, Calendar, Tag, TrendingUp, Star,
@@ -2320,6 +2321,11 @@ function TaskManagementSection({
 
   return (
     <div className="space-y-6">
+      {/* Project filter — scopes goals/tasks/workstreams to a single project (or All).
+          Persists to localStorage and is shared with the AppAI Tasks panel so agent runs respect the same project context. */}
+      <div className="flex items-center justify-end gap-2 -mt-2">
+        <ProjectFilterDropdown />
+      </div>
       {/* RESEARCH-BASED ENHANCEMENT: Tab structure for advanced features
           Nielsen Norman Group (2024): "Progressive disclosure via tabs reduces cognitive load by 52%"
           Atlassian UX Study (2023): "Tab order by usage frequency increases completion by 41%"

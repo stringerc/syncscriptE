@@ -8,9 +8,10 @@ import type { ReactNode } from 'react'
 import { useMemo } from 'react'
 import { motion, AnimatePresence, useReducedMotion } from 'motion/react'
 import type { VoiceDelegationHint } from '@/types/voice-engine'
+import { NexusVoiceSpeakingDust } from './NexusVoiceSpeakingDust'
 
-const R_DEFAULT = 128
-const R_COMPACT = 86
+const R_DEFAULT = 104
+const R_COMPACT = 68
 
 function polarOffset(index: number, total: number, radiusPx: number) {
   const angle = (2 * Math.PI * index) / total - Math.PI / 2
@@ -25,12 +26,15 @@ export function NexusVoiceSatelliteOrbit({
   satellites,
   children,
   compact = false,
+  speakingDustActive = false,
 }: {
   loading: boolean
   satellites: VoiceDelegationHint[]
   children: ReactNode
   /** Smaller footprint when Nexus orb docks (e.g. modal open). */
   compact?: boolean
+  /** Light CSS ring “dust” while Nexus TTS plays (low CPU). */
+  speakingDustActive?: boolean
 }) {
   const reduce = useReducedMotion()
   const R = compact ? R_COMPACT : R_DEFAULT
@@ -44,8 +48,8 @@ export function NexusVoiceSatelliteOrbit({
       className="relative mx-auto flex items-center justify-center"
       style={
         compact
-          ? { width: 'min(72vw, 220px)', height: 'min(38vw, 150px)' }
-          : { width: 'min(92vw, 360px)', height: 'min(52vw, 260px)' }
+          ? { width: 'min(64vw, 200px)', height: 'min(34vw, 132px)' }
+          : { width: 'min(86vw, 300px)', height: 'min(46vw, 210px)' }
       }
       data-testid="nexus-voice-satellite-orbit"
       data-nexus-orbit-compact={compact ? 'true' : undefined}
@@ -71,7 +75,7 @@ export function NexusVoiceSatelliteOrbit({
             aria-hidden
           >
             <motion.div
-              className="absolute h-[min(76vw,280px)] w-[min(76vw,280px)] rounded-full border border-cyan-400/15"
+              className="absolute h-[min(64vw,240px)] w-[min(64vw,240px)] rounded-full border border-cyan-400/15"
               animate={reduce ? {} : { rotate: 360 }}
               transition={reduce ? { duration: 0 } : { duration: 28, repeat: Infinity, ease: 'linear' }}
             />
@@ -155,7 +159,10 @@ export function NexusVoiceSatelliteOrbit({
           })}
       </AnimatePresence>
 
-      <div className="relative z-10 flex flex-col items-center">{children}</div>
+      <div className="relative z-10 flex flex-col items-center justify-center">
+        {speakingDustActive ? <NexusVoiceSpeakingDust compact={compact} /> : null}
+        {children}
+      </div>
     </div>
   )
 }

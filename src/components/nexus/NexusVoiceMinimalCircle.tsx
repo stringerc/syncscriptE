@@ -17,6 +17,7 @@
 import { useMemo, useRef, type CSSProperties } from 'react';
 import { motion, useReducedMotion } from 'motion/react';
 import type { NexusVoiceOrbPhase } from './nexus-voice-orb-types';
+import { aetherInnerFill, aetherShellBackground } from './nexus-aether-palette';
 
 /** Map 0–1 analyser RMS into a fuller visual range (small raw values were reading as a “dot”). */
 function boostAudioLevel(raw: number): number {
@@ -36,17 +37,16 @@ const TTS_RMS_VISUAL_FLOOR = 0.07;
 /** Rolling average of recent raw TTS samples — de-jitters RMS spikes without heavy per-frame React work. */
 const TTS_SMOOTH_SAMPLES = 5;
 
-/** Full-size luminous core — always applied via inline style (reliable in prod). */
-const INNER_FILL_GRADIENT =
-  'radial-gradient(circle at 50% 44%, rgba(255,255,255,0.98) 0%, rgba(255,255,255,0.55) 38%, rgba(255,255,255,0.2) 62%, rgba(255,255,255,0.07) 82%, transparent 100%)';
-
-const innerBaseStyle: CSSProperties = {
-  pointerEvents: 'none',
-  position: 'absolute',
-  inset: '5%',
-  borderRadius: '50%',
-  background: INNER_FILL_GRADIENT,
-};
+/** Full-size luminous core — inline style only (reliable in prod; see file header). */
+function innerBaseStyle(): CSSProperties {
+  return {
+    pointerEvents: 'none',
+    position: 'absolute',
+    inset: '5%',
+    borderRadius: '50%',
+    background: aetherInnerFill(),
+  };
+}
 
 function orbShellStyle(
   ringStyle: Record<string, string | undefined>,
@@ -57,12 +57,12 @@ function orbShellStyle(
     position: 'relative',
     display: 'block',
     boxSizing: 'border-box',
-    width: compact ? 'min(28vw, 120px)' : 'min(39vw, 190px)',
-    height: compact ? 'min(28vw, 120px)' : 'min(39vw, 190px)',
-    minWidth: compact ? 72 : 110,
-    minHeight: compact ? 72 : 110,
-    maxWidth: compact ? 120 : 190,
-    maxHeight: compact ? 120 : 190,
+    width: compact ? 'min(22vw, 96px)' : 'min(30vw, 150px)',
+    height: compact ? 'min(22vw, 96px)' : 'min(30vw, 150px)',
+    minWidth: compact ? 64 : 96,
+    minHeight: compact ? 64 : 96,
+    maxWidth: compact ? 96 : 150,
+    maxHeight: compact ? 96 : 150,
     flexShrink: 0,
   };
 }
@@ -133,12 +133,14 @@ export function NexusVoiceMinimalCircle({
     'relative shrink-0 rounded-full outline-none';
 
   const ringStyle = {
-    border: '2px solid rgba(255,255,255,0.22)',
-    background:
-      'radial-gradient(circle at 50% 48%, rgba(255,255,255,0.14) 0%, rgba(255,255,255,0.04) 42%, rgba(255,255,255,0.02) 100%)',
+    border: '2px solid rgba(94,215,237,0.42)',
+    background: aetherShellBackground(),
     boxShadow: sessionActive
-      ? `0 0 ${glow}px rgba(255,255,255,${0.14 + level * 0.42}), inset 0 0 56px rgba(255,255,255,${0.06 + level * 0.16})`
-      : 'inset 0 0 40px rgba(255,255,255,0.03)',
+      ? `0 0 ${glow}px rgba(94,215,237,${0.22 + level * 0.45}),
+         0 0 ${Math.round(glow * 0.52)}px rgba(216,47,137,${0.14 + level * 0.34}),
+         0 0 ${Math.round(glow * 0.36)}px rgba(244,196,112,${0.1 + level * 0.3}),
+         inset 0 0 52px rgba(255,255,255,${0.05 + level * 0.12})`
+      : 'inset 0 0 40px rgba(255,255,255,0.04), 0 0 28px rgba(59,63,156,0.38)',
   } as const;
 
   if (!sessionActive) {
@@ -165,8 +167,8 @@ export function NexusVoiceMinimalCircle({
           className="pointer-events-none absolute rounded-full"
           style={{
             inset: '14%',
-            background: INNER_FILL_GRADIENT,
-            opacity: 0.22,
+            background: aetherInnerFill(),
+            opacity: 0.28,
           }}
           aria-hidden
         />
@@ -206,9 +208,23 @@ export function NexusVoiceMinimalCircle({
       role="img"
       aria-label="Voice level"
     >
+      <style>{`
+        @keyframes nexus-aether-sheen { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+      `}</style>
+      <div
+        className="pointer-events-none absolute rounded-full opacity-[0.72]"
+        style={{
+          inset: '-10%',
+          background: `conic-gradient(from 210deg, rgba(94,215,237,0.55), rgba(216,47,137,0.62), rgba(244,196,112,0.52), rgba(59,63,156,0.75), rgba(94,215,237,0.55))`,
+          filter: 'blur(11px)',
+          animation: reduce ? undefined : 'nexus-aether-sheen 22s linear infinite',
+          mixBlendMode: 'screen',
+        }}
+        aria-hidden
+      />
       {syntheticSpeechPulse ? (
         <motion.div
-          style={innerBaseStyle}
+          style={innerBaseStyle()}
           aria-hidden
           animate={
             reduce
@@ -222,7 +238,7 @@ export function NexusVoiceMinimalCircle({
         />
       ) : (
         <motion.div
-          style={innerBaseStyle}
+          style={innerBaseStyle()}
           aria-hidden
           animate={{
             opacity: innerOpacity,

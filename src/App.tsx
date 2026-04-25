@@ -30,6 +30,7 @@ import { CookieConsentBanner } from './components/CookieConsentBanner';
 import { BfcacheRouterSync } from './components/RouterStability';
 import { MarketingShell } from './components/layout/MarketingShell';
 import { AppLayout } from './components/app/AppLayout';
+import { AiPageChromeProvider } from './contexts/AiPageChromeContext';
 import { AppToaster } from './components/ui/app-toaster';
 import { TaskCalendarSync } from './components/TaskCalendarSync';
 import type { ReactNode } from 'react';
@@ -153,7 +154,12 @@ function DashboardShell() {
   );
 }
 
-/** Unknown paths under the dashboard shell: keep signed-in users in the app (avoid silent eject to `/`). */
+/**
+ * Unknown paths (must be a root-level splat, not nested under a pathless layout).
+ * If this lives inside `<Route element={<DashboardShell />}>` as `path="*"`, React Router 7
+ * can match `/login` / `/signup` to that splat before the explicit auth routes — unauthenticated
+ * users then hit `<Navigate to="/" />` and “Sign in” appears to reload the landing page.
+ */
 function DashboardCatchAll() {
   const { user, loading } = useAuth();
   if (loading) {
@@ -229,8 +235,17 @@ function AppContent() {
                   <Route path="email" element={
                     <ProtectedRoute><ErrorBoundary><EmailHubPage /></ErrorBoundary></ProtectedRoute>
                   } />
-                  <Route path="library" element={<ProtectedRoute><FilesLibraryPage /></ProtectedRoute>} />
-                  <Route path="ai" element={<ProtectedRoute><AppAIPage /></ProtectedRoute>} />
+                  {/* /library moved to /settings?tab=files (see redirect below). Kept import for SettingsPage embed. */}
+                  <Route
+                    path="ai"
+                    element={
+                      <ProtectedRoute>
+                        <AiPageChromeProvider>
+                          <AppAIPage />
+                        </AiPageChromeProvider>
+                      </ProtectedRoute>
+                    }
+                  />
                   <Route path="energy" element={<ProtectedRoute><EnergyFocusPage /></ProtectedRoute>} />
                   <Route path="resonance-engine" element={<ProtectedRoute><ResonanceEnginePage /></ProtectedRoute>} />
                   <Route path="team" element={
@@ -276,14 +291,17 @@ function AppContent() {
                   <Route path="dashboard/integrations" element={<Navigate to="/integrations" replace />} />
                   <Route path="dashboard/scripts" element={<Navigate to="/scripts-templates" replace />} />
                   <Route path="dashboard/settings" element={<Navigate to="/settings" replace />} />
-                  <Route path="dashboard/library" element={<Navigate to="/library" replace />} />
+                  <Route path="dashboard/library" element={<Navigate to="/settings?tab=files" replace />} />
+                  <Route path="library" element={<Navigate to="/settings?tab=files" replace />} />
                   <Route path="dashboard/gamification" element={<Navigate to="/gaming" replace />} />
                   <Route path="dashboard/enterprise" element={<Navigate to="/enterprise" replace />} />
                   <Route path="agents" element={<Navigate to="/ai" replace />} />
 
                   <Route path="all-features" element={<Navigate to="/features" replace />} />
-                  <Route path="*" element={<DashboardCatchAll />} />
                 </Route>
+
+                {/* Catch-all must stay here (sibling of /login, not child of pathless DashboardShell) */}
+                <Route path="*" element={<DashboardCatchAll />} />
               </Routes>
             </Suspense>
           </ParticleTransitionProvider>

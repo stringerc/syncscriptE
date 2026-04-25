@@ -7,7 +7,11 @@ import {
   Camera, BookOpen, MessageSquare, CheckCircle2, Activity,
   CreditCard,
   Monitor,
+  Bot as BotIcon,
+  FolderOpen as FolderOpenIcon,
 } from 'lucide-react';
+import { AgentSettingsTab } from '../settings/AgentSettingsTab';
+import { FilesLibraryEmbed } from '../settings/FilesLibraryEmbed';
 import { StripeConnectSettings } from '../settings/StripeConnectSettings';
 import { motion } from 'motion/react';
 import { toast } from 'sonner';
@@ -618,7 +622,23 @@ export function SettingsPage() {
               <CreditCard className="w-4 h-4 mr-2" />
               Billing
             </TabsTrigger>
+            <TabsTrigger value="agent">
+              <BotIcon className="w-4 h-4 mr-2" />
+              Agent
+            </TabsTrigger>
+            <TabsTrigger value="files">
+              <FolderOpenIcon className="w-4 h-4 mr-2" />
+              Files
+            </TabsTrigger>
           </TabsList>
+
+          <TabsContent value="agent" className="space-y-6">
+            <AgentSettingsTab />
+          </TabsContent>
+
+          <TabsContent value="files" className="space-y-6">
+            <FilesLibraryEmbed />
+          </TabsContent>
 
           {/* General Settings */}
           <TabsContent value="general" className="space-y-6">

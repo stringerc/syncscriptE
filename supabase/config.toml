@@ -347,3 +347,12 @@ s3_region = "env(S3_REGION)"
 s3_access_key = "env(S3_ACCESS_KEY)"
 # Configures AWS_SECRET_ACCESS_KEY for S3 bucket
 s3_secret_key = "env(S3_SECRET_KEY)"
+
+# Gap #1 autonomy: make-server-57781ad9 has its own internal auth
+# (`x-nexus-internal-secret` on /internal/*, OAuth signatures on /stripe/webhook,
+# `supabase.auth.getUser(token)` inside per-user handlers). Disabling the
+# gateway-level JWT check lets pg_cron + pg_net call /internal/webhooks/flush
+# and /admin/detect/all without the gateway 401'ing on the publishable-key vs
+# legacy-JWT mismatch for this project.
+[functions.make-server-57781ad9]
+verify_jwt = false

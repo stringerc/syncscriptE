@@ -1028,7 +1028,7 @@ export function VoiceConversationEngine({
         ? 1
         : 0;
     const background = voiceStream.isSpeaking
-      ? 'radial-gradient(ellipse 90% 60% at 50% 36%, rgba(34,211,238,0.13), rgba(3,2,6,0) 58%)'
+      ? 'radial-gradient(ellipse 90% 60% at 50% 36%, rgba(34,211,238,0.11), rgba(251,113,133,0.07), rgba(3,2,6,0) 58%)'
       : isProcessingAI && !voiceStream.isSpeaking
         ? 'radial-gradient(ellipse 90% 60% at 50% 36%, rgba(245,158,11,0.12), rgba(3,2,6,0) 58%)'
         : listeningTint
@@ -1221,6 +1221,7 @@ export function VoiceConversationEngine({
                             compact
                             loading={voiceSatellites.loading}
                             satellites={voiceSatellites.items}
+                            speakingDustActive={orbPhase === 'speaking'}
                           >
                             <NexusVoiceMinimalCircle
                               phase={orbPhase}
@@ -1588,7 +1589,7 @@ export function VoiceConversationEngine({
           pendingVoiceTaskOpenRef.current = null;
         }
       }}
-      stackAboveVoiceShell={embeddedInModal}
+      stackAboveVoiceShell
     />
 
     <EventModal
@@ -1610,14 +1611,14 @@ export function VoiceConversationEngine({
           ? () => setVoiceLinkedCalModalOpen(true)
           : undefined
       }
-      stackAboveVoiceShell={embeddedInModal}
+      stackAboveVoiceShell
     />
 
     <LinkedCalendarEventModal
       open={voiceLinkedCalModalOpen}
       onOpenChange={setVoiceLinkedCalModalOpen}
       event={voiceCalendarEventResolved}
-      stackAboveVoiceShell={embeddedInModal}
+      stackAboveVoiceShell
       onSaved={async () => {
         await queryClient.invalidateQueries({ queryKey: ['calendar-sync-groups'] });
         const ev = voiceCalendarEventResolved;
