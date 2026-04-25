@@ -1,0 +1,40 @@
+name: Guard CI script refs
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/**"
+      - "package.json"
+      - "scripts/**"
+      - ".gitignore"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/**"
+      - "package.json"
+      - "scripts/**"
+      - ".gitignore"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: guard-ci-script-refs-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Verify all CI/npm script references are tracked in git
+        run: node scripts/guard-ci-script-refs.mjs
