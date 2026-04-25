@@ -41,9 +41,14 @@ fi
 
 # ── 2. Self-install the script to /opt so future updates are one-line ─
 $SUDO mkdir -p "$INSTALL_DIR"
-if [[ ! -f "$INSTALL_DIR/bringup.sh" ]] || ! cmp -s "$0" "$INSTALL_DIR/bringup.sh"; then
-  log "installing bringup.sh to $INSTALL_DIR/bringup.sh"
+SOURCE_URL="https://raw.githubusercontent.com/stringerc/syncscriptE/main/deploy/nexus-agent-runner/bringup.sh"
+if [[ -f "$0" && "$0" != "bash" && "$0" != "/bin/bash" ]] && { [[ ! -f "$INSTALL_DIR/bringup.sh" ]] || ! cmp -s "$0" "$INSTALL_DIR/bringup.sh"; }; then
+  log "installing bringup.sh from local file to $INSTALL_DIR/bringup.sh"
   $SUDO cp "$0" "$INSTALL_DIR/bringup.sh"
+  $SUDO chmod +x "$INSTALL_DIR/bringup.sh"
+elif [[ ! -f "$0" || "$0" == "bash" || "$0" == "/bin/bash" ]] && [[ ! -f "$INSTALL_DIR/bringup.sh" ]]; then
+  log "downloading bringup.sh from $SOURCE_URL to $INSTALL_DIR/bringup.sh"
+  $SUDO curl -fsSL "$SOURCE_URL" -o "$INSTALL_DIR/bringup.sh"
   $SUDO chmod +x "$INSTALL_DIR/bringup.sh"
 fi
 
