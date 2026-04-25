@@ -1,0 +1,30 @@
+name: Agent runner live verify
+
+# Runs after every prod deploy + nightly + on-demand. Soft-skips when the
+# Oracle runner isn't reachable yet so we don't blast red builds during setup.
+# Once you flip AGENT_RUNNER_LIVE_VERIFY=1 in repo Variables, it goes strict.
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '7 4 * * *'   # 04:07 UTC daily
+  workflow_run:
+    workflows: ['Agent runner image']
+    types: [completed]
+
+permissions:
+  contents: read
+
+jobs:
+  live:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Probe public /v1/health
+        env:
+          AGENT_RUNNER_BASE_URL: ${{ vars.AGENT_RUNNER_BASE_URL || 'https://nexus-agent-runner.syncscript.app' }}
+          AGENT_RUNNER_LIVE_VERIFY: ${{ vars.AGENT_RUNNER_LIVE_VERIFY || '0' }}
+        run: node scripts/verify-agent-runner-live.mjs
