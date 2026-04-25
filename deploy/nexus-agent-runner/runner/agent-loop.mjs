@@ -21,7 +21,7 @@
  *   finish(summary)                   — terminal call
  *   create_task / add_to_resource_library / create_document / add_note   — bridged to Nexus
  */
-import { resolveLLMConfig, chatCompletion, estimateCostCents } from './llm.mjs';
+import { resolveLLMConfig, chatCompletion, estimateCostCents, supportsVision } from './llm.mjs';
 import { launchBrowser, newPage, executeBrowserAction, currentUrl, captureStorageState } from './browser.mjs';
 import { gate } from './safety.mjs';
 import { executeSyncScriptTool, SYNCSCRIPT_TOOL_SCHEMAS } from './syncscript-tools.mjs';
@@ -162,6 +162,10 @@ export async function runAgentLoop({ run, sb }) {
   let outcome = 'failed';
   let summary = null;
   let waitingApproval = false;
+  // Bail out quickly if the model can't emit structured tool calls — common
+  // failure for non-FC-tuned free models. Three thoughts in a row → abort.
+  let consecutiveNoToolTurns = 0;
+  const MAX_NO_TOOL_TURNS = 3;
 
   try {
     for (let step = 0; step < stepCap; step += 1) {
@@ -187,29 +191,60 @@ export async function runAgentLoop({ run, sb }) {
         continue;
       }
 
-      // 2. Screenshot
-      const shot = await executeBrowserAction(page, { kind: 'screenshot' });
+      // 2. Screenshot (only sent to model if the model supports vision)
+      const useVision = supportsVision(cfg.provider, cfg.model);
+      const shot = useVision ? await executeBrowserAction(page, { kind: 'screenshot' }) : { ok: false };
       const screenshotB64 = shot.ok ? shot.base64 : null;
       const seenUrl = await currentUrl(page);
+      // For text-only models, give the model the page title and visible heading
+      // text so it has something to reason from instead of a blind URL string.
+      let domHint = '';
+      if (!useVision) {
+        try {
+          const title = await page.title().catch(() => '');
+          const headingHandle = await page.locator('h1,h2').first().textContent({ timeout: 1500 }).catch(() => '');
+          const heading = (headingHandle || '').trim().slice(0, 200);
+          domHint = `\nPage title: ${title || '(none)'}\nFirst heading: ${heading || '(none)'}`;
+        } catch { /* ignore */ }
+      }
 
       const userTurn = {
         role: 'user',
-        content: [
-          { type: 'text', text: `Current URL: ${seenUrl || 'about:blank'}\nWhat is the next single action?` },
-          ...(screenshotB64 ? [{ type: 'image_url', image_url: { url: `data:image/png;base64,${screenshotB64}` } }] : []),
-        ],
+        content: useVision
+          ? [
+              { type: 'text', text: `Current URL: ${seenUrl || 'about:blank'}\nWhat is the next single action?` },
+              ...(screenshotB64 ? [{ type: 'image_url', image_url: { url: `data:image/png;base64,${screenshotB64}` } }] : []),
+            ]
+          : `Current URL: ${seenUrl || 'about:blank'}${domHint}\nWhat is the next single action? Reply ONLY by calling exactly one tool.`,
       };
 
-      // 3. LLM
+      // 3. LLM — force a tool call. Many free-tier models (NIM Llama 3.x,
+      // Groq Llama) skip tool_calls under tool_choice:auto and respond with
+      // prose. Forcing 'required' makes them emit at least one structured
+      // call. Falls back to 'auto' once if 'required' is rejected.
       let resp;
       try {
-        resp = await chatCompletion(cfg, {
-          messages: [...compactHistory(history), userTurn],
-          tools: [BROWSER_TOOL, SPEAK_TOOL, APPROVAL_TOOL, FINISH_TOOL, ...SYNCSCRIPT_TOOL_SCHEMAS],
-          toolChoice: 'auto',
-          temperature: 0.2,
-          maxTokens: 1024,
-        });
+        try {
+          resp = await chatCompletion(cfg, {
+            messages: [...compactHistory(history), userTurn],
+            tools: [BROWSER_TOOL, SPEAK_TOOL, APPROVAL_TOOL, FINISH_TOOL, ...SYNCSCRIPT_TOOL_SCHEMAS],
+            toolChoice: 'required',
+            temperature: 0.2,
+            maxTokens: 1024,
+          });
+        } catch (innerErr) {
+          if (/tool_choice|required|400|invalid/i.test(String(innerErr?.message || ''))) {
+            resp = await chatCompletion(cfg, {
+              messages: [...compactHistory(history), userTurn],
+              tools: [BROWSER_TOOL, SPEAK_TOOL, APPROVAL_TOOL, FINISH_TOOL, ...SYNCSCRIPT_TOOL_SCHEMAS],
+              toolChoice: 'auto',
+              temperature: 0.2,
+              maxTokens: 1024,
+            });
+          } else {
+            throw innerErr;
+          }
+        }
       } catch (e) {
         await sb.rpc('record_agent_step', {
           p_run_id: run.id, p_kind: 'error',
@@ -239,9 +274,20 @@ export async function runAgentLoop({ run, sb }) {
 
       // 4. Process tool calls (or finish/no-op)
       if (!resp.toolCalls || resp.toolCalls.length === 0) {
-        history.push({ role: 'system', content: 'You did not call a tool. Pick one of: browser_action, speak_to_user, finish.' });
+        consecutiveNoToolTurns += 1;
+        if (consecutiveNoToolTurns >= MAX_NO_TOOL_TURNS) {
+          await sb.rpc('record_agent_step', {
+            p_run_id: run.id, p_kind: 'error',
+            p_payload: { phase: 'no_tool_calls', detail: `Model ${cfg.label} produced ${MAX_NO_TOOL_TURNS} consecutive turns without tool_calls. This usually means the model does not support function calling reliably. Switch to a different model (BYOK Anthropic / OpenAI / Gemini for vision, or NVIDIA NIM Llama 3.3 70B for text).` },
+          });
+          outcome = 'failed';
+          summary = null;
+          break;
+        }
+        history.push({ role: 'system', content: 'You MUST call exactly one tool now. Do not write a description. Call browser_action / finish / speak_to_user.' });
         continue;
       }
+      consecutiveNoToolTurns = 0;
 
       let didFinish = false;
       for (const tc of resp.toolCalls) {

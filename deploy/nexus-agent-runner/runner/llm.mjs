@@ -19,18 +19,34 @@ const PROVIDER_BASE_URLS = {
   mistral: 'https://api.mistral.ai/v1',
 };
 
+// Default to text-only models with reliable function-calling. Vision is enabled
+// only when the model name explicitly indicates vision/multimodal — see
+// supportsVision() below. NVIDIA NIM Llama-3.2-vision had unreliable FC in
+// production smoke tests (April 2026), so we use Llama-3.3-70B as the safe
+// free-tier default. Users can override via BYOK with any vision model.
 const DEFAULT_MODELS = {
-  nvidia: 'meta/llama-3.2-90b-vision-instruct',
+  nvidia: 'meta/llama-3.3-70b-instruct',
   openrouter: 'google/gemini-2.5-pro',
   gemini: 'gemini-2.5-pro',
   openai: 'gpt-4o',
   anthropic: 'claude-sonnet-4-5',
-  groq: 'llama-3.2-90b-vision-preview',
+  groq: 'llama-3.3-70b-versatile',
   xai: 'grok-2-vision-1212',
   mistral: 'pixtral-large-latest',
-  ollama: 'llama3.2-vision:11b',
+  ollama: 'llama3.2:3b',
   custom_openai_compat: 'gpt-4o',
 };
+
+// Heuristic: model supports image inputs in the OpenAI-compatible
+// content-array message format. False → caller should drop image_url parts.
+export function supportsVision(provider, model) {
+  const m = String(model || '').toLowerCase();
+  if (provider === 'anthropic') return true; // claude-3.5+ all support images
+  if (provider === 'openai') return /4o|4\.1|o1|gpt-5/.test(m);
+  if (provider === 'gemini' || provider === 'openrouter') return /vision|gemini|gpt-4o|claude/.test(m);
+  if (provider === 'xai' || provider === 'mistral') return /vision|pixtral/.test(m);
+  return /vision|pixtral|gpt-4o|claude|gemini-(1\.5|2|2\.5)/.test(m);
+}
 
 const COST_RATES_CENTS_PER_1K = {
   nvidia: { in: 0.05, out: 0.05 },

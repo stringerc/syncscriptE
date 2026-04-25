@@ -99,6 +99,7 @@ scripts/*
 !scripts/push-nexus-e2e-secrets-to-github.mjs
 !scripts/guard-ci-script-refs.mjs
 !scripts/verify-agent-runner-live.mjs
+!scripts/smoke-agent-run-e2e.mjs
 
 # Large optional clone (run integrations/setup-engram.sh)
 integrations/engram_translator/
