@@ -93,6 +93,7 @@ scripts/*
 !scripts/engram-public-supabase-url.mjs
 !scripts/bringup-hermes-tunnel-supabase.sh
 !scripts/verify-hermes-edge-live.mjs
+!scripts/verify-engram-edge-live.mjs
 !scripts/verify-prod-build.mjs
 !scripts/report-external-tooling-versions.mjs
 !scripts/push-nexus-e2e-secrets-to-github.mjs
@@ -107,3 +108,4 @@ integrations/engram_translator/
 deploy/oracle/env.local
 deploy/oracle/instance-launch.env
 deploy/oracle/.temp-ssh/
+.env.production.pull
