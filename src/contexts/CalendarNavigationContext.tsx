@@ -37,12 +37,7 @@ export function CalendarNavigationProvider({ children }: { children: React.React
   }, []);
 
   const triggerJumpToToday = useCallback(() => {
-    if (jumpToTodayRef.current) {
-      console.log('🎯 Context: Triggering jumpToToday from Sidebar');
-      jumpToTodayRef.current();
-    } else {
-      console.warn('⚠️ Context: jumpToToday not registered yet');
-    }
+    jumpToTodayRef.current?.();
   }, []);
 
   return (

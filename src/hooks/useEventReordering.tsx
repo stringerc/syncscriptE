@@ -83,11 +83,6 @@ export function useEventReordering(
       parentId: event.parentEventId || null,
     });
     
-    console.log('🔄 REORDER: Drag start:', {
-      event: event.title,
-      index,
-      parentId: event.parentEventId,
-    });
   }, []);
   
   /**
@@ -137,12 +132,10 @@ export function useEventReordering(
     const { draggedEvent, draggedIndex, hoverIndex } = reorderingState;
     
     if (!draggedEvent || draggedIndex === null || hoverIndex === null) {
-      console.warn('⚠️ REORDER: Missing drag data');
       return;
     }
     
     if (draggedIndex === hoverIndex) {
-      console.log('🔄 REORDER: Same position, no change');
       handleDragEnd();
       return;
     }
@@ -168,12 +161,6 @@ export function useEventReordering(
       return [...others, ...updatedSiblings];
     });
     
-    console.log('🔄 REORDER: Drop complete:', {
-      event: draggedEvent.title,
-      from: draggedIndex,
-      to: hoverIndex,
-      newOrder: updatedSiblings.map(s => s.title),
-    });
     
     handleDragEnd();
   }, [reorderingState, events, setEvents, handleDragEnd]);

@@ -122,7 +122,6 @@ export function useCalendarDrag() {
     setDragState(prev => {
       if (!prev) return null;
       
-      console.log('📍 updateDragPosition:', { clientX, clientY, offsetX, offsetY });
       
       return {
         ...prev,
@@ -150,7 +149,6 @@ export function useCalendarDrag() {
     const normalizedEdge: ResizeEdge = edge === 'start' ? 'top' : edge === 'end' ? 'bottom' : edge as ResizeEdge;
     const legacyEdge = mapEdgeToLegacy(normalizedEdge);
     
-    console.log('🎯 START RESIZE:', { edge: normalizedEdge, legacyEdge, eventId: event.id, eventTitle: event.title });
     const startTime = new Date(event.startTime);
     const endTime = new Date(event.endTime);
     
@@ -185,7 +183,6 @@ export function useCalendarDrag() {
       isResizing: true,
       constraintValidation: initialValidation,
     };
-    console.log('📝 Setting resize state:', newState);
     setResizeState(newState);
   }, []);
 
@@ -242,12 +239,6 @@ export function useCalendarDrag() {
       const clampedWidth = Math.max(10, Math.min(100, width)); // Min 10%, max 100%
       const clampedXPosition = Math.max(0, Math.min(100 - clampedWidth, xPosition)); // Stay within bounds
       
-      console.log('🔄 updateHorizontalResize:', { 
-        xPosition, 
-        width, 
-        clampedXPosition, 
-        clampedWidth 
-      });
       
       return {
         ...prev,

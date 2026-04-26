@@ -344,16 +344,8 @@ export function CalendarEventCard({
   // ✅ CRITICAL FIX: Render wrapper if EITHER old drag system OR new free-form drag system is used
   // RESEARCH: React Patterns (2023) - "Check for feature availability, not implementation details"
   
-  console.log('🔍 DRAG WRAPPER CHECK:', {
-    enableDrag,
-    handleDragStart: !!handleDragStart,
-    onMouseDown: !!onMouseDown,
-    DRAG_TEMPORARILY_DISABLED,
-    willRenderWrapper: enableDrag && (handleDragStart || onMouseDown) && !DRAG_TEMPORARILY_DISABLED,
-  });
   
   if (enableDrag && (handleDragStart || onMouseDown) && !DRAG_TEMPORARILY_DISABLED) {
-    console.log('✅ RENDERING PointerDraggableCard wrapper for:', event.title);
     card = (
       <PointerDraggableCard
         dragData={event}
@@ -369,10 +361,8 @@ export function CalendarEventCard({
         {card}
       </PointerDraggableCard>
     );
-  } else {
-    console.log('❌ NOT rendering PointerDraggableCard wrapper for:', event.title);
   }
-  
+
   // Wrap with UnschedulableCard if enabled and applicable
   if (enableUnschedule && (itemType === 'task' || itemType === 'goal') && onUnschedule) {
     card = (

@@ -190,8 +190,6 @@ export function PrecisionDayView({
                 e.preventDefault();
                 setDragPreview(null); // Clear preview on drop
                 
-                console.log('📦 DROP EVENT at hour:', interval.hour); // DEBUG
-                console.log('📦 dataTransfer types:', e.dataTransfer.types); // DEBUG
                 
                 // PHASE 2: Calculate horizontal position from mouse coordinates
                 const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
@@ -222,13 +220,6 @@ export function PrecisionDayView({
                   defaultWidth = 100; // Full width when explicitly at edge
                 }
                 
-                console.log('📍 PHASE 2: Horizontal position (IMPROVED):', {
-                  mouseX,
-                  xPercent,
-                  snappedXPercent: finalXPercent,
-                  defaultWidth,
-                  quadrant: finalXPercent === 0 ? 'Q1' : finalXPercent === 25 ? 'Q2' : finalXPercent === 50 ? 'Q3' : 'Q4',
-                }); // DEBUG
                 
                 // CRITICAL FIX: Check for both 'task' and 'event' data types
                 // Some events are detected as 'task' type (e.g., events created from tasks)
@@ -237,9 +228,6 @@ export function PrecisionDayView({
                 const eventData = e.dataTransfer.getData('event');
                 const goalData = e.dataTransfer.getData('goal');
                 
-                console.log('📦 Task data:', taskData); // DEBUG
-                console.log('📦 Event data:', eventData); // DEBUG
-                console.log('📦 Goal data:', goalData); // DEBUG
                 
                 // Try to parse any available data
                 let parsedData = null;
@@ -257,7 +245,6 @@ export function PrecisionDayView({
                 }
                 
                 if (!parsedData) {
-                  console.log('❌ No valid data found'); // DEBUG
                   return;
                 }
                 
@@ -268,14 +255,10 @@ export function PrecisionDayView({
                 
                 if (isExistingEvent && onMoveEvent) {
                   // Moving an existing event (regardless of detected type)
-                  console.log('✅ Moving existing event:', parsedData.id); // DEBUG
                   onMoveEvent(parsedData, interval.hour, interval.minute, finalXPercent, defaultWidth, currentDate);
                 } else if (!isExistingEvent && onDropTask) {
                   // Dropping an unscheduled task/goal to create new event
-                  console.log('✅ Creating new event from task/goal:', parsedData.id); // DEBUG
                   onDropTask(parsedData, interval.hour, interval.minute, finalXPercent, defaultWidth);
-                } else {
-                  console.log('❌ No appropriate handler found'); // DEBUG
                 }
               }}
             >

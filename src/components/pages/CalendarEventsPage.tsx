@@ -209,18 +209,13 @@ export function CalendarEventsPage() {
     const totalMinutes = hours * 60 + minutes;
     const result = totalMinutes > 0 ? totalMinutes : 60; // Default to 1 hour if parsing fails
     
-    console.log(`⏱️ parseEstimatedTime: "${estimatedTime}" → ${result} minutes (${hours}h ${minutes}m)`);
     return result;
   };
   
   // CRITICAL FIX: Always initialize with actual current date (no stale state)
   // Research: Prevent hydration mismatch in React (Dan Abramov, React docs)
   // Use getCurrentDate() for consistency with rest of app (respects DEMO_MODE if enabled)
-  const [currentDate, setCurrentDate] = useState(() => {
-    const today = getCurrentDate();
-    console.log('🔍 CalendarEventsPage - Initializing currentDate state:', today.toDateString());
-    return today;
-  }); // Use function initializer
+  const [currentDate, setCurrentDate] = useState(() => getCurrentDate());
   
   // ARCHITECTURAL FIX: Separate centerDate (fixed reference) from currentDate (display state)
   // centerDate = Reference point for calendar (updates to "today" on route change)
@@ -236,12 +231,8 @@ export function CalendarEventsPage() {
   useEffect(() => {
     const today = getCurrentDate();
     setCenterDate(today);
-    console.log('📍 Updated centerDate to current date:', today.toDateString());
   }, [location.pathname])
   
-  console.log('📍 Virtual scroll coordinate system:');
-  console.log('   - centerDate (fixed):', centerDate.toDateString());
-  console.log('   - currentDate (display):', currentDate.toDateString());
   
   // Ref to access SimpleMultiDayCalendar methods
   const calendarRef = useRef<SimpleMultiDayCalendarRef>(null);
@@ -255,28 +246,19 @@ export function CalendarEventsPage() {
   useEffect(() => {
     // Only run when on calendar route
     if (!location.pathname.includes('/calendar')) {
-      console.log('⏭️ Not on calendar route, skipping auto-scroll');
       return;
     }
     
-    console.log('📅 CalendarEventsPage mounted or route changed - jumping to today');
-    console.log('📍 Current route:', location.pathname);
     
     // Create the jumpToToday function (for manual "Today" button clicks - uses smooth scroll)
     const jumpToToday = () => {
-      console.log('🎯 jumpToToday called');
       
       // Check BOTH calendar ref AND scroll container readiness
       // RESEARCH: Linear (2024) - "Multi-level readiness check for scroll containers"
       if (calendarRef.current?.scrollContainer) {
-        console.log('✅ Calendar ref AND scroll container ready - calling jumpToToday()');
         calendarRef.current.jumpToToday();
         return true; // Success
       } else {
-        console.warn('⚠️ Calendar not fully initialized yet', {
-          hasRef: !!calendarRef.current,
-          hasScrollContainer: !!calendarRef.current?.scrollContainer
-        });
         return false; // Not ready
       }
     };
@@ -307,18 +289,9 @@ export function CalendarEventsPage() {
       const timeOffset = targetHour * PIXELS_PER_HOUR;
       const scrollPosition = (todayIndex * DAY_TOTAL_HEIGHT) + DAY_HEADER_HEIGHT + timeOffset;
       
-      console.log('⚡ Instant scroll calculation:', {
-        todayIndex,
-        currentHour,
-        currentMinute,
-        targetHour,
-        timeOffset,
-        scrollPosition
-      });
       
       // INSTANT scroll (no animation)
       scrollContainer.scrollTop = scrollPosition;
-      console.log('✅ Instant scroll completed');
       return true;
     };
     
@@ -336,17 +309,9 @@ export function CalendarEventsPage() {
     const maxAttempts = 10; // Increased from 5 to 10
     const attemptScroll = () => {
       attempts++;
-      
-      if (instantScrollToToday()) {
-        console.log(`✅ Successfully scrolled to today (instant) on attempt ${attempts}`);
-      } else if (attempts < maxAttempts) {
-        // Exponential backoff with longer initial delay: 100ms, 150ms, 200ms, 300ms, 500ms...
-        const delay = Math.min(100 * Math.pow(1.5, attempts - 1), 1000);
-        setTimeout(attemptScroll, delay);
-      } else {
-        // Silent fallback - not an error, just means calendar took too long to initialize
-        console.log('ℹ️ Calendar scroll deferred - will position when ready');
-      }
+      if (instantScrollToToday() || attempts >= maxAttempts) return;
+      const delay = Math.min(100 * Math.pow(1.5, attempts - 1), 1000);
+      setTimeout(attemptScroll, delay);
     };
     
     // Start with triple-RAF for better DOM readiness (more reliable than double-RAF)
@@ -368,7 +333,6 @@ export function CalendarEventsPage() {
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (!document.hidden && calendarRef.current) {
-        console.log('👁️ Page became visible - scrolling to current time');
         
         // RESEARCH: Notion (2024) - "Deferred scroll with retry for reliability"
         // Use retry mechanism with delay to ensure calendar is ready
@@ -377,11 +341,9 @@ export function CalendarEventsPage() {
         const attemptScroll = () => {
           attempts++;
           if (calendarRef.current) {
-            console.log('✅ Visibility scroll successful on attempt', attempts);
             calendarRef.current.jumpToToday();
           } else if (attempts < maxAttempts) {
             const delay = 100 * attempts; // 100ms, 200ms, 300ms
-            console.log(`⏳ Visibility retry in ${delay}ms...`);
             setTimeout(attemptScroll, delay);
           }
         };
@@ -410,10 +372,8 @@ export function CalendarEventsPage() {
       const next = new Set(prev);
       if (next.has(eventId)) {
         next.delete(eventId); // Collapse to compact mode
-        console.log('📉 Collapsed event:', eventId);
       } else {
         next.add(eventId); // Expand to full time-based height
-        console.log('📈 Expanded event:', eventId);
       }
       return next;
     });
@@ -440,12 +400,7 @@ export function CalendarEventsPage() {
   
   // Debug: Log events when they load
   React.useEffect(() => {
-    console.log('📊 Calendar events loaded:', events.length, 'events');
     if (events.length > 0) {
-      console.log('📍 First 3 event dates:', events.slice(0, 3).map(e => ({
-        title: e.title,
-        startTime: e.startTime,
-      })));
     }
   }, [events]);
   
@@ -460,23 +415,13 @@ export function CalendarEventsPage() {
     
     // Auto-show banner if conflicts detected
     if (detected.length > 0 && !showConflictBanner) {
-      console.log('🚨 PHASE 5E: Conflicts detected!', getConflictSummary(mergedEvents));
     }
   }, [mergedEvents]);
   
   // Auto-layout handler
   const handleAutoLayout = React.useCallback(() => {
-    console.log('🚀 Auto-layout started', { 
-      totalEvents: mergedEvents.length,
-      conflictsToResolve: conflicts.length 
-    });
-    
     const layoutedEvents = autoLayoutAllConflicts(mergedEvents);
-    
-    console.log('📐 Layout calculated', {
-      layoutedEvents: layoutedEvents.filter(e => e.xPosition !== undefined).length
-    });
-    
+
     // Batch update all affected events
     let updatedCount = 0;
     layoutedEvents.forEach(event => {
@@ -489,7 +434,6 @@ export function CalendarEventsPage() {
       }
     });
     
-    console.log('✅ Auto-layout complete', { updatedCount });
     
     toast.success('✨ Events auto-organized!', {
       description: `${updatedCount} events repositioned to resolve ${conflicts.length} conflict${conflicts.length > 1 ? 's' : ''}`,
@@ -585,11 +529,8 @@ export function CalendarEventsPage() {
   const [canRedoState, setCanRedoState] = React.useState(false);
   
   React.useEffect(() => {
-    console.log('🔄 Revision changed to:', undoManager.revision);
     const newCanUndo = undoManager.canUndo();
     const newCanRedo = undoManager.canRedo();
-    console.log('  → canUndo:', newCanUndo, '| canRedo:', newCanRedo);
-    console.log('  → Previous state - canUndoState:', canUndoState, '| canRedoState:', canRedoState);
     setCanUndoState(newCanUndo);
     setCanRedoState(newCanRedo);
   }, [undoManager.revision]); // Only depend on revision, not the entire undoManager object
@@ -598,14 +539,9 @@ export function CalendarEventsPage() {
   // ⚠️ IMPORTANT: Defined early so keyboard shortcuts useEffect can reference them
   // Using useCallback for stable references needed by keyboard shortcuts
   const handleUndoLastChange = React.useCallback((eventId?: string) => {
-    console.log('🔍 handleUndoLastChange called with eventId:', eventId);
-    console.log('🔍 canUndo:', undoManager.canUndo(eventId));
-    
     const operation = undoManager.undo(eventId);
-    console.log('🔍 Undo operation returned:', operation);
     
     if (!operation) {
-      console.log('❌ No operation to undo');
       return;
     }
     
@@ -697,9 +633,7 @@ export function CalendarEventsPage() {
         // 1. Delete the calendar event
         deleteEventFromStore(operation.eventId);
         // 2. Unschedule the task
-        unscheduleTask(operation.taskId).then(() => {
-          console.log('✅ Task unscheduled via undo:', operation.taskId);
-        }).catch(error => {
+        void unscheduleTask(operation.taskId).catch((error) => {
           console.error('❌ Failed to unschedule task during undo:', error);
         });
         // 3. Clean dirty state
@@ -810,7 +744,6 @@ export function CalendarEventsPage() {
       if ((e.metaKey || e.ctrlKey) && e.key === 'z' && !e.shiftKey) {
         if (canUndoState) {
           e.preventDefault();
-          console.log('⏪ Keyboard undo triggered');
           handleUndoLastChange(); // Properly execute undo with dirty state clearing
         }
       }
@@ -819,7 +752,6 @@ export function CalendarEventsPage() {
       if ((e.metaKey || e.ctrlKey) && e.key === 'z' && e.shiftKey) {
         if (canRedoState) {
           e.preventDefault();
-          console.log('⏩ Keyboard redo triggered');
           handleRedo(); // Properly execute redo
         }
       }
@@ -886,7 +818,6 @@ export function CalendarEventsPage() {
           // Re-check state inside RAF callback (state might have changed)
           if (!dragHookRef.current.isResizing || !dragHookRef.current.resizeState) return;
           
-          console.log('🔄 GLOBAL POINTER MOVE - Resize active (RAF)');
           
           const resizeEdge = dragHookRef.current.resizeState.resizeEdge;
           
@@ -898,11 +829,6 @@ export function CalendarEventsPage() {
                                           resizeEdge === 'top-left' || resizeEdge === 'top-right' ||
                                           resizeEdge === 'bottom-left' || resizeEdge === 'bottom-right';
           
-          console.log('📐 RESIZE TRACKING:', { 
-            resizeEdge, 
-            needsVerticalTracking, 
-            needsHorizontalTracking 
-          });
           
           // Find the calendar container under pointer
           const elementsUnderPointer = document.elementsFromPoint(e.clientX, e.clientY);
@@ -966,14 +892,6 @@ export function CalendarEventsPage() {
               const endPosition = (endHour + endMinute / 60) * PIXELS_PER_HOUR;
               const height = Math.max(15, endPosition - topPosition); // Min 15px (prevent invisible events)
               
-              console.log('📏 VERTICAL RESIZE PREVIEW:', {
-                resizeEdge,
-                targetTime: `${targetHour}:${targetMinute.toString().padStart(2, '0')}`,
-                newStartTime: `${startHour}:${startMinute.toString().padStart(2, '0')}`,
-                newEndTime: `${endHour}:${endMinute.toString().padStart(2, '0')}`,
-                topPosition: `${topPosition}px`,
-                height: `${height}px`,
-              });
               
               // Update with BOTH time and pixel position (for live preview)
               dragHookRef.current.updateResizeHover(targetHour, targetMinute);
@@ -1011,7 +929,6 @@ export function CalendarEventsPage() {
               dragHookRef.current.updateHorizontalResize(newXPosition, newWidth);
             }
           } else {
-            console.warn('⚠️ Could not find calendar container with [data-calendar-day]');
           }
         });
       }
@@ -1070,7 +987,6 @@ export function CalendarEventsPage() {
               before: { endTime: originalEndTime },
               after: { endTime: newEndTime },
             };
-            console.log('📝 Pushing END resize operation:', operation);
             undoManager.pushOperation(operation);
             
             // DIRTY STATE: Mark event as dirty (unsaved)
@@ -1116,7 +1032,6 @@ export function CalendarEventsPage() {
               before: { startTime: originalStartTime },
               after: { startTime: newStartTime },
             };
-            console.log('📝 Pushing START resize operation:', operation);
             undoManager.pushOperation(operation);
             
             // DIRTY STATE: Mark event as dirty (unsaved)
@@ -1159,7 +1074,6 @@ export function CalendarEventsPage() {
               before: { xPosition: originalXPosition, width: originalWidth },
               after: { xPosition: newXPosition, width: newWidth },
             };
-            console.log('📝 Pushing HORIZONTAL resize operation:', operation);
             undoManager.pushOperation(operation);
             
             // DIRTY STATE: Mark event as dirty (unsaved)
@@ -1242,7 +1156,6 @@ export function CalendarEventsPage() {
               width: newWidth,
             },
           };
-          console.log('📝 Pushing CORNER resize operation:', operation);
           undoManager.pushOperation(operation);
           
           // DIRTY STATE: Mark event as dirty (unsaved)
@@ -1272,16 +1185,10 @@ export function CalendarEventsPage() {
     };
     
     if (dragHook.isDragging || dragHook.isResizing) {
-      console.log('🎯 ATTACHING GLOBAL POINTER LISTENERS:', {
-        isDragging: dragHook.isDragging,
-        isResizing: dragHook.isResizing,
-        resizeEdge: dragHook.resizeState?.resizeEdge,
-      });
       // CRITICAL: Use pointer events for 100% reliability
       window.addEventListener('pointermove', handlePointerMove);
       window.addEventListener('pointerup', handlePointerUp);
       return () => {
-        console.log('🧹 REMOVING GLOBAL POINTER LISTENERS');
         window.removeEventListener('pointermove', handlePointerMove);
         window.removeEventListener('pointerup', handlePointerUp);
       };
@@ -1296,15 +1203,6 @@ export function CalendarEventsPage() {
    * Allows users to adjust event width (horizontal positioning) for better organization
    */
   const handleHorizontalResizeEnd = (event: Event, finalXPosition: number, finalWidth: number, edge: 'left' | 'right') => {
-    console.log('🟪 HORIZONTAL RESIZE END:', { 
-      eventId: event.id,
-      eventTitle: event.title,
-      edge,
-      originalXPosition: event.xPosition ?? 0,
-      originalWidth: event.width ?? 100,
-      finalXPosition,
-      finalWidth,
-    });
     
     // Validate values
     if (finalXPosition < 0 || finalXPosition > 100 || finalWidth < 0 || finalWidth > 100) {
@@ -1331,7 +1229,6 @@ export function CalendarEventsPage() {
       before: { xPosition: originalXPosition, width: originalWidth },
       after: { xPosition: finalXPosition, width: finalWidth },
     };
-    console.log('📝 Pushing horizontal resize operation:', operation);
     undoManager.pushOperation(operation);
     
     // DIRTY STATE: Mark event as dirty (unsaved)
@@ -1391,20 +1288,9 @@ export function CalendarEventsPage() {
         
         if (taskExists) {
           await unscheduleTask(event.createdFromTaskId);
-          console.log('✅ Task unscheduled:', {
-            taskId: event.createdFromTaskId,
-            eventId: event.id,
-            title: event.title,
-          });
         } else {
           // ℹ️ This is expected when the task was deleted or localStorage was cleared
           // The event can still be removed from the calendar without affecting the task store
-          console.log('ℹ️ Event removed from calendar (task not in store):', {
-            taskId: event.createdFromTaskId,
-            eventId: event.id,
-            title: event.title,
-            reason: 'Task may have been deleted or data refreshed',
-          });
         }
       } catch (error) {
         console.error('❌ Failed to unschedule task:', error);
@@ -1428,13 +1314,8 @@ export function CalendarEventsPage() {
               const taskExists = tasks.find(t => t.id === event.createdFromTaskId);
               if (taskExists) {
                 await scheduleTask(event.createdFromTaskId, event.startTime.toISOString());
-                console.log('✅ Task re-scheduled after undo');
               } else {
                 // ℹ️ This is expected when the task was deleted or localStorage was cleared
-                console.log('ℹ️ Cannot re-schedule task after undo (task not in store):', {
-                  taskId: event.createdFromTaskId,
-                  reason: 'Task may have been deleted or data refreshed',
-                });
               }
             } catch (error) {
               console.error('❌ Failed to re-schedule task:', error);
@@ -1461,7 +1342,6 @@ export function CalendarEventsPage() {
       const customEvent = e as CustomEvent;
       const { event } = customEvent.detail;
       
-      console.log('📦 Unschedule event received from drag system:', event);
       
       // Determine item type based on event properties
       const itemType = event.createdFromGoalId ? 'goal' : event.createdFromTaskId ? 'task' : 'event';
@@ -1475,11 +1355,6 @@ export function CalendarEventsPage() {
   }, [handleUnscheduleEvent]); // ✅ CRITICAL FIX: Added dependency to prevent stale closure
   
   // DEBUG: Log current state
-  console.log('📅 Calendar Page Loaded:', {
-    view: currentView,
-    date: currentDate.toDateString(),
-    totalEvents: events.length,
-  });
   const [showNewEventDialog, setShowNewEventDialog] = useState(false);
   const [showSmartEventDialog, setShowSmartEventDialog] = useState(false);
   const [isSmartEventOpen, setIsSmartEventOpen] = useState(false);
@@ -1773,7 +1648,6 @@ export function CalendarEventsPage() {
     
     dirtyState.saveAll((events) => {
       // In production, this would persist to backend
-      console.log('💾 Saving events:', events);
       toast.success(`Saved ${events.length} ${events.length === 1 ? 'event' : 'events'}`, {
         description: 'All changes have been saved',
       });
@@ -1829,14 +1703,6 @@ export function CalendarEventsPage() {
     
     const newEndTime = new Date(newStartTime.getTime() + duration);
     
-    console.log('🚀 MOVE EVENT:', {
-      eventTitle: event.title,
-      originalDate: originalStartTime.toDateString(),
-      targetDate: targetDate?.toDateString() || 'same day',
-      newDate: newStartTime.toDateString(),
-      originalTime: originalStartTime.toLocaleTimeString(),
-      newTime: newStartTime.toLocaleTimeString(),
-    });
     
     // PHASE 2: Determine horizontal positioning
     // If xPosition is provided, use it. Otherwise, keep existing position or default to 0
@@ -1851,7 +1717,6 @@ export function CalendarEventsPage() {
       before: { startTime: originalStartTime, endTime: originalEndTime, xPosition: event.xPosition, width: event.width },
       after: { startTime: newStartTime, endTime: newEndTime, xPosition: finalXPosition, width: finalWidth },
     };
-    console.log('📝 Pushing move operation:', operation);
     undoManager.pushOperation(operation);
     
     // DIRTY STATE: Mark event as dirty (unsaved)
@@ -1859,15 +1724,6 @@ export function CalendarEventsPage() {
     dirtyState.markDirty(event.id, event, updatedEvent);
     
     // Update store (but don't persist until save)
-    console.log('📝 useCalendarEvents.updateEvent calling with:', {
-      id: event.id,
-      changes: {
-        startTime: newStartTime.toLocaleString(),
-        endTime: newEndTime.toLocaleString(),
-        xPosition: finalXPosition,
-        width: finalWidth,
-      },
-    });
     
     updateEventInStore(event.id, { 
       startTime: newStartTime, 
@@ -1876,28 +1732,15 @@ export function CalendarEventsPage() {
       width: finalWidth
     });
     
-    console.log('✅ Event updated in store. Re-checking events list...');
     
     // 🔍 DEBUG: Verify the event was actually updated
     setTimeout(() => {
       const updatedEvent = events.find(e => e.id === event.id);
-      console.log('🔍 VERIFICATION - Event after update:', {
-        eventId: event.id,
-        found: !!updatedEvent,
-        originalStartTime: originalStartTime.toLocaleString(),
-        updatedStartTime: updatedEvent?.startTime ? new Date(updatedEvent.startTime).toLocaleString() : 'NOT FOUND',
-        expectedStartTime: newStartTime.toLocaleString(),
-        matches: updatedEvent?.startTime ? new Date(updatedEvent.startTime).toDateString() === newStartTime.toDateString() : false,
-      });
       
       if (!updatedEvent) {
         console.error('❌ CRITICAL: Event disappeared from events array after update!');
-        console.log('📋 Current events count:', events.length);
-        console.log('📋 Event IDs in array:', events.map(e => e.id));
       } else if (new Date(updatedEvent.startTime).toDateString() !== newStartTime.toDateString()) {
         console.error('❌ CRITICAL: Event time not updated correctly!');
-        console.log('Expected:', newStartTime.toDateString());
-        console.log('Actual:', new Date(updatedEvent.startTime).toDateString());
       }
     }, 100); // Small delay to let React state update
     
@@ -2359,7 +2202,6 @@ export function CalendarEventsPage() {
     // CRITICAL: Also call the calendar's jumpToToday method for multi-day view
     // This ensures the infinite scroll calendar actually scrolls to today
     if (calendarRef.current) {
-      console.log('🎯 handleToday: Calling calendar jumpToToday() via ref');
       calendarRef.current.jumpToToday();
     }
     
@@ -2418,7 +2260,6 @@ export function CalendarEventsPage() {
                 events={mergedEvents}
                 onOptimize={(optimizedEvents) => {
                   // Apply optimized schedule
-                  console.log('[Phase 3] Applying optimized calendar:', optimizedEvents);
                   // In production, this would update the calendar events
                 }}
                 className="w-full"
@@ -2439,10 +2280,10 @@ export function CalendarEventsPage() {
           </div>
         </div>
 
-        {/* Calendar Controls */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2">
+        {/* Calendar Controls — wrap on narrow widths so Day/Week/Month tabs stay tappable */}
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between lg:gap-4">
+          <div className="flex min-w-0 flex-wrap items-center gap-3">
+            <div className="flex shrink-0 items-center gap-2">
               <Button 
                 variant="outline" 
                 size="sm" 
@@ -2471,8 +2312,8 @@ export function CalendarEventsPage() {
                 <ChevronRight className="w-4 h-4" />
               </Button>
             </div>
-            <div className="flex items-center gap-3">
-              <h2 className="text-xl text-white">
+            <div className="flex min-w-0 flex-wrap items-center gap-2 sm:gap-3">
+              <h2 className="truncate text-lg text-white sm:text-xl">
                 {currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
               </h2>
               {/* RESEARCH-BASED: Peak energy badge in header (removed from calendar overlay) */}
@@ -2480,14 +2321,15 @@ export function CalendarEventsPage() {
             </div>
           </div>
 
-          <Tabs 
-            value={currentView} 
-            onValueChange={(v) => {
-              setCurrentView(v as any);
-              toast.info(`Switched to ${v} view`);
-            }}
+          <div className="flex shrink-0 flex-wrap items-center gap-2 lg:justify-end">
+          <Tabs
+            className="shrink-0"
+            value={currentView}
+            onValueChange={(v) =>
+              setCurrentView(v as 'day' | 'week' | 'month' | 'timeline')
+            }
           >
-            <TabsList>
+            <TabsList className="flex-wrap">
               <TabsTrigger value="day" className="data-[state=active]:text-white">Day</TabsTrigger>
               <TabsTrigger value="week" className="data-[state=active]:text-white">Week</TabsTrigger>
               <TabsTrigger value="month" className="data-[state=active]:text-white">Month</TabsTrigger>
@@ -2524,6 +2366,7 @@ export function CalendarEventsPage() {
               </Tooltip>
             </TooltipProvider>
           )}
+          </div>
         </div>
 
         {/* Calendar Layout - Calendar grid on left, Sidebar on right */}
@@ -2601,11 +2444,6 @@ export function CalendarEventsPage() {
                 if (isRealTask) {
                   try {
                     await scheduleTask(task.id, startTime.toISOString());
-                    console.log('✅ Task scheduled:', {
-                      taskId: task.id,
-                      eventId: eventId,
-                      time: startTime.toISOString(),
-                    });
                     
                     // ═══════════════════════════════════════════════════════════════════════════
                     // RESEARCH-BASED: BIDIRECTIONAL ANIMATION SYMMETRY (Single Day View)
@@ -2622,7 +2460,6 @@ export function CalendarEventsPage() {
                       }
                     });
                     document.dispatchEvent(scheduleSuccessEvent);
-                    console.log('📡 Dispatched calendar-schedule-success event for task:', task.id);
                   } catch (error) {
                     console.error('❌ Failed to mark task as scheduled:', error);
                     // Silently fail for missing tasks - they might be from other sources
@@ -2651,16 +2488,10 @@ export function CalendarEventsPage() {
               pixelsPerHour={zoomConfig.slotHeight * 2} // Convert slot height to pixels per hour
               minutesPerSlot={zoomConfig.minutesPerSlot}
               onDateChange={(newDate) => {
-                console.log('🔄 onDateChange fired:', {
-                  oldDate: currentDate.toDateString(),
-                  newDate: newDate.toDateString(),
-                  stackTrace: new Error().stack?.split('\n').slice(1, 4).join('\n')
-                });
                 
                 // CRITICAL FIX: Prevent update if date hasn't actually changed
                 // This prevents flickering when scroll events fire multiple times
                 if (newDate.toDateString() === currentDate.toDateString()) {
-                  console.log('⏭️  Skipping setCurrentDate - date unchanged');
                   return;
                 }
                 
@@ -2715,11 +2546,6 @@ export function CalendarEventsPage() {
                 if (isRealTask) {
                   try {
                     await scheduleTask(task.id, startTime.toISOString());
-                    console.log('✅ Task scheduled:', {
-                      taskId: task.id,
-                      eventId: eventId,
-                      time: startTime.toISOString(),
-                    });
                     
                     // ═══════════════════════════════════════════════════════════════════════════
                     // RESEARCH-BASED: BIDIRECTIONAL ANIMATION SYMMETRY (Multi-Day View)
@@ -2736,7 +2562,6 @@ export function CalendarEventsPage() {
                       }
                     });
                     document.dispatchEvent(scheduleSuccessEvent);
-                    console.log('📡 Dispatched calendar-schedule-success event for task:', task.id);
                     
                     // ✅ CRITICAL FIX: Record undo operation for task scheduling (Multi-Day View)
                     const operation = {
@@ -2752,7 +2577,6 @@ export function CalendarEventsPage() {
                       },
                     };
                     undoManager.pushOperation(operation);
-                    console.log('📝 Task scheduling undo operation recorded:', operation);
                   } catch (error) {
                     console.error('❌ Failed to mark task as scheduled:', error);
                     // Rollback: Remove the event we just created
@@ -2970,15 +2794,10 @@ export function CalendarEventsPage() {
               selectedEvent.syncGroupId ? () => setLinkedCalModalOpen(true) : undefined
             }
             onBulkUpdate={(updatedEvents) => {
-              console.log('🎯 CalendarEventsPage.onBulkUpdate called', {
-                updatedEventsCount: updatedEvents.length,
-                originalEventsCount: events.length,
-              });
               
               // Replace the entire events array with the updated one using the hook
               bulkUpdateEvents(updatedEvents);
               
-              console.log('✅ Bulk update complete - calendar should now show', updatedEvents.length, 'events');
               
               toast.success('Events updated', {
                 description: `Updated ${updatedEvents.length} events`,
@@ -3068,7 +2887,6 @@ export function CalendarEventsPage() {
         open={showNewEventDialog}
         onOpenChange={setShowNewEventDialog}
         onEventCreated={(event) => {
-          console.log('Event created:', event);
           toast.success('Event added to calendar!', { description: event.title });
         }}
       />
@@ -3094,11 +2912,9 @@ export function CalendarEventsPage() {
         canUndo={canUndoState}
         canRedo={canRedoState}
         onUndo={() => {
-          console.log('🎯 FloatingDirtyBar onUndo called');
           handleUndoLastChange();
         }}
         onRedo={() => {
-          console.log('🎯 FloatingDirtyBar onRedo called');
           handleRedo();
         }}
       />
@@ -3112,7 +2928,6 @@ export function CalendarEventsPage() {
         <CalendarZoomControls
           currentZoom={currentZoom}
           onZoomChange={(level, config) => {
-            console.log(`🔍 Zoom changed to level ${level}:`, config);
             setCurrentZoom(level);
             setZoomConfig(config);
           }}
@@ -3125,7 +2940,6 @@ export function CalendarEventsPage() {
         onClose={() => setShowIntegrationMarketplace(false)}
         context="calendar"
         onIntegrationConnect={(integrationId) => {
-          console.log('Integration connected:', integrationId);
           if (integrationId === 'make') {
             setShowIntegrationMarketplace(false);
             setShowMakeComWizard(true);

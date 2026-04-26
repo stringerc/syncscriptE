@@ -176,21 +176,17 @@ export function EventAgendaTab({
 
   // Handle milestone creation
   const handleCreateMilestone = () => {
-    console.log('🎯 handleCreateMilestone called', { newItemTitle, canEdit });
     
     if (!newItemTitle.trim()) {
       toast.error('Please enter a title');
       return;
     }
     
-    console.log('✅ Creating milestone with title:', newItemTitle);
     const milestone = createMilestone(newItemTitle, newItemDescription);
-    console.log('✅ Milestone created:', milestone);
     
     // Auto-open schedule modal
     setItemToSchedule(milestone);
     setShowScheduleModal(true);
-    console.log('✅ Schedule modal opened for milestone');
     
     // Reset form
     setNewItemTitle('');
@@ -332,7 +328,6 @@ export function EventAgendaTab({
                     </DropdownMenuLabel>
                     <DropdownMenuItem
                       onClick={() => {
-                        console.log('🎯 Apply Template button clicked', { suggestedTemplate, canEdit });
                         applyTemplate(suggestedTemplate);
                       }}
                       className="flex items-start gap-2"
@@ -487,7 +482,6 @@ export function EventAgendaTab({
               <Button
                 size="sm"
                 onClick={() => {
-                  console.log('🎯 Apply Template button clicked', { suggestedTemplate, canEdit });
                   applyTemplate(suggestedTemplate);
                 }}
                 className="bg-gradient-to-r from-teal-500 to-blue-500"
