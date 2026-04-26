@@ -175,6 +175,12 @@ export async function runAgentLoop({ run, sb }) {
   let lastBlockReason = '';
   let consecutiveSameBlocks = 0;
   const MAX_REPEAT_BLOCKS = 3;
+  // Bail if the model calls the SAME action with the SAME args N=4 times in a
+  // row — usually means the model isn't reading the result content. We emit
+  // a strong nudge at N=3 then abort at N=4.
+  let lastActionKey = '';
+  let consecutiveSameAction = 0;
+  const MAX_REPEAT_ACTION = 3;
   let abortRun = false;
 
   try {
@@ -393,13 +399,73 @@ export async function runAgentLoop({ run, sb }) {
           } catch (e) {
             result = { ok: false, error: String(e?.message || e).slice(0, 300) };
           }
+          // Build a model-readable summary of the result. extract_text returns
+          // `text`; extract_links returns `links` + `images`. Without this the
+          // model sees "ok" with no data and loops on the same action.
+          let modelContent;
+          if (!result.ok) {
+            modelContent = `failed: ${result.error || 'unknown'}`;
+          } else if (action.action === 'extract_links') {
+            const links = (result.links || []).slice(0, 25);
+            const images = (result.images || []).slice(0, 25);
+            const obj = { ok: true, links, images };
+            modelContent = `ok: ${JSON.stringify(obj).slice(0, 4000)}`;
+          } else if (action.action === 'extract_text') {
+            modelContent = `ok: ${(result.text || '').slice(0, 4000)}`;
+          } else if (action.action === 'goto') {
+            modelContent = `ok: navigated`;
+          } else if (action.action === 'click') {
+            modelContent = `ok: clicked at ${result.at?.x},${result.at?.y}`;
+          } else {
+            modelContent = `ok`;
+          }
+
+          // Same-action repeat detector: if the model called the same action
+          // (with the same key params) 3x in a row and the result didn't change,
+          // it's stuck. Tell it explicitly + abort if it ignores us.
+          const actionKey = `${action.action}:${action.url || ''}:${action.filter || ''}:${action.text || ''}`;
+          if (actionKey === lastActionKey) {
+            consecutiveSameAction += 1;
+          } else {
+            lastActionKey = actionKey;
+            consecutiveSameAction = 1;
+          }
+          if (consecutiveSameAction === MAX_REPEAT_ACTION) {
+            // Strong nudge before aborting on next repeat.
+            history.push({ role: 'system', content: `You called ${action.action} ${MAX_REPEAT_ACTION} times in a row with the same arguments. Either use the data already returned, try a different action, or call finish().` });
+          } else if (consecutiveSameAction > MAX_REPEAT_ACTION) {
+            await sb.rpc('record_agent_step', {
+              p_run_id: run.id, p_kind: 'error',
+              p_payload: { phase: 'repeat_action', action: action.action, count: consecutiveSameAction },
+            });
+            outcome = 'failed';
+            summary = `Stopped: called ${action.action} ${consecutiveSameAction} times without progress. Use the data from the first call or change approach.`;
+            abortRun = true;
+            break;
+          }
+
           await sb.rpc('record_agent_step', {
             p_run_id: run.id, p_kind: 'browser_action',
-            p_payload: { action, result: { ok: result.ok, error: result.error || null, at: result.at, key: result.key, ms: result.ms, dx: result.dx, dy: result.dy } },
+            p_payload: {
+              action,
+              result: {
+                ok: result.ok,
+                error: result.error || null,
+                at: result.at,
+                key: result.key,
+                ms: result.ms,
+                dx: result.dx,
+                dy: result.dy,
+                // Light stats for UI; full data only goes to the model history.
+                ...(action.action === 'extract_links' ? { link_count: (result.links || []).length, image_count: (result.images || []).length } : {}),
+                ...(action.action === 'extract_text' ? { text_chars: (result.text || '').length } : {}),
+              },
+            },
+            p_screenshot_b64: screenshotB64,
             p_cost_cents: 0,
           });
           history.push({ role: 'assistant', content: '', tool_calls: [{ id: tc.id, type: 'function', function: { name: 'browser_action', arguments: tc.argumentsJson } }] });
-          history.push({ role: 'tool', tool_call_id: tc.id, name: 'browser_action', content: result.ok ? `ok${result.text ? ': ' + result.text.slice(0, 600) : ''}` : `failed: ${result.error || 'unknown'}` });
+          history.push({ role: 'tool', tool_call_id: tc.id, name: 'browser_action', content: modelContent });
           stepsExecuted += 1;
           continue;
         }
