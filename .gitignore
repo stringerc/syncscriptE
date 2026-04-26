@@ -163,6 +163,30 @@ src/contexts/AgentRunContext.tsx
 /tmp_*.png
 vercel_deploy_log*.txt
 
+# Root-level QA screenshots / HTML dumps (never ship)
+/*.png
+/syncscript-rendered.html
+/test-results/
+/tmp-*.mjs
+/tmp-*.json
+/tmp-calendar*
+/tmp-cortana-download-refs/
+/tmp-email-qa.mjs
+/tmp-live-*.mjs
+/tmp-live-*.json
+/tmp-prod-*.mjs
+/tmp-terminal-*.txt
+/tmp-workstream-*.mjs
+/tmp-tiktok-oembed.json
+/tmp-batch5-*.mjs
+/workstream-*.png
+/workstream-*.json
+/workstream-*.mjs
+/workstream-checklist-live.mjs
+/state-*.png
+/ex052-*.png
+/ex052-*.json
+
 # Local VS Code / Cursor workspace settings (machine-specific)
 .vscode/
 
