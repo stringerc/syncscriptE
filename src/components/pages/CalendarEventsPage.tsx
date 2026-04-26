@@ -86,7 +86,6 @@ import { EventModal } from '../EventModal';
 import { LinkedCalendarEventModal } from '../calendar/LinkedCalendarEventModal';
 import { TaskEventCard } from '../TaskEventCard';
 import { SmartEventDialog } from '../SmartEventDialog';
-import { IntegrationImports } from '../IntegrationImports';
 import { SmartEventCreation } from '../CalendarSmartEvent';
 import { CalendarFilters, filterEvents, extractEventTags, CalendarFilters as CalendarFiltersType } from '../CalendarFilters';
 import { CalendarImportSelector } from '../CalendarImportSelector';
@@ -105,9 +104,6 @@ import { QuickTimePicker } from '../QuickTimePicker';
 import { FloatingMiniTimeline } from '../FloatingMiniTimeline';
 import { AdvancedFeaturesBanner } from '../AdvancedFeaturesBanner';
 import { DragScrollIndicators } from '../DragScrollIndicators';
-// PHASE 5: Integration Marketplace
-import { IntegrationMarketplace } from '../integrations/IntegrationMarketplace';
-import { MakeComWizard } from '../integrations/MakeComWizard';
 // PHASE 3: Drag feedback system (Google Calendar + Fantastical pattern)
 // PHASE 3: Drag feedback system - CLEANED UP
 // REMOVED: Old visual feedback components (DragTimeIndicator, FloatingTimeBadge, etc.)
@@ -1359,11 +1355,6 @@ export function CalendarEventsPage() {
   const [showSmartEventDialog, setShowSmartEventDialog] = useState(false);
   const [isSmartEventOpen, setIsSmartEventOpen] = useState(false);
   
-  // PHASE 5: Integration marketplace state
-  const [showIntegrationMarketplace, setShowIntegrationMarketplace] = useState(false);
-  const [showMakeComWizard, setShowMakeComWizard] = useState(false);
-  const [integrationNotifications, setIntegrationNotifications] = useState(0);
-  
   // Filters state
   const [calendarFilters, setCalendarFilters] = useState<CalendarFiltersType>({
     eventTypes: [],
@@ -2217,34 +2208,13 @@ export function CalendarEventsPage() {
         transition={{ duration: 0.3 }}
       >
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <h1 className="text-white mb-2">Calendar & Events</h1>
             <p className="text-gray-400">Energy-aware scheduling with weather and route intelligence</p>
           </div>
-          
-          {/* Middle: Integrations */}
-          <div className="flex-1 flex justify-center">
-            <IntegrationImports />
-          </div>
-          
-          {/* Right side: Buttons */}
-          <div className="flex flex-col gap-2">
-              {/* Integration Marketplace Button */}
-              <Button
-                onClick={() => setShowIntegrationMarketplace(true)}
-                variant="outline"
-                className="relative gap-2 border-gray-600 text-white hover:bg-gray-800"
-              >
-                <Plus className="w-4 h-4" />
-                Add Integration
-                {integrationNotifications > 0 && (
-                  <Badge className="absolute -top-2 -right-2 h-5 w-5 p-0 flex items-center justify-center bg-red-500 text-white text-xs animate-pulse">
-                    {integrationNotifications}
-                  </Badge>
-                )}
-              </Button>
-              
+
+          <div className="flex shrink-0 flex-col gap-2">
               {/* Universal Event Creation Button with Restaurant Support - RESEARCH: 7 Studies Combined */}
               <Button 
                 onClick={() => setShowNewEventDialog(true)}
@@ -2934,30 +2904,6 @@ export function CalendarEventsPage() {
         />
       )} */}
       
-      {/* PHASE 5: Integration Marketplace Modal */}
-      <IntegrationMarketplace
-        open={showIntegrationMarketplace}
-        onClose={() => setShowIntegrationMarketplace(false)}
-        context="calendar"
-        onIntegrationConnect={(integrationId) => {
-          if (integrationId === 'make') {
-            setShowIntegrationMarketplace(false);
-            setShowMakeComWizard(true);
-          } else {
-            toast.success(`${integrationId} integration initiated!`);
-          }
-        }}
-      />
-      
-      {/* PHASE 5: Make.com Guided Wizard */}
-      <MakeComWizard
-        open={showMakeComWizard}
-        onClose={() => setShowMakeComWizard(false)}
-        onComplete={() => {
-          toast.success('Make.com integration activated!');
-          setIntegrationNotifications(0);
-        }}
-      />
     </DashboardLayout>
   );
 }
