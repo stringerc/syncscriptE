@@ -12,5 +12,9 @@ assert.ok(
   csp.includes('frame-src') && csp.includes('openstreetmap.org'),
   'vercel.json CSP must allow OSM iframe (frame-src … openstreetmap.org)',
 );
+assert.ok(
+  /worker-src[^;]*'self'[^;]*blob:/.test(csp) || /worker-src[^;]*blob:[^;]*'self'/.test(csp),
+  'vercel.json CSP must set worker-src for blob workers (e.g. AgentLiveCanvas / bundler worker URLs)',
+);
 
 console.log('nexus-map-csp-and-resolve-contract: ok');
