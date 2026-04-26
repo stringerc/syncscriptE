@@ -193,6 +193,47 @@ You cannot guarantee **infinite** local space; you can make exhaustion **unlikel
 - **Cross-stack script (repo root):** `npm run verify:unified-platform` — Companion path guard + library + push-route contract tests. **`npm run verify:platform:full`** adds Playwright landing capabilities. **`npm run verify:ios:build`** builds the Capacitor iOS app (App Intents Swift). **AASA** in `public/.well-known/apple-app-site-association` uses **`K85GR7XGDP.com.syncscript.app`** (matches Xcode `DEVELOPMENT_TEAM` + bundle id).
 - **Edge deploy:** `npm run deploy:edge:make-server` deploys `make-server-57781ad9` (includes `/push/register`, library search, etc.).
 
+## Nexus Agent Mode — runner deploy + verified live (2026-04-25 night, prod commit `058ff5a`)
+
+**Status: ✅ END-TO-END LIVE.** Two real smoke runs completed in production: `example.com` heading extract (2 steps, 8s, 3¢) and Wikipedia "World Wide Web" article (4 steps, 9s, 5¢). Real Playwright Chromium on Oracle ARM A1, real LLM (NVIDIA NIM Llama-3.3-70B free tier), real DB roundtrip per step, real Cloudflare exposure.
+
+### Live infra
+
+| Piece | Value |
+|---|---|
+| Oracle box | `syncscript-a1-retry-2`, public IP **`157.151.235.143`**, ARM A1 4 OCPU / 24 GB |
+| SSH alias on Mac | **`ssh oracle`** (`~/.ssh/config` Host oracle, key `~/.ssh/oracle/id_ed25519` — copied from `~/Downloads/ssh-key-2026-04-14 (2).key`) |
+| Container | `nexus-agent-runner` on port **`18790`** (loopback) |
+| Image | **`ghcr.io/stringerc/syncscript-nexus-agent-runner:latest`** (multi-arch; auto-built by `.github/workflows/agent-runner-image.yml` on push to `main` touching `deploy/nexus-agent-runner/**`) |
+| Public URL | **Cloudflare quick tunnel** docker container `cf-agent-runner-quick` (`cloudflare/cloudflared:latest`, host network, `tunnel --no-autoupdate --url http://127.0.0.1:18790`) |
+| Current tunnel | `https://justin-romance-attitude-mutual.trycloudflare.com` — **EPHEMERAL**, changes on tunnel restart |
+| Vercel envs (production) | `AGENT_RUNNER_BASE_URL` (set to current tunnel URL), `AGENT_RUNNER_TOKEN` (= `NEXUS_PHONE_EDGE_SECRET`) |
+| GH repo variables | `AGENT_RUNNER_BASE_URL` (mirror), `AGENT_RUNNER_LIVE_VERIFY=1` (strict mode for nightly probe) |
+| Default LLM | NVIDIA NIM `meta/llama-3.3-70b-instruct` (text-only, strong FC) — was `llama-3.2-90b-vision` but it returned prose instead of `tool_calls` under tool_choice:auto |
+
+### Ops runbook
+
+- **Runner status:** `ssh oracle "sudo docker ps --filter name=nexus-agent-runner --format 'table {{.Names}}\t{{.Status}}'"`
+- **Runner logs:** `ssh oracle "sudo docker logs -f nexus-agent-runner --tail 200"`
+- **Pull latest image / restart:** `ssh oracle "sudo /opt/nexus-agent-runner/bringup.sh"` (idempotent)
+- **Tunnel logs:** `ssh oracle "sudo docker logs cf-agent-runner-quick --tail 30"`
+- **Tunnel URL right now:** `ssh oracle "sudo docker logs cf-agent-runner-quick 2>&1 | grep -oE 'https://[a-z0-9-]+\.trycloudflare\.com' | head -1"`
+- **End-to-end smoke:** `vercel env pull /tmp/.env --environment=production --yes && (set -a; . /tmp/.env; set +a) && AGENT_RUNNER_BASE_URL=<tunnel> AGENT_RUNNER_TOKEN=$NEXUS_PHONE_EDGE_SECRET node scripts/smoke-agent-run-e2e.mjs && rm /tmp/.env`
+- **Nightly health probe in CI:** GH workflow `agent-runner-live.yml` reads `vars.AGENT_RUNNER_BASE_URL`; soft-fails until `vars.AGENT_RUNNER_LIVE_VERIFY=1`.
+- **When the tunnel URL changes** (cloudflared restart): `gh variable set AGENT_RUNNER_BASE_URL -b "<new>"` AND `vercel env rm AGENT_RUNNER_BASE_URL production --yes && printf '%s' "<new>" | vercel env add AGENT_RUNNER_BASE_URL production && CI=true vercel deploy --prod --yes`. **Long-term:** swap to a **named** Cloudflare tunnel for stable DNS — `nexus-agent-runner.syncscript.app` was reserved in the runbook but not yet provisioned.
+
+### Three live-debug fixes shipped this session (all on `main`)
+
+1. **`bringup.sh` self-install crashed when piped** — `$0` is `bash` not a file path under `curl … | bash`. Fix: only `cp` when `$0` is a real file; otherwise download from raw GitHub. Commit `38a6973`.
+2. **Playwright `storageState` ENOENT** — Playwright treats `string` as a file path; we store JSON in vault. Fix: `JSON.parse(s)` into object before passing to `newContext`. Commit `ce744f2`.
+3. **Safety gate blocked `goto example.com`** — `currentUrl='about:blank'` has empty host; `siteIsBlocked` defaulted empty host → blocked. Fix: empty host → not blocked; for `kind:'goto'`, evaluate `action.url` instead of `currentUrl`. Commit `058ff5a`.
+
+Plus: **default NIM model swapped from vision to text-FC**, `tool_choice: 'required'` with graceful `'auto'` fallback, and a 3-consecutive-non-tool-turn abort that names the model so users know to BYOK upgrade. Commit `2b3a6b5`.
+
+### Owner action
+
+- **Optional:** Provision a named Cloudflare tunnel (`nexus-agent-runner.syncscript.app`) so the URL is stable across cloudflared restarts. Until then, watch `cf-agent-runner-quick` health — if it cycles, refresh the env per the runbook above.
+
 ## Nexus Agent Mode — runner deploy + voice dock + persistent contexts (2026-04-25 evening)
 - **GHCR-built Docker image:** `ghcr.io/stringerc/syncscript-nexus-agent-runner:latest`. Auto-built by `.github/workflows/agent-runner-image.yml` on every push to `main` that touches `deploy/nexus-agent-runner/**`. Multi-arch (linux/amd64 + linux/arm64 — Oracle Always-Free is ARM). Cache via GitHub Actions cache.
 - **One-line Oracle bringup:** `curl -fsSL https://raw.githubusercontent.com/stringerc/syncscriptE/main/deploy/nexus-agent-runner/bringup.sh | sudo bash`. Self-installs to `/opt/nexus-agent-runner/bringup.sh`; future updates: `sudo /opt/nexus-agent-runner/bringup.sh`. Validates env, pulls image, replaces container, health-probes `/v1/health` for up to 30s.
