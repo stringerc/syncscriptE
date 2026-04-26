@@ -132,6 +132,52 @@ export async function executeBrowserAction(page, action) {
       const text = await page.evaluate(() => (document.body?.innerText || '').slice(0, 10_000));
       return { ok: true, text };
     }
+    case 'extract_links': {
+      // Extracts <a href> + <img src> URLs that look navigable. Useful for
+      // collection tasks (e.g. "find dolphin pictures") without needing to
+      // click. Result includes hostname-grouped counts so the LLM can prefer
+      // domain-restricted hits.
+      const filterKind = String(action.filter || 'all'); // 'a' | 'img' | 'all'
+      const max = Math.min(200, Math.max(1, Number(action.max) || 30));
+      const result = await page.evaluate(({ filterKind, max }) => {
+        const out = { links: [], images: [] };
+        if (filterKind === 'all' || filterKind === 'a') {
+          const anchors = Array.from(document.querySelectorAll('a[href]'))
+            .slice(0, max * 3);
+          for (const a of anchors) {
+            const href = a.getAttribute('href') || '';
+            try {
+              const abs = new URL(href, location.href).toString();
+              if (!abs.startsWith('http')) continue;
+              const text = (a.textContent || a.getAttribute('aria-label') || '').trim().slice(0, 120);
+              out.links.push({ href: abs, text });
+              if (out.links.length >= max) break;
+            } catch { /* ignore */ }
+          }
+        }
+        if (filterKind === 'all' || filterKind === 'img') {
+          const imgs = Array.from(document.querySelectorAll('img[src]'))
+            .slice(0, max * 3);
+          for (const img of imgs) {
+            const src = img.getAttribute('src') || img.getAttribute('data-src') || '';
+            try {
+              const abs = new URL(src, location.href).toString();
+              if (!abs.startsWith('http')) continue;
+              const w = img.naturalWidth || img.getAttribute('width') || 0;
+              const h = img.naturalHeight || img.getAttribute('height') || 0;
+              const alt = (img.getAttribute('alt') || '').trim().slice(0, 120);
+              // Skip tiny / data:url icons
+              if (Number(w) > 60 || Number(h) > 60 || (!w && !h)) {
+                out.images.push({ src: abs, alt, width: Number(w) || null, height: Number(h) || null });
+                if (out.images.length >= max) break;
+              }
+            } catch { /* ignore */ }
+          }
+        }
+        return out;
+      }, { filterKind, max });
+      return { ok: true, ...result };
+    }
     default:
       return { ok: false, error: `unknown_action:${action.kind}` };
   }

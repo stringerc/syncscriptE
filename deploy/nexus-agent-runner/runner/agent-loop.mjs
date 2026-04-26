@@ -34,13 +34,13 @@ const BROWSER_TOOL = {
   function: {
     name: 'browser_action',
     description:
-      'Drive a real Chromium browser. The screenshot you receive is what the user sees. Use coordinates from the visible image (1280x800).',
+      'Drive a real Chromium browser. Prefer extract_links / extract_text over click when possible — many tasks (gathering URLs, finding images, reading content) need no clicks at all. Use coordinates from the screenshot (1280x800) only when you actually need to click.',
     parameters: {
       type: 'object',
       properties: {
         action: {
           type: 'string',
-          enum: ['goto', 'click', 'type', 'press', 'scroll', 'wait', 'extract_text', 'screenshot'],
+          enum: ['goto', 'click', 'type', 'press', 'scroll', 'wait', 'extract_text', 'extract_links', 'screenshot'],
         },
         url: { type: 'string', description: 'For goto. Must start with https://.' },
         x: { type: 'number', description: 'For click. Pixel x in screenshot.' },
@@ -50,6 +50,8 @@ const BROWSER_TOOL = {
         key: { type: 'string', description: 'For press, e.g. Enter.' },
         dy: { type: 'number', description: 'For scroll. Positive scrolls down.' },
         ms: { type: 'number', description: 'For wait. Capped at 10000.' },
+        filter: { type: 'string', enum: ['a', 'img', 'all'], description: 'For extract_links: which kind to return.' },
+        max: { type: 'number', description: 'For extract_links: max items to return (default 30, hard cap 200).' },
         label: { type: 'string', description: 'Optional human label (helps safety check).' },
       },
       required: ['action'],
@@ -95,11 +97,12 @@ POLICY (this run):
 
 Rules:
 - Always start by reasoning briefly (1 sentence) about the next action.
+- For collection tasks (find images / find links / list articles), use extract_links — DO NOT click on each result. extract_links returns image URLs and anchor URLs in one call; pass them straight to add_to_resource_library / create_task.
 - Before clicking destructive labels (Submit, Pay, Delete, Confirm, Buy, Send), call request_user_approval first if you're not Tier-D on a trusted site.
 - Use create_task / add_to_resource_library when the user asks to save things — don't try to recreate that as browser actions.
-- Don't loop on the same screenshot more than 2 times — try a different approach.
+- If a browser_action returns an error like "tier_X_disallows:Y", do NOT retry the same action — try a different approach (extract_links instead of click, etc.) or call speak_to_user explaining the limit and finish.
 - When done, call finish(summary).
-- Hard caps: max 25 steps; if you can't make progress, finish with a short failure summary.`;
+- Hard caps: max ${MAX_STEPS_DEFAULT} steps; if you can't make progress, finish with a short failure summary.`;
 
 function compactHistory(history) {
   return history.slice(-MAX_PROMPT_HISTORY);
@@ -166,6 +169,13 @@ export async function runAgentLoop({ run, sb }) {
   // failure for non-FC-tuned free models. Three thoughts in a row → abort.
   let consecutiveNoToolTurns = 0;
   const MAX_NO_TOOL_TURNS = 3;
+  // Bail if the safety gate keeps blocking the same kind of action — the
+  // user's tier doesn't allow it; looping just burns cost. After N=3 same
+  // gate-blocks, fail with an actionable error message.
+  let lastBlockReason = '';
+  let consecutiveSameBlocks = 0;
+  const MAX_REPEAT_BLOCKS = 3;
+  let abortRun = false;
 
   try {
     for (let step = 0; step < stepCap; step += 1) {
@@ -191,9 +201,12 @@ export async function runAgentLoop({ run, sb }) {
         continue;
       }
 
-      // 2. Screenshot (only sent to model if the model supports vision)
+      // 2. Screenshot — ALWAYS capture so the user can watch the live agent
+      // browser in the UI. The vision flag only controls whether we attach
+      // it to the LLM prompt (text-only models can't see images, but the
+      // human user always wants to see).
       const useVision = supportsVision(cfg.provider, cfg.model);
-      const shot = useVision ? await executeBrowserAction(page, { kind: 'screenshot' }) : { ok: false };
+      const shot = await executeBrowserAction(page, { kind: 'screenshot' });
       const screenshotB64 = shot.ok ? shot.base64 : null;
       const seenUrl = await currentUrl(page);
       // For text-only models, give the model the page title and visible heading
@@ -338,6 +351,28 @@ export async function runAgentLoop({ run, sb }) {
               p_payload: { phase: 'gate', reason: decision.reason, action }, p_cost_cents: 0,
             });
             history.push({ role: 'tool', tool_call_id: tc.id, name: 'browser_action', content: `BLOCKED: ${decision.reason}` });
+
+            // Repeat-block tripwire: don't let the model loop forever.
+            if (decision.reason === lastBlockReason) {
+              consecutiveSameBlocks += 1;
+            } else {
+              lastBlockReason = decision.reason;
+              consecutiveSameBlocks = 1;
+            }
+            if (consecutiveSameBlocks >= MAX_REPEAT_BLOCKS) {
+              const tierMatch = /^tier_([A-D])_disallows:(\w+)/.exec(decision.reason);
+              const help = tierMatch
+                ? `Your automation tier ${tierMatch[1]} does not allow ${tierMatch[2]} actions. Raise the tier in Settings → Agent → Automation policy.`
+                : `Action keeps being blocked by ${decision.reason}.`;
+              await sb.rpc('record_agent_step', {
+                p_run_id: run.id, p_kind: 'error',
+                p_payload: { phase: 'repeat_block', reason: decision.reason, count: consecutiveSameBlocks, help },
+              });
+              outcome = 'failed';
+              summary = `Stopped: ${decision.reason} ${consecutiveSameBlocks}x in a row. ${help}`;
+              abortRun = true;
+              break;
+            }
             continue;
           }
           if (decision.decision === 'request_approval') {
@@ -380,7 +415,7 @@ export async function runAgentLoop({ run, sb }) {
         stepsExecuted += 1;
       }
 
-      if (didFinish) break;
+      if (didFinish || abortRun) break;
 
       // Per-run cost cap
       if (totalCostCents >= (policy.per_run_cost_cents_cap || 1000)) {
