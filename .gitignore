@@ -102,6 +102,8 @@ scripts/*
 !scripts/smoke-agent-run-e2e.mjs
 !scripts/smoke-agent-live-screencast.mjs
 !scripts/check-bundle-size.mjs
+!scripts/free-tcp-port.mjs
+!scripts/run-verify-console-errors.mjs
 
 # Large optional clone (run integrations/setup-engram.sh)
 integrations/engram_translator/

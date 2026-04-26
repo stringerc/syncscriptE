@@ -1,0 +1,5 @@
+#!/usr/bin/env sh
+# Runs full contract tests + Playwright console scan (vite preview on ephemeral port).
+# Skip when needed: HUSKY=0 git push
+set -e
+npm run verify:prepush

@@ -5,6 +5,8 @@ import { test, expect } from '@playwright/test';
  * Run before push: `npm run verify:console-errors`
  *
  * Uses local `vite preview` (see playwright.config.ts + E2E_PREVIEW_PORT).
+ * `npm run verify:console-errors` picks a free port via scripts/free-tcp-port.mjs
+ * so a leftover preview on 4178 does not fail the run. Override: E2E_PREVIEW_PORT=4178 npx playwright …
  * Extend ALLOW if a noisy third-party message is unavoidable.
  */
 const ALLOW: RegExp[] = [
