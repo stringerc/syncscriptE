@@ -231,7 +231,50 @@ You cannot guarantee **infinite** local space; you can make exhaustion **unlikel
 
 Plus: **default NIM model swapped from vision to text-FC**, `tool_choice: 'required'` with graceful `'auto'` fallback, and a 3-consecutive-non-tool-turn abort that names the model so users know to BYOK upgrade. Commit `2b3a6b5`.
 
-### Agent Mode in-depth audit (2026-04-25 night, prod commit `d4fc8a1`)
+### Live CDP screencast + decisive free-tier path (2026-04-25 late night, prod commit `0de0898`)
+
+User's #1 ask after the audit: "the live view should be the user seeing the cursor moving and typing as if they were doing it" — i.e. the same approach **Browserbase / Anthropic Operator / OpenAI Operator / Manus** use. Implemented via **Chrome DevTools Protocol screencast** broadcast over WebSocket — the architectural standard for agentic browsers.
+
+### Architecture (the same as the top-tier products)
+
+| Layer | Component |
+|---|---|
+| **Capture** | `Page.startScreencast` via Playwright CDP session — JPEG frames at quality 60, 1024x768, ~12 fps cap (`everyNthFrame` divisor). Frame emission is change-driven, not constant-rate (industry standard). |
+| **Broadcast** | `runner/screencast.mjs`: per-run `Broadcaster` with multi-subscriber Set, late-join replay (sends most-recent frame to new subscriber), heartbeat ping every 20s so Cloudflare doesn't idle the WS. |
+| **Auth** | `/api/agent/live-token` issues a 5-minute HMAC token (`base64url(JSON_payload).base64url(HMAC_SHA256(payload, AGENT_RUNNER_TOKEN))`). Runner verifies with `crypto.timingSafeEqual` — no Supabase round-trip per WS connection. |
+| **Transport** | WebSocket at `wss://<tunnel>/v1/runs/<runId>/live?token=…`. Binary frames (JPEG bytes); text messages reserved for control (`no_active_broadcaster`). |
+| **Render** | `AgentLiveCanvas.tsx` — `createImageBitmap(blob)` → `ctx.drawImage(canvas, 0, 0)`. Reconnect with exponential backoff. Status pill (LIVE / connecting / fallback). |
+| **Fallback** | When WS fails or run is `done`, render the latest static screenshot from `agent_run_steps.screenshot_b64` (already populated). Graceful degradation. |
+
+### Tightening (applied in same session)
+
+- **Browser-side:** `goto` waits for `networkidle` (4s cap) so SPA fetches settle before extract; `extract_links` filter rejects SVG/icons/UI bundles, scores by area+alt, includes `data-src` / `data-original` / `srcset` lazy attrs; auto-scrolls twice + retries when first pass returns < 5 images.
+- **Prompt:** "BUDGET DISCIPLINE — each step ≈ 1¢", explicit recipe ("goto Wikipedia → extract_links once → save N back-to-back → finish — STOP HERE"), Wikipedia recommended over image-search engines (real `<img>` tags at first paint vs JS-rendered icon grids).
+- **Auto-finish:** if goal contains a number ("save 3 X"), bail as soon as N successful `add_to_resource_library` / `create_task` / `add_note` calls land — without waiting for the model to remember to call `finish()`. **Biggest single cost-of-ownership win** on free-tier Llama-3.3.
+
+### Verified end-to-end (run `82f922e2`, 2026-04-26 03:23 UTC)
+
+| Metric | Before fixes | After fixes |
+|---|---|---|
+| Status | failed (max steps) | done |
+| Steps | 47 | **12** |
+| Cost | 22¢ | **6¢** |
+| Bookmarks saved | 0 | **3** (real `upload.wikimedia.org/.../*.jpg` URLs) |
+| Live view | 0 screenshots | **3 frames / 231 KB / first frame in 3 s** |
+| User experience | "saw nothing" | "Wikipedia loads, agent navigates, frames stream live" |
+
+### How to run smoke tests yourself
+
+```bash
+vercel env pull /tmp/.env --environment=production --yes && set -a && . /tmp/.env && set +a
+SMOKE_USER_ID=<uid> node scripts/smoke-agent-run-e2e.mjs           # functional test
+NODE_PATH=/tmp/node_modules node scripts/smoke-agent-live-screencast.mjs   # live frames test
+rm /tmp/.env
+```
+
+Both scripts now read tunnel URL from `runner_endpoints` row (Vercel-parity) instead of stale env.
+
+## Agent Mode in-depth audit (2026-04-25 night, prod commit `d4fc8a1`)
 
 User reported: "no live view of agent navigating; agent says it did things but didn't; cost cap reached." Real-run audit ran 6 progressive smoke tests, found and fixed 8 distinct bugs:
 
