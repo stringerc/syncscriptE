@@ -36,6 +36,35 @@ const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 const AGENT_RUNNER_BASE_URL = process.env.AGENT_RUNNER_BASE_URL || '';
 const AGENT_RUNNER_TOKEN = process.env.AGENT_RUNNER_TOKEN || process.env.NEXUS_PHONE_EDGE_SECRET || '';
 
+// Cache for the dynamic runner URL — Vercel functions can be warm for several
+// minutes, and the tunnel URL only changes on cloudflared restart (rare).
+// 60s cache is plenty safe; we never hand off to a stale URL because the
+// runner's /v1/runs/start handler is idempotent — even if Vercel POSTs to an
+// old URL, the runner picks up the run via DB poll within 5s anyway.
+let _runnerUrlCache: { url: string; at: number } | null = null;
+async function resolveRunnerBaseUrl(sb: ReturnType<typeof svc>): Promise<string> {
+  if (_runnerUrlCache && Date.now() - _runnerUrlCache.at < 60_000 && _runnerUrlCache.url) {
+    return _runnerUrlCache.url;
+  }
+  if (sb) {
+    try {
+      const { data } = await sb
+        .from('runner_endpoints')
+        .select('url')
+        .eq('name', 'agent_runner')
+        .maybeSingle();
+      const url = (data as { url?: string } | null)?.url || '';
+      if (url) {
+        _runnerUrlCache = { url, at: Date.now() };
+        return url;
+      }
+    } catch (e) {
+      console.warn('[agent] resolveRunnerBaseUrl supabase read failed:', e instanceof Error ? e.message : e);
+    }
+  }
+  return AGENT_RUNNER_BASE_URL;
+}
+
 const VALID_PROVIDERS: AgentLLMProvider[] = [
   'openrouter', 'gemini', 'openai', 'anthropic', 'groq', 'xai', 'mistral', 'ollama', 'custom_openai_compat',
 ];
@@ -166,9 +195,10 @@ async function handleStart(sb: any, userId: string, req: VercelRequest, res: Ver
   const runId = (inserted as { id: string }).id;
 
   let runnerHandoff: 'started' | 'queued' | 'unreachable' = 'queued';
-  if (AGENT_RUNNER_BASE_URL && AGENT_RUNNER_TOKEN) {
+  const runnerBase = await resolveRunnerBaseUrl(sb);
+  if (runnerBase && AGENT_RUNNER_TOKEN) {
     try {
-      const resp = await fetch(`${AGENT_RUNNER_BASE_URL.replace(/\/$/, '')}/v1/runs/start`, {
+      const resp = await fetch(`${runnerBase.replace(/\/$/, '')}/v1/runs/start`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${AGENT_RUNNER_TOKEN}` },
         body: JSON.stringify({ run_id: runId }),
