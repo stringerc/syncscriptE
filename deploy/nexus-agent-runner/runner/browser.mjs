@@ -23,12 +23,20 @@ export async function newPage(browser, options = {}) {
   // from it on context creation — the agent then "remembers" Gmail/etc logins.
   // Be defensive: if the supplied state is malformed, fall back to a blank
   // context rather than crashing the run.
+  // Playwright's `storageState: string` is interpreted as a FILE PATH. We
+  // store it as JSON in vault, so we must parse it into an object before
+  // handing to newContext(). Anything malformed → drop the option.
   let safeOptions = options;
   if (options.storageState && typeof options.storageState === 'string') {
     try {
-      JSON.parse(options.storageState); // sanity check
-    } catch {
-      console.warn('[runner] storageState was a string but not parseable JSON — ignoring');
+      const parsed = JSON.parse(options.storageState);
+      if (parsed && typeof parsed === 'object' && Array.isArray(parsed.cookies)) {
+        safeOptions = { ...options, storageState: parsed };
+      } else {
+        throw new Error('not a storageState object');
+      }
+    } catch (e) {
+      console.warn('[runner] dropping malformed storageState:', e?.message || e);
       safeOptions = { ...options };
       delete safeOptions.storageState;
     }
