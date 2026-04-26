@@ -81,7 +81,7 @@ export function GuestModeBanner() {
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: -20 }}
-        className="fixed top-0 z-50 bg-gradient-to-r from-indigo-600/95 via-violet-600/95 to-purple-600/95 backdrop-blur-lg shadow-lg"
+        className="fixed top-0 left-0 right-0 z-50 bg-gradient-to-r from-indigo-600/95 via-violet-600/95 to-purple-600/95 backdrop-blur-lg shadow-lg md:left-14 lg:left-[100px]"
       >
         <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between gap-4">
           {/* Left: Status Info */}

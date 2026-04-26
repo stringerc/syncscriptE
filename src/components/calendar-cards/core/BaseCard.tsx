@@ -297,6 +297,7 @@ export const BaseCard = React.memo(function BaseCard({
   
   // Formatted
   formattedTime,
+  linkedProviderLabels,
 }: BaseCardProps) {
   // ═══════════════════════════════════════════════════════════════════════════
   // RESEARCH-BASED: INTELLIGENT HOVER EXPANSION SYSTEM

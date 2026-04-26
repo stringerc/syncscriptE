@@ -4,8 +4,9 @@ import { X, Cookie, Shield, BarChart } from 'lucide-react';
 import { Button } from './ui/button';
 import { analytics } from '../utils/analytics';
 
-/** Above marketing orbs, floating CTA (z-50), and feedback FAB (z-[9999]). */
-const BANNER_Z = 'z-[10050]';
+/** Inline z-index — Tailwind v4 did not emit arbitrary `z-[10050]` from this file in production CSS, so consent sat at z-auto behind landing chrome. */
+/** Above `z-[99999]` calendar shells and `z-[100020]` voice dock so the bar stays clickable on any route. */
+const COOKIE_LAYER_Z = 250000;
 
 export function CookieConsentBanner() {
   const [isVisible, setIsVisible] = useState(false);
@@ -58,7 +59,8 @@ export function CookieConsentBanner() {
       role="dialog"
       aria-modal="false"
       aria-label="Cookie consent"
-      className={`pointer-events-none fixed bottom-0 left-0 right-0 ${BANNER_Z} transition-all duration-300 ${
+      style={{ zIndex: COOKIE_LAYER_Z }}
+      className={`pointer-events-none fixed bottom-0 left-0 right-0 transition-all duration-300 ${
         isAnimating ? 'translate-y-0 opacity-100' : 'translate-y-full opacity-0'
       }`}
     >
