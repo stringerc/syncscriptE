@@ -207,7 +207,8 @@ You cannot guarantee **infinite** local space; you can make exhaustion **unlikel
 | Image | **`ghcr.io/stringerc/syncscript-nexus-agent-runner:latest`** (multi-arch; auto-built by `.github/workflows/agent-runner-image.yml` on push to `main` touching `deploy/nexus-agent-runner/**`) |
 | Public URL | **Cloudflare quick tunnel** docker container `cf-agent-runner-quick` (`cloudflare/cloudflared:latest`, host network, `tunnel --no-autoupdate --url http://127.0.0.1:18790`) |
 | Current tunnel | `https://justin-romance-attitude-mutual.trycloudflare.com` — **EPHEMERAL**, changes on tunnel restart |
-| Vercel envs (production) | `AGENT_RUNNER_BASE_URL` (set to current tunnel URL), `AGENT_RUNNER_TOKEN` (= `NEXUS_PHONE_EDGE_SECRET`) |
+| Vercel envs (production) | `AGENT_RUNNER_TOKEN` (= `NEXUS_PHONE_EDGE_SECRET`). **`AGENT_RUNNER_BASE_URL` is now a fallback only** — see § Self-publishing tunnel URL below |
+| URL stability | `public.runner_endpoints` row + Oracle systemd watchdog auto-publishes current tunnel URL — Vercel reads it at request time. **No manual env updates ever again** |
 | GH repo variables | `AGENT_RUNNER_BASE_URL` (mirror), `AGENT_RUNNER_LIVE_VERIFY=1` (strict mode for nightly probe) |
 | Default LLM | NVIDIA NIM `meta/llama-3.3-70b-instruct` (text-only, strong FC) — was `llama-3.2-90b-vision` but it returned prose instead of `tool_calls` under tool_choice:auto |
 
@@ -230,9 +231,25 @@ You cannot guarantee **infinite** local space; you can make exhaustion **unlikel
 
 Plus: **default NIM model swapped from vision to text-FC**, `tool_choice: 'required'` with graceful `'auto'` fallback, and a 3-consecutive-non-tool-turn abort that names the model so users know to BYOK upgrade. Commit `2b3a6b5`.
 
+### Self-publishing tunnel URL (2026-04-25 night, prod commit `5b009b0`)
+
+Solved the ephemeral-URL problem **without** requiring a Cloudflare account auth click. Architecture:
+
+1. **`public.runner_endpoints`** table (migration `20260426010000_runner_endpoints.sql`) — service-role-only RLS, `(name, url, notes, updated_at)`, seeded with `name='agent_runner'`.
+2. **Oracle watchdog** at `/opt/nexus-agent-runner/watchdog-tunnel-url.sh` runs every 60s via `nexus-agent-runner-watchdog.timer` (systemd). It `docker logs cf-agent-runner-quick`, greps the current `*.trycloudflare.com` URL, and `POST`s to `${SUPABASE_URL}/rest/v1/runner_endpoints?on_conflict=name` (Prefer: merge-duplicates) using the service-role key from `/opt/nexus-agent-runner/.env`. State file `/var/lib/nexus-agent-runner/last-tunnel-url` so it only writes when the URL actually changes.
+3. **Vercel `/api/agent/[action]`** has `resolveRunnerBaseUrl(sb)` (60s in-memory warm cache) that reads `runner_endpoints.url` for `name='agent_runner'`. Falls back to `AGENT_RUNNER_BASE_URL` env var if the row is empty or Supabase is unreachable.
+4. **Validated by full rotation test (2026-04-25 01:36 UTC):** killed + recreated `cf-agent-runner-quick` → new URL `sources-floating-variable-cardiff.trycloudflare.com` → watchdog detected within 3s of rotation → upserted to Supabase → ran end-to-end smoke against new URL: 2 steps, 7s, 3¢, summary correct. **Zero manual intervention.**
+
+### Inspect / debug
+
+- Watchdog status: `ssh oracle "sudo systemctl status nexus-agent-runner-watchdog.timer"` (next trigger time)
+- Watchdog logs: `ssh oracle "sudo journalctl -u nexus-agent-runner-watchdog.service -n 50"`
+- Force a tick: `ssh oracle "sudo systemctl start nexus-agent-runner-watchdog.service"`
+- Read live row: `select name, url, notes, updated_at from public.runner_endpoints;` (service-role only)
+
 ### Owner action
 
-- **Optional:** Provision a named Cloudflare tunnel (`nexus-agent-runner.syncscript.app`) so the URL is stable across cloudflared restarts. Until then, watch `cf-agent-runner-quick` health — if it cycles, refresh the env per the runbook above.
+- **Optional upgrade for cosmetics:** Provision a named Cloudflare tunnel (`nexus-agent-runner.syncscript.app`) so the published URL is a stable hostname instead of `*.trycloudflare.com`. Run `ssh oracle "cloudflared tunnel login"` and click the printed URL to authorize the `syncscript.app` zone. After cert lands, run `cloudflared tunnel create nexus-agent-runner && cloudflared tunnel route dns nexus-agent-runner nexus-agent-runner.syncscript.app`, swap the `cf-agent-runner-quick` Docker container for `cf-agent-runner-named`, and update the watchdog's URL extraction (or just point the tunnel at `:18790` and let the row pick up the new hostname). The system already works without this — the named hostname is a polish, not a fix.
 
 ## Nexus Agent Mode — runner deploy + voice dock + persistent contexts (2026-04-25 evening)
 - **GHCR-built Docker image:** `ghcr.io/stringerc/syncscript-nexus-agent-runner:latest`. Auto-built by `.github/workflows/agent-runner-image.yml` on every push to `main` that touches `deploy/nexus-agent-runner/**`. Multi-arch (linux/amd64 + linux/arm64 — Oracle Always-Free is ARM). Cache via GitHub Actions cache.
