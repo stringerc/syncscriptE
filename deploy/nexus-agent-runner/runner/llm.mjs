@@ -117,26 +117,48 @@ export async function chatCompletion(cfg, { messages, tools, toolChoice = 'auto'
     body.tool_choice = toolChoice;
   }
 
-  const ctrl = new AbortController();
-  const t = setTimeout(() => ctrl.abort(), timeoutMs);
-  try {
-    const res = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body), signal: ctrl.signal });
-    const text = await res.text();
-    if (!res.ok) throw new Error(`[${cfg.label}] HTTP ${res.status}: ${text.slice(0, 400)}`);
-    const json = JSON.parse(text);
-    const choice = json?.choices?.[0] ?? {};
-    const message = choice.message ?? {};
-    const content = typeof message.content === 'string' ? message.content : '';
-    const toolCallsRaw = Array.isArray(message.tool_calls) ? message.tool_calls : [];
-    const toolCalls = toolCallsRaw.map((tc) => ({
-      id: String(tc.id || ''),
-      name: String(tc.function?.name || ''),
-      argumentsJson: String(tc.function?.arguments || '{}'),
-    }));
-    return { content, toolCalls, finishReason: String(choice.finish_reason || 'unknown'), usage: json.usage };
-  } finally {
-    clearTimeout(t);
+  // Retry policy: 429 (rate limit) and 5xx (upstream blip) → exponential
+  // backoff with jitter. NVIDIA NIM free tier has tight RPM limits;
+  // a couple-second pause is usually enough.
+  const MAX_RETRIES = 3;
+  const RETRY_STATUSES = new Set([429, 500, 502, 503, 504]);
+
+  let lastErr;
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt += 1) {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), timeoutMs);
+    try {
+      const res = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body), signal: ctrl.signal });
+      const text = await res.text();
+      if (!res.ok) {
+        if (RETRY_STATUSES.has(res.status) && attempt < MAX_RETRIES) {
+          const retryAfterHeader = Number(res.headers.get('retry-after'));
+          const baseMs = Number.isFinite(retryAfterHeader) && retryAfterHeader > 0
+            ? Math.min(30_000, retryAfterHeader * 1000)
+            : Math.min(20_000, 1500 * Math.pow(2, attempt));
+          const jitter = Math.floor(Math.random() * 400);
+          await new Promise((r) => setTimeout(r, baseMs + jitter));
+          continue;
+        }
+        lastErr = new Error(`[${cfg.label}] HTTP ${res.status}: ${text.slice(0, 400)}`);
+        throw lastErr;
+      }
+      const json = JSON.parse(text);
+      const choice = json?.choices?.[0] ?? {};
+      const message = choice.message ?? {};
+      const content = typeof message.content === 'string' ? message.content : '';
+      const toolCallsRaw = Array.isArray(message.tool_calls) ? message.tool_calls : [];
+      const toolCalls = toolCallsRaw.map((tc) => ({
+        id: String(tc.id || ''),
+        name: String(tc.function?.name || ''),
+        argumentsJson: String(tc.function?.arguments || '{}'),
+      }));
+      return { content, toolCalls, finishReason: String(choice.finish_reason || 'unknown'), usage: json.usage };
+    } finally {
+      clearTimeout(t);
+    }
   }
+  throw lastErr || new Error(`[${cfg.label}] retries exhausted`);
 }
 
 export function estimateCostCents(provider, usage) {
