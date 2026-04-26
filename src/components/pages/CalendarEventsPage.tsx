@@ -88,7 +88,6 @@ import { TaskEventCard } from '../TaskEventCard';
 import { SmartEventDialog } from '../SmartEventDialog';
 import { SmartEventCreation } from '../CalendarSmartEvent';
 import { CalendarFilters, filterEvents, extractEventTags, CalendarFilters as CalendarFiltersType } from '../CalendarFilters';
-import { CalendarImportSelector } from '../CalendarImportSelector';
 // TIER 1 IMPORTS
 import { CalendarEventCard } from '../calendar-cards';
 import { UnscheduledTasksPanel } from '../UnscheduledTasksPanel';
