@@ -470,7 +470,18 @@ export default defineConfig({
     apiProxyPlugin(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.svg', 'robots.txt', 'audio/nexus-greeting.mp3'],
+      includeAssets: [
+        'favicon-16x16.png',
+        'favicon-32x32.png',
+        'favicon-48x48.png',
+        'apple-touch-icon.png',
+        'android-chrome-192x192.png',
+        'android-chrome-512x512.png',
+        'syncscript-tab-logo.png',
+        'favicon.svg',
+        'robots.txt',
+        'audio/nexus-greeting.mp3',
+      ],
       manifest: {
         name: 'SyncScript',
         short_name: 'SyncScript',
@@ -483,9 +494,9 @@ export default defineConfig({
         orientation: 'portrait-primary',
         categories: ['productivity', 'business', 'utilities'],
         icons: [
-          { src: '/favicon.svg', sizes: '192x192', type: 'image/svg+xml', purpose: 'any' },
-          { src: '/favicon.svg', sizes: '512x512', type: 'image/svg+xml', purpose: 'any' },
-          { src: '/favicon.svg', sizes: '512x512', type: 'image/svg+xml', purpose: 'maskable' },
+          { src: '/android-chrome-192x192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+          { src: '/android-chrome-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+          { src: '/android-chrome-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
         ],
       },
       workbox: {

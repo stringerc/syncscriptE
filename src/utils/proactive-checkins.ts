@@ -185,7 +185,7 @@ export function showCheckInNotification(checkIn: ProactiveCheckIn): void {
 
   new Notification(`SyncScript Voice ${iconMap[checkIn.type] || '🔔'}`, {
     body: checkIn.message,
-    icon: '/favicon.ico',
+    icon: '/favicon-32x32.png',
     tag: checkIn.id,
     requireInteraction: checkIn.priority === 'high',
   });

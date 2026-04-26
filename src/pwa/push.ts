@@ -12,8 +12,8 @@ export function showLocalAgentNotification(title: string, body: string, deepLink
   if (Notification.permission !== 'granted') return;
   const notification = new Notification(title, {
     body,
-    icon: '/favicon.svg',
-    badge: '/favicon.svg',
+    icon: '/android-chrome-192x192.png',
+    badge: '/favicon-32x32.png',
     data: { deepLink },
     tag: `agent:${Date.now()}`,
   });
