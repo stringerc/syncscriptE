@@ -100,6 +100,7 @@ scripts/*
 !scripts/guard-ci-script-refs.mjs
 !scripts/verify-agent-runner-live.mjs
 !scripts/smoke-agent-run-e2e.mjs
+!scripts/smoke-agent-live-screencast.mjs
 
 # Large optional clone (run integrations/setup-engram.sh)
 integrations/engram_translator/

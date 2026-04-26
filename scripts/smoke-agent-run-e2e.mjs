@@ -30,9 +30,9 @@ if (!KEY) {
   process.exit(2);
 }
 // Resolve runner URL from runner_endpoints row first (matches what Vercel does
-// in production). Falls back to env var if the row is missing/empty. This makes
-// the smoke test track the real-time tunnel URL after cloudflared rotation.
-let RUNNER_BASE = (process.env.AGENT_RUNNER_BASE_URL || '').replace(/\/$/, '');
+// in production); env var is a last-resort fallback only. The Supabase row is
+// authoritative because the watchdog updates it whenever cloudflared rotates.
+let RUNNER_BASE = '';
 const SMOKE_GOAL = process.env.SMOKE_GOAL ||
   'Go to https://example.com and extract the H1 heading text. Then call finish() with that text as the summary.';
 const TIMEOUT_MS = parseInt(process.env.SMOKE_TIMEOUT_MS || '180000', 10);
@@ -59,13 +59,13 @@ async function probeRunnerHealth() {
 }
 
 async function main() {
-  // Resolve via runner_endpoints if env didn't set it, so we match Vercel.
-  if (!RUNNER_BASE) {
-    try {
-      const { data } = await sb.from('runner_endpoints').select('url').eq('name', 'agent_runner').maybeSingle();
-      if (data?.url) RUNNER_BASE = data.url.replace(/\/$/, '');
-    } catch { /* ignore */ }
-  }
+  // Vercel-parity: read live URL from runner_endpoints (authoritative); env
+  // var is a fallback for offline/dev. Tunnel URL changes are invisible.
+  try {
+    const { data } = await sb.from('runner_endpoints').select('url').eq('name', 'agent_runner').maybeSingle();
+    if (data?.url) RUNNER_BASE = data.url.replace(/\/$/, '');
+  } catch { /* ignore */ }
+  if (!RUNNER_BASE) RUNNER_BASE = (process.env.AGENT_RUNNER_BASE_URL || '').replace(/\/$/, '');
   log('runner base url:', RUNNER_BASE || '(unset — will skip /v1/health probe)');
 
   const initialHealth = await probeRunnerHealth();
