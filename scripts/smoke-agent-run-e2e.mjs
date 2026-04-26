@@ -29,7 +29,10 @@ if (!KEY) {
   console.error('Missing SUPABASE_SERVICE_ROLE_KEY env');
   process.exit(2);
 }
-const RUNNER_BASE = (process.env.AGENT_RUNNER_BASE_URL || '').replace(/\/$/, '');
+// Resolve runner URL from runner_endpoints row first (matches what Vercel does
+// in production). Falls back to env var if the row is missing/empty. This makes
+// the smoke test track the real-time tunnel URL after cloudflared rotation.
+let RUNNER_BASE = (process.env.AGENT_RUNNER_BASE_URL || '').replace(/\/$/, '');
 const SMOKE_GOAL = process.env.SMOKE_GOAL ||
   'Go to https://example.com and extract the H1 heading text. Then call finish() with that text as the summary.';
 const TIMEOUT_MS = parseInt(process.env.SMOKE_TIMEOUT_MS || '180000', 10);
@@ -56,6 +59,13 @@ async function probeRunnerHealth() {
 }
 
 async function main() {
+  // Resolve via runner_endpoints if env didn't set it, so we match Vercel.
+  if (!RUNNER_BASE) {
+    try {
+      const { data } = await sb.from('runner_endpoints').select('url').eq('name', 'agent_runner').maybeSingle();
+      if (data?.url) RUNNER_BASE = data.url.replace(/\/$/, '');
+    } catch { /* ignore */ }
+  }
   log('runner base url:', RUNNER_BASE || '(unset — will skip /v1/health probe)');
 
   const initialHealth = await probeRunnerHealth();
@@ -64,23 +74,22 @@ async function main() {
   const userId = await pickUserId();
   log('attribution user_id:', userId);
 
-  // Ensure user has an automation_policies row + reasonable tier
-  await sb.from('automation_policies').upsert({
-    user_id: userId,
-    tier: 'A', // read-only, safest
-    daily_run_cap: 100,
-    daily_cost_cap_cents: 100,
-    agent_paused: false,
-  }, { onConflict: 'user_id' });
+  // Read the user's actual policy so the run inherits their real tier.
+  // Don't overwrite their settings the way an earlier version did.
+  const { data: policyRow } = await sb
+    .from('automation_policies')
+    .select('tier')
+    .eq('user_id', userId)
+    .maybeSingle();
+  const tier = policyRow?.tier || 'B';
+  log('policy tier:', tier);
 
   log('inserting agent_runs row…');
   const { data: ins, error: insErr } = await sb.from('agent_runs').insert({
     user_id: userId,
     goal_text: SMOKE_GOAL,
     status: 'queued',
-    provider: 'nvidia',
-    model: 'meta/llama-3.2-90b-vision-instruct',
-    tier_at_start: 'A',
+    tier_at_start: tier,
   }).select('*').single();
   if (insErr) throw insErr;
   log('inserted run id:', ins.id);

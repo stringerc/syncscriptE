@@ -65,9 +65,11 @@ export function gate({ tier, action, currentUrl, trustedSites, blockedSites }) {
   // Browser-only actions (goto/click/type/etc.) — apply tier gate.
   // Tool calls (SyncScript) bypass site gate; their own RLS protects user data.
 
-  // Tier A: only read-like browser actions.
+  // Tier A: read-only browser actions only. Extracting URLs/text from a page
+  // we already loaded is not "writing" — same data the user could see by
+  // looking at the page. Blocked: click, type (could submit forms).
   if (tier === 'A') {
-    const allowed = ['goto', 'screenshot', 'scroll', 'extract_text', 'wait', 'press'];
+    const allowed = ['goto', 'screenshot', 'scroll', 'extract_text', 'extract_links', 'wait', 'press'];
     if (!allowed.includes(action.kind)) {
       return { decision: 'block', reason: `tier_A_disallows:${action.kind}` };
     }
