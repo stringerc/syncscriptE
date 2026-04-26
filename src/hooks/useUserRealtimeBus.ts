@@ -17,6 +17,7 @@ import { useEffect, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../utils/supabase/client';
 import { useAuth } from '../contexts/AuthContext';
+import { usePageVisibility } from './usePageVisibility';
 
 interface OutboxRow {
   id: string;
@@ -54,11 +55,23 @@ const WINDOW_EVENT_FANOUT: Record<string, string> = {
 
 export function UserRealtimeBus(): null {
   const { user } = useAuth();
+  const { visible } = usePageVisibility();
   const qc = useQueryClient();
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
   useEffect(() => {
     if (!user?.id) return;
+    // While the tab is hidden, don't hold a Realtime channel — Supabase keeps
+    // sockets open and routes postgres_changes even when the user can't see
+    // anything change. On visibility return, this effect re-runs and reopens
+    // the channel; the user re-syncs via React Query refetchOnWindowFocus.
+    if (!visible) {
+      if (channelRef.current) {
+        try { supabase.removeChannel(channelRef.current); } catch { /* ignore */ }
+        channelRef.current = null;
+      }
+      return;
+    }
     if (channelRef.current) {
       try { supabase.removeChannel(channelRef.current); } catch { /* ignore */ }
       channelRef.current = null;
@@ -107,7 +120,7 @@ export function UserRealtimeBus(): null {
       try { supabase.removeChannel(channel); } catch { /* ignore */ }
       channelRef.current = null;
     };
-  }, [user?.id, qc]);
+  }, [user?.id, qc, visible]);
 
   return null;
 }

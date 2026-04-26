@@ -22,6 +22,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Loader2, Globe, Wifi, WifiOff } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import { usePageVisibility } from '../../hooks/usePageVisibility';
+
+/** Max client-side draw rate, regardless of WS frame arrival rate. The CDP
+ *  side already emits at ~12fps via `everyNthFrame`, but during fast scrolls
+ *  it can spike higher; we coalesce to a single rAF-aligned paint per ~80ms. */
+const MAX_DRAW_FPS = 12;
+const MIN_FRAME_INTERVAL_MS = 1000 / MAX_DRAW_FPS;
 
 interface Props {
   runId: string;
@@ -38,11 +45,18 @@ interface LiveTokenResponse {
 
 export function AgentLiveCanvas({ runId, isActive, fallbackScreenshotB64, fallbackUrlLabel }: Props) {
   const { accessToken } = useAuth();
+  const { visible } = usePageVisibility();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectAttempt = useRef(0);
-  const [status, setStatus] = useState<'connecting' | 'live' | 'fallback' | 'idle'>('idle');
+  // rAF-coalesced paint state: pendingFrame holds the most recent ArrayBuffer,
+  // rafScheduled prevents queueing duplicate rAFs. If frames arrive faster than
+  // the browser can paint, only the LATEST is rendered (last-write-wins).
+  const pendingFrameRef = useRef<ArrayBuffer | null>(null);
+  const rafScheduledRef = useRef(false);
+  const lastDrawAtRef = useRef(0);
+  const [status, setStatus] = useState<'connecting' | 'live' | 'fallback' | 'idle' | 'paused'>('idle');
   const [framesReceived, setFramesReceived] = useState(0);
   const [lastFrameAt, setLastFrameAt] = useState<number | null>(null);
 
@@ -53,6 +67,13 @@ export function AgentLiveCanvas({ runId, isActive, fallbackScreenshotB64, fallba
   useEffect(() => {
     if (!isActive || !accessToken || !runId) {
       setStatus('idle');
+      return;
+    }
+    // Page is hidden: don't open a fresh WS — last frame stays on canvas, we
+    // resume on visibility change. This is the single biggest CPU win on
+    // background tabs (Browserbase + Operator both do this).
+    if (!visible) {
+      setStatus('paused');
       return;
     }
 
@@ -91,7 +112,7 @@ export function AgentLiveCanvas({ runId, isActive, fallbackScreenshotB64, fallba
           // until first frame. Avoids a confusing "live" badge over a black canvas.
         };
 
-        ws.onmessage = async (ev) => {
+        ws.onmessage = (ev) => {
           if (cancelled) return;
           // Binary = JPEG frame. Text = control message (no_active_broadcaster, etc.)
           if (typeof ev.data === 'string') {
@@ -104,27 +125,41 @@ export function AgentLiveCanvas({ runId, isActive, fallbackScreenshotB64, fallba
             return;
           }
           if (!(ev.data instanceof ArrayBuffer)) return;
-
-          try {
-            const bitmap = await createImageBitmap(new Blob([ev.data], { type: 'image/jpeg' }));
-            const canvas = canvasRef.current;
-            if (!canvas) { bitmap.close?.(); return; }
-            // Resize canvas backing store to match incoming frame's pixel dims
-            // for a 1:1 render. CSS will fit it to the viewport.
-            if (canvas.width !== bitmap.width || canvas.height !== bitmap.height) {
-              canvas.width = bitmap.width;
-              canvas.height = bitmap.height;
+          // Last-write-wins: keep only the most recent frame. If we're already
+          // about to paint, just update the buffer; the queued rAF picks it up.
+          pendingFrameRef.current = ev.data;
+          if (rafScheduledRef.current) return;
+          // Frame-rate cap: skip the rAF if we drew too recently. Lets the WS
+          // keep buffering; the next message will fire a draw within ≤80ms.
+          const now = performance.now();
+          const sinceLast = now - lastDrawAtRef.current;
+          if (sinceLast < MIN_FRAME_INTERVAL_MS) return;
+          rafScheduledRef.current = true;
+          requestAnimationFrame(async () => {
+            rafScheduledRef.current = false;
+            const buf = pendingFrameRef.current;
+            pendingFrameRef.current = null;
+            if (!buf || cancelled) return;
+            try {
+              const bitmap = await createImageBitmap(new Blob([buf], { type: 'image/jpeg' }));
+              const canvas = canvasRef.current;
+              if (!canvas) { bitmap.close?.(); return; }
+              if (canvas.width !== bitmap.width || canvas.height !== bitmap.height) {
+                canvas.width = bitmap.width;
+                canvas.height = bitmap.height;
+              }
+              const ctx = canvas.getContext('2d');
+              if (ctx) ctx.drawImage(bitmap, 0, 0);
+              bitmap.close?.();
+              hasLiveFrameRef.current = true;
+              lastDrawAtRef.current = performance.now();
+              setStatus('live');
+              setFramesReceived((n) => n + 1);
+              setLastFrameAt(Date.now());
+            } catch {
+              /* corrupt frame — drop */
             }
-            const ctx = canvas.getContext('2d');
-            if (ctx) ctx.drawImage(bitmap, 0, 0);
-            bitmap.close?.();
-            hasLiveFrameRef.current = true;
-            setStatus('live');
-            setFramesReceived((n) => n + 1);
-            setLastFrameAt(Date.now());
-          } catch {
-            /* corrupt frame — drop */
-          }
+          });
         };
 
         ws.onerror = () => {
@@ -159,10 +194,17 @@ export function AgentLiveCanvas({ runId, isActive, fallbackScreenshotB64, fallba
     return () => {
       cancelled = true;
       reconnectAttempt.current = 0;
+      // Cancel any pending paint so we don't process a stale frame after
+      // unmount / pause.
+      pendingFrameRef.current = null;
+      rafScheduledRef.current = false;
       try { currentWs?.close(1000, 'unmount'); } catch { /* ignore */ }
       wsRef.current = null;
     };
-  }, [runId, isActive, accessToken]);
+    // `visible` is intentionally a dep — when the tab goes hidden the effect
+    // re-runs, hits the early return above, and the cleanup closes the WS.
+    // When the tab comes back, the effect re-runs again and reconnects.
+  }, [runId, isActive, accessToken, visible]);
 
   // Compute how stale the last frame is — used to show "frozen" indicator.
   const staleMs = useMemo(() => {
@@ -231,6 +273,7 @@ export function AgentLiveCanvas({ runId, isActive, fallbackScreenshotB64, fallba
         {status === 'connecting' && <span>connecting…</span>}
         {status === 'fallback' && <span>screenshot</span>}
         {status === 'idle' && <span>idle</span>}
+        {status === 'paused' && <span>paused (tab hidden)</span>}
       </div>
 
       {fallbackUrlLabel && (

@@ -17249,6 +17249,31 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
   .skip-to-main {
     transition: none;
   }
+
+  /* Honor OS-level reduce-motion globally for animations/transitions.
+     Tasks, modals, and energy fills already have explicit non-motion
+     fallbacks; this catches everything else (orb sheen, particle dust,
+     spinners, micro-bounces) without per-component edits. */
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* When the tab is hidden (data-page-hidden set by usePageVisibility),
+   pause continuous CSS animations on opt-in elements. Components mark
+   themselves with `data-pause-when-hidden` if their animation runs at
+   60fps and would otherwise burn GPU even though the user can't see it.
+   The Aether orb sheen + particle dust already opt in. */
+:root[data-page-hidden] [data-pause-when-hidden],
+:root[data-page-hidden] [data-pause-when-hidden] *,
+:root[data-page-hidden] [data-pause-when-hidden]::before,
+:root[data-page-hidden] [data-pause-when-hidden]::after {
+  animation-play-state: paused !important;
 }
 
 .sr-only {

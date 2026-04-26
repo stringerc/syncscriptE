@@ -14,6 +14,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { createClient } from '@supabase/supabase-js';
 import { useAuth } from '../contexts/AuthContext';
 import { projectId, publicAnonKey } from '../utils/supabase/info';
+import { usePageVisibility } from './usePageVisibility';
 
 const supa = createClient(
   `https://${projectId}.supabase.co`,
@@ -87,12 +88,17 @@ export function useAgentRuns(filter?: { projectId?: string | null }) {
 
 export function useAgentRunDetail(runId: string | null) {
   const { accessToken } = useAuth();
+  const { visible } = usePageVisibility();
   const qc = useQueryClient();
   const channelRef = useRef<ReturnType<typeof supa.channel> | null>(null);
 
   const query = useQuery({
     queryKey: ['agent-run', runId],
     enabled: Boolean(runId && accessToken),
+    // React Query already gates `refetchInterval` behind tab visibility
+    // (refetchIntervalInBackground defaults to false), but when the tab is
+    // visible we still poll every 5s. That's fine — the heavy lifting is
+    // done by the Realtime channel; the poll is a safety net.
     refetchInterval: 5_000,
     queryFn: async () => {
       const res = await authFetch(accessToken!, `/api/agent/run?run_id=${encodeURIComponent(runId!)}`);
@@ -103,6 +109,15 @@ export function useAgentRunDetail(runId: string | null) {
 
   useEffect(() => {
     if (!runId) return;
+    // Tab hidden — drop the channel. The 5s poll is already paused by
+    // React Query, so the run page goes effectively idle.
+    if (!visible) {
+      if (channelRef.current) {
+        try { channelRef.current.unsubscribe(); } catch { /* ignore */ }
+        channelRef.current = null;
+      }
+      return;
+    }
     if (channelRef.current) channelRef.current.unsubscribe();
     const ch = supa
       .channel(`agent-run:${runId}`)
@@ -126,7 +141,7 @@ export function useAgentRunDetail(runId: string | null) {
       .subscribe();
     channelRef.current = ch;
     return () => { ch.unsubscribe(); channelRef.current = null; };
-  }, [runId, qc]);
+  }, [runId, qc, visible]);
 
   return query;
 }
