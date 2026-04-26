@@ -32,12 +32,22 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
   workers: 1,
+  /** Visual baselines are per-project; only Chromium is committed for screenshots. */
+  snapshotPathTemplate: '{testDir}/{testFilePath}-snapshots/{arg}{-projectName}{ext}',
   reporter: 'list',
   use: {
     baseURL,
     trace: 'on-first-retry',
     viewport: { width: 1280, height: 800 },
   },
-  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
+  projects: [
+    { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
+    /** Engine canary: same layout geometry spec, catches flex/overflow bugs WebKit/Gecko differ on. */
+    {
+      name: 'firefox',
+      use: { ...devices['Desktop Firefox'] },
+      testMatch: '**/dashboard-layout-columns.spec.ts',
+    },
+  ],
   ...(webServer ? { webServer } : {}),
 });

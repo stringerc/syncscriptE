@@ -132,7 +132,7 @@ export function DashboardPage() {
       )}
       
       <motion.div 
-        className="flex-1 overflow-auto hide-scrollbar p-4 sm:p-6 space-y-4 sm:space-y-6"
+        className="min-w-0 max-w-full flex-1 overflow-y-auto overflow-x-hidden hide-scrollbar p-4 sm:p-6 space-y-4 sm:space-y-6"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3 }}
@@ -171,12 +171,12 @@ export function DashboardPage() {
           </motion.div>
         )}
         
-        {/* Below md: single vertical scroll. md and up: three columns with per-column scroll (aligned with sidebar). */}
-        <div className="flex max-w-[1600px] mx-auto min-h-0 flex-col gap-8 md:h-full md:min-h-0 md:flex-row md:gap-6">
+        {/* md+: three columns. At row direction never use w-full on children (width:100% each overflows). min-w-0 on main + md:w-auto fixes clip beside AI rail. */}
+        <div className="mx-auto flex min-h-0 w-full min-w-0 max-w-[1600px] flex-col gap-8 md:h-full md:min-h-0 md:flex-row md:gap-6">
           {/* Left Column - AI & FOCUS */}
           <div
             id="ai-suggestions"
-            className="min-h-0 w-full min-w-0 shrink-0 md:flex-1 md:overflow-y-auto md:overscroll-contain hide-scrollbar"
+            className="min-h-0 w-full min-w-0 md:h-full md:w-auto md:min-w-0 md:flex-1 md:overflow-y-auto md:overscroll-contain hide-scrollbar"
           >
             <AIFocusSection />
           </div>
@@ -184,7 +184,7 @@ export function DashboardPage() {
           {/* Middle Column - TODAY'S ORCHESTRATION */}
           <div
             id="energy-meter"
-            className="min-h-0 w-full min-w-0 shrink-0 md:flex-1 md:overflow-y-auto md:overscroll-contain hide-scrollbar"
+            className="min-h-0 w-full min-w-0 md:h-full md:w-auto md:min-w-0 md:flex-1 md:overflow-y-auto md:overscroll-contain hide-scrollbar"
           >
             <TodaySection />
           </div>
@@ -192,7 +192,7 @@ export function DashboardPage() {
           {/* Right Column - RESOURCE HUB */}
           <div
             id="roygbiv-ring"
-            className="min-h-0 w-full min-w-0 shrink-0 md:flex-1 md:overflow-y-auto md:overscroll-contain hide-scrollbar"
+            className="min-h-0 w-full min-w-0 md:h-full md:w-auto md:min-w-0 md:flex-1 md:overflow-y-auto md:overscroll-contain hide-scrollbar"
           >
             <ResourceHubSection />
           </div>

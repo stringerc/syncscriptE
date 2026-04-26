@@ -45,6 +45,7 @@ From the repo root, **`npm run research:scan`** runs the same script against **t
 
 | Title | Date | Outcome (one line) | Artifact / archive path | Key command or commit |
 |-------|------|--------------------|---------------------------|------------------------|
+| RUM SLOs (PostHog + Sentry) | 2026-04-26 | p75 LCP/INP + error-rate targets; monthly review; complements Lighthouse (synthetic) | `./RUM_SLO_SYNCSCRIPT.md` | PostHog web vitals · Sentry release health |
 | Companion protocol policy + `openchrome` | 2026-04-11 | Allowlisted `syncscript-companion://` actions, trust/audit notes, Chrome-specific open with path guard + `events.jsonl` | `./studies/2026-04-11-companion-protocol-policy.md` · `src/config/public-links.ts` | `npm run verify:protocol-guard` in `desktop-shell` |
 | Nexus agent capabilities manifest | 2026-04-11 | Single TS manifest + docs; landing blurb wired via `NexusCapabilityBlurb` | `./nexus-agent-capabilities.md` · `src/config/nexus-tool-manifest.ts` | Align OpenClaw tools with manifest IDs |
 | Unified platform verification | 2026-04-11 | Cross-surface QA matrix (web, Companion, iOS, Watch) | `./VERIFY_UNIFIED_PLATFORM.md` | Manual + Playwright + protocol guard |

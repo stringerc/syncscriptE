@@ -111,6 +111,26 @@ jobs:
           VITE_SUPABASE_URL: https://placeholder.supabase.co
           VITE_SUPABASE_ANON_KEY: placeholder
 
+  visual-quality-e2e:
+    name: Layout, screenshots, Axe (Chromium + Firefox canary)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+      - name: Install Playwright (Chromium + Firefox)
+        run: npx playwright install chromium firefox --with-deps
+      - name: Visual quality (build + 3 spec files)
+        run: npm run test:e2e:visual-quality
+        env:
+          CI: true
+          VITE_SUPABASE_URL: https://placeholder.supabase.co
+          VITE_SUPABASE_ANON_KEY: placeholder
+
   app-ai-composer-e2e:
     runs-on: ubuntu-latest
     steps:

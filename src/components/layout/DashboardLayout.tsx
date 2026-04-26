@@ -239,8 +239,8 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           {/* Page Content */}
           <main
             id="main-content"
-            className={`flex-1 hide-scrollbar transition-all duration-300 bg-[radial-gradient(circle_at_10%_0%,rgba(45,212,191,0.05),transparent_30%),radial-gradient(circle_at_85%_5%,rgba(168,85,247,0.05),transparent_28%)] ${
-              isFullBleedView ? 'flex min-h-0 flex-col overflow-hidden' : 'overflow-y-auto'
+            className={`min-w-0 flex-1 hide-scrollbar transition-all duration-300 bg-[radial-gradient(circle_at_10%_0%,rgba(45,212,191,0.05),transparent_30%),radial-gradient(circle_at_85%_5%,rgba(168,85,247,0.05),transparent_28%)] ${
+              isFullBleedView ? 'flex min-h-0 flex-col overflow-hidden' : 'overflow-y-auto overflow-x-hidden'
             }`}
             ref={mainRef}
           >
@@ -249,7 +249,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                 isFullBleedView
                   ? /* Full-bleed pages (e.g. /ai): reserve space for fixed mobile bottom nav — same as pb-20 on other routes */
                     'flex min-h-0 flex-1 flex-col p-0 pb-20 md:pb-0'
-                  : 'p-4 md:p-6 pb-20 md:pb-6'
+                  : 'min-w-0 max-w-full p-4 md:p-6 pb-20 md:pb-6'
               }
             >
               {children}
