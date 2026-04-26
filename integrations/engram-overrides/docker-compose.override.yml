@@ -1,0 +1,9 @@
+# Merged automatically by Docker Compose with docker-compose.yml — Swagger-friendly local/CI env.
+services:
+  app:
+    # No --reload in CI / automation (single stable process).
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
+    environment:
+      - PORT=8000
+      - HTTPS_ONLY=false
+      - RATE_LIMIT_ENABLED=false

@@ -72,9 +72,9 @@ export function ProgressWithMomentum({
     Minus;
   
   return (
-    <div className=\"space-y-1.5\">
+    <div className="space-y-1.5">
       {/* Progress bar with momentum gradient */}
-      <div className=\"relative w-full\">
+      <div className="relative w-full">
         <div className={`${config.height} bg-gray-700/50 rounded-full overflow-hidden`}>
           <motion.div
             className={`${config.height} bg-gradient-to-r ${colors.gradient} rounded-full`}
@@ -112,10 +112,10 @@ export function ProgressWithMomentum({
           initial={{ opacity: 0, y: -5 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
-          className=\"flex items-center justify-between\"
+          className="flex items-center justify-between"
         >
           {/* Progress percentage with momentum */}
-          <div className=\"flex items-center gap-1.5\">
+          <div className="flex items-center gap-1.5">
             <span className={`${config.text} font-medium ${colors.text}`}>
               {Math.round(percentage)}%
             </span>
@@ -132,7 +132,7 @@ export function ProgressWithMomentum({
             {velocity === 'ahead' && daysDeviation > 0 && (
               <>
                 <span>{daysDeviation}d early</span>
-                <span className=\"text-lg leading-none\">⚡</span>
+                <span className="text-lg leading-none">⚡</span>
               </>
             )}
             {velocity === 'on-track' && (
@@ -141,7 +141,7 @@ export function ProgressWithMomentum({
             {velocity === 'behind' && daysDeviation < 0 && (
               <>
                 <span>{Math.abs(daysDeviation)}d behind</span>
-                <span className=\"text-lg leading-none\">⚠️</span>
+                <span className="text-lg leading-none">⚠️</span>
               </>
             )}
           </motion.div>

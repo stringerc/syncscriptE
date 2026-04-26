@@ -144,7 +144,11 @@ export class OpenClawClient {
         clearTimeout(timeoutId);
 
         if (!response.ok) {
-          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+          const err = new Error(`HTTP ${response.status}: ${response.statusText}`);
+          // Auth failures never succeed on retry — avoid 4× network noise + console spam
+          (err as Error & { openClawNoRetry?: boolean }).openClawNoRetry =
+            response.status === 401 || response.status === 403;
+          throw err;
         }
 
         const data: OpenClawResponse<T> = await response.json();
@@ -157,6 +161,18 @@ export class OpenClawClient {
 
       } catch (error) {
         this.errorCount++;
+
+        const noRetry =
+          typeof error === 'object' &&
+          error !== null &&
+          (error as Error & { openClawNoRetry?: boolean }).openClawNoRetry === true;
+
+        if (noRetry) {
+          if (!this.isDemoMode && import.meta.env.DEV) {
+            console.debug('[OpenClaw] Auth denied — not retrying:', error);
+          }
+          throw this.handleError(error as Error, requestId);
+        }
 
         // Last attempt failed
         if (attempt === (retries || 0)) {

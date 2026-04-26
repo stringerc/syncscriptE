@@ -1,15 +1,13 @@
 import { NavLink } from 'react-router-dom'
-import { 
-  LayoutDashboard, 
-  CheckSquare, 
-  Calendar, 
-  DollarSign, 
+import {
+  LayoutDashboard,
+  CheckSquare,
+  Calendar,
+  DollarSign,
   Settings,
   Brain,
-  Trophy,
-  Bell,
   User,
-  ExternalLink
+  ExternalLink,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/stores/authStore'

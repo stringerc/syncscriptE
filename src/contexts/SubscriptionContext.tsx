@@ -8,30 +8,13 @@
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { useAuth } from './AuthContext';
 import { projectId, publicAnonKey } from '../utils/supabase/info';
+import { LITE_TIER_LIMITS, type EntitlementLimits } from '../utils/entitlement-contract';
 
 type AccessType = 'beta' | 'subscription' | 'trial' | 'free_trial' | 'reverse_trial' | 'free_lite' | 'free' | 'none';
 
-interface FreeTierLimits {
-  tasksPerDay: number;
-  calendarIntegrations: number;
-  scriptsLimit: number;
-  aiAssistant: boolean;
-  voiceCalls: boolean;
-  customScripts: boolean;
-  teamMembers: number;
-  marketplace: boolean;
-}
-
-const LITE_TIER_LIMITS: FreeTierLimits = {
-  tasksPerDay: 5,
-  calendarIntegrations: 1,
-  scriptsLimit: 3,
-  aiAssistant: false,
-  voiceCalls: false,
-  customScripts: false,
-  teamMembers: 1,
-  marketplace: false,
-};
+// Tier 0 B fix: pull from `entitlement-contract.ts` (the single source of truth)
+// instead of redefining a local copy that disagreed (5/day vs 10/day).
+type FreeTierLimits = EntitlementLimits;
 
 interface AccessStatus {
   hasAccess: boolean;

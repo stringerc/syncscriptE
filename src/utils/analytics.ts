@@ -223,11 +223,8 @@ class AnalyticsService {
   enable(): void {
     localStorage.setItem('cookies_accepted', 'true');
     this.isInitialized = true;
-    
-    // Reload page to initialize analytics scripts
-    if (typeof window !== 'undefined') {
-      window.location.reload();
-    }
+    this.initialize();
+    // GA/gtag are already in index.html; avoid a full reload so auth CTAs and SPA navigation are not interrupted.
   }
   
   /**

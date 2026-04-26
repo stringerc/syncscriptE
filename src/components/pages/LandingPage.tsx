@@ -257,7 +257,7 @@ export function LandingPage() {
             </p>
             <div className="flex items-center gap-3">
               <button
-                onClick={() => window.location.href = '/login?guest=true'}
+                onClick={() => navigate('/login?guest=true')}
                 className="hidden sm:inline-block text-white/80 hover:text-white transition-colors font-medium"
               >
                 Try as Guest →
@@ -323,13 +323,13 @@ export function LandingPage() {
             {/* CTA Buttons */}
             <div className="flex items-center gap-3">
               <button 
-                onClick={() => window.location.href = '/login'}
+                onClick={() => navigate('/login')}
                 className="hidden sm:inline-block text-white/80 hover:text-white transition-colors text-sm"
               >
                 Sign In
               </button>
               <MagneticButton
-                onClick={() => window.location.href = '/signup'}
+                onClick={() => navigate('/signup')}
                 className="bg-gradient-to-r from-cyan-500 to-teal-500 hover:from-cyan-400 hover:to-teal-400 text-white px-4 sm:px-6 py-2 sm:py-2.5 rounded-lg font-medium transition-all hover:scale-105 active:scale-95 shadow-lg shadow-cyan-500/30 text-sm sm:text-base"
                 strength={0.2}
               >
@@ -394,7 +394,7 @@ export function LandingPage() {
                   </button>
                   <button 
                     onClick={() => {
-                      window.location.href = '/login';
+                      navigate('/login');
                       setShowMobileMenu(false);
                     }}
                     className="block w-full text-left text-white hover:text-white bg-gradient-to-r from-cyan-500/10 to-teal-500/10 hover:from-cyan-500/20 hover:to-teal-500/20 border border-cyan-500/30 transition-all py-3 px-4 rounded-lg font-medium mt-4"
@@ -422,7 +422,7 @@ export function LandingPage() {
                 Ready to work smarter, not harder?
               </p>
               <MagneticButton
-                onClick={() => window.location.href = '/signup'}
+                onClick={() => navigate('/signup')}
                 className="bg-white text-cyan-600 hover:bg-cyan-50 px-4 sm:px-6 py-2 sm:py-2.5 rounded-lg font-medium transition-all hover:scale-105 shadow-lg text-sm sm:text-base whitespace-nowrap"
                 strength={0.2}
               >
@@ -554,7 +554,7 @@ export function LandingPage() {
               </div>
               
               <button
-                onClick={() => window.location.href = '/login?guest=true'}
+                onClick={() => navigate('/login?guest=true')}
                 className="text-white/60 hover:text-white transition-colors text-sm sm:text-base font-medium group inline-flex items-center gap-2 mt-1"
               >
                 or Try as Guest
@@ -1606,7 +1606,7 @@ export function LandingPage() {
                 <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
               </MagneticButton>
               <MagneticButton
-                onClick={() => window.location.href = '/login?guest=true'}
+                onClick={() => navigate('/login?guest=true')}
                 className="group bg-white/5 border border-white/20 hover:border-cyan-400/50 hover:bg-white/10 text-white px-10 py-4 rounded-lg text-lg font-medium transition-all inline-flex items-center justify-center gap-3 w-full sm:w-auto"
                 strength={0.4}
               >
@@ -2054,7 +2054,7 @@ export function LandingPage() {
                       </button>
                       <div className="flex items-center gap-2 sm:gap-3">
                         <button
-                          onClick={() => { window.location.href = '/login?guest=true'; setShowDemoModal(false); setDemoStep(0); }}
+                          onClick={() => { navigate('/login?guest=true'); setShowDemoModal(false); setDemoStep(0); }}
                           className="text-xs sm:text-sm text-cyan-400 hover:text-cyan-300 transition-colors font-medium hidden sm:block"
                         >
                           Try Live Dashboard
@@ -2086,7 +2086,7 @@ export function LandingPage() {
                           Back
                         </button>
                         <button
-                          onClick={() => { window.location.href = '/login?guest=true'; setShowDemoModal(false); setDemoStep(0); }}
+                          onClick={() => { navigate('/login?guest=true'); setShowDemoModal(false); setDemoStep(0); }}
                           className="text-xs sm:text-sm text-cyan-400 hover:text-cyan-300 transition-colors font-medium"
                         >
                           Try Live Dashboard →

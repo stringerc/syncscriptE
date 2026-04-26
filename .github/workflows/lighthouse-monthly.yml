@@ -1,0 +1,56 @@
+# Monthly Lighthouse on production `/` — complements local `.cursor/rules/04-perf-seo-gate.mdc`.
+# Performance is asserted as **warn** (scores vary in CI); a11y/BP/SEO are **error**.
+name: Lighthouse landing (monthly)
+
+on:
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: 'Origin to audit (trailing slash optional)'
+        required: false
+        default: 'https://www.syncscript.app/'
+  schedule:
+    - cron: '0 14 1 * *' # 1st of each month, 14:00 UTC
+
+jobs:
+  lighthouse:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies (for @lhci/cli)
+        run: npm ci --legacy-peer-deps
+
+      - uses: browser-actions/setup-chrome@v1
+        id: setup-chrome
+        with:
+          chrome-version: stable
+          install-dependencies: true
+
+      - name: Run Lighthouse CI
+        run: npx lhci autorun
+        env:
+          LHCI_CHROME_PATH: ${{ steps.setup-chrome.outputs.chrome-path }}
+          LHCI_URL: ${{ github.event.inputs.base_url || 'https://www.syncscript.app/' }}
+
+      - name: Upload Lighthouse reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lighthouse-${{ github.run_id }}
+          path: .lighthouseci/
+          if-no-files-found: warn
+
+      - name: Summary
+        if: always()
+        run: |
+          echo '## Lighthouse landing' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Config: `lighthouserc.cjs` — a11y/BP/SEO strict; perf warn ≥ 0.95.' >> "$GITHUB_STEP_SUMMARY"
+          echo "Artifact: lighthouse-${{ github.run_id }} (.lighthouseci/)" >> "$GITHUB_STEP_SUMMARY"

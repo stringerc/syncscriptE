@@ -1,0 +1,14 @@
+---
+description: Performance and SEO completion gate
+globs: ["src/components/pages/LandingPageElite.tsx","index.html","vite.config*"]
+alwaysApply: true
+---
+LIGHTHOUSE TARGETS: Perf >= 95, A11y = 100, BP = 100, SEO >= 90
+REQUIRED IN BUILT HTML:
+- Landing copy in raw HTML source
+- JSON-LD SoftwareApplication schema
+- OG + Twitter meta tags with valid image asset
+- Meta description under 155 chars with "energy-aware scheduling"
+FONT: preload critical only, font-display:swap
+IMAGES: explicit width+height, lazy below fold, modern formats
+JS: route-split, defer non-critical, no render-blocking on landing

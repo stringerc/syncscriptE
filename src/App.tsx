@@ -4,6 +4,8 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ObservabilityIdentifier } from './observability/ObservabilityIdentifier';
 import { UserRealtimeBus } from './hooks/useUserRealtimeBus';
 import { KeyboardShortcutsOverlay } from './components/KeyboardShortcutsOverlay';
+import { PastDueBanner } from './components/billing/PastDueBanner';
+import { HelpWidget } from './components/HelpWidget';
 import { EnergyProvider } from './contexts/EnergyContext';
 import { TasksProvider } from './contexts/TasksContext';
 import { TeamProvider } from './contexts/TeamContext';
@@ -89,6 +91,9 @@ const ApiPage = lazy(() => import('./components/pages/ApiPage').then(m => ({ def
 const CommunityPage = lazy(() => import('./components/pages/CommunityPage').then(m => ({ default: m.CommunityPage })));
 const PrivacyPage = lazy(() => import('./components/pages/PrivacyPage').then(m => ({ default: m.PrivacyPage })));
 const TermsPage = lazy(() => import('./components/pages/TermsPage').then(m => ({ default: m.TermsPage })));
+const TrustPage = lazy(() => import('./components/pages/TrustPage').then(m => ({ default: m.TrustPage })));
+const ChangelogPage = lazy(() => import('./components/pages/ChangelogPage').then(m => ({ default: m.ChangelogPage })));
+const ApiDocsPage = lazy(() => import('./components/pages/ApiDocsPage').then(m => ({ default: m.ApiDocsPage })));
 const SecurityPage = lazy(() => import('./components/pages/SecurityPage').then(m => ({ default: m.SecurityPage })));
 const ForgotPasswordPage = lazy(() => import('./components/pages/ForgotPasswordPage').then(m => ({ default: m.ForgotPasswordPage })));
 const LoginPage = lazy(() => import('./components/pages/LoginPage').then(m => ({ default: m.LoginPage })));
@@ -190,6 +195,8 @@ function AppContent() {
         <ObservabilityIdentifier />
         <UserRealtimeBus />
         <KeyboardShortcutsOverlay />
+        <PastDueBanner />
+        <HelpWidget />
         <CookieConsentBanner />
         <FloatingFeedbackButton discordInviteUrl="https://discord.gg/2rq38UJrDJ" />
         <Toaster position="top-right" richColors closeButton />
@@ -217,6 +224,9 @@ function AppContent() {
                 <Route path="/community" element={<CommunityPage />} />
                 <Route path="/privacy" element={<PrivacyPage />} />
                 <Route path="/terms" element={<TermsPage />} />
+                <Route path="/trust" element={<TrustPage />} />
+                <Route path="/changelog" element={<ChangelogPage />} />
+                <Route path="/docs/api" element={<ApiDocsPage />} />
                 <Route path="/security" element={<SecurityPage />} />
 
                 {/* Auth routes — lightweight */}

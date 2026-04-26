@@ -1,0 +1,22 @@
+---
+description: When the user asks to design UI, new visuals, landing sections, or says "design something" — use the SyncScript design handoff pipeline (n8n, Figma, Cursor, tokens). See MEMORY.md § Design handoff pipeline.
+alwaysApply: false
+---
+
+# Design handoff pipeline (n8n → Figma → Cursor)
+
+Use this **whenever** the user asks to **design** something, explore **Figma**, wire **n8n**, or ship **visual/UI** work that should stay on-brand.
+
+## What to do in Cursor (implementation)
+
+1. **Do not** promise a fully automated “image → production React” pipeline. **Do** follow: **prompt → reference image (optional) → Figma as source of truth → React** using **`src/styles/globals.css`** semantic tokens and **`integrations/research/DESIGN_TOKENS_SYNCSCRIPT.md`**.
+2. **Figma → code:** Prefer **Figma MCP** (or exports) for **structure, spacing, and screenshots**; implement components manually to match tokens and **`.cursor/rules/11-ux-ui-excellence.mdc`** + **03/04** marketing gates where applicable.
+3. **Marketing surfaces:** **`LandingPageElite.tsx`**, prerender, Lighthouse — **04-perf-seo-gate**, **03-landing-conversion-guardrails**.
+4. **Orchestration outside the repo:** **n8n** = webhooks and HTTP to **Gemini / Imagen / NVIDIA** (or similar); **OpenClaw** can call the same endpoints — neither replaces **Figma API** limits or removes a **human/plugin** step for bitmap → real components.
+
+## Honest limits (tell the user when relevant)
+
+- **Figma does not** natively turn a flat image into a shippable UI; typical path is **place image → trace/rebuild with components**, or **plugins** (variable quality).
+- **Strong pattern:** **prompt → image → (human or plugin pass in Figma) → tokens + components → Cursor builds React**.
+
+Full write-up: **`MEMORY.md`** (quick bullet + **§ Design handoff pipeline**). Deep checklist: **`integrations/research/UX_UI_REFERENCE_CANON.md`**.

@@ -3,12 +3,16 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useAuthStore } from '@/stores/authStore'
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
+import { useAiPageChromeMobileToolbar } from '@/contexts/AiPageChromeContext'
 
 export function AppHeader() {
   const { user, logout } = useAuthStore()
   const [searchQuery, setSearchQuery] = useState('')
   const navigate = useNavigate()
+  const location = useLocation()
+  const aiMobileToolbar = useAiPageChromeMobileToolbar()
+  const showAiMobileChrome = location.pathname === '/app/ai-assistant' && aiMobileToolbar
 
   const handleLogout = () => {
     logout()
@@ -16,8 +20,11 @@ export function AppHeader() {
   }
 
   return (
-    <header className="bg-card border-b border-border px-6 py-4">
-      <div className="flex items-center justify-between">
+    <header className="bg-card border-b border-border flex flex-col">
+      {showAiMobileChrome ? (
+        <div className="w-full lg:hidden border-b border-border bg-muted/30 px-6 py-2">{aiMobileToolbar}</div>
+      ) : null}
+      <div className="px-6 py-4 flex items-center justify-between">
         <div className="flex-1 max-w-md">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />

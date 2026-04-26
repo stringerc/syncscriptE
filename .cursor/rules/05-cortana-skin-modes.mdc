@@ -1,0 +1,11 @@
+---
+description: Cortana desktop-shell skin — neutral mannequin only
+globs: nature-cortana-platform/desktop-shell/src/overlay.js
+---
+
+# Cortana `overlay.js` skin
+
+- **Single path:** neutral mannequin — solid suit, **no** Storm / reference texture maps, **no** `CORTANA_SKIN_MODE` toggles, **no** holographic cyan tint pass on fallback materials.
+- **Forbidden:** Reintroducing the old reference-pack skin stack (zone body tinting, storm maps, scanline head shaders, or duplicate “modes” that differ only by name).
+
+After editing `overlay.js`, run `npm run reload` in `desktop-shell` when the reload server is used.

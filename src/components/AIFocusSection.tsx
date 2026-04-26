@@ -151,12 +151,12 @@ export function AIFocusSection() {
   };
 
   return (
-    <div className="flex min-h-0 flex-col pb-4 lg:h-full">
+    <div className="flex min-h-0 flex-col pb-4 md:h-full">
       <h2 className="text-white mb-4">AI & FOCUS</h2>
 
-      <div className="flex min-h-0 flex-col gap-4 lg:flex-1">
+      <div className="flex min-h-0 flex-col gap-4 md:flex-1">
         {/* What Should I Be Doing Card */}
-        <div className="flex shrink-0 flex-col gap-4 justify-start rounded-2xl border border-teal-800/30 bg-gradient-to-br from-teal-900/40 to-blue-900/40 p-4 card-hover cursor-pointer shadow-lg shadow-teal-900/20 sm:p-8 lg:min-h-0 lg:flex-[1.4]">
+        <div className="flex shrink-0 flex-col gap-4 justify-start rounded-2xl border border-teal-800/30 bg-gradient-to-br from-teal-900/40 to-blue-900/40 p-4 card-hover cursor-pointer shadow-lg shadow-teal-900/20 sm:p-8 md:min-h-0 md:flex-[1.4]">
           <div className="flex items-start justify-between gap-2">
             <h3 className="text-white text-base sm:text-lg leading-snug pr-1">What Should I Be Doing Right Now?</h3>
             <HelpCircle className="w-5 h-5 text-gray-400 hover:text-teal-400 transition-colors cursor-pointer shrink-0 mt-0.5" />
@@ -230,7 +230,7 @@ export function AIFocusSection() {
 
         {/* Energy Adaptive Agent - RESEARCH-BACKED AHEAD-OF-TIME VERSION */}
         <motion.div 
-          className="flex shrink-0 flex-col justify-center rounded-2xl border border-gray-700/50 bg-gradient-to-br from-gray-900/80 to-gray-800/80 p-4 card-hover shadow-lg transition-all cursor-pointer group relative overflow-hidden hover:border-teal-500/40 sm:p-6 lg:min-h-0 lg:flex-1"
+          className="flex shrink-0 flex-col justify-center rounded-2xl border border-gray-700/50 bg-gradient-to-br from-gray-900/80 to-gray-800/80 p-4 card-hover shadow-lg transition-all cursor-pointer group relative overflow-hidden hover:border-teal-500/40 sm:p-6 md:min-h-0 md:flex-1"
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
         >
@@ -416,7 +416,7 @@ export function AIFocusSection() {
 
         {/* Weather & Route Intelligence - RESEARCH-BACKED AHEAD-OF-TIME VERSION */}
         <motion.div 
-          className="flex min-h-0 shrink-0 flex-col justify-start gap-3 overflow-x-clip overflow-y-visible rounded-2xl border border-gray-700/50 bg-gradient-to-br from-gray-900/80 to-gray-800/80 p-4 card-hover shadow-lg transition-all group hover:border-purple-500/40 sm:p-6 lg:flex-[0.7]"
+          className="flex min-h-0 shrink-0 flex-col justify-start gap-3 overflow-x-clip overflow-y-visible rounded-2xl border border-gray-700/50 bg-gradient-to-br from-gray-900/80 to-gray-800/80 p-4 card-hover shadow-lg transition-all group hover:border-purple-500/40 sm:p-6 md:flex-[0.7]"
           whileHover={{ scale: 1.02 }}
         >
           {/* Animated background gradient — must not intercept clicks */}

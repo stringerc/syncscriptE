@@ -176,7 +176,7 @@ test('runner agent-loop emits screenshot, thought, browser_action steps via reco
 test('safety gate blocks Tier-A non-read actions and routes destructive to approval', () => {
   const safety = read('deploy/nexus-agent-runner/runner/safety.mjs');
   assert.match(safety, /tier === 'A'/);
-  assert.match(safety, /'goto', 'screenshot', 'scroll', 'extract_text', 'wait', 'press'/);
+  assert.match(safety, /'goto', 'screenshot', 'scroll', 'extract_text', 'extract_links', 'wait', 'press'/);
   assert.match(safety, /tier === 'C'[\s\S]*?'request_approval'/);
 });
 

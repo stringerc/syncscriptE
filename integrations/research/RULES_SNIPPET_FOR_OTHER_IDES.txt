@@ -1,0 +1,12 @@
+Paste into each IDE’s user/global AI instructions (Windsurf, VS Code + Copilot, Antigravity, JetBrains AI, etc.). Same intent as SyncScript’s Cursor rules; each product stores this separately — there is no single shared file all IDEs read.
+
+---
+
+SyncScript / machine research policy (when this repo or topic applies)
+
+- Durable research lives in git at integrations/research/INDEX.md — NOT under docs/ (docs/ is gitignored in SyncScript; tracked knowledge uses integrations/research/).
+- Remember conclusions + how to reproduce (short markdown, commands, commit SHAs). Do not treat huge IDE snapshots or Application Support folders as the memory system — they are local editor/tooling bulk.
+- For archiving projects off-disk: use integrations/research/ARCHIVE-README.template.md inside or beside cold ZIP/tar archives; keep the INDEX row as the stable pointer.
+- See repo MEMORY.md (local, not always in git) for “Knowledge vs disk” and disk cleanup policy when on this Mac.
+
+No secrets in chat or rules.

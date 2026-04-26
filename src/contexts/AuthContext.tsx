@@ -11,6 +11,15 @@ const DEV_GUEST_SEED_STORAGE_KEY = 'syncscript_tasks_v1';
 const DEV_GUEST_SESSION_STORAGE_KEY = 'syncscript_dev_guest_session_v1';
 const LOCAL_ACCESS_TOKEN_KEY = 'syncscript_access_token';
 
+const _authNativeLog = console.log.bind(console);
+const _authNativeWarn = console.warn.bind(console);
+function authDevLog(...args: unknown[]) {
+  if (import.meta.env.DEV) _authNativeLog(...args);
+}
+function authDevWarn(...args: unknown[]) {
+  if (import.meta.env.DEV) _authNativeWarn(...args);
+}
+
 interface User {
   id: string;
   email: string;
@@ -114,13 +123,63 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     window.localStorage.removeItem(DEV_GUEST_SESSION_STORAGE_KEY);
   }, []);
 
+  /**
+   * Tier 0 A: `hasLoggedEnergy` / `isFirstTime` must reflect server truth once
+   * the user completes the energy checklist step (written by
+   * `checklist-tracking.ts` → `user_onboarding_progress`). We cannot patch
+   * `EnergyContext.tsx` (protected); instead we merge from Supabase here and
+   * on `syncscript:onboarding-progress-synced` after each successful upsert.
+   */
+  const mergeOnboardingEnergyFromSupabase = React.useCallback(async (userId: string) => {
+    try {
+      const { data: ob, error } = await supabase
+        .from('user_onboarding_progress')
+        .select('steps, first_energy_log_at')
+        .eq('user_id', userId)
+        .maybeSingle();
+      if (error || !ob) return;
+      const steps = (ob.steps as Record<string, unknown> | null) || {};
+      const energyDone =
+        Boolean(ob.first_energy_log_at) ||
+        steps.energy === true;
+      if (!energyDone) return;
+      setUser((prev) => {
+        if (!prev || prev.id !== userId) return prev;
+        if (prev.hasLoggedEnergy) return prev;
+        return {
+          ...prev,
+          hasLoggedEnergy: true,
+          firstEnergyLogAt:
+            prev.firstEnergyLogAt ||
+            (typeof ob.first_energy_log_at === 'string' ? ob.first_energy_log_at : undefined),
+          isFirstTime: false,
+        };
+      });
+    } catch {
+      /* missing table pre-migration, or offline */
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const handler = (ev: Event) => {
+      const ce = ev as CustomEvent<{ userId?: string }>;
+      const id = ce.detail?.userId;
+      if (!id) return;
+      void mergeOnboardingEnergyFromSupabase(id);
+    };
+    window.addEventListener('syncscript:onboarding-progress-synced', handler as EventListener);
+    return () =>
+      window.removeEventListener('syncscript:onboarding-progress-synced', handler as EventListener);
+  }, [mergeOnboardingEnergyFromSupabase]);
+
   // Check for existing session on mount AND listen for auth state changes
   useEffect(() => {
     checkSession();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        console.log('[Auth] State changed:', event, session?.user?.email);
+        authDevLog('[Auth] State changed:', event, session?.user?.email);
 
         if (event === 'SIGNED_IN' && session) {
           setAccessToken(session.access_token);
@@ -236,6 +295,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (response.ok) {
         const userData = await response.json();
         setUser(overlayAuthEmail(userData));
+        void mergeOnboardingEnergyFromSupabase(userId);
         localStorage.setItem('syncscript_auth_user_id', userData?.id || userId);
         if (!userData?.isGuest) {
           clearStoredGuestSession();
@@ -367,7 +427,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   async function signInWithGoogle() {
     try {
       // Try Supabase native Google OAuth first (cleanest flow)
-      console.log('[Auth] Trying Supabase native Google OAuth...');
+      authDevLog('[Auth] Trying Supabase native Google OAuth...');
 
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
@@ -381,13 +441,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
 
       if (!error && data?.url) {
-        console.log('[Auth] Native OAuth URL obtained, redirecting...');
+        authDevLog('[Auth] Native OAuth URL obtained, redirecting...');
         window.location.href = data.url;
         return { success: true };
       }
 
       // Fallback: custom edge function OAuth flow
-      console.log('[Auth] Native OAuth unavailable, using custom flow:', error?.message);
+      authDevLog('[Auth] Native OAuth unavailable, using custom flow:', error?.message);
 
       const response = await fetch(
         `https://${projectId}.supabase.co/functions/v1/make-server-57781ad9/integrations/google_auth/authorize`,
@@ -433,7 +493,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   async function signInWithMicrosoft() {
     try {
-      console.log('[Auth] Initiating Microsoft OAuth via Supabase native provider');
+      authDevLog('[Auth] Initiating Microsoft OAuth via Supabase native provider');
 
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'azure',
@@ -525,8 +585,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
    */
   async function uploadPhoto(file: File) {
     try {
-      console.log('[uploadPhoto] Starting upload process...');
-      console.log('[uploadPhoto] Authentication status:', {
+      authDevLog('[uploadPhoto] Starting upload process...');
+      authDevLog('[uploadPhoto] Authentication status:', {
         hasToken: !!accessToken,
         hasUser: !!user,
         userId: user?.id,
@@ -538,7 +598,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // RESEARCH: Google Chrome Labs - "Blob URLs provide instant feedback"
       // ═══════════════════════════════════════════════════════════════
       const blobUrl = URL.createObjectURL(file);
-      console.log('[uploadPhoto] Created blob URL:', blobUrl);
+      authDevLog('[uploadPhoto] Created blob URL:', blobUrl);
 
       // ═══════════════════════════════════════════════════════════════
       // PHASE 2: Convert to base64 for localStorage persistence
@@ -551,7 +611,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         reader.readAsDataURL(file);
       });
       
-      console.log('[uploadPhoto] Converted to base64, length:', base64.length);
+      authDevLog('[uploadPhoto] Converted to base64, length:', base64.length);
 
       // ═══════════════════════════════════════════════════════════════
       // PHASE 3: Store locally FIRST (offline-first approach)
@@ -560,9 +620,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         localStorage.setItem('syncscript_profile_photo', base64);
         localStorage.setItem('syncscript_profile_photo_timestamp', Date.now().toString());
-        console.log('[uploadPhoto] Saved to localStorage successfully');
+        authDevLog('[uploadPhoto] Saved to localStorage successfully');
       } catch (storageError) {
-        console.warn('[uploadPhoto] localStorage failed (might be full):', storageError);
+        authDevWarn('[uploadPhoto] localStorage failed (might be full):', storageError);
         // Continue anyway - blob URL will work for session
       }
 
@@ -571,8 +631,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // ═══════════════════════════════════════════════════════════════
       
       if (!accessToken || !user) {
-        console.log('[uploadPhoto] No authentication - using local storage only');
-        console.log('[uploadPhoto] ℹ️ Photo will be stored locally and synced when you log in');
+        authDevLog('[uploadPhoto] No authentication - using local storage only');
+        authDevLog('[uploadPhoto] ℹ️ Photo will be stored locally and synced when you log in');
         
         // Update local user state with blob URL (works without auth)
         setUser(prev => prev ? { ...prev, photoUrl: base64 } : {
@@ -597,7 +657,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // RESEARCH: Stripe - "Don't block guest users, sync on upgrade"
       // ═══════════════════════════════════════════════════════════════
       if (user.isGuest) {
-        console.log('[uploadPhoto] Guest user - using local storage with sync pending');
+        authDevLog('[uploadPhoto] Guest user - using local storage with sync pending');
         
         // Mark for future sync
         localStorage.setItem('syncscript_photo_pending_sync', 'true');
@@ -616,7 +676,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // PHASE 6: Authenticated user - upload to server
       // RESEARCH: Progressive enhancement - local first, server second
       // ═══════════════════════════════════════════════════════════════
-      console.log('[uploadPhoto] Authenticated user - uploading to server...');
+      authDevLog('[uploadPhoto] Authenticated user - uploading to server...');
       
       // First update UI with local photo (instant feedback)
       setUser(prev => prev ? { ...prev, photoUrl: base64 } : null);
@@ -629,7 +689,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       formData.append('file', file);
       formData.append('fileName', fileName);
 
-      console.log('[uploadPhoto] Sending request to server...');
+      authDevLog('[uploadPhoto] Sending request to server...');
       const uploadStartTime = performance.now();
 
       const response = await fetch(
@@ -645,7 +705,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       );
 
       const uploadDuration = ((performance.now() - uploadStartTime) / 1000).toFixed(2);
-      console.log(`[uploadPhoto] Server response in ${uploadDuration}s, status:`, response.status);
+      authDevLog(`[uploadPhoto] Server response in ${uploadDuration}s, status:`, response.status);
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -654,7 +714,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // ═══════════════════════════════════════════════════════════════
         // FALLBACK: Server failed, but we have local copy (graceful degradation)
         // ═══════════════════════════════════════════════════════════════
-        console.log('[uploadPhoto] Using local fallback due to server error');
+        authDevLog('[uploadPhoto] Using local fallback due to server error');
         
         return { 
           success: true, // Still success! Photo is saved locally
@@ -666,7 +726,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       const { photoUrl: serverPhotoUrl } = await response.json();
-      console.log('[uploadPhoto] Server upload successful:', serverPhotoUrl);
+      authDevLog('[uploadPhoto] Server upload successful:', serverPhotoUrl);
       
       // Update with server URL (replaces blob URL)
       setUser(prev => prev ? { ...prev, photoUrl: serverPhotoUrl } : null);
@@ -713,7 +773,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         JSON.stringify(getFreshMockTasks()),
       );
     } catch (error) {
-      console.warn('[Auth] Dev guest task seeding failed:', error);
+      authDevWarn('[Auth] Dev guest task seeding failed:', error);
     }
   }
 
@@ -745,7 +805,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       // Wipe all previous session data so the guest sees a completely empty workspace
       clearAllAppData();
-      console.log('[Auth] Creating guest session...');
+      authDevLog('[Auth] Creating guest session...');
       
       const response = await fetch(
         `https://${projectId}.supabase.co/functions/v1/make-server-57781ad9/auth/guest/create`,
@@ -784,7 +844,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         window.sessionStorage.setItem('syncscript_guest_boot_pending', '1');
       }
       
-      console.log('[Auth] Guest session created successfully');
+      authDevLog('[Auth] Guest session created successfully');
       await seedDevGuestTasks();
       return { success: true };
     } catch (error) {
@@ -804,7 +864,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     try {
-      console.log('[Auth] Upgrading guest account...');
+      authDevLog('[Auth] Upgrading guest account...');
       
       const response = await fetch(
         `https://${projectId}.supabase.co/functions/v1/make-server-57781ad9/auth/guest/upgrade`,
@@ -830,7 +890,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const signInResult = await signIn(email, password);
       
       if (signInResult.success) {
-        console.log('[Auth] Guest account upgraded successfully');
+        authDevLog('[Auth] Guest account upgraded successfully');
         return { success: true };
       }
       

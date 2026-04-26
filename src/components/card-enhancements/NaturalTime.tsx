@@ -85,7 +85,7 @@ export function NaturalTime({
   const isUrgent = diffMins > 0 && diffMins < 30;
   
   return (
-    <div className=\"relative inline-flex items-center group\">
+    <div className="relative inline-flex items-center group">
       <motion.div
         className={`flex items-center ${config.gap} ${color} ${config.text} font-medium`}
         onMouseEnter={() => setIsHovered(true)}
@@ -94,14 +94,14 @@ export function NaturalTime({
         transition={{ type: 'spring', stiffness: 400, damping: 20 }}
       >
         {showIcon && <Clock className={config.icon} />}
-        <span className=\"whitespace-nowrap\">
+        <span className="whitespace-nowrap">
           {naturalText}
         </span>
         
         {/* Pulse animation for urgent items */}
         {isUrgent && (
           <motion.span
-            className=\"ml-0.5 inline-block w-1.5 h-1.5 bg-amber-400 rounded-full\"
+            className="ml-0.5 inline-block w-1.5 h-1.5 bg-amber-400 rounded-full"
             animate={{
               scale: [1, 1.3, 1],
               opacity: [1, 0.5, 1],
@@ -122,15 +122,15 @@ export function NaturalTime({
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -5 }}
           transition={{ duration: 0.15 }}
-          className=\"absolute bottom-full mb-2 left-1/2 -translate-x-1/2 z-50 pointer-events-none\"
+          className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 z-50 pointer-events-none"
         >
-          <div className=\"bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 shadow-xl whitespace-nowrap\">
-            <div className=\"text-xs text-gray-300 font-medium\">
+          <div className="bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 shadow-xl whitespace-nowrap">
+            <div className="text-xs text-gray-300 font-medium">
               {absoluteTime}
             </div>
             {/* Arrow */}
-            <div className=\"absolute top-full left-1/2 -translate-x-1/2 -mt-px\">
-              <div className=\"border-4 border-transparent border-t-gray-700\" />
+            <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-px">
+              <div className="border-4 border-transparent border-t-gray-700" />
             </div>
           </div>
         </motion.div>

@@ -1,0 +1,42 @@
+# Environments
+venv/
+.venv/
+env/
+.env/
+
+# Dependencies
+node_modules/
+dist/
+build/
+.next/
+.serverless/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Metadata
+.git/
+.github/
+.vscode/
+.idea/
+
+# Logs, Results & Temp
+*.log
+*.tmp
+# Upstream used *.txt here — that excluded requirements.txt and broke `COPY requirements.txt` in Dockerfile.
+*.txt
+!requirements.txt
+*.db
+*.out
+playground/
+tests/integration/*.js
+scripts/*.js
+*.db-journal
+*.sqlite3

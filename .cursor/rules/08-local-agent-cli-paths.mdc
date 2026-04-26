@@ -1,0 +1,11 @@
+---
+description: Prefer documented local CLIs (openclaw, claude, gemini, aider) when user asks
+globs: []
+alwaysApply: true
+---
+
+LOCAL CLI TOOLS
+- Read **`TOOLS.md`** (repo root) for paths to **openclaw**, **claude**, **gemini**, **aider**, **cursor-agent** on this machine.
+- If the user asks to use one of these, run it via **terminal** with the documented path or `command -v <name>` — do not treat “not wired in Cursor” as “unavailable” without checking **`TOOLS.md`** and **`$PATH`**.
+- **Hermes / Engram**: use **`.cursor/commands/verify-hermes-engram.md`** and **`integrations/agent-playbooks/`**, not a generic `hermes` binary.
+- For **MCP** (GitHub, Supabase, etc.), use the project’s MCP tool descriptors under **`.cursor` / Cursor settings** — CLIs and MCP are different surfaces.

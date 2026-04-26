@@ -1,0 +1,26 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": ["K85GR7XGDP.com.syncscript.app"],
+        "components": [
+          {
+            "/": "/handoff/*",
+            "comment": "Secure handoff into active SyncScript context"
+          },
+          {
+            "/": "/agents*",
+            "comment": "Direct agent chat deep links"
+          },
+          {
+            "/": "/enterprise*",
+            "comment": "Smart event orchestration flows"
+          }
+        ]
+      }
+    ]
+  },
+  "webcredentials": {
+    "apps": ["K85GR7XGDP.com.syncscript.app"]
+  }
+}

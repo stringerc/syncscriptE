@@ -16,6 +16,7 @@ import { FilesLibraryEmbed } from '../settings/FilesLibraryEmbed';
 import { WebhooksTab } from '../settings/WebhooksTab';
 import { AuditLogTab } from '../settings/AuditLogTab';
 import { StripeConnectSettings } from '../settings/StripeConnectSettings';
+import { BillingSettings } from '../billing/BillingSettings';
 import { motion } from 'motion/react';
 import { toast } from 'sonner';
 import { Button } from '../ui/button';
@@ -1878,6 +1879,11 @@ export function SettingsPage() {
           </TabsContent>
 
           <TabsContent value="billing" className="space-y-6">
+            {/* Tier 0 B fix: BillingSettings was previously orphaned (defined
+                but never mounted). It exposes the real Stripe state — current
+                plan, usage, cancel/reactivate, Customer Portal — instead of
+                the marketing-only Stripe Connect tab that was here before. */}
+            {authUser?.id ? <BillingSettings userId={authUser.id} /> : null}
             <StripeConnectSettings />
           </TabsContent>
         </Tabs>

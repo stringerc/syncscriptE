@@ -1,0 +1,20 @@
+---
+description: After editing Nature Cortana desktop-shell, trigger overlay reload
+globs: nature-cortana-platform/desktop-shell/**/*
+alwaysApply: true
+---
+
+# Desktop shell — reload after edits (required)
+
+If this session **changed any file** under `nature-cortana-platform/desktop-shell/` (including `src/overlay.js`, `src/cortana-hologram-system.js`, `src/overlay.html`, `src/overlay.css`, `assets/`, `scripts/`, `src/preload.cjs`, `src/main.cjs`), **before you finish your reply** you **must** run:
+
+```bash
+cd nature-cortana-platform/desktop-shell && npm run reload
+```
+
+This POSTs to the dev reload server (default `127.0.0.1:4749`, or next free port — `reload_overlay.cjs` reads `~/Library/Application Support/nature-cortana-desktop-shell/dev-reload-port.txt` when present). Requires the app to have been started with `CORTANA_DEV_RELOAD_SERVER=1` (`npm start` / `npm run start:hero`).
+
+- If reload fails (connection refused / timeout), say so and ask the user to start Cortana once, then they can run `npm run reload` manually.
+- **Main** (`main.cjs`) or **preload** changes still need a **full quit + `npm start`** — HTTP reload only refreshes the renderer.
+
+Skip `npm run reload` only when **no** desktop-shell files were modified in this turn.

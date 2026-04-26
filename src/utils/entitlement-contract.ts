@@ -38,8 +38,16 @@ export interface AccessStatus {
   reverseTrialActive?: boolean;
 }
 
+/**
+ * Free-tier daily caps. Single source of truth — `SubscriptionContext.tsx`
+ * re-exports this exact object instead of redefining its own copy. Audit
+ * Tier 0 B fix: previously `entitlement-contract` said 10/day and
+ * `SubscriptionContext` said 5/day, neither was enforced. We standardize
+ * on 5/day to match marketing copy on `/pricing`; harder to take features
+ * away than to add them.
+ */
 export const LITE_TIER_LIMITS: EntitlementLimits = {
-  tasksPerDay: 10,
+  tasksPerDay: 5,
   calendarIntegrations: 1,
   scriptsLimit: 3,
   aiAssistant: false,

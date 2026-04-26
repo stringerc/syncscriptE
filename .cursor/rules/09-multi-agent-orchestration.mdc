@@ -1,0 +1,42 @@
+---
+description: Hermes + Cursor orchestration, completion discipline, multi-AI boundaries, global Cursor parity
+alwaysApply: true
+---
+
+# Multi-agent orchestration (SyncScript + Cursor)
+
+## Workspace identity (this repo)
+- **SyncScript** = the Vite/React app, Supabase Edge (`make-server-57781ad9`), and Vercel `api/*`. Treat **`MEMORY.md`**, **`AGENTS.md`**, **`USER.md`**, **`SOUL.md`**, and **`TOOLS.md`** as the curated handoff — not other products’ config.
+- **Do not** paste secrets into chat, rules, or MEMORY. **Do not** point unrelated tools at this repo’s `.env` or production URLs unless the task is explicitly SyncScript ops.
+
+## Finish work to completion (same session when possible)
+- Ship **code + migrations + Edge deploy + Vercel when needed + tests + MEMORY update** for production paths. If blocked, record the **exact** unblock step (env name, URL, command) in MEMORY or `memory/YYYY-MM-DD.md`.
+
+## Hermes + Cursor (recommended split)
+- **Cursor** — local **file editing**, refactors, repo search, terminal in **this workspace**, and following **`.cursor/rules/`** + contracts.
+- **Hermes** — **executor / MCP-style agent** reached via **Supabase Edge `hermes-bridge`** (`HERMES_BASE_URL` → Hermes HTTP API: `/v1/tools`, `/v1/invoke`). Use for **long agentic runs** (tool invoke loops, executor visibility) per **`integrations/agent-playbooks/`** and **`.cursor/commands/verify-hermes-engram.md`**. UI: app surfaces (e.g. **`AgentRunDock`**) + any **Hermes WebUI** you run separately — **do not** assume WebUI files live inside this repo.
+- **Context sharing** — rely on **repo markdown** (`MEMORY.md`, playbooks) and Cursor **project rules** (this folder). Legacy **`.cursorrules`** in repo root is optional; prefer **`.cursor/rules/*.mdc`**. Keep **agent-specific** narrative in **`SOUL.md` / `USER.md`** (per `AGENTS.md`), not mixed into marketing copy.
+
+## Engram + Hermes (this stack)
+- **Engram** — Edge **`engram-bridge`**; verify with playbooks — not a single `hermes` shell binary. See **`integrations/ENGRAM_OPENCLAW.md`**, **`06-agent-workflow-playbooks.mdc`**, **`08-local-agent-cli-paths.mdc`**.
+
+## Other AIs on this machine (identity + separation)
+These are **separate products** — each keeps its **own** config, working directory, and API keys. **Never** merge their state into SyncScript source or `public/` assets.
+| Role | Typical on this Mac | How to use without colliding with SyncScript |
+|------|---------------------|-----------------------------------------------|
+| **OpenClaw** | Gateway CLI (`openclaw gateway`, often `:18789`) | Run from intended CWD; prod EC2 URL in MEMORY — **not** inside `src/` |
+| **Claude / Gemini / Aider / cursor-agent** | CLIs in PATH / `TOOLS.md` | Pass **explicit repo path**; don’t reuse SyncScript env for unrelated projects |
+| **Ollama** | e.g. `/opt/homebrew/bin/ollama` | Local models — separate from Vercel/Supabase; no prod site coupling |
+| **Composio / MCP (Cursor)** | Cursor **Settings → MCP** | Use for **tool** access; still respect repo boundaries |
+
+**Before claiming “CLI missing”:** read **`TOOLS.md`**, then `command -v <name>` (see **`08-local-agent-cli-paths.mdc`**).
+
+## Making Cursor “smart” from any folder (implemented on this machine)
+1. **User Rules (always on)** — Paste **`~/.cursor/RULES_FOR_AI_GLOBAL_PASTE.txt`** into **Cursor Settings → Rules for AI**. That is the portable “one brain” **process** (boundary + no cross-repo secrets).
+2. **Universal `.mdc` (optional duplicate visibility)** — **`~/.cursor/rules-global/00-universal-cursor-brain.mdc`**. Per repo: **`./scripts/link-global-cursor-brain.sh`** → symlinks into **`.cursor/rules/`** (path is **gitignored** here so teammates aren’t forced to use your home path).
+3. **This repo’s rules** — **`09-multi-agent-orchestration.mdc`** etc. still apply when SyncScript is the workspace; they **stack** with user rules — resolve conflicts in favor of **workspace boundary** and **protected files** (`02-protected-files-never-touch.mdc`).
+
+## Improvements beyond this rule (optional)
+- **MCP** — GitHub / Supabase MCP for provider actions; **Composio** if you need many OAuth apps — still **scoped credentials**, not shared with web `build/`.
+- **CI** — `edge-bridges-live.yml` + contract tests as **non-bypassable** gates for bridges.
+- **Dedicated folders** — run local experiments under **`~/agent-work/`** or similar, **not** inside `syncscript/` unless committing intentionally.

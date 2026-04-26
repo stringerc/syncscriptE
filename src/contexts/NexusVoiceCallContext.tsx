@@ -366,6 +366,7 @@ const KOKORO_INTER_CHUNK_TAIL_TRIM_SEC = 0.072;
 
 class ProgressivePlayer {
   private ctx: AudioContext;
+  private ctxClosed = false;
   private nextStartTime: number;
   private chain: Promise<void> = Promise.resolve();
   private sealed = false;
@@ -377,6 +378,13 @@ class ProgressivePlayer {
   private firstPlayFired = false;
 
   onFirstPlay: (() => void) | null = null;
+
+  /** AudioContext.close() must run at most once — repeat calls throw InvalidStateError in browsers. */
+  private closeCtx(): void {
+    if (this.ctxClosed) return;
+    this.ctxClosed = true;
+    this.ctx.close().catch(() => {});
+  }
 
   /** True if any Kokoro audio buffer actually started playing. */
   didAudioPlay(): boolean {
@@ -391,7 +399,7 @@ class ProgressivePlayer {
       this.aborted = true;
       for (const s of this.sources) { try { s.stop(); } catch { /* ok */ } }
       this.sources = [];
-      this.ctx.close().catch(() => {});
+      this.closeCtx();
       this.doneResolve?.();
     }, { once: true });
   }
@@ -450,7 +458,7 @@ class ProgressivePlayer {
 
   private checkDone() {
     if (this.sealed && this.playedCount >= this.feedCount) {
-      this.ctx.close().catch(() => {});
+      this.closeCtx();
       this.doneResolve?.();
     }
   }
@@ -458,7 +466,7 @@ class ProgressivePlayer {
   waitUntilDone(): Promise<void> {
     if (this.aborted) return Promise.resolve();
     if (this.sealed && this.playedCount >= this.feedCount) {
-      this.ctx.close().catch(() => {});
+      this.closeCtx();
       return Promise.resolve();
     }
     return new Promise((resolve) => { this.doneResolve = resolve; });
@@ -483,7 +491,10 @@ async function playCachedBuffers(
   let firstPlayFired = false;
   await ctx.resume().catch(() => {});
   for (let i = 0; i < buffers.length; i++) {
-    if (signal.aborted) { ctx.close().catch(() => {}); return false; }
+    if (signal.aborted) {
+      ctx.close().catch(() => {});
+      return false;
+    }
     try {
       const audio = await ctx.decodeAudioData(buffers[i].slice(0));
       const src = ctx.createBufferSource();
@@ -508,8 +519,14 @@ async function playCachedBuffers(
   }
 
   return new Promise<boolean>((resolve) => {
+    let ctxClosed = false;
     const totalMs = (when - ctx.currentTime) * 1000 + 80;
-    const finish = (ok: boolean) => { ctx.close().catch(() => {}); resolve(ok); };
+    const finish = (ok: boolean) => {
+      if (ctxClosed) return;
+      ctxClosed = true;
+      ctx.close().catch(() => {});
+      resolve(ok);
+    };
     const timer = setTimeout(() => finish(true), totalMs);
 
     sources[sources.length - 1].onended = () => {
@@ -626,7 +643,9 @@ function playChime(type: 'connect' | 'disconnect') {
       osc.start(ctx.currentTime);
       osc.stop(ctx.currentTime + 0.35);
     }
-    osc.onended = () => ctx.close();
+    osc.onended = () => {
+      ctx.close().catch(() => {});
+    };
   } catch { /* silent */ }
 }
 

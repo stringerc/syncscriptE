@@ -1,0 +1,34 @@
+{
+  "updated_at": "2026-04-26",
+  "entries": [
+    {
+      "id": "2026-04-26-trust-and-reliability-pass",
+      "date": "2026-04-26",
+      "version": "v3.46",
+      "title": "Trust, reliability, and onboarding correctness pass",
+      "tags": ["feature", "security", "tooling", "perf"],
+      "highlights": [
+        "Trust portal at /trust with subprocessors, encryption posture, GDPR/CCPA, and security disclosure path.",
+        "Public changelog (this page) so customers can see exactly what shipped each release.",
+        "Onboarding fixes: server-tracked progress, unified email/OAuth signup flow, first-energy-log signal wired.",
+        "Billing fixes: Customer Portal mounted in Settings, plan changes route to real Stripe (not local-only state), past-due banner.",
+        "CI gates: 105-test contract suite now runs on every PR; bundle-size budget added; Lighthouse Perf threshold flipped from warn to error.",
+        "Performance: AgentLiveCanvas decode + draw moved to OffscreenCanvas worker; battery-adaptive frame rate; orb animations pause on hidden tabs."
+      ]
+    },
+    {
+      "id": "2026-04-25-nexus-agent-mode",
+      "date": "2026-04-25",
+      "version": "v3.45",
+      "title": "Nexus Agent Mode + live screencast",
+      "tags": ["feature"],
+      "highlights": [
+        "Agent Mode: Nexus can now drive a real browser on your behalf. Free-tier default uses NVIDIA NIM; BYOK Anthropic / OpenAI / Gemini / 5 more for higher quality.",
+        "Live screencast: watch the agent navigate in real time via CDP screencast over WebSocket — same architecture Browserbase + OpenAI Operator use.",
+        "Persistent browser contexts encrypted in Supabase Vault per user — sites you've signed in to once stay signed in across runs.",
+        "Sentry + PostHog observability fully wired with releases, source maps, alert rules, and ownership rules.",
+        "Outbound webhooks UI in Settings → Integrations + 5 prebuilt n8n recipes."
+      ]
+    }
+  ]
+}

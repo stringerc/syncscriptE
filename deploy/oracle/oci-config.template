@@ -1,0 +1,10 @@
+# Copy to ~/.oci/config (chmod 600). Fill from Oracle Console → User → API keys.
+# Do not commit this file with real values.
+
+[DEFAULT]
+user=ocid1.user.oc1..aaaaaaaaREPLACE_ME
+fingerprint=aa:bb:cc:dd:ee:ff:00:11:22:33:44:55:66:77:88:99
+tenancy=ocid1.tenancy.oc1..aaaaaaaaREPLACE_ME
+# US East (Ashburn): use exactly this identifier
+region=us-ashburn-1
+key_file=/Users/YOU/.oci/oci_api_key.pem

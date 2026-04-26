@@ -31,9 +31,10 @@ test.describe('Nexus create task after login', () => {
     await page.goto('/app/ai-assistant', { waitUntil: 'domcontentloaded' });
     const composer = page.getByRole('textbox', { name: /Message to Nexus/i });
     await expect(composer).toBeVisible({ timeout: 30_000 });
-    await expect(page.getByRole('button', { name: /Call Nexus — full voice session/i })).toBeVisible();
-    await expect(page.getByRole('button', { name: /Voice — conversational AI/i })).toBeVisible();
-    await expect(page.getByRole('button', { name: /Dictate with microphone/i })).toBeVisible();
+    // App AI renders duplicate voice CTAs (mobile + desktop); use .first() for strict mode.
+    await expect(page.getByRole('button', { name: /Call Nexus — full voice session/i }).first()).toBeVisible();
+    await expect(page.getByRole('button', { name: /Voice — conversational AI/i }).first()).toBeVisible();
+    await expect(page.getByRole('button', { name: /Dictate with microphone/i }).first()).toBeVisible();
 
     const nexusResp = page.waitForResponse(
       (r) => r.url().includes('/api/ai/nexus-user') && r.request().method() === 'POST',

@@ -1,0 +1,142 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "SyncScript API",
+    "version": "1.0.0",
+    "description": "Public API for SyncScript. Authenticated routes accept a Supabase access token (`Authorization: Bearer <jwt>`). Outbound webhooks signed with HMAC-SHA256 — see Webhooks tag.",
+    "contact": { "name": "SyncScript Trust", "url": "https://www.syncscript.app/trust", "email": "security@syncscript.app" },
+    "license": { "name": "Proprietary" }
+  },
+  "servers": [
+    { "url": "https://www.syncscript.app", "description": "Production" }
+  ],
+  "tags": [
+    { "name": "Agent", "description": "Nexus Agent Mode \u2014 drive a real headless browser on behalf of the user." },
+    { "name": "BYOK", "description": "Bring-Your-Own-Key for LLM providers." },
+    { "name": "Policy", "description": "Per-user automation policy: tier, caps, blocked / trusted sites." },
+    { "name": "Webhooks", "description": "Subscribe an external URL to receive signed event deliveries." },
+    { "name": "Live", "description": "Real-time signals (live screencast token, run status)." },
+    { "name": "Phone", "description": "Twilio-backed Nexus phone — calls, TwiML, post-call summaries. Response shapes vary by sub-route (JSON vs TwiML XML)." }
+  ],
+  "components": {
+    "securitySchemes": {
+      "supabaseJwt": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "Supabase access token from the user's session."
+      }
+    },
+    "schemas": {
+      "Error": {
+        "type": "object",
+        "properties": {
+          "error": { "type": "string", "description": "Machine-readable error code." },
+          "detail": { "type": "string", "description": "Human-readable explanation (optional)." },
+          "request_id": { "type": "string" }
+        },
+        "required": ["error"]
+      },
+      "AgentRun": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "user_id": { "type": "string", "format": "uuid" },
+          "project_id": { "type": "string", "format": "uuid", "nullable": true },
+          "goal_text": { "type": "string" },
+          "status": { "type": "string", "enum": ["queued","running","waiting_user","paused","done","failed","cancelled"] },
+          "provider": { "type": "string", "nullable": true },
+          "model": { "type": "string", "nullable": true },
+          "steps_executed": { "type": "integer" },
+          "total_cost_cents": { "type": "integer" },
+          "summary": { "type": "string", "nullable": true },
+          "error_text": { "type": "string", "nullable": true },
+          "started_at": { "type": "string", "format": "date-time", "nullable": true },
+          "completed_at": { "type": "string", "format": "date-time", "nullable": true },
+          "created_at": { "type": "string", "format": "date-time" }
+        }
+      },
+      "AgentRunStep": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "step_index": { "type": "integer" },
+          "kind": { "type": "string", "enum": ["thought","browser_action","tool_call","screenshot","user_interjection","agent_message","approval_request","error"] },
+          "payload": { "type": "object" },
+          "screenshot_b64": { "type": "string", "nullable": true },
+          "cost_cents": { "type": "integer" },
+          "created_at": { "type": "string", "format": "date-time" }
+        }
+      },
+      "WebhookSubscription": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "label": { "type": "string", "nullable": true },
+          "url": { "type": "string", "format": "uri" },
+          "event_types": { "type": "array", "items": { "type": "string" }, "description": "Empty array = subscribe to ALL event types." },
+          "active": { "type": "boolean" },
+          "consecutive_failures": { "type": "integer" },
+          "disabled_reason": { "type": "string", "nullable": true },
+          "created_at": { "type": "string", "format": "date-time" },
+          "last_delivery_at": { "type": "string", "format": "date-time", "nullable": true },
+          "secret": { "type": "string", "description": "Always returned masked from list / detail. Returned in plaintext exactly once on `webhooks-create` and `webhooks-rotate` as `secret_displayed_once`." }
+        }
+      },
+      "WebhookEventEnvelope": {
+        "type": "object",
+        "description": "Shape POSTed to subscriber URLs. Verify the `X-SyncScript-Signature` header (`sha256=<hex>`) is HMAC-SHA256 of the raw body using your subscription's secret.",
+        "properties": {
+          "id": { "type": "string", "format": "uuid", "description": "Stable event id; safe to use as an idempotency key." },
+          "user_id": { "type": "string", "format": "uuid" },
+          "event_type": { "type": "string", "example": "task.created" },
+          "entity_id": { "type": "string", "description": "Primary entity id this event references (task id, document id, etc.)." },
+          "payload": { "type": "object" },
+          "created_at": { "type": "string", "format": "date-time" }
+        }
+      }
+    }
+  },
+  "security": [{ "supabaseJwt": [] }],
+  "paths": {
+    "/api/agent/list": { "get": { "summary": "List recent agent runs", "tags": ["Agent"], "responses": { "200": { "description": "OK" } } } },
+    "/api/agent/start": { "post": { "summary": "Start an agent run", "tags": ["Agent"], "responses": { "200": { "description": "OK" }, "402": { "description": "Quota exceeded" } } } },
+    "/api/agent/run": { "get": { "summary": "Single run detail (steps + messages)", "tags": ["Agent"], "responses": { "200": { "description": "OK" } } } },
+    "/api/agent/cancel": { "post": { "summary": "Cancel a running agent run", "tags": ["Agent"], "responses": { "200": { "description": "OK" } } } },
+    "/api/agent/interject": { "post": { "summary": "Inject mid-run user message", "tags": ["Agent"], "responses": { "200": { "description": "OK" } } } },
+    "/api/agent/approve": { "post": { "summary": "Approve / decline a paused destructive action", "tags": ["Agent"], "responses": { "200": { "description": "OK" } } } },
+    "/api/agent/live-token": { "get": { "summary": "Mint short-lived token for the live screencast WebSocket", "tags": ["Live"], "responses": { "200": { "description": "OK" } } } },
+    "/api/agent/policy": {
+      "get":  { "summary": "Get current automation policy", "tags": ["Policy"], "responses": { "200": { "description": "OK" } } },
+      "post": { "summary": "Update policy fields (partial)", "tags": ["Policy"], "responses": { "200": { "description": "OK" } } }
+    },
+    "/api/agent/byok-list":   { "get":  { "summary": "List your BYOK keys (masked)",  "tags": ["BYOK"], "responses": { "200": { "description": "OK" } } } },
+    "/api/agent/byok-set":    { "post": { "summary": "Create or rotate a BYOK key",   "tags": ["BYOK"], "responses": { "200": { "description": "OK" } } } },
+    "/api/agent/byok-delete": { "post": { "summary": "Delete a BYOK key",             "tags": ["BYOK"], "responses": { "200": { "description": "OK" } } } },
+    "/api/agent/webhooks-event-types": { "get":  { "summary": "Catalog of subscribable event types", "tags": ["Webhooks"], "responses": { "200": { "description": "OK" } } } },
+    "/api/agent/webhooks-list":        { "get":  { "summary": "List your webhook subscriptions",     "tags": ["Webhooks"], "responses": { "200": { "description": "OK" } } } },
+    "/api/agent/webhooks-create":      { "post": { "summary": "Create a webhook subscription",       "tags": ["Webhooks"], "responses": { "200": { "description": "OK" } } } },
+    "/api/agent/webhooks-delete":      { "post": { "summary": "Delete a subscription",               "tags": ["Webhooks"], "responses": { "200": { "description": "OK" } } } },
+    "/api/agent/webhooks-rotate":      { "post": { "summary": "Rotate the HMAC signing secret",      "tags": ["Webhooks"], "responses": { "200": { "description": "OK" } } } },
+    "/api/agent/webhooks-deliveries":  { "get":  { "summary": "Recent delivery attempts",            "tags": ["Webhooks"], "responses": { "200": { "description": "OK" } } } },
+    "/api/agent/webhooks-replay":      { "post": { "summary": "Replay a failed / DLQ'd delivery",    "tags": ["Webhooks"], "responses": { "200": { "description": "OK" } } } },
+    "/api/phone/{endpoint}": {
+      "get": {
+        "summary": "Phone API sub-route (TwiML, call status, …)",
+        "tags": ["Phone"],
+        "parameters": [
+          { "name": "endpoint", "in": "path", "required": true, "schema": { "type": "string" }, "description": "Vercel catch-all segment, e.g. twiml, calls, manage, discord." }
+        ],
+        "responses": { "200": { "description": "Endpoint-dependent body (often `text/xml` TwiML)." } }
+      },
+      "post": {
+        "summary": "Phone API POST (call control, Twilio callbacks, …)",
+        "tags": ["Phone"],
+        "parameters": [
+          { "name": "endpoint", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": { "200": { "description": "Endpoint-dependent." } }
+      }
+    }
+  }
+}

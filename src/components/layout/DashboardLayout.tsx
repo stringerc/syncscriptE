@@ -9,7 +9,6 @@ import { hasContextualInsights } from '../../utils/ai-context-config';
 import { AIAssistantPanel } from '../AIAssistantPanel';
 import { OnboardingChecklist } from '../onboarding/OnboardingChecklist';
 import { useAuth } from '../../contexts/AuthContext';
-
 interface DashboardLayoutProps {
   children: ReactNode;
 }
@@ -224,10 +223,10 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       {/* Sidebar */}
       <Sidebar />
 
-      {/* Main Content */}
+      {/* Main Content — inset matches fixed Sidebar (`md:w-14` / `lg:w-[100px]`) so pages stay in the frame */}
       <div
         data-syncscript-dashboard-main
-        className={`relative z-0 min-w-0 flex-1 flex flex-col overflow-hidden bg-gradient-to-br from-[#161a22]/90 via-[#151920]/90 to-[#12151b]/90 shadow-[inset_0_0_120px_rgba(45,212,191,0.05)] ${hasGuestBannerOffset ? 'pt-14' : ''}`}
+        className={`relative z-0 min-w-0 flex-1 flex flex-col overflow-hidden bg-gradient-to-br from-[#161a22]/90 via-[#151920]/90 to-[#12151b]/90 shadow-[inset_0_0_120px_rgba(45,212,191,0.05)] md:pl-14 lg:pl-[100px] ${hasGuestBannerOffset ? 'pt-14' : ''}`}
       >
         {/* Header with toggle function */}
         <DashboardHeader

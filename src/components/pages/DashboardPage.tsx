@@ -38,9 +38,14 @@ export function DashboardPage() {
   const markWelcomeSeenForUser = () => localStorage.setItem(welcomeSeenKey, 'true');
 
   // First-time experience should be per-user and shown once.
-  const isEligibleFirstTime = Boolean(user?.isFirstTime && !user?.hasLoggedEnergy);
-  const isFirstTime = isEligibleFirstTime && !hasSeenSampleDataForUser();
-  
+  // Tier 0 A fix: lock isFirstTime once at mount so the value doesn't flip to
+  // false mid-render after `markSampleSeenForUser` writes localStorage during
+  // the boot effect. Previously this caused first-time UI to dismount itself
+  // before it finished teaching.
+  const [isFirstTime] = useState<boolean>(() =>
+    Boolean(user?.isFirstTime && !user?.hasLoggedEnergy) && !hasSeenSampleDataForUser()
+  );
+
   // Sample data state (for first-time users)
   const [sampleData, setSampleData] = useState<any>(null);
   
@@ -166,12 +171,12 @@ export function DashboardPage() {
           </motion.div>
         )}
         
-        {/* Mobile: single vertical scroll (no 3-way height split). lg+: column scroll for dense desktop layout. */}
-        <div className="flex max-w-[1600px] mx-auto min-h-0 flex-col gap-8 lg:h-full lg:min-h-0 lg:flex-row lg:gap-6">
+        {/* Below md: single vertical scroll. md and up: three columns with per-column scroll (aligned with sidebar). */}
+        <div className="flex max-w-[1600px] mx-auto min-h-0 flex-col gap-8 md:h-full md:min-h-0 md:flex-row md:gap-6">
           {/* Left Column - AI & FOCUS */}
           <div
             id="ai-suggestions"
-            className="min-h-0 w-full min-w-0 shrink-0 lg:flex-1 lg:overflow-y-auto lg:overscroll-contain hide-scrollbar"
+            className="min-h-0 w-full min-w-0 shrink-0 md:flex-1 md:overflow-y-auto md:overscroll-contain hide-scrollbar"
           >
             <AIFocusSection />
           </div>
@@ -179,7 +184,7 @@ export function DashboardPage() {
           {/* Middle Column - TODAY'S ORCHESTRATION */}
           <div
             id="energy-meter"
-            className="min-h-0 w-full min-w-0 shrink-0 lg:flex-1 lg:overflow-y-auto lg:overscroll-contain hide-scrollbar"
+            className="min-h-0 w-full min-w-0 shrink-0 md:flex-1 md:overflow-y-auto md:overscroll-contain hide-scrollbar"
           >
             <TodaySection />
           </div>
@@ -187,7 +192,7 @@ export function DashboardPage() {
           {/* Right Column - RESOURCE HUB */}
           <div
             id="roygbiv-ring"
-            className="min-h-0 w-full min-w-0 shrink-0 lg:flex-1 lg:overflow-y-auto lg:overscroll-contain hide-scrollbar"
+            className="min-h-0 w-full min-w-0 shrink-0 md:flex-1 md:overflow-y-auto md:overscroll-contain hide-scrollbar"
           >
             <ResourceHubSection />
           </div>

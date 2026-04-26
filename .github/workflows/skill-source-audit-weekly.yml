@@ -1,0 +1,54 @@
+# Weekly read-only skill/MCP discovery audit (ClawHub search + inspect + MCP registry sample).
+# Does NOT install skills or modify syncscript.app — see integrations/research/SKILL_AUDIT_AUTOMATION_POLICY.md
+name: Skill source audit
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '15 15 * * 1' # Mondays 15:15 UTC (~ weekly)
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Install ClawHub CLI for audit script
+        run: npm i -g clawhub@latest
+
+      - name: Run skill source audit (read-only, CI query subset)
+        env:
+          OUT_DIR: ${{ github.workspace }}/reports/skill-audit
+          LIMIT: '8'
+          SKILL_AUDIT_QUERY_FILE: scripts/skill-audit-queries-ci.txt
+        run: bash scripts/skill-source-audit.sh
+
+      - name: Upload audit report
+        uses: actions/upload-artifact@v4
+        with:
+          name: skill-audit-${{ github.run_id }}
+          path: reports/skill-audit/
+          if-no-files-found: warn
+
+      - name: Summary
+        run: |
+          echo '## Skill source audit (read-only)' >> "$GITHUB_STEP_SUMMARY"
+          echo "Artifact: skill-audit-${{ github.run_id }}" >> "$GITHUB_STEP_SUMMARY"
+          echo 'Policy: no auto-install — see `integrations/research/SKILL_AUDIT_AUTOMATION_POLICY.md`' >> "$GITHUB_STEP_SUMMARY"
+          echo '' >> "$GITHUB_STEP_SUMMARY"
+          echo '### Human triage (cadence, not volume)' >> "$GITHUB_STEP_SUMMARY"
+          echo '1. Download the artifact; open the latest `audit-*.txt`.' >> "$GITHUB_STEP_SUMMARY"
+          echo '2. Pick **one** slug that passes a gut check; run `clawhub inspect <slug> --files` (note the **Security:** line).' >> "$GITHUB_STEP_SUMMARY"
+          echo '3. Add **`integrations/research/skill-evaluations/<date>-<slug>.md`** (template: **`.github/ISSUE_TEMPLATE/skill_evaluation.md`**).' >> "$GITHUB_STEP_SUMMARY"
+          echo '4. Optional: `gh issue create` with labels **triage** + **skills** (run `npm run gh:labels` once per repo if missing).' >> "$GITHUB_STEP_SUMMARY"
+          ls -la reports/skill-audit/ >> "$GITHUB_STEP_SUMMARY" || true

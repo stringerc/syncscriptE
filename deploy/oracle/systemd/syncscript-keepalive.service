@@ -1,0 +1,10 @@
+[Unit]
+Description=SyncScript stack local health probe + light load (Oracle VM)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+# Adjust path after copying repo to the server:
+ExecStart=/usr/local/bin/syncscript-keepalive.sh
+User=root

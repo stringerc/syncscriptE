@@ -1,0 +1,3 @@
+# SyncScript — legacy rules entrypoint
+# Canonical rules: .cursor/rules/*.mdc (prefer this over duplicating long prose here).
+# Multi-agent + Hermes + boundaries: .cursor/rules/09-multi-agent-orchestration.mdc

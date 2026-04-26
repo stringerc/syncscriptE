@@ -12,6 +12,7 @@
 
 import { useState, useCallback, useRef, useEffect } from 'react';
 import type { EmotionState, EmotionLabel, EmotionSnapshot } from '../types/voice-engine';
+import { usePageVisibility } from './usePageVisibility';
 
 // ============================================================================
 // SENTIMENT LEXICON (text-based detection)
@@ -61,6 +62,13 @@ const EMOTION_PATTERNS: Record<EmotionLabel, { words: string[]; valence: number;
 // ============================================================================
 
 export function useEmotionDetection() {
+  // Defense-in-depth: even though browsers throttle rAF on hidden tabs (Chrome
+  // → 1 Hz, Firefox → paused), Chrome's 1 Hz still wakes JS + the audio
+  // analyzer. Gating the rAF loop on visibility means zero CPU/audio polling
+  // when the tab is hidden, which is the right default for a passive prosody
+  // sampler. See AgentLiveCanvas + useUserRealtimeBus for the same pattern.
+  const { isVisible } = usePageVisibility();
+
   const [currentEmotion, setCurrentEmotion] = useState<EmotionState>({
     primary: 'neutral',
     confidence: 0.5,
@@ -213,6 +221,14 @@ export function useEmotionDetection() {
   const sourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
 
+  /** `close()` must not run twice — repeat calls reject with InvalidStateError. */
+  const safeCloseAudioContext = useCallback((ctx: AudioContext | null | undefined) => {
+    if (!ctx || ctx.state === 'closed') return;
+    void ctx.close().catch(() => {
+      /* already closed / interrupted */
+    });
+  }, []);
+
   const startAudioAnalysis = useCallback(async (stream?: MediaStream): Promise<void> => {
     try {
       const mediaStream = stream || await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -253,12 +269,15 @@ export function useEmotionDetection() {
   useEffect(() => {
     return () => {
       sourceRef.current?.disconnect();
-      audioContextRef.current?.close();
+      const ctx = audioContextRef.current;
+      audioContextRef.current = null;
+      safeCloseAudioContext(ctx);
       if (mediaStreamRef.current) {
         mediaStreamRef.current.getTracks().forEach(track => track.stop());
+        mediaStreamRef.current = null;
       }
     };
-  }, []);
+  }, [safeCloseAudioContext]);
 
   const analyzeVoiceProsody = useCallback((): { energy: number; pitch: number; variability: number } | null => {
     if (!analyzerRef.current) return null;
@@ -304,6 +323,13 @@ export function useEmotionDetection() {
 
   useEffect(() => {
     if (!voiceAnalysisActive) return;
+    // Don't start the rAF loop at all when the tab is hidden — and tear it
+    // down + reset the meter when it becomes hidden mid-session. Re-runs and
+    // restarts on visibility change.
+    if (!isVisible) {
+      setMicInputLevel(0);
+      return;
+    }
     let cancelled = false;
     let rafId = 0;
     let lastEmit = 0;
@@ -322,7 +348,7 @@ export function useEmotionDetection() {
       cancelAnimationFrame(rafId);
       setMicInputLevel(0);
     };
-  }, [voiceAnalysisActive, analyzeVoiceProsody]);
+  }, [voiceAnalysisActive, isVisible, analyzeVoiceProsody]);
 
   const detectFromVoice = useCallback((): EmotionState => {
     const prosody = analyzeVoiceProsody();

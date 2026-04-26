@@ -19,6 +19,13 @@ export interface VoiceSession {
   contextSnapshot?: VoiceContextSnapshot;
 }
 
+/** Optional “via Dashboard / Canvas …” hints for assistant turns (voice + chat parity). */
+export interface VoiceDelegationHint {
+  id: string;
+  label: string;
+  color: string;
+}
+
 export interface VoiceMessage {
   id: string;
   role: 'user' | 'assistant';
@@ -28,6 +35,8 @@ export interface VoiceMessage {
   duration?: number;
   emotion?: EmotionState;
   ttsModel?: TTSModel;
+  /** Which specialist surfaces were engaged this turn (Nexus still speaks). */
+  delegationHints?: VoiceDelegationHint[];
 }
 
 // ============================================================================

@@ -173,14 +173,9 @@
  * ═══════════════════════════════════════════════════════════════════════════
  * 
  * import { AuthPageBackButton, AuthPageLogo } from './auth/AuthPageNavigation';
- * 
- * // In your auth page:
- * <div className="auth-container">
- *   <AuthPageBackButton />  {/* "← Back to SyncScript" */}
- *   <AuthPageLogo />        {/* Clickable logo */}
- *   <h1>Welcome back</h1>
- *   {/* ... rest of form */}
- * </div>
+ *
+ * In your auth page: render AuthPageBackButton, AuthPageLogo, heading, and form
+ * inside a container (see LoginPage and SignupPage for live examples).
  * 
  * APPLIES TO:
  * ✅ LoginPage.tsx

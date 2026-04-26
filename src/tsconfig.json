@@ -43,7 +43,9 @@
   "exclude": [
     "node_modules",
     "dist",
-    "build"
+    "build",
+    "LICENSE/**",
+    "vite.config.ts"
   ],
   "references": [{ "path": "./tsconfig.node.json" }]
 }

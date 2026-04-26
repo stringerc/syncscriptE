@@ -1,0 +1,17 @@
+[Unit]
+Description=Hermes mock API (SyncScript reference executor)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/opt/syncscript
+Environment=HERMES_MOCK_PORT=18880
+ExecStart=/usr/bin/node /opt/syncscript/integrations/hermes-mock-server.mjs
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

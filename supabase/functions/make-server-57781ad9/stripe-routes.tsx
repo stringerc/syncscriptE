@@ -37,10 +37,19 @@ const stripeRoutes = new Hono();
 // PRICING CONFIGURATION
 // ============================================================================
 
+/**
+ * Plan price-IDs by interval. `price_id` (legacy) === `price_id_month`. The
+ * `price_id_year` slots are env-configurable so an annual SKU can be added
+ * later without a redeploy. When `STRIPE_PRICE_*_YEAR` env is unset and a
+ * client requests `interval: 'year'`, the resolver falls back to monthly
+ * AND echoes a `price_interval: 'month'` field so the UI can disclose it.
+ */
 export const PRICING_PLANS = {
   starter: {
     name: 'Starter',
     price_id: 'price_1T1HooGnuF7uNW2kruooQTXk',
+    price_id_month: 'price_1T1HooGnuF7uNW2kruooQTXk',
+    price_id_year: Deno.env.get('STRIPE_PRICE_STARTER_YEAR') || '',
     amount: 1900,
     interval: 'month',
     features: [
@@ -55,6 +64,8 @@ export const PRICING_PLANS = {
   professional: {
     name: 'Professional',
     price_id: 'price_1T1HooGnuF7uNW2k6qyoLrKA',
+    price_id_month: 'price_1T1HooGnuF7uNW2k6qyoLrKA',
+    price_id_year: Deno.env.get('STRIPE_PRICE_PROFESSIONAL_YEAR') || '',
     amount: 4900,
     interval: 'month',
     features: [
@@ -72,6 +83,8 @@ export const PRICING_PLANS = {
   enterprise: {
     name: 'Enterprise',
     price_id: 'price_1T1HooGnuF7uNW2kMMCzi43w',
+    price_id_month: 'price_1T1HooGnuF7uNW2kMMCzi43w',
+    price_id_year: Deno.env.get('STRIPE_PRICE_ENTERPRISE_YEAR') || '',
     amount: 9900,
     interval: 'month',
     features: [
@@ -87,6 +100,20 @@ export const PRICING_PLANS = {
     ]
   }
 };
+
+/**
+ * Resolve the right Stripe price_id given a plan + interval. Falls back to
+ * monthly when annual isn't configured yet and signals the actual interval
+ * that was charged in the return so the UI can disclose it accurately.
+ */
+function resolvePriceId(planId: string, requestedInterval: 'month' | 'year'): { price_id: string; actual_interval: 'month' | 'year' } {
+  const plan = PRICING_PLANS[planId as keyof typeof PRICING_PLANS];
+  if (!plan) throw new Error(`unknown plan: ${planId}`);
+  if (requestedInterval === 'year' && plan.price_id_year) {
+    return { price_id: plan.price_id_year, actual_interval: 'year' };
+  }
+  return { price_id: plan.price_id_month || plan.price_id, actual_interval: 'month' };
+}
 
 // ============================================================================
 // HELPER FUNCTIONS
@@ -170,7 +197,7 @@ stripeRoutes.get('/pricing', async (c) => {
 stripeRoutes.post('/create-checkout-session', async (c) => {
   try {
     const body = await c.req.json();
-    const { plan_id, user_id, email, success_url, cancel_url } = body;
+    const { plan_id, user_id, email, success_url, cancel_url, interval } = body;
 
     if (!plan_id || !user_id || !email) {
       return c.json({ error: 'Missing required fields' }, 400);
@@ -185,13 +212,20 @@ stripeRoutes.post('/create-checkout-session', async (c) => {
       return c.json({ error: 'Invalid plan ID' }, 400);
     }
 
+    // Tier 0 B fix: honor the client-supplied interval. When 'year' is
+    // requested but `STRIPE_PRICE_<plan>_YEAR` env isn't set, falls back to
+    // monthly + echoes back which interval was actually used so the client
+    // can disclose it ("Annual not available yet — billed monthly").
+    const requestedInterval = interval === 'year' ? 'year' : 'month';
+    const resolved = resolvePriceId(plan_id, requestedInterval);
+
     // Create checkout session
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       payment_method_types: ['card'],
       line_items: [
         {
-          price: plan.price_id,
+          price: resolved.price_id,
           quantity: 1,
         },
       ],
@@ -202,20 +236,28 @@ stripeRoutes.post('/create-checkout-session', async (c) => {
       billing_address_collection: 'auto',
       metadata: {
         user_id,
-        plan_id
+        plan_id,
+        requested_interval: requestedInterval,
+        actual_interval: resolved.actual_interval,
       },
       subscription_data: {
         trial_period_days: 14, // 14-day free trial
         metadata: {
           user_id,
-          plan_id
+          plan_id,
+          actual_interval: resolved.actual_interval,
         }
       }
     });
 
     return c.json({
       session_id: session.id,
-      url: session.url
+      url: session.url,
+      // Disclose the actual billing interval back to the client so the UI
+      // can warn the user when they asked for annual but the SKU isn't
+      // configured yet (falls back to monthly to avoid a hard failure).
+      actual_interval: resolved.actual_interval,
+      requested_interval: requestedInterval,
     });
   } catch (error) {
     console.error('Error creating checkout session:', error);

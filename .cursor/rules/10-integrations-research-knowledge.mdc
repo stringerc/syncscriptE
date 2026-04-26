@@ -1,0 +1,10 @@
+---
+description: Research catalog lives under integrations/research (not docs/) — knowledge vs disk
+alwaysApply: true
+---
+
+# SyncScript — research memory vs bulk data
+
+- **`docs/` is gitignored** in this repo — durable research indexes **do not** live under `docs/`. Use **`integrations/research/INDEX.md`** as the canonical catalog and **`integrations/research/ARCHIVE-README.template.md`** for cold ZIP/tar bundles moved off-disk.
+- **Knowledge = conclusions + reproduction** (small markdown + git). **IDE snapshots / huge Application Support folders are not long-term memory** — see **`MEMORY.md`** (local) § *Knowledge vs disk* and § *Mac disk space*.
+- When the user asks to “remember” a study: add or update a row in **`integrations/research/INDEX.md`** and a short per-study note; do not rely on retaining multi‑GB raw logs on the internal SSD unless required.

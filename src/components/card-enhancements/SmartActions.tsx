@@ -102,7 +102,7 @@ export function SmartActions({
         layout === 'horizontal' ? 'flex-row flex-wrap' : 'flex-col'
       } ${config.gap}`}
     >
-      <AnimatePresence mode=\"popLayout\">
+      <AnimatePresence mode="popLayout">
         {visibleActions.map((action, index) => {
           const Icon = ICON_MAP[action.icon] || AlertCircle;
           const colors = variantColors[action.variant];
@@ -142,7 +142,7 @@ export function SmartActions({
               `}
             >
               <Icon className={config.icon} />
-              <span className=\"whitespace-nowrap\">{action.label}</span>
+              <span className="whitespace-nowrap">{action.label}</span>
             </motion.button>
           );
         })}

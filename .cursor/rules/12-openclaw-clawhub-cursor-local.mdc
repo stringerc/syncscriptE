@@ -1,0 +1,24 @@
+---
+description: Local OpenClaw + ClawHub + Cursor agent — read repo docs first; safe skill policy
+alwaysApply: true
+---
+
+# OpenClaw / ClawHub / Cursor — local source of truth
+
+When the user asks about **OpenClaw**, **ClawHub**, **gateway**, **skills**, or **making Cursor a stronger coding agent** in this repo:
+
+1. **Read first (tracked in git):**
+   - **`integrations/research/SYNCSCRIPT_OPENCLAW_EXCELLENCE_FRAMEWORK.md`** — safety tiers, discovery (`clawhub search` / `inspect`), no mass-install on prod gateways.
+   - **`integrations/research/OPENCLAW_CLAWHUB_BROWSER_STACK.md`** — gateway browser, tokens, operator smoke.
+   - **`integrations/research/AGENT_SKILL_MCP_SOURCES_CATALOG.md`** — ClawHub alternatives + MCP directories (Smithery, Glama, official MCP registry, …).
+   - **`TOOLS.md`** — `openclaw`, **`clawhub`** CLI paths (`npm i -g clawhub`), Hermes/Engram playbooks.
+   - **Repeatable audit (no installs):** `npm run skill:source-audit` → **`reports/skill-audit/`** (gitignored); faster CI-like subset: `npm run skill:source-audit:ci`.
+   - **Policy (no auto-ship into app):** **`integrations/research/WHY_WE_DO_NOT_AUTO_SHIP_SKILLS.md`**. Human triage: **`integrations/research/SKILL_TRIAGE_PLAYBOOK.md`**, issue template **`.github/ISSUE_TEMPLATE/skill_evaluation.md`**.
+
+2. **Cursor-specific (this IDE):**
+   - **Rules** + **project context** live here (`.cursor/rules/`); **OpenClaw** runs on a **gateway host** — do not assume the IDE *is* the gateway.
+   - For **creating skills** in Cursor, prefer the repo’s / Cursor’s **create-skill** workflow (see `~/.cursor/skills-cursor/create-skill/SKILL.md` if present) over blindly installing ClawHub **`skill-creator`** — ClawHub **`inspect`** may show **Security: SUSPICIOUS**; **inspect before install**.
+
+3. **ClawHub CLI:** Prefer globally installed **`clawhub`** (`npm i -g clawhub`). If **`npx clawhub@latest`** fails (e.g. module resolution in npx cache), use **`clawhub`** from PATH.
+
+4. **Do not** paste gateway tokens, API keys, or full `openclaw.json` secrets into chat — reference env names and runbooks only.

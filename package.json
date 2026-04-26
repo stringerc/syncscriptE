@@ -86,7 +86,6 @@
     "react-dom": "^18.3.1",
     "react-easy-crop": "*",
     "react-hook-form": "^7.55.0",
-    "react-joyride": "*",
     "react-markdown": "^10.1.0",
     "react-resizable-panels": "^2.1.7",
     "react-router": "*",
@@ -102,6 +101,7 @@
     "vite": "*",
     "vite-plugin-prerender": "^1.0.8",
     "vite-plugin-pwa": "^1.2.0",
+    "web-vitals": "^5.2.0",
     "xlsx": "^0.18.5",
     "zustand": "^5.0.11"
   },

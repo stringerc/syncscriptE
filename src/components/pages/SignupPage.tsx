@@ -41,13 +41,18 @@ export function SignupPage() {
 
     try {
       const result = await signUp(email, password, name);
-      
+
       if (result.success) {
         if (isCheckoutSuccess) {
           // Store email so SubscriptionContext can claim the pending subscription on first access check
           localStorage.setItem('syncscript_checkout_email', email.toLowerCase().trim());
         }
-        navigate('/dashboard');
+        // Tier 0 A fix: unify the post-signup destination with the OAuth flow.
+        // OAuth users land on `/onboarding` (when not yet completed) per
+        // AuthCallbackPage; email/password used to drop directly to /dashboard,
+        // skipping the wizard entirely. Now both go through onboarding for a
+        // consistent first-run experience.
+        navigate('/onboarding');
       } else {
         setError(result.error || 'Sign up failed');
       }

@@ -1,0 +1,12 @@
+---
+description: SSR/SSG enforcement for marketing routes only
+globs: ["src/**","index.html","vite.config*"]
+alwaysApply: true
+---
+LANDING FILE: src/components/pages/LandingPageElite.tsx
+FRAMEWORK: Vite 6.3.5 React SPA with BrowserRouter
+SSR STRATEGY: vite-plugin-ssg prerender for / route only
+- / route must produce crawlable HTML at build time
+- BrowserRouter + authenticated app routes untouched
+- Do NOT convert app to full SSR
+- Verify: dist/index.html must contain landing copy in raw HTML

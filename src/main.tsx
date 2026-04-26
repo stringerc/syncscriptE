@@ -136,6 +136,10 @@ if (typeof window !== "undefined") {
     Promise.all([
       import("./observability/sentry").then((m) => m.bootSentryWeb()).catch(() => {}),
       import("./observability/analytics").then((m) => m.bootAnalytics()).catch(() => {}),
+      // CWV listeners run after analytics so the very first metric event
+      // emitted has the SDK ready and doesn't get queued. Lazy-imported so
+      // the `web-vitals` library doesn't bloat the main bundle.
+      import("./observability/web-vitals").then((m) => m.bootWebVitals()).catch(() => {}),
     ]);
   };
   if ("requestIdleCallback" in window) {

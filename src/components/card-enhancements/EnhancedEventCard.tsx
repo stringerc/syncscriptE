@@ -133,7 +133,7 @@ export function EnhancedEventCard({
   
   return (
     <motion.div
-      drag=\"x\"
+      drag="x"
       dragConstraints={{ left: 0, right: 0 }}
       dragElastic={0.2}
       onDragEnd={handleDragEnd}
@@ -154,8 +154,8 @@ export function EnhancedEventCard({
       onClick={onClick}
     >
       {/* Header */}
-      <div className=\"flex items-start justify-between gap-3 mb-2\">
-        <div className=\"flex items-start gap-2 flex-1 min-w-0\">
+      <div className="flex items-start justify-between gap-3 mb-2">
+        <div className="flex items-start gap-2 flex-1 min-w-0">
           {/* Completion checkbox */}
           <motion.button
             whileHover={{ scale: 1.1 }}
@@ -164,7 +164,7 @@ export function EnhancedEventCard({
               e.stopPropagation();
               onComplete?.();
             }}
-            className=\"flex-shrink-0 mt-0.5\"
+            className="flex-shrink-0 mt-0.5"
           >
             {event.completed ? (
               <CheckCircle2 className={`${spacing.iconSize} text-teal-400`} />
@@ -174,7 +174,7 @@ export function EnhancedEventCard({
           </motion.button>
           
           {/* Title and metadata */}
-          <div className=\"flex-1 min-w-0\">
+          <div className="flex-1 min-w-0">
             <h3 className={`
               ${spacing.textSize}
               ${adaptiveTheme.textColor}
@@ -220,10 +220,10 @@ export function EnhancedEventCard({
         <motion.div
           initial={{ opacity: 0, y: -5 }}
           animate={{ opacity: 1, y: 0 }}
-          className=\"flex items-center gap-1.5 mb-2\"
+          className="flex items-center gap-1.5 mb-2"
         >
-          <CheckCircle2 className=\"w-3 h-3 text-teal-400\" />
-          <span className=\"text-xs text-gray-400\">
+          <CheckCircle2 className="w-3 h-3 text-teal-400" />
+          <span className="text-xs text-gray-400">
             {milestoneCount} milestone{milestoneCount !== 1 ? 's' : ''}
           </span>
         </motion.div>
@@ -231,7 +231,7 @@ export function EnhancedEventCard({
       
       {/* 7. PROGRESS WITH MOMENTUM */}
       {event.progress !== undefined && event.progress > 0 && (
-        <div className=\"mb-3\">
+        <div className="mb-3">
           <ProgressWithMomentum
             momentum={progressMomentum}
             showDetails={density !== 'compact'}
@@ -258,9 +258,9 @@ export function EnhancedEventCard({
           
           {/* Team members */}
           {event.teamMembers && event.teamMembers.length > 0 && (
-            <div className=\"flex items-center gap-2\">
-              <Users className=\"w-3.5 h-3.5 text-gray-500\" />
-              <span className=\"text-xs text-gray-400\">
+            <div className="flex items-center gap-2">
+              <Users className="w-3.5 h-3.5 text-gray-500" />
+              <span className="text-xs text-gray-400">
                 {event.teamMembers.length} team member{event.teamMembers.length !== 1 ? 's' : ''}
               </span>
             </div>
@@ -268,9 +268,9 @@ export function EnhancedEventCard({
           
           {/* Resources */}
           {event.resources && event.resources.length > 0 && (
-            <div className=\"flex items-center gap-2\">
-              <Paperclip className=\"w-3.5 h-3.5 text-gray-500\" />
-              <span className=\"text-xs text-gray-400\">
+            <div className="flex items-center gap-2">
+              <Paperclip className="w-3.5 h-3.5 text-gray-500" />
+              <span className="text-xs text-gray-400">
                 {event.resources.length} resource{event.resources.length !== 1 ? 's' : ''}
               </span>
             </div>
@@ -280,11 +280,11 @@ export function EnhancedEventCard({
       
       {/* 2. CONTEXTUAL SMART ACTIONS */}
       {smartActions.length > 0 && (
-        <div className=\"mt-3\">
+        <div className="mt-3">
           <SmartActions
             actions={smartActions}
             maxVisible={density === 'compact' ? 2 : 3}
-            layout=\"horizontal\"
+            layout="horizontal"
             size={density === 'compact' ? 'sm' : 'md'}
           />
         </div>
@@ -292,17 +292,17 @@ export function EnhancedEventCard({
       
       {/* Swipe gesture indicators */}
       <motion.div
-        className=\"absolute right-4 top-1/2 -translate-y-1/2 text-emerald-400\"
+        className="absolute right-4 top-1/2 -translate-y-1/2 text-emerald-400"
         style={{ opacity: useTransform(x, [0, 100], [0, 1]) }}
       >
-        <span className=\"text-sm font-bold\">✓ Complete</span>
+        <span className="text-sm font-bold">✓ Complete</span>
       </motion.div>
       
       <motion.div
-        className=\"absolute left-4 top-1/2 -translate-y-1/2 text-red-400\"
+        className="absolute left-4 top-1/2 -translate-y-1/2 text-red-400"
         style={{ opacity: useTransform(x, [-100, 0], [1, 0]) }}
       >
-        <span className=\"text-sm font-bold\">✗ Delete</span>
+        <span className="text-sm font-bold">✗ Delete</span>
       </motion.div>
     </motion.div>
   );

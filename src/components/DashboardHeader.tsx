@@ -9,6 +9,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { CURRENT_USER } from '../utils/user-constants';
 import { toast } from 'sonner';
 import { useEnergy } from '../contexts/EnergyContext';
+import { useAiPageChromeMobileToolbar } from '../contexts/AiPageChromeContext';
 import { getReadinessPercentFromTotalEnergy } from '../hooks/useCurrentReadiness';
 import { navigationLinks } from '../utils/navigation';
 
@@ -255,6 +256,7 @@ function findBestMatch(query: string): { term: string; route: string; score: num
 }
 
 export function DashboardHeader({ isAIInsightsOpen, onToggleAIInsights }: DashboardHeaderProps) {
+  const aiMobileToolbar = useAiPageChromeMobileToolbar();
   const [lowEnergyMode, setLowEnergyMode] = useState(true);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [conversationExtractionOpen, setConversationExtractionOpen] = useState(false);
@@ -474,8 +476,18 @@ export function DashboardHeader({ isAIInsightsOpen, onToggleAIInsights }: Dashbo
     }
   };
 
+  const showAiMobileChrome = location.pathname === '/ai' && aiMobileToolbar;
+
   return (
-    <header className="min-h-14 md:h-16 shrink-0 bg-[#1e2128] border-b border-gray-800 flex items-center justify-between gap-2 px-3 sm:px-4 md:px-6">
+    <header
+      className={`relative z-10 shrink-0 bg-[#1e2128] border-b border-gray-800 flex flex-col ${
+        showAiMobileChrome ? '' : 'min-h-14 md:h-16'
+      }`}
+    >
+      {showAiMobileChrome ? (
+        <div className="w-full lg:hidden border-b border-gray-800/90 bg-[#101218]/95">{aiMobileToolbar}</div>
+      ) : null}
+      <div className="flex min-h-14 md:h-16 flex-1 w-full min-w-0 items-center justify-between gap-2 px-3 sm:px-4 md:px-6">
       {/* Left: Logo */}
       <div className="flex items-center gap-2 sm:gap-3 shrink-0">
         <div className="relative shrink-0 h-[28px] w-[132px] sm:h-[32px] sm:w-[152px]">
@@ -658,6 +670,7 @@ export function DashboardHeader({ isAIInsightsOpen, onToggleAIInsights }: Dashbo
           lowEnergyMode={lowEnergyMode}
           onLowEnergyModeChange={setLowEnergyMode}
         />
+      </div>
       </div>
     </header>
   );

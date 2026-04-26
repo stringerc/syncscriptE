@@ -1,0 +1,18 @@
+---
+description: Hard block on all protected files
+globs: ["**/*"]
+alwaysApply: true
+---
+NEVER MODIFY — NEXUS FILES:
+- src/native/capacitor-adapter.ts
+- src/contexts/ContinuityContext.tsx
+- src/DashboardApp.tsx
+- src/contexts/AIContext.tsx
+- src/contexts/useNexusVoiceCall.ts
+NEVER MODIFY — ENERGY CORE:
+- src/utils/energy-system.ts
+- src/hooks/useEnergyPrediction.ts
+NEVER MODIFY — AUTH ROUTES:
+- Any component serving authenticated/dashboard/protected routes
+If any proposed change touches the above: STOP, explain 
+conflict, propose safe alternative only.

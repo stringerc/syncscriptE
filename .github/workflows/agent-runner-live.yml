@@ -1,8 +1,9 @@
 name: Agent runner live verify
 
-# Runs after every prod deploy + nightly + on-demand. Soft-skips when the
-# Oracle runner isn't reachable yet so we don't blast red builds during setup.
-# Once you flip AGENT_RUNNER_LIVE_VERIFY=1 in repo Variables, it goes strict.
+# Runs after every prod deploy + nightly + on-demand. **Strict by default:**
+# unreachable runner fails the workflow. During bring-up, set repo Variable
+# `AGENT_RUNNER_LIVE_RELAXED=1` to treat fetch errors as skip (exit 0).
+# Legacy: `AGENT_RUNNER_LIVE_VERIFY=0` also relaxes fetch errors only.
 
 on:
   workflow_dispatch:
@@ -26,5 +27,7 @@ jobs:
       - name: Probe public /v1/health
         env:
           AGENT_RUNNER_BASE_URL: ${{ vars.AGENT_RUNNER_BASE_URL || 'https://nexus-agent-runner.syncscript.app' }}
-          AGENT_RUNNER_LIVE_VERIFY: ${{ vars.AGENT_RUNNER_LIVE_VERIFY || '0' }}
+          # Default strict (unset = fail if runner unreachable). Set repo Variable
+          # AGENT_RUNNER_LIVE_RELAXED=1 during bring-up or maintenance windows.
+          AGENT_RUNNER_LIVE_RELAXED: ${{ vars.AGENT_RUNNER_LIVE_RELAXED || '0' }}
         run: node scripts/verify-agent-runner-live.mjs

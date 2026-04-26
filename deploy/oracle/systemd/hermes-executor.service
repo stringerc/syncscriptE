@@ -1,0 +1,19 @@
+[Unit]
+Description=Hermes executor API (SyncScript — real task + calendar via Edge)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/opt/syncscript
+# Supabase project Edge base (same host the app uses). Override in drop-in if needed.
+Environment=SYNCSCRIPT_EDGE_BASE=https://kwhnrlzibgfedtxpkbgb.supabase.co/functions/v1/make-server-57781ad9
+Environment=HERMES_EXECUTOR_PORT=18880
+ExecStart=/usr/bin/node /opt/syncscript/integrations/hermes-executor-server.mjs
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

@@ -101,6 +101,7 @@ scripts/*
 !scripts/verify-agent-runner-live.mjs
 !scripts/smoke-agent-run-e2e.mjs
 !scripts/smoke-agent-live-screencast.mjs
+!scripts/check-bundle-size.mjs
 
 # Large optional clone (run integrations/setup-engram.sh)
 integrations/engram_translator/
@@ -113,3 +114,57 @@ deploy/oracle/env.local
 deploy/oracle/instance-launch.env
 deploy/oracle/.temp-ssh/
 .env.production.pull
+
+# --- Local / large trees / secrets (working-tree hygiene; MEMORY § Knowledge vs disk) ---
+.aider.*
+.cursor/mcp.json
+.cursor/aicontext-personalContext.prev.txt
+.openclaw/
+
+.tmp/
+.tmp-*/
+.tmp_*
+.tmp-sbsql
+.tmp-playwright/
+.tmp-gemini-home/
+.tmp-vite-plugin-*.md
+.tmp-missing-import-targets*.txt
+.tmp-public-links-wip-backup*.ts
+.tmp-*.tsx
+
+playwright-artifacts-*/
+nexus_crash_recovery_probe/
+nexus_exec_probe/
+nexus_verify_live/
+evidence/
+evidence-runner/
+dev-dist/
+
+# Local experiments / other products (not the Vite web app)
+nature-cortana-platform/
+ios/
+
+# Stray non-Vite static duplicates (canonical app shell: repo-root index.html + Vite public/)
+/public/index.html
+/public/app.js
+/public/styles.css
+
+# Legacy junk at src root (not Vite entrypoints)
+src/app.js
+src/server.js
+src/app.css
+
+# Duplicate / conflicting stubs — real routing lives in App.tsx + hooks/useAgentRuns.ts
+src/DashboardApp.tsx
+src/contexts/AgentRunContext.tsx
+
+# Local probe screenshots at repo root (Playwright / manual)
+/tmp-*.png
+/tmp_*.png
+vercel_deploy_log*.txt
+
+# Local VS Code / Cursor workspace settings (machine-specific)
+.vscode/
+
+# One-off executor script (not Vite bundle)
+src/executor/home-executor-runner.js

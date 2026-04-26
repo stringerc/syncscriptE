@@ -1,0 +1,37 @@
+# External synthetic: GET /api/ai/tts?probe=1 (independent of Vercel cron).
+name: TTS SLO probe
+
+on:
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: 'Origin (no trailing slash)'
+        required: false
+        default: 'https://www.syncscript.app'
+  schedule:
+    - cron: '25 */2 * * *'
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Probe Kokoro reachability from CI
+        run: |
+          set -euo pipefail
+          BASE="${{ github.event.inputs.base_url }}"
+          BASE="${BASE:-https://www.syncscript.app}"
+          URL="${BASE}/api/ai/tts?probe=1"
+          echo "GET $URL"
+          code=$(curl -sS -o /tmp/tts-probe.json -w '%{http_code}' "$URL")
+          echo "HTTP $code"
+          cat /tmp/tts-probe.json
+          test "$code" = "200"
+          node -e "
+            const j=require('/tmp/tts-probe.json');
+            if(!j.kokoroConfigured){ console.log('SKIP: kokoro not configured'); process.exit(0); }
+            const p=j.kokoroUpstreamReachable===true;
+            const f=j.kokoroFallbackDirectOrigin ? j.kokoroFallbackReachable===true : true;
+            if(!p && j.kokoroFallbackDirectOrigin && !f) { console.error('FAIL: primary and fallback down'); process.exit(1); }
+            if(!p && !j.kokoroFallbackDirectOrigin) { console.error('FAIL: primary down, no fallback'); process.exit(1); }
+            console.log('OK');
+          "

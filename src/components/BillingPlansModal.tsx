@@ -7,8 +7,11 @@ import {
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { useUserProfile } from '../utils/user-profile';
+import { useAuth } from '../contexts/AuthContext';
+import { useStripe } from '../hooks/useStripe';
 import { toast } from 'sonner@2.0.3';
 import { PLANS, formatPrice } from '../config/pricing';
+import { projectId, publicAnonKey } from '../utils/supabase/info';
 
 interface BillingPlansModalProps {
   open: boolean;
@@ -22,28 +25,84 @@ const PLAN_ICONS: Record<string, typeof Zap> = {
   enterprise: Building2,
 };
 
-export function BillingPlansModal({ open, onClose }: BillingPlansModalProps) {
-  const { profile, updateProfile } = useUserProfile();
-  const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('monthly');
+const STRIPE_BASE = `https://${projectId}.supabase.co/functions/v1/make-server-57781ad9/stripe`;
 
-  const handleSelectPlan = (planId: string) => {
+export function BillingPlansModal({ open, onClose }: BillingPlansModalProps) {
+  const { profile } = useUserProfile();
+  const { user } = useAuth();
+  const { subscription, openCustomerPortal } = useStripe(user?.id);
+  const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('monthly');
+  const [busy, setBusy] = useState(false);
+
+  /**
+   * Tier 0 B fix: previously this called `updateProfile({ plan })` — a local
+   * profile write that didn't touch Stripe. Now it routes plan changes through
+   * the appropriate path:
+   *   - User has an active Stripe subscription → Customer Portal (proration,
+   *     cancellation, plan switching, payment-method updates all live there).
+   *   - User has no subscription → Stripe Checkout flow.
+   *
+   * This is what Stripe / Linear / Vercel actually do. The Edge function side
+   * was already implemented correctly; we just stopped lying to users about it.
+   */
+  const handleSelectPlan = async (planId: string) => {
     if (planId === 'enterprise') {
-      toast.info('Enterprise Plan', { 
-        description: 'Contact our sales team for enterprise pricing.' 
+      toast.info('Enterprise Plan', {
+        description: 'Contact our sales team for enterprise pricing.',
       });
       return;
     }
-    
     if (planId === profile.plan) {
       toast.info('Current Plan', { description: `You're already on the ${planId} plan` });
       return;
     }
+    if (!user?.id) {
+      toast.error('Sign in required to change plans');
+      return;
+    }
 
-    updateProfile({ plan: planId as typeof profile.plan });
-    toast.success('Plan updated', { 
-      description: `Successfully upgraded to ${planId} plan` 
-    });
-    onClose();
+    setBusy(true);
+    try {
+      // Existing subscriber → portal (handles upgrade/downgrade with proration)
+      if (subscription?.status && ['active', 'trialing', 'past_due'].includes(subscription.status)) {
+        await openCustomerPortal();
+        // Customer Portal navigates the browser away; no further action.
+        return;
+      }
+
+      // New subscriber → Stripe Checkout
+      const res = await fetch(`${STRIPE_BASE}/create-checkout-session`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${publicAnonKey}`,
+        },
+        body: JSON.stringify({
+          plan_id: planId,
+          user_id: user.id,
+          email: user.email,
+          interval: billingCycle === 'yearly' ? 'year' : 'month',
+          success_url: `${window.location.origin}/settings?tab=billing&checkout=success&session_id={CHECKOUT_SESSION_ID}`,
+          cancel_url: `${window.location.origin}/settings?tab=billing`,
+        }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error((data as { error?: string }).error || 'Could not start checkout');
+      }
+      const { url } = (await res.json()) as { url: string };
+      if (url) {
+        window.location.href = url;
+      } else {
+        throw new Error('Checkout returned no URL');
+      }
+    } catch (err) {
+      toast.error('Plan change failed', {
+        description: err instanceof Error ? err.message : 'Try again in a moment.',
+      });
+    } finally {
+      setBusy(false);
+    }
   };
 
   if (!open) return null;
@@ -170,7 +229,7 @@ export function BillingPlansModal({ open, onClose }: BillingPlansModalProps) {
 
                   <Button
                     onClick={() => handleSelectPlan(plan.id)}
-                    disabled={isCurrentPlan}
+                    disabled={isCurrentPlan || busy}
                     className={`w-full ${
                       plan.popular
                         ? 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500'
@@ -184,6 +243,8 @@ export function BillingPlansModal({ open, onClose }: BillingPlansModalProps) {
                         <Check className="w-4 h-4 mr-2" />
                         Current Plan
                       </>
+                    ) : busy ? (
+                      <>Redirecting…</>
                     ) : (
                       <>
                         {plan.cta}

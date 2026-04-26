@@ -454,10 +454,10 @@ export function ResourceHubSection() {
   };
   
   return (
-    <div className="flex min-h-0 flex-col pb-4 lg:h-full">
+    <div className="flex min-h-0 flex-col pb-4 md:h-full">
       <h2 className="text-white mb-4">RESOURCE HUB</h2>
 
-      <div className="flex min-h-0 flex-col gap-4 lg:flex-1">
+      <div className="flex min-h-0 flex-col gap-4 md:flex-1">
         {/* Financial Health Snapshot - REVOLUTIONARY RESEARCH-BACKED DESIGN */}
         {/* 
           RESEARCH FOUNDATION (2024 State-of-the-Art):
@@ -480,7 +480,7 @@ export function ResourceHubSection() {
           10. Von Restorff Effect: Highlight anomalies
         */}
         <motion.div 
-          className="relative flex shrink-0 flex-col overflow-hidden rounded-2xl border border-gray-800/60 bg-gradient-to-br from-[#1a1d24] via-[#1e2128] to-[#1a1d24] p-4 shadow-[0_8px_32px_rgba(0,0,0,0.4)] lg:flex-1"
+          className="relative flex shrink-0 flex-col overflow-hidden rounded-2xl border border-gray-800/60 bg-gradient-to-br from-[#1a1d24] via-[#1e2128] to-[#1a1d24] p-4 shadow-[0_8px_32px_rgba(0,0,0,0.4)] md:flex-1"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, ease: [0.23, 1, 0.32, 1] }}
@@ -922,7 +922,7 @@ export function ResourceHubSection() {
 
         {/* Smart Insights — contextual suggestions & quick actions */}
         <div
-          className="flex min-h-[14rem] shrink-0 flex-col rounded-2xl border border-gray-800 bg-[#1e2128] p-4 card-hover shadow-lg transition-all hover:border-gray-700 sm:p-5 lg:min-h-[14rem] lg:flex-1"
+          className="flex min-h-[14rem] shrink-0 flex-col rounded-2xl border border-gray-800 bg-[#1e2128] p-4 card-hover shadow-lg transition-all hover:border-gray-700 sm:p-5 md:min-h-[14rem] md:flex-1"
           data-testid="smart-insights-card"
         >
           <div className="mb-3 flex shrink-0 flex-col items-center gap-2 text-center">

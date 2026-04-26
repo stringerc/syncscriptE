@@ -45,8 +45,10 @@ export function AppAuthPage() {
         })
       }
       navigate('/app')
-    } catch (err: any) {
-      const errorMessage = err.response?.data?.error || err.message || "Something went wrong. Please try again."
+    } catch (err: unknown) {
+      const ax = err as { response?: { data?: { error?: string } }; message?: string }
+      const errorMessage =
+        ax.response?.data?.error || ax.message || 'Something went wrong. Please try again.'
       toast({
         title: "Authentication Error",
         description: errorMessage,

@@ -1,0 +1,23 @@
+{
+  "version": "2026-02-27",
+  "shortcuts": [
+    {
+      "id": "continue-agent",
+      "title": "Continue with Agent",
+      "description": "Resume the active SyncScript agent thread.",
+      "deepLinkTemplate": "/agents?surface=watch&agent={agentId}&workspace={workspaceId}"
+    },
+    {
+      "id": "capture-task",
+      "title": "Capture Quick Task",
+      "description": "Create a task from Apple Watch voice capture.",
+      "deepLinkTemplate": "/tasks?surface=watch&quickTask={text}"
+    },
+    {
+      "id": "schedule-smart-event",
+      "title": "Schedule Smart Event",
+      "description": "Jump into smart event orchestration flow.",
+      "deepLinkTemplate": "/enterprise?composer=smart-event&surface=watch&workspace={workspaceId}"
+    }
+  ]
+}

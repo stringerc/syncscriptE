@@ -1,0 +1,38 @@
+# Core heavy/generated
+node_modules/
+.git/
+build/
+dist/
+.tmp-playwright/
+ios/
+
+# Large sibling project trees and archives not needed for app editing
+mission-control/
+client/
+server/
+dashboard/
+figma-dashboard/
+figma-make-latest/
+figma-make-pages/
+landing/
+landing-exact-figma-make/
+landing-exact-figma-make-restored/
+dashboard-exact-figma-make/
+tasks-goals-exact-figma-make/
+tasks-goals-figma-make/
+sentinel/
+
+# Other large/non-source artifacts
+reports/
+logs/
+archive/
+documentation/
+docs/
+OAUTH_BACKUP_*/
+
+# Local memory/notes and temporary probes
+memory/
+nexus_crash_recovery_probe/
+nexus_exec_probe/
+nexus_verify_live/
+upre_app/

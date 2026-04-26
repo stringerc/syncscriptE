@@ -1,0 +1,14 @@
+---
+description: Landing page copy and UX conversion rules
+globs: ["src/components/pages/LandingPageElite.tsx"]
+alwaysApply: true
+---
+H1: max 8 words, outcome-first, zero jargon
+BANNED IN HEADLINES: seamless, powerful, intuitive, robust,
+  leverage, unlock, supercharge, next-level, game-changer,
+  AI-powered, revolutionize
+COPY RATIO: you/your >= 3x we/our
+CTA: exactly one primary CTA per page view
+DEMO: inline interactive energy-matching widget, no signup
+READING LEVEL: Hemingway grade 7, short sentences, active voice
+SOCIAL PROOF: real names + titles only, never anonymous

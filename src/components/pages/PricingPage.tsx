@@ -142,6 +142,10 @@ export function PricingPage() {
           plan_id: checkoutPlan.id,
           user_id: guestId,
           email: checkoutEmail.trim(),
+          // Tier 0 B fix: pass the toggle value instead of always defaulting
+          // to monthly. The Edge function picks `price_id` (month) vs the
+          // annual price_id (when configured) — see stripe-routes.tsx.
+          interval: annual ? 'year' : 'month',
           success_url: `${window.location.origin}/signup?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
           cancel_url: `${window.location.origin}/pricing`,
         }),
