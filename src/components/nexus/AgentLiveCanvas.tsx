@@ -24,11 +24,30 @@ import { Loader2, Globe, Wifi, WifiOff } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { usePageVisibility } from '../../hooks/usePageVisibility';
 
-/** Max client-side draw rate, regardless of WS frame arrival rate. The CDP
- *  side already emits at ~12fps via `everyNthFrame`, but during fast scrolls
- *  it can spike higher; we coalesce to a single rAF-aligned paint per ~80ms. */
-const MAX_DRAW_FPS = 12;
-const MIN_FRAME_INTERVAL_MS = 1000 / MAX_DRAW_FPS;
+/** Max client-side draw rate, regardless of WS frame arrival rate. CDP emits
+ *  at ~12fps via `everyNthFrame`, but during fast scrolls it can spike higher.
+ *  We coalesce to a single rAF-aligned paint per ~80ms (12fps) by default,
+ *  and drop to 6fps when battery is <20% / Save-Data is on / connection is
+ *  3g-or-worse. Same adaptive pattern Operator + Browserbase use. */
+const MAX_DRAW_FPS_NORMAL = 12;
+const MAX_DRAW_FPS_LOW_POWER = 6;
+
+/** Pick the per-frame budget given current device hints. */
+function pickFrameIntervalMs(opts: { batteryLow: boolean; saveData: boolean; effectiveType: string }): number {
+  if (opts.batteryLow || opts.saveData || opts.effectiveType === 'slow-2g' || opts.effectiveType === '2g' || opts.effectiveType === '3g') {
+    return 1000 / MAX_DRAW_FPS_LOW_POWER;
+  }
+  return 1000 / MAX_DRAW_FPS_NORMAL;
+}
+
+/** OffscreenCanvas + Web Worker is widely supported (Safari 16.4+, Mar 2023).
+ *  Detect once at module load. When unavailable, we fall back to a main-thread
+ *  decode + draw inside the existing rAF coalescer. */
+const SUPPORTS_OFFSCREEN_CANVAS =
+  typeof window !== 'undefined' &&
+  typeof (window as Window & { OffscreenCanvas?: unknown }).OffscreenCanvas !== 'undefined' &&
+  typeof HTMLCanvasElement !== 'undefined' &&
+  typeof HTMLCanvasElement.prototype.transferControlToOffscreen === 'function';
 
 interface Props {
   runId: string;
@@ -45,14 +64,15 @@ interface LiveTokenResponse {
 
 export function AgentLiveCanvas({ runId, isActive, fallbackScreenshotB64, fallbackUrlLabel }: Props) {
   const { accessToken } = useAuth();
-  const { visible } = usePageVisibility();
+  const { visible, batteryLow, saveData, effectiveType } = usePageVisibility();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
+  const workerRef = useRef<Worker | null>(null);
+  const offscreenTransferredRef = useRef(false);
   const reconnectAttempt = useRef(0);
-  // rAF-coalesced paint state: pendingFrame holds the most recent ArrayBuffer,
-  // rafScheduled prevents queueing duplicate rAFs. If frames arrive faster than
-  // the browser can paint, only the LATEST is rendered (last-write-wins).
+  // rAF-coalesced paint state for the main-thread fallback path.
+  // OffscreenCanvas path does its own coalescing inside the worker.
   const pendingFrameRef = useRef<ArrayBuffer | null>(null);
   const rafScheduledRef = useRef(false);
   const lastDrawAtRef = useRef(0);
@@ -63,6 +83,12 @@ export function AgentLiveCanvas({ runId, isActive, fallbackScreenshotB64, fallba
   // Track if we've ever received a frame — once we have, we never go back to
   // fallback even on disconnect (last frame stays on canvas).
   const hasLiveFrameRef = useRef(false);
+
+  // Battery / save-data adaptive frame rate
+  const minFrameIntervalMs = useMemo(
+    () => pickFrameIntervalMs({ batteryLow, saveData, effectiveType }),
+    [batteryLow, saveData, effectiveType],
+  );
 
   useEffect(() => {
     if (!isActive || !accessToken || !runId) {
@@ -112,28 +138,77 @@ export function AgentLiveCanvas({ runId, isActive, fallbackScreenshotB64, fallba
           // until first frame. Avoids a confusing "live" badge over a black canvas.
         };
 
+        // Lazily spawn the worker on first WS message + transfer canvas once.
+        // We re-use the same worker across reconnects within this run so we
+        // don't pay worker boot + transfer overhead each time.
+        const ensureWorker = (): Worker | null => {
+          if (!SUPPORTS_OFFSCREEN_CANVAS) return null;
+          if (workerRef.current) return workerRef.current;
+          try {
+            const w = new Worker(
+              new URL('./agent-live-canvas-worker.ts', import.meta.url),
+              { type: 'module' },
+            );
+            w.onmessage = (ev: MessageEvent) => {
+              if (ev.data?.type === 'frame_drawn') {
+                hasLiveFrameRef.current = true;
+                setStatus('live');
+                setFramesReceived((n) => n + 1);
+                setLastFrameAt(Date.now());
+              }
+            };
+            workerRef.current = w;
+            return w;
+          } catch (e) {
+            console.warn('[AgentLiveCanvas] worker spawn failed, falling back to main thread:', e);
+            return null;
+          }
+        };
+
         ws.onmessage = (ev) => {
           if (cancelled) return;
-          // Binary = JPEG frame. Text = control message (no_active_broadcaster, etc.)
           if (typeof ev.data === 'string') {
             try {
               const msg = JSON.parse(ev.data);
-              if (msg.type === 'no_active_broadcaster') {
-                setStatus('fallback');
-              }
+              if (msg.type === 'no_active_broadcaster') setStatus('fallback');
             } catch { /* non-JSON text — ignore */ }
             return;
           }
           if (!(ev.data instanceof ArrayBuffer)) return;
-          // Last-write-wins: keep only the most recent frame. If we're already
-          // about to paint, just update the buffer; the queued rAF picks it up.
+
+          // Frame-rate cap (shared by both paths). When low-power → 6fps.
+          const now = performance.now();
+          if (now - lastDrawAtRef.current < minFrameIntervalMs) return;
+          lastDrawAtRef.current = now;
+
+          // ── Off-main-thread path (preferred when supported) ────────────
+          const worker = ensureWorker();
+          const canvas = canvasRef.current;
+          if (worker && canvas) {
+            if (!offscreenTransferredRef.current) {
+              try {
+                const offscreen = canvas.transferControlToOffscreen();
+                worker.postMessage({ type: 'init', canvas: offscreen }, [offscreen]);
+                offscreenTransferredRef.current = true;
+              } catch (e) {
+                // transferControlToOffscreen can only happen once per canvas;
+                // if it failed we drop into the main-thread fallback below.
+                console.warn('[AgentLiveCanvas] transferControlToOffscreen failed:', e);
+              }
+            }
+            if (offscreenTransferredRef.current) {
+              try {
+                worker.postMessage({ type: 'frame', frame: ev.data }, [ev.data]);
+                return;
+              } catch {
+                // Worker died mid-flight — fall through to main-thread path.
+              }
+            }
+          }
+
+          // ── Main-thread fallback (older browsers or worker spawn failure) ─
           pendingFrameRef.current = ev.data;
           if (rafScheduledRef.current) return;
-          // Frame-rate cap: skip the rAF if we drew too recently. Lets the WS
-          // keep buffering; the next message will fire a draw within ≤80ms.
-          const now = performance.now();
-          const sinceLast = now - lastDrawAtRef.current;
-          if (sinceLast < MIN_FRAME_INTERVAL_MS) return;
           rafScheduledRef.current = true;
           requestAnimationFrame(async () => {
             rafScheduledRef.current = false;
@@ -142,17 +217,16 @@ export function AgentLiveCanvas({ runId, isActive, fallbackScreenshotB64, fallba
             if (!buf || cancelled) return;
             try {
               const bitmap = await createImageBitmap(new Blob([buf], { type: 'image/jpeg' }));
-              const canvas = canvasRef.current;
-              if (!canvas) { bitmap.close?.(); return; }
-              if (canvas.width !== bitmap.width || canvas.height !== bitmap.height) {
-                canvas.width = bitmap.width;
-                canvas.height = bitmap.height;
+              const c = canvasRef.current;
+              if (!c) { bitmap.close?.(); return; }
+              if (c.width !== bitmap.width || c.height !== bitmap.height) {
+                c.width = bitmap.width;
+                c.height = bitmap.height;
               }
-              const ctx = canvas.getContext('2d');
+              const ctx = c.getContext('2d');
               if (ctx) ctx.drawImage(bitmap, 0, 0);
               bitmap.close?.();
               hasLiveFrameRef.current = true;
-              lastDrawAtRef.current = performance.now();
               setStatus('live');
               setFramesReceived((n) => n + 1);
               setLastFrameAt(Date.now());
@@ -201,10 +275,21 @@ export function AgentLiveCanvas({ runId, isActive, fallbackScreenshotB64, fallba
       try { currentWs?.close(1000, 'unmount'); } catch { /* ignore */ }
       wsRef.current = null;
     };
-    // `visible` is intentionally a dep — when the tab goes hidden the effect
-    // re-runs, hits the early return above, and the cleanup closes the WS.
-    // When the tab comes back, the effect re-runs again and reconnects.
-  }, [runId, isActive, accessToken, visible]);
+    // `visible` + `minFrameIntervalMs` are deps so we re-evaluate on tab
+    // visibility / battery / save-data changes. The cleanup pattern handles
+    // this gracefully — WS closes + worker buffer clears on each transition.
+  }, [runId, isActive, accessToken, visible, minFrameIntervalMs]);
+
+  // Tear down the worker when the component unmounts entirely (run change /
+  // page navigation). Within a run, we keep the worker alive across WS
+  // reconnects to avoid re-paying transferControlToOffscreen + boot cost.
+  useEffect(() => {
+    return () => {
+      try { workerRef.current?.terminate(); } catch { /* ignore */ }
+      workerRef.current = null;
+      offscreenTransferredRef.current = false;
+    };
+  }, [runId]);
 
   // Compute how stale the last frame is — used to show "frozen" indicator.
   const staleMs = useMemo(() => {

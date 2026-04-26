@@ -201,6 +201,7 @@ export function NexusVoiceMinimalCircle({
   return (
     <motion.div
       data-testid="nexus-voice-minimal-root"
+      data-pause-when-hidden
       className={commonClass}
       style={orbShellStyle(ringStyle, compact)}
       animate={reduce ? { scale: 1 } : outerPulse}

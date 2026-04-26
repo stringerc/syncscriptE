@@ -26,18 +26,36 @@ interface PageVisibility {
   focused: boolean;
   /** `true` when the OS prefers reduced motion. */
   reducedMotion: boolean;
+  /** `true` when the device is on battery AND <20% — caller should throttle FPS. */
+  batteryLow: boolean;
+  /** `true` when the user has enabled Data Saver mode on their device. */
+  saveData: boolean;
+  /** Effective connection profile from the Network Information API. */
+  effectiveType: 'slow-2g' | '2g' | '3g' | '4g' | 'unknown';
 }
+
+let batteryRef: { level: number; charging: boolean } = { level: 1, charging: true };
 
 function readState(): PageVisibility {
   if (typeof document === 'undefined') {
-    return { visible: true, focused: true, reducedMotion: false };
+    return {
+      visible: true, focused: true, reducedMotion: false,
+      batteryLow: false, saveData: false, effectiveType: 'unknown',
+    };
   }
+  // Network Information API — Chrome / Edge / Android. Returns undefined on Firefox / Safari.
+  const conn = (navigator as Navigator & {
+    connection?: { saveData?: boolean; effectiveType?: string };
+  }).connection;
   return {
     visible: !document.hidden,
     focused: typeof document.hasFocus === 'function' ? document.hasFocus() : true,
     reducedMotion:
       typeof window.matchMedia === 'function' &&
       window.matchMedia('(prefers-reduced-motion: reduce)').matches,
+    batteryLow: !batteryRef.charging && batteryRef.level < 0.2,
+    saveData: conn?.saveData === true,
+    effectiveType: ((conn?.effectiveType as PageVisibility['effectiveType']) || 'unknown'),
   };
 }
 
@@ -70,6 +88,28 @@ function install() {
     if (typeof mql.addEventListener === 'function') {
       mql.addEventListener('change', notify);
     }
+  }
+  // Battery Status API — Chrome / Edge / Android. Promise resolves once;
+  // event listeners keep batteryRef live for `levelchange` + `chargingchange`.
+  // Permanently no-ops on Firefox / Safari (no getBattery), which is fine —
+  // those browsers fall through to the default "battery healthy" assumption.
+  const nav = navigator as Navigator & { getBattery?: () => Promise<unknown> };
+  if (typeof nav.getBattery === 'function') {
+    nav.getBattery().then((battery) => {
+      const b = battery as { level: number; charging: boolean; addEventListener: (k: string, fn: () => void) => void };
+      batteryRef = { level: b.level, charging: b.charging };
+      const refresh = () => { batteryRef = { level: b.level, charging: b.charging }; notify(); };
+      try { b.addEventListener('levelchange', refresh); } catch { /* ignore */ }
+      try { b.addEventListener('chargingchange', refresh); } catch { /* ignore */ }
+      notify();
+    }).catch(() => { /* permissions denied / unsupported — leave defaults */ });
+  }
+  // Network Information API — listen for type changes.
+  const conn = (navigator as Navigator & {
+    connection?: { addEventListener?: (k: string, fn: () => void) => void };
+  }).connection;
+  if (conn && typeof conn.addEventListener === 'function') {
+    try { conn.addEventListener('change', notify); } catch { /* ignore */ }
   }
   notify();
 }
