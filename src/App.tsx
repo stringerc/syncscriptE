@@ -1,6 +1,9 @@
 import { lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, Outlet } from 'react-router';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { ObservabilityIdentifier } from './observability/ObservabilityIdentifier';
+import { UserRealtimeBus } from './hooks/useUserRealtimeBus';
+import { KeyboardShortcutsOverlay } from './components/KeyboardShortcutsOverlay';
 import { EnergyProvider } from './contexts/EnergyContext';
 import { TasksProvider } from './contexts/TasksContext';
 import { TeamProvider } from './contexts/TeamContext';
@@ -184,6 +187,9 @@ function AppContent() {
       <Router>
         <BfcacheRouterSync />
         <AnalyticsTracker />
+        <ObservabilityIdentifier />
+        <UserRealtimeBus />
+        <KeyboardShortcutsOverlay />
         <CookieConsentBanner />
         <FloatingFeedbackButton discordInviteUrl="https://discord.gg/2rq38UJrDJ" />
         <Toaster position="top-right" richColors closeButton />

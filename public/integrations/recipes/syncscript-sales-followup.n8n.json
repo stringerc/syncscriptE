@@ -1,0 +1,65 @@
+{
+  "name": "SyncScript — Sales Follow-Up",
+  "meta": {
+    "templateCredsSetupCompleted": false,
+    "syncscript_recipe_id": "recipe-sales-followup",
+    "syncscript_template_version": 1,
+    "syncscript_doc": "When a SyncScript task tagged 'deal' is created, sync it to HubSpot as a deal-stage activity and ping the owner via Gmail."
+  },
+  "nodes": [
+    {
+      "parameters": { "httpMethod": "POST", "path": "syncscript-sales-followup", "options": { "rawBody": true } },
+      "id": "1a1b1c1d-1111-4111-8111-aaaaaaaaaaaa",
+      "name": "SyncScript Webhook",
+      "type": "n8n-nodes-base.webhook", "typeVersion": 1.1, "position": [240, 300],
+      "webhookId": "syncscript-sales-followup"
+    },
+    {
+      "parameters": {
+        "language": "javaScript",
+        "jsCode": "const crypto = require('crypto');\nconst secret = $env.SYNCSCRIPT_WEBHOOK_SECRET || '';\nconst rawBody = $input.first().binary?.data ? $input.first().binary.data.toString('utf8') : JSON.stringify($input.first().json || {});\nconst sig = String($input.first().headers?.['x-syncscript-signature'] || '').replace(/^sha256=/, '');\nconst expected = crypto.createHmac('sha256', secret).update(rawBody).digest('hex');\nif (!secret) throw new Error('Missing SYNCSCRIPT_WEBHOOK_SECRET');\nif (!crypto.timingSafeEqual(Buffer.from(sig,'hex'), Buffer.from(expected,'hex'))) throw new Error('Invalid signature');\nconst json = $input.first().json;\nconst tags = (json.payload?.tags || []).map(String);\nif (json.event_type !== 'task.created' || !tags.includes('deal')) {\n  return [];\n}\nreturn json;"
+      },
+      "id": "1a1b1c1d-2222-4222-8222-bbbbbbbbbbbb",
+      "name": "Verify + Filter Deals",
+      "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "resource": "engagement",
+        "operation": "create",
+        "type": "task",
+        "metadata": {
+          "subject": "={{ $json.payload.title }}",
+          "body": "From SyncScript task. Due: {{ $json.payload.dueAt || 'TBD' }}",
+          "status": "NOT_STARTED"
+        }
+      },
+      "id": "1a1b1c1d-3333-4333-8333-cccccccccccc",
+      "name": "HubSpot Activity",
+      "type": "n8n-nodes-base.hubspot", "typeVersion": 2, "position": [680, 240],
+      "credentials": { "hubspotOAuth2Api": { "id": "REPLACE_WITH_HUBSPOT_CRED_ID", "name": "HubSpot OAuth2" } }
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "send",
+        "to": "={{ $env.DEAL_OWNER_EMAIL || '[email protected]' }}",
+        "subject": "[SyncScript] New deal task: {{ $json.payload.title }}",
+        "message": "A new sales task is in your queue:\n\n{{ $json.payload.title }}\n\nDue: {{ $json.payload.dueAt }}\n\nOpen: https://www.syncscript.app/tasks/{{ $json.entity_id }}"
+      },
+      "id": "1a1b1c1d-4444-4444-8444-dddddddddddd",
+      "name": "Email Owner",
+      "type": "n8n-nodes-base.gmail", "typeVersion": 2.1, "position": [680, 360],
+      "credentials": { "gmailOAuth2": { "id": "REPLACE_WITH_GMAIL_CRED_ID", "name": "Gmail OAuth2" } }
+    }
+  ],
+  "connections": {
+    "SyncScript Webhook":   { "main": [[{ "node": "Verify + Filter Deals", "type": "main", "index": 0 }]] },
+    "Verify + Filter Deals":{ "main": [[
+      { "node": "HubSpot Activity", "type": "main", "index": 0 },
+      { "node": "Email Owner",     "type": "main", "index": 0 }
+    ]] }
+  },
+  "settings": { "executionOrder": "v1" }, "active": false, "versionId": "1.0.0",
+  "tags": ["syncscript", "sales"]
+}

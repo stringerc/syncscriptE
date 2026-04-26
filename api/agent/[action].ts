@@ -23,6 +23,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createHmac } from 'node:crypto';
 import { createClient } from '@supabase/supabase-js';
 import { getAuthenticatedSupabaseUser, validateAuth } from '../_lib/auth';
+import { withObservability } from '../_lib/observability';
 import {
   resolveAgentLLMConfig,
   type AgentLLMProvider,
@@ -84,7 +85,7 @@ async function readJsonBody(req: VercelRequest): Promise<Record<string, unknown>
   return {};
 }
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+async function rawHandler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, GET, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
@@ -115,10 +116,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     case 'byok-delete':     return handleByokDelete(sb, userId, req, res);
     case 'policy':          return handlePolicy(sb, userId, req, res);
     case 'live-token':      return handleLiveToken(sb, userId, req, res);
+    case 'webhooks-list':       return handleWebhooksList(sb, userId, req, res);
+    case 'webhooks-create':     return handleWebhooksCreate(sb, userId, req, res);
+    case 'webhooks-delete':     return handleWebhooksDelete(sb, userId, req, res);
+    case 'webhooks-rotate':     return handleWebhooksRotate(sb, userId, req, res);
+    case 'webhooks-deliveries': return handleWebhooksDeliveries(sb, userId, req, res);
+    case 'webhooks-replay':     return handleWebhooksReplay(sb, userId, req, res);
+    case 'webhooks-event-types': return handleWebhooksEventTypes(sb, userId, req, res);
     default:
       return res.status(404).json({ error: `unknown_action: ${action}` });
   }
 }
+
+export default withObservability(rawHandler, { route: 'agent' });
 
 // ─────────────────────────────────────────────────────────────────────
 // LIST + RUN DETAIL
@@ -430,4 +440,158 @@ async function handlePolicy(sb: any, userId: string, req: VercelRequest, res: Ve
   }
   const { data: row } = await sb.from('automation_policies').select('*').eq('user_id', userId).maybeSingle();
   return res.status(200).json({ policy: row });
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// WEBHOOKS — Settings → Integrations UI for the event-bus we already built
+// (event_outbox + webhook_subscriptions + webhook_deliveries). Folded into
+// /api/agent/[action] because Vercel Hobby caps at 12 functions and this is
+// also user-scoped settings.
+// ─────────────────────────────────────────────────────────────────────
+
+import { randomBytes } from 'node:crypto';
+import { SYNCSCRIPT_EVENT_TYPES } from '../_lib/events';
+
+function newSecret(): string {
+  return 'whsec_' + randomBytes(24).toString('base64url');
+}
+
+function maskSecret(secret: string): string {
+  if (!secret || secret.length < 12) return '****';
+  return `${secret.slice(0, 8)}…${secret.slice(-4)}`;
+}
+
+async function handleWebhooksEventTypes(_sb: any, _userId: string, req: VercelRequest, res: VercelResponse) {
+  if (req.method !== 'GET') return res.status(405).json({ error: 'method_not_allowed' });
+  return res.status(200).json({ event_types: SYNCSCRIPT_EVENT_TYPES });
+}
+
+async function handleWebhooksList(sb: any, userId: string, req: VercelRequest, res: VercelResponse) {
+  if (req.method !== 'GET') return res.status(405).json({ error: 'method_not_allowed' });
+  const { data, error } = await sb
+    .from('webhook_subscriptions')
+    .select('id, label, url, event_types, active, consecutive_failures, disabled_reason, created_at, last_delivery_at, secret')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false });
+  if (error) return res.status(500).json({ error: error.message });
+  // Never return the raw secret — only the masked tail.
+  const safe = (data || []).map((r: { secret: string } & Record<string, unknown>) => ({
+    ...r,
+    secret: maskSecret(String(r.secret || '')),
+  }));
+  return res.status(200).json({ subscriptions: safe });
+}
+
+async function handleWebhooksCreate(sb: any, userId: string, req: VercelRequest, res: VercelResponse) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'method_not_allowed' });
+  const body = await readJsonBody(req);
+  const url = String(body.url || '').trim();
+  if (!/^https?:\/\/[^\s]+$/.test(url)) return res.status(400).json({ error: 'invalid_url' });
+  const label = String(body.label || '').trim().slice(0, 80) || null;
+  const rawTypes = Array.isArray(body.event_types) ? body.event_types : [];
+  const event_types = rawTypes
+    .map((t) => String(t))
+    .filter((t) => (SYNCSCRIPT_EVENT_TYPES as readonly string[]).includes(t));
+  // Empty array means "all events" per the schema CHECK constraint.
+
+  const secret = newSecret();
+  const { data, error } = await sb
+    .from('webhook_subscriptions')
+    .insert({ user_id: userId, url, label, event_types, secret, active: true })
+    .select('id, label, url, event_types, active, secret, created_at')
+    .single();
+  if (error) return res.status(500).json({ error: error.message });
+  // Return the raw secret EXACTLY ONCE, like Stripe / GitHub. After this,
+  // future GETs return only the mask.
+  return res.status(200).json({
+    subscription: { ...data, secret_displayed_once: data.secret },
+  });
+}
+
+async function handleWebhooksDelete(sb: any, userId: string, req: VercelRequest, res: VercelResponse) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'method_not_allowed' });
+  const body = await readJsonBody(req);
+  const id = String(body.id || '').trim();
+  if (!/^[0-9a-f-]{36}$/.test(id)) return res.status(400).json({ error: 'invalid_id' });
+  const { error } = await sb
+    .from('webhook_subscriptions')
+    .delete()
+    .eq('id', id)
+    .eq('user_id', userId);
+  if (error) return res.status(500).json({ error: error.message });
+  return res.status(200).json({ ok: true });
+}
+
+async function handleWebhooksRotate(sb: any, userId: string, req: VercelRequest, res: VercelResponse) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'method_not_allowed' });
+  const body = await readJsonBody(req);
+  const id = String(body.id || '').trim();
+  if (!/^[0-9a-f-]{36}$/.test(id)) return res.status(400).json({ error: 'invalid_id' });
+  const next = newSecret();
+  const { data, error } = await sb
+    .from('webhook_subscriptions')
+    .update({ secret: next, consecutive_failures: 0, disabled_reason: null, active: true })
+    .eq('id', id)
+    .eq('user_id', userId)
+    .select('id, secret')
+    .single();
+  if (error || !data) return res.status(404).json({ error: 'not_found' });
+  // Same one-time-display behavior as create.
+  return res.status(200).json({ id, secret_displayed_once: data.secret });
+}
+
+async function handleWebhooksDeliveries(sb: any, userId: string, req: VercelRequest, res: VercelResponse) {
+  if (req.method !== 'GET') return res.status(405).json({ error: 'method_not_allowed' });
+  const subId = String((req.query as Record<string, unknown>)?.subscription_id || '');
+  const limit = Math.min(100, Math.max(1, Number((req.query as Record<string, unknown>)?.limit) || 25));
+  // RLS: webhook_deliveries inherits ownership through subscription_id; we
+  // join on subscription_id IN (subscriptions where user_id = userId).
+  const { data: subs } = await sb
+    .from('webhook_subscriptions')
+    .select('id')
+    .eq('user_id', userId);
+  const ownedIds = new Set((subs || []).map((s: { id: string }) => s.id));
+  if (subId && !ownedIds.has(subId)) return res.status(403).json({ error: 'forbidden' });
+  if (!ownedIds.size) return res.status(200).json({ deliveries: [] });
+
+  let q = sb
+    .from('webhook_deliveries')
+    .select('id, subscription_id, event_id, status, attempt, response_status, last_error, created_at, updated_at, next_attempt_at')
+    .order('created_at', { ascending: false })
+    .limit(limit);
+  if (subId) q = q.eq('subscription_id', subId);
+  else q = q.in('subscription_id', Array.from(ownedIds));
+  const { data, error } = await q;
+  if (error) return res.status(500).json({ error: error.message });
+  return res.status(200).json({ deliveries: data || [] });
+}
+
+async function handleWebhooksReplay(sb: any, userId: string, req: VercelRequest, res: VercelResponse) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'method_not_allowed' });
+  const body = await readJsonBody(req);
+  const deliveryId = String(body.delivery_id || '').trim();
+  if (!/^[0-9a-f-]{36}$/.test(deliveryId)) return res.status(400).json({ error: 'invalid_id' });
+
+  // Verify ownership via subscription join, then reset to pending.
+  const { data: row, error } = await sb
+    .from('webhook_deliveries')
+    .select('id, subscription_id, status, attempt, webhook_subscriptions!inner(user_id)')
+    .eq('id', deliveryId)
+    .maybeSingle();
+  if (error || !row) return res.status(404).json({ error: 'not_found' });
+  const ownerId = (row as unknown as { webhook_subscriptions: { user_id: string } }).webhook_subscriptions?.user_id;
+  if (ownerId !== userId) return res.status(403).json({ error: 'forbidden' });
+
+  const { error: updErr } = await sb
+    .from('webhook_deliveries')
+    .update({
+      status: 'pending',
+      next_attempt_at: new Date().toISOString(),
+      attempt: 0, // reset attempt count so backoff starts fresh
+      last_error: null,
+      response_status: null,
+    })
+    .eq('id', deliveryId);
+  if (updErr) return res.status(500).json({ error: updErr.message });
+  return res.status(200).json({ ok: true, scheduled_at: new Date().toISOString() });
 }

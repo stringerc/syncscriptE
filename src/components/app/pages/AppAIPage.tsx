@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, useMemo, startTransition, Suspense } from 'react'
+import { useState, useEffect, useRef, useCallback, useMemo, startTransition, Suspense, lazy } from 'react'
 import { createPortal } from 'react-dom'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Button } from '@/components/ui/button'
@@ -31,7 +31,16 @@ import {
   Users,
 } from 'lucide-react'
 import { DocumentCanvas } from '../../../components/DocumentCanvas'
-import { VoiceConversationEngine } from '../../../components/VoiceConversationEngine'
+// Lazy-loaded so the ~848KB voice chunk only ships when the user opens
+// voice. See .cursor/rules/04-perf-seo-gate.mdc — keeps the AppAI route
+// initial bundle under our perf budget. The Suspense wrapper around
+// <VoiceConversationEngine /> below shows the "Opening voice…" fallback
+// during the chunk fetch.
+const VoiceConversationEngine = lazy(() =>
+  import('../../../components/VoiceConversationEngine').then((m) => ({
+    default: m.VoiceConversationEngine,
+  }))
+)
 import { PRESET_AGENTS, getAgentPersona, getAgentName, routeToAgents, type AgentPersona } from '../../../utils/agent-personas'
 import { getStoredNexusPersonaMode } from '../../../utils/nexus-persona-preference'
 import { NEXUS_USER_CHAT_PATH } from '../../../config/nexus-vercel-ai-routes'

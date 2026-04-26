@@ -1,5 +1,7 @@
 # SyncScript Project Memory (Quick Reference)
 
+> **Memory hygiene (added 2026-04-25 night):** Active dated entries are kept in this file for the **current quarter** (Q2 2026 = Apr–Jun) plus evergreen ops sections (Twilio TwiML 200 fix, Kokoro tunnel debugging, env var catalog). When this file passes ~1000 lines, walk dated sections oldest-first and ask "is this still the canonical answer for someone hitting this symptom today?" If no, condense to a one-liner and link to the daily log under `memory/YYYY-MM-DD.md` (gitignored, local-only — that's the raw record). The 2026-03-30 Twilio entry is the canonical example of "old date, still active": it stays because the underlying TwiML rule is still load-bearing.
+
 ### Quick context for new chats (keep concise; edit when workflows change — stale bullets confuse agents)
 
 - **Stack:** Vite/React dashboard, Vercel **`api/*`**, Supabase Edge; production deploy flows vary by change type (see dated entries below).

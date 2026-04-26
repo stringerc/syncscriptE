@@ -275,6 +275,16 @@ export function TasksProvider({ children }: TasksProviderProps) {
       }, {
         workspaceId: resolveTaskWorkspaceId(newTask),
       });
+      // Product analytics — funnel tracking for "manual" task creation. Voice/
+      // chat/agent/n8n call sites pass their own `source` via input metadata
+      // (see emit in voice-engine, agent runner, n8n webhook handler).
+      try {
+        const src = String((input as { source?: string })?.source || 'manual');
+        // Lazy import — analytics module no-ops when key unset.
+        import('../observability/analytics').then((m) => {
+          m.Events.taskCreated({ source: src as Parameters<typeof m.Events.taskCreated>[0]['source'] });
+        }).catch(() => { /* ignore */ });
+      } catch { /* ignore */ }
       toast.success('Task created', { description: newTask.title });
 
       if (createdAssignees.length > 0 || createdCollaborators.length > 0) {

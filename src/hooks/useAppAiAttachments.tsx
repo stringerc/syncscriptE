@@ -125,6 +125,17 @@ export function useAppAiAttachments(opts: UseAppAiAttachmentsOptions): UseAppAiA
         pool = next;
         for (const w of result.warnings) stableOnWarn.current?.(w);
         if (mode === 'modify') stableOnModifyOpen.current?.(result.attachment);
+        // Product analytics: track each successful drop (lazy import → no-op
+        // when PostHog key isn't configured).
+        try {
+          import('../observability/analytics').then((m) => {
+            m.Events.attachmentDropped({
+              mode,
+              mime: result.attachment.mime || undefined,
+              bytes: typeof result.attachment.bytes === 'number' ? result.attachment.bytes : undefined,
+            });
+          }).catch(() => { /* ignore */ });
+        } catch { /* ignore */ }
       }
 
       setAttachments(pool);

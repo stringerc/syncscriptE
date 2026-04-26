@@ -105,12 +105,30 @@ export function PricingPage() {
     }
   }, [checkoutPlan]);
 
+  // Funnel start — log every pricing-page view (lazy import; no-op when
+  // PostHog key isn't configured).
+  useEffect(() => {
+    import('../../observability/analytics').then((m) => {
+      m.Events.pricingPageView();
+    }).catch(() => { /* ignore */ });
+  }, []);
+
   const handleCheckout = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!checkoutPlan || !checkoutEmail.trim()) return;
 
     setCheckoutLoading(true);
     setCheckoutError(null);
+
+    // Funnel mid — checkout button clicked.
+    try {
+      import('../../observability/analytics').then((m) => {
+        m.Events.checkoutClicked({
+          plan: String(checkoutPlan.id),
+          price_cents: Math.round(Number((checkoutPlan as { price?: number }).price || 0) * 100),
+        });
+      }).catch(() => { /* ignore */ });
+    } catch { /* ignore */ }
 
     try {
       const guestId = crypto.randomUUID();

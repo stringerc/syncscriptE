@@ -1,0 +1,60 @@
+{
+  "name": "SyncScript — Finance Control",
+  "meta": {
+    "templateCredsSetupCompleted": false,
+    "syncscript_recipe_id": "recipe-finance-control",
+    "syncscript_template_version": 1,
+    "syncscript_doc": "Mirror SyncScript invoice events to QuickBooks + a Slack #finance channel. Handles invoice.sent, invoice.paid, invoice.overdue."
+  },
+  "nodes": [
+    {
+      "parameters": { "httpMethod": "POST", "path": "syncscript-finance-control", "options": { "rawBody": true } },
+      "id": "2b2c2d2e-1111-4111-8111-aaaaaaaaaaaa",
+      "name": "SyncScript Webhook",
+      "type": "n8n-nodes-base.webhook", "typeVersion": 1.1, "position": [240, 300],
+      "webhookId": "syncscript-finance-control"
+    },
+    {
+      "parameters": {
+        "language": "javaScript",
+        "jsCode": "const crypto = require('crypto');\nconst secret = $env.SYNCSCRIPT_WEBHOOK_SECRET || '';\nconst rawBody = $input.first().binary?.data ? $input.first().binary.data.toString('utf8') : JSON.stringify($input.first().json || {});\nconst sig = String($input.first().headers?.['x-syncscript-signature'] || '').replace(/^sha256=/, '');\nconst expected = crypto.createHmac('sha256', secret).update(rawBody).digest('hex');\nif (!secret) throw new Error('Missing SYNCSCRIPT_WEBHOOK_SECRET');\nif (!crypto.timingSafeEqual(Buffer.from(sig,'hex'), Buffer.from(expected,'hex'))) throw new Error('Invalid signature');\nconst j = $input.first().json;\nif (!String(j.event_type || '').startsWith('invoice.')) return [];\nreturn j;"
+      },
+      "id": "2b2c2d2e-2222-4222-8222-bbbbbbbbbbbb",
+      "name": "Verify + Filter Invoice",
+      "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": "={{ $env.SLACK_FINANCE_CHANNEL || '#finance' }}",
+        "text": ":receipt: *{{ $json.event_type }}*\nInvoice: {{ $json.payload.invoiceId || $json.entity_id }}\nAmount: ${{ $json.payload.total || $json.payload.amount }}\nCustomer: {{ $json.payload.customer_email || 'unknown' }}\nOpen: https://www.syncscript.app/invoices/{{ $json.entity_id }}"
+      },
+      "id": "2b2c2d2e-3333-4333-8333-cccccccccccc",
+      "name": "Notify Finance",
+      "type": "n8n-nodes-base.slack", "typeVersion": 2.2, "position": [680, 240],
+      "credentials": { "slackApi": { "id": "REPLACE_WITH_SLACK_CRED_ID", "name": "Slack OAuth2" } }
+    },
+    {
+      "parameters": {
+        "resource": "invoice",
+        "operation": "get",
+        "invoiceId": "={{ $json.payload.quickbooks_invoice_id }}"
+      },
+      "id": "2b2c2d2e-4444-4444-8444-dddddddddddd",
+      "name": "QuickBooks (lookup)",
+      "type": "n8n-nodes-base.quickBooks", "typeVersion": 1, "position": [680, 360],
+      "credentials": { "quickBooksOAuth2Api": { "id": "REPLACE_WITH_QBO_CRED_ID", "name": "QuickBooks OAuth2" } },
+      "continueOnFail": true,
+      "notes": "Looks up the corresponding QuickBooks invoice if you've stored its ID in payload.quickbooks_invoice_id. Optional — remove if not using QuickBooks."
+    }
+  ],
+  "connections": {
+    "SyncScript Webhook":     { "main": [[{ "node": "Verify + Filter Invoice", "type": "main", "index": 0 }]] },
+    "Verify + Filter Invoice":{ "main": [[
+      { "node": "Notify Finance",     "type": "main", "index": 0 },
+      { "node": "QuickBooks (lookup)", "type": "main", "index": 0 }
+    ]] }
+  },
+  "settings": { "executionOrder": "v1" }, "active": false, "versionId": "1.0.0",
+  "tags": ["syncscript", "finance"]
+}

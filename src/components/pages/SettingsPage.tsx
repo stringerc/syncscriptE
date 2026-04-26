@@ -7,11 +7,14 @@ import {
   Camera, BookOpen, MessageSquare, CheckCircle2, Activity,
   CreditCard,
   Monitor,
+  Clock,
   Bot as BotIcon,
   FolderOpen as FolderOpenIcon,
 } from 'lucide-react';
 import { AgentSettingsTab } from '../settings/AgentSettingsTab';
 import { FilesLibraryEmbed } from '../settings/FilesLibraryEmbed';
+import { WebhooksTab } from '../settings/WebhooksTab';
+import { AuditLogTab } from '../settings/AuditLogTab';
 import { StripeConnectSettings } from '../settings/StripeConnectSettings';
 import { motion } from 'motion/react';
 import { toast } from 'sonner';
@@ -630,6 +633,10 @@ export function SettingsPage() {
               <FolderOpenIcon className="w-4 h-4 mr-2" />
               Files
             </TabsTrigger>
+            <TabsTrigger value="activity">
+              <Clock className="w-4 h-4 mr-2" />
+              Activity
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="agent" className="space-y-6">
@@ -638,6 +645,12 @@ export function SettingsPage() {
 
           <TabsContent value="files" className="space-y-6">
             <FilesLibraryEmbed />
+          </TabsContent>
+
+          <TabsContent value="activity" className="space-y-6">
+            <Card className="bg-[#1e2128] border-gray-800 p-6">
+              <AuditLogTab />
+            </Card>
           </TabsContent>
 
           {/* General Settings */}
@@ -1352,6 +1365,10 @@ export function SettingsPage() {
 
           {/* Integrations */}
           <TabsContent value="integrations" className="space-y-6">
+            <Card className="bg-[#1e2128] border-gray-800 p-6">
+              <WebhooksTab />
+            </Card>
+
             <Card className="bg-[#1e2128] border-gray-800 p-6">
               <h2 className="text-white text-xl mb-2 flex items-center gap-2">
                 <Link2 className="w-5 h-5 text-teal-400" />

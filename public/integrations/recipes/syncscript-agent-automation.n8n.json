@@ -1,0 +1,52 @@
+{
+  "name": "SyncScript — Agent Automation",
+  "meta": {
+    "templateCredsSetupCompleted": false,
+    "syncscript_recipe_id": "recipe-agent-automation",
+    "syncscript_template_version": 1,
+    "syncscript_doc": "Listen for nexus.tool.called events from the Nexus Agent. Log to a Google Sheet so you have a permanent audit trail outside SyncScript. Optionally, kick off a downstream agent action via OpenAI tools."
+  },
+  "nodes": [
+    {
+      "parameters": { "httpMethod": "POST", "path": "syncscript-agent-automation", "options": { "rawBody": true } },
+      "id": "4d4e4f50-1111-4111-8111-aaaaaaaaaaaa",
+      "name": "SyncScript Webhook",
+      "type": "n8n-nodes-base.webhook", "typeVersion": 1.1, "position": [240, 300],
+      "webhookId": "syncscript-agent-automation"
+    },
+    {
+      "parameters": {
+        "language": "javaScript",
+        "jsCode": "const crypto = require('crypto');\nconst secret = $env.SYNCSCRIPT_WEBHOOK_SECRET || '';\nconst rawBody = $input.first().binary?.data ? $input.first().binary.data.toString('utf8') : JSON.stringify($input.first().json || {});\nconst sig = String($input.first().headers?.['x-syncscript-signature'] || '').replace(/^sha256=/, '');\nconst expected = crypto.createHmac('sha256', secret).update(rawBody).digest('hex');\nif (!secret) throw new Error('Missing SYNCSCRIPT_WEBHOOK_SECRET');\nif (!crypto.timingSafeEqual(Buffer.from(sig,'hex'), Buffer.from(expected,'hex'))) throw new Error('Invalid signature');\nconst j = $input.first().json;\nif (!String(j.event_type || '').startsWith('nexus.')) return [];\nreturn j;"
+      },
+      "id": "4d4e4f50-2222-4222-8222-bbbbbbbbbbbb",
+      "name": "Verify + Filter Nexus",
+      "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": "={{ $env.GSHEETS_AUDIT_DOC_ID || 'REPLACE_WITH_DOC_ID' }}",
+        "sheetName": "agent-audit",
+        "columns": { "mappingMode": "defineBelow", "value": {
+          "timestamp":  "={{ $now.toISO() }}",
+          "event_type": "={{ $json.event_type }}",
+          "entity_id":  "={{ $json.entity_id }}",
+          "tool":       "={{ $json.payload?.tool || '' }}",
+          "outcome":    "={{ $json.payload?.outcome || $json.payload?.result?.ok }}",
+          "user_id":    "={{ $json.user_id }}"
+        } }
+      },
+      "id": "4d4e4f50-3333-4333-8333-cccccccccccc",
+      "name": "Append to Audit Sheet",
+      "type": "n8n-nodes-base.googleSheets", "typeVersion": 4.4, "position": [680, 300],
+      "credentials": { "googleSheetsOAuth2Api": { "id": "REPLACE_WITH_SHEETS_CRED_ID", "name": "Google Sheets OAuth2" } }
+    }
+  ],
+  "connections": {
+    "SyncScript Webhook":    { "main": [[{ "node": "Verify + Filter Nexus",  "type": "main", "index": 0 }]] },
+    "Verify + Filter Nexus": { "main": [[{ "node": "Append to Audit Sheet", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" }, "active": false, "versionId": "1.0.0",
+  "tags": ["syncscript", "agent", "audit"]
+}
