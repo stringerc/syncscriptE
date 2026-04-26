@@ -19,7 +19,8 @@ const webServer = useLocalWebServer
       command: `npx vite preview --port ${port} --strictPort --host 127.0.0.1`,
       url: baseURL,
       reuseExistingServer: !process.env.CI,
-      timeout: 120_000,
+      /** Large bundles + SW generation can exceed 120s on cold CI / dev laptops. */
+      timeout: 180_000,
       stdout: 'pipe' as const,
       stderr: 'pipe' as const,
     }

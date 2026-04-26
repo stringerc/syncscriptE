@@ -2206,14 +2206,14 @@ export function CalendarEventsPage() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3 }}
       >
-        {/* Header */}
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div>
+        {/* Header — title left, primary actions pinned to the right (all breakpoints) */}
+        <div className="flex w-full min-w-0 flex-row flex-wrap items-start justify-between gap-4">
+          <div className="min-w-0 max-w-full flex-1 basis-[min(100%,36rem)] pr-2">
             <h1 className="text-white mb-2">Calendar & Events</h1>
             <p className="text-gray-400">Energy-aware scheduling with weather and route intelligence</p>
           </div>
 
-          <div className="flex shrink-0 flex-col gap-2">
+          <div className="ml-auto flex shrink-0 flex-col gap-2 sm:min-w-[12rem]">
               {/* Universal Event Creation Button with Restaurant Support - RESEARCH: 7 Studies Combined */}
               <Button 
                 onClick={() => setShowNewEventDialog(true)}

@@ -38,6 +38,7 @@ interface FloatingFeedbackButtonProps {
 function shouldHideFeedbackFab(pathname: string): boolean {
   if (pathname.startsWith('/app/')) return true;
   const exact = new Set([
+    '/',
     '/dashboard',
     '/tasks',
     '/calendar',
