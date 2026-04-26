@@ -479,6 +479,13 @@ export async function runAgentLoop({ run, sb }) {
         history.push({ role: 'assistant', content: '', tool_calls: [{ id: tc.id, type: 'function', function: { name: tc.name, arguments: tc.argumentsJson } }] });
         history.push({ role: 'tool', tool_call_id: tc.id, name: tc.name, content: JSON.stringify(ssRes).slice(0, 800) });
         stepsExecuted += 1;
+        // A successful tool_call is real progress — reset the same-action
+        // tripwire so the agent doesn't get aborted for repeating browser
+        // queries that bookend tool calls (extract_links → save → extract_links).
+        if (ssRes && ssRes.ok !== false) {
+          lastActionKey = '';
+          consecutiveSameAction = 0;
+        }
       }
 
       if (didFinish || abortRun) break;
