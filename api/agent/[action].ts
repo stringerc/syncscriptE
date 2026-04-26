@@ -20,6 +20,7 @@
  */
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { createHmac } from 'node:crypto';
 import { createClient } from '@supabase/supabase-js';
 import { getAuthenticatedSupabaseUser, validateAuth } from '../_lib/auth';
 import {
@@ -113,6 +114,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     case 'byok-set':        return handleByokSet(sb, userId, req, res);
     case 'byok-delete':     return handleByokDelete(sb, userId, req, res);
     case 'policy':          return handlePolicy(sb, userId, req, res);
+    case 'live-token':      return handleLiveToken(sb, userId, req, res);
     default:
       return res.status(404).json({ error: `unknown_action: ${action}` });
   }
@@ -331,6 +333,60 @@ async function handleByokDelete(sb: any, userId: string, req: VercelRequest, res
   const { error } = await sb.from('byok_keys').delete().eq('user_id', userId).eq('provider', provider);
   if (error) return res.status(500).json({ error: error.message });
   return res.status(200).json({ ok: true });
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// LIVE TOKEN — short-lived HMAC for /v1/runs/<id>/live WebSocket auth
+// ─────────────────────────────────────────────────────────────────────
+
+/**
+ * Issues a 5-minute HMAC token the browser uses to subscribe to the runner's
+ * CDP screencast stream. The runner verifies this locally (shared secret =
+ * AGENT_RUNNER_TOKEN) — no Supabase round-trip per WS connection.
+ *
+ * Format: base64url(JSON_payload).base64url(HMAC_SHA256(payload))
+ *   payload = { run_id, user_id, exp }
+ */
+async function handleLiveToken(sb: any, userId: string, req: VercelRequest, res: VercelResponse) {
+  if (req.method !== 'GET' && req.method !== 'POST') {
+    return res.status(405).json({ error: 'method_not_allowed' });
+  }
+  const runId =
+    (req.method === 'GET'
+      ? String((req.query as Record<string, unknown>)?.run_id || '')
+      : String(((await readJsonBody(req)) as Record<string, unknown>)?.run_id || ''));
+  if (!/^[0-9a-f-]{36}$/.test(runId)) {
+    return res.status(400).json({ error: 'invalid_run_id' });
+  }
+  if (!AGENT_RUNNER_TOKEN) {
+    return res.status(503).json({ error: 'runner_token_not_configured' });
+  }
+  // Confirm the run belongs to the caller — defense in depth above and
+  // beyond the HMAC, so a token can never be issued for someone else's run.
+  const { data: row } = await sb
+    .from('agent_runs')
+    .select('id, user_id, status')
+    .eq('id', runId)
+    .maybeSingle();
+  if (!row) return res.status(404).json({ error: 'run_not_found' });
+  if (row.user_id !== userId) return res.status(403).json({ error: 'forbidden' });
+
+  const runnerBase = await resolveRunnerBaseUrl(sb);
+  if (!runnerBase) return res.status(503).json({ error: 'runner_unreachable' });
+
+  const exp = Math.floor(Date.now() / 1000) + 300; // 5 min
+  const payload = JSON.stringify({ run_id: runId, user_id: userId, exp });
+  const payloadB64 = Buffer.from(payload, 'utf8').toString('base64url');
+  const sig = createHmac('sha256', AGENT_RUNNER_TOKEN).update(payloadB64).digest('base64url');
+  const token = `${payloadB64}.${sig}`;
+
+  // The WS URL the browser will open. http(s) → ws(s) swap.
+  const wsBase = runnerBase.replace(/^http/, 'ws').replace(/\/$/, '');
+  return res.status(200).json({
+    token,
+    expires_at: exp,
+    ws_url: `${wsBase}/v1/runs/${runId}/live?token=${token}`,
+  });
 }
 
 // ─────────────────────────────────────────────────────────────────────

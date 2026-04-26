@@ -91,7 +91,16 @@ export async function executeBrowserAction(page, action) {
     case 'goto': {
       const target = String(action.url || '').trim();
       if (!/^https?:\/\//.test(target)) throw new Error('goto: url must start with http(s)');
-      await page.goto(target, { waitUntil: 'domcontentloaded' });
+      // domcontentloaded is fast but misses lazy-loaded content. Try
+      // networkidle (capped) so dynamic image grids / SPA fetches settle
+      // before the agent extract_links / extract_text. Falls through if
+      // the page never reaches networkidle (long-poll sites).
+      try {
+        await page.goto(target, { waitUntil: 'domcontentloaded' });
+        await page.waitForLoadState('networkidle', { timeout: 4000 }).catch(() => {});
+      } catch (e) {
+        return { ok: false, error: String(e?.message || e).slice(0, 300) };
+      }
       return { ok: true };
     }
     case 'click': {
@@ -135,47 +144,68 @@ export async function executeBrowserAction(page, action) {
     case 'extract_links': {
       // Extracts <a href> + <img src> URLs that look navigable. Useful for
       // collection tasks (e.g. "find dolphin pictures") without needing to
-      // click. Result includes hostname-grouped counts so the LLM can prefer
-      // domain-restricted hits.
+      // click. Auto-scrolls + waits if the first pass returns fewer than
+      // expected items — handles lazy-loaded image grids on Google/Bing/etc.
       const filterKind = String(action.filter || 'all'); // 'a' | 'img' | 'all'
       const max = Math.min(200, Math.max(1, Number(action.max) || 30));
-      const result = await page.evaluate(({ filterKind, max }) => {
-        const out = { links: [], images: [] };
-        if (filterKind === 'all' || filterKind === 'a') {
-          const anchors = Array.from(document.querySelectorAll('a[href]'))
-            .slice(0, max * 3);
-          for (const a of anchors) {
-            const href = a.getAttribute('href') || '';
-            try {
-              const abs = new URL(href, location.href).toString();
-              if (!abs.startsWith('http')) continue;
-              const text = (a.textContent || a.getAttribute('aria-label') || '').trim().slice(0, 120);
-              out.links.push({ href: abs, text });
-              if (out.links.length >= max) break;
-            } catch { /* ignore */ }
+      const minBeforeScroll = filterKind === 'img' ? 5 : 8;
+
+      async function pull() {
+        return await page.evaluate(({ filterKind, max }) => {
+          const out = { links: [], images: [] };
+          if (filterKind === 'all' || filterKind === 'a') {
+            const anchors = Array.from(document.querySelectorAll('a[href]')).slice(0, max * 3);
+            for (const a of anchors) {
+              const href = a.getAttribute('href') || '';
+              try {
+                const abs = new URL(href, location.href).toString();
+                if (!abs.startsWith('http')) continue;
+                const text = (a.textContent || a.getAttribute('aria-label') || '').trim().slice(0, 120);
+                out.links.push({ href: abs, text });
+                if (out.links.length >= max) break;
+              } catch { /* ignore */ }
+            }
           }
-        }
-        if (filterKind === 'all' || filterKind === 'img') {
-          const imgs = Array.from(document.querySelectorAll('img[src]'))
-            .slice(0, max * 3);
-          for (const img of imgs) {
-            const src = img.getAttribute('src') || img.getAttribute('data-src') || '';
-            try {
-              const abs = new URL(src, location.href).toString();
-              if (!abs.startsWith('http')) continue;
-              const w = img.naturalWidth || img.getAttribute('width') || 0;
-              const h = img.naturalHeight || img.getAttribute('height') || 0;
-              const alt = (img.getAttribute('alt') || '').trim().slice(0, 120);
-              // Skip tiny / data:url icons
-              if (Number(w) > 60 || Number(h) > 60 || (!w && !h)) {
-                out.images.push({ src: abs, alt, width: Number(w) || null, height: Number(h) || null });
-                if (out.images.length >= max) break;
-              }
-            } catch { /* ignore */ }
+          if (filterKind === 'all' || filterKind === 'img') {
+            // Include lazy-loaded sources: data-src, data-original, srcset.
+            const imgs = Array.from(document.querySelectorAll('img[src],img[data-src],img[data-original]')).slice(0, max * 3);
+            for (const img of imgs) {
+              const src = img.getAttribute('src') ||
+                          img.getAttribute('data-src') ||
+                          img.getAttribute('data-original') ||
+                          (img.getAttribute('srcset') || '').split(' ')[0] ||
+                          '';
+              if (!src) continue;
+              try {
+                const abs = new URL(src, location.href).toString();
+                if (!abs.startsWith('http')) continue;
+                const w = img.naturalWidth || img.getAttribute('width') || 0;
+                const h = img.naturalHeight || img.getAttribute('height') || 0;
+                const alt = (img.getAttribute('alt') || '').trim().slice(0, 120);
+                if (Number(w) > 60 || Number(h) > 60 || (!w && !h)) {
+                  out.images.push({ src: abs, alt, width: Number(w) || null, height: Number(h) || null });
+                  if (out.images.length >= max) break;
+                }
+              } catch { /* ignore */ }
+            }
           }
-        }
-        return out;
-      }, { filterKind, max });
+          return out;
+        }, { filterKind, max });
+      }
+
+      let result = await pull();
+      // If we got too few images, scroll once + retry. Common for Google
+      // Images / Bing / Pinterest / any infinite-scroll grid.
+      if (filterKind !== 'a' && result.images.length < minBeforeScroll) {
+        try {
+          await page.evaluate(() => window.scrollBy(0, 1500));
+          await page.waitForTimeout(900);
+          await page.evaluate(() => window.scrollBy(0, 1500));
+          await page.waitForTimeout(900);
+          const second = await pull();
+          if (second.images.length > result.images.length) result = second;
+        } catch { /* ignore */ }
+      }
       return { ok: true, ...result };
     }
     default:

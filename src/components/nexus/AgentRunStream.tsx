@@ -4,11 +4,11 @@
  * within ~1s of capture. "Take control" + interject + cancel surfaced inline.
  */
 import { useMemo, useState } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
 import { Loader2, X, MessageSquare, CheckCircle2, AlertTriangle, PauseCircle, Send, Bot, Globe, Pencil, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useAgentRunDetail, useAgentRunControls, type AgentRunStatus, type AgentRunStep } from '@/hooks/useAgentRuns';
+import { AgentLiveCanvas } from './AgentLiveCanvas';
 
 interface Props {
   runId: string;
@@ -76,33 +76,19 @@ export function AgentRunStream({ runId, onClose }: Props) {
       </header>
 
       <div className="flex-1 grid grid-rows-[1fr_auto] md:grid-rows-1 md:grid-cols-[1fr_280px] min-h-0 overflow-hidden">
-        {/* Live screenshot */}
-        <div className="relative bg-[#06070a] flex items-center justify-center overflow-hidden border-r border-gray-800/60">
-          {latestShot?.screenshot_b64 ? (
-            <AnimatePresence mode="wait">
-              <motion.img
-                key={latestShot.id}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.2 }}
-                src={`data:image/png;base64,${latestShot.screenshot_b64}`}
-                alt="Live agent browser"
-                className="max-w-full max-h-full object-contain"
-              />
-            </AnimatePresence>
-          ) : (
-            <div className="flex flex-col items-center gap-2 p-6 text-center">
-              <Globe className="w-8 h-8 text-gray-600" />
-              <p className="text-xs text-gray-500">
-                {run.status === 'queued' && 'Queued — runner will pick it up shortly.'}
-                {run.status === 'running' && 'Loading first screenshot…'}
-                {run.status === 'failed' && 'Run failed before any browser activity.'}
-                {run.status === 'cancelled' && 'Cancelled.'}
-                {run.status === 'done' && 'Completed (no screenshots captured).'}
-              </p>
-            </div>
-          )}
+        {/* Live agent browser — CDP screencast over WebSocket while running,
+            falls back to latest captured screenshot when paused/done. */}
+        <div className="relative overflow-hidden border-r border-gray-800/60 min-h-0">
+          <AgentLiveCanvas
+            runId={run.id}
+            isActive={run.status === 'running' || run.status === 'waiting_user'}
+            fallbackScreenshotB64={latestShot?.screenshot_b64 ?? null}
+            fallbackUrlLabel={
+              latestShot?.kind === 'screenshot' && typeof (latestShot.payload as { url?: string })?.url === 'string'
+                ? (latestShot.payload as { url?: string }).url
+                : null
+            }
+          />
         </div>
 
         {/* Action log */}

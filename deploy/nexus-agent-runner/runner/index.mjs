@@ -10,8 +10,11 @@
  * with 24 GB RAM comfortably runs ~4 Chromium instances in parallel.
  */
 import http from 'node:http';
+import crypto from 'node:crypto';
+import { WebSocketServer } from 'ws';
 import { createClient } from '@supabase/supabase-js';
 import { runAgentLoop } from './agent-loop.mjs';
+import { subscribeToRun, screencastStats } from './screencast.mjs';
 
 const PORT = parseInt(process.env.AGENT_RUNNER_PORT || '18790', 10);
 const TOKEN = process.env.AGENT_RUNNER_TOKEN || '';
@@ -76,13 +79,54 @@ function startPoller() {
   console.log(`[runner] poller every ${POLL_INTERVAL}ms, max concurrency ${MAX_CONCURRENCY}`);
 }
 
+/**
+ * HMAC tokens for /live WebSocket auth. Vercel's /api/agent/live-token
+ * issues these — they encode { run_id, user_id, exp } signed with the
+ * shared AGENT_RUNNER_TOKEN. We verify locally so the runner never has
+ * to call back to Supabase per WS connection.
+ *
+ * Format: base64url(JSON_payload).base64url(HMAC_SHA256(payload))
+ */
+function verifyLiveToken(token, expectedRunId) {
+  if (!token || !TOKEN) return { ok: false, error: 'missing_token' };
+  const dotIdx = token.indexOf('.');
+  if (dotIdx <= 0) return { ok: false, error: 'malformed' };
+  const payloadB64 = token.slice(0, dotIdx);
+  const sigB64 = token.slice(dotIdx + 1);
+  let payload;
+  try {
+    payload = JSON.parse(Buffer.from(payloadB64, 'base64url').toString('utf8'));
+  } catch { return { ok: false, error: 'malformed' }; }
+
+  const expected = crypto.createHmac('sha256', TOKEN).update(payloadB64).digest('base64url');
+  // Constant-time compare
+  const sigBuf = Buffer.from(sigB64, 'base64url');
+  const expBuf = Buffer.from(expected, 'base64url');
+  if (sigBuf.length !== expBuf.length || !crypto.timingSafeEqual(sigBuf, expBuf)) {
+    return { ok: false, error: 'bad_signature' };
+  }
+  if (typeof payload.exp !== 'number' || payload.exp < Math.floor(Date.now() / 1000)) {
+    return { ok: false, error: 'expired' };
+  }
+  if (payload.run_id !== expectedRunId) {
+    return { ok: false, error: 'run_mismatch' };
+  }
+  return { ok: true, payload };
+}
+
 function startHttp() {
   const server = http.createServer(async (req, res) => {
     res.setHeader('Content-Type', 'application/json');
 
     if (req.method === 'GET' && req.url === '/v1/health') {
       res.writeHead(200);
-      res.end(JSON.stringify({ ok: true, started_at: startedAt, active_runs: activeRuns, max_concurrency: MAX_CONCURRENCY }));
+      res.end(JSON.stringify({
+        ok: true,
+        started_at: startedAt,
+        active_runs: activeRuns,
+        max_concurrency: MAX_CONCURRENCY,
+        screencasts: screencastStats(),
+      }));
       return;
     }
 
@@ -108,8 +152,40 @@ function startHttp() {
     res.end(JSON.stringify({ error: 'not_found' }));
   });
 
+  // WebSocket upgrade for /v1/runs/<id>/live?token=<HMAC>
+  const wss = new WebSocketServer({ noServer: true, perMessageDeflate: false });
+  server.on('upgrade', (req, socket, head) => {
+    const url = new URL(req.url, 'http://x');
+    const m = /^\/v1\/runs\/([0-9a-f-]{36})\/live$/.exec(url.pathname);
+    if (!m) {
+      socket.write('HTTP/1.1 404 Not Found\r\n\r\n');
+      socket.destroy();
+      return;
+    }
+    const runId = m[1];
+    const token = url.searchParams.get('token');
+    const verify = verifyLiveToken(token, runId);
+    if (!verify.ok) {
+      socket.write(`HTTP/1.1 401 Unauthorized\r\nContent-Type: text/plain\r\n\r\n${verify.error}`);
+      socket.destroy();
+      return;
+    }
+    wss.handleUpgrade(req, socket, head, (ws) => {
+      const subscribed = subscribeToRun(runId, ws);
+      if (subscribed) {
+        // Heartbeat ping every 20s so Cloudflare doesn't idle the
+        // connection if the page is still and emits no frames.
+        const hb = setInterval(() => {
+          if (ws.readyState !== 1) return clearInterval(hb);
+          try { ws.ping(); } catch { /* ignore */ }
+        }, 20_000);
+        ws.on('close', () => clearInterval(hb));
+      }
+    });
+  });
+
   server.listen(PORT, () => {
-    console.log(`[runner] listening on :${PORT}`);
+    console.log(`[runner] listening on :${PORT} (HTTP + WS /live)`);
   });
 }
 

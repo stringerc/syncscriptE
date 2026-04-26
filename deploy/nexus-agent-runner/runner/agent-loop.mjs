@@ -25,6 +25,7 @@ import { resolveLLMConfig, chatCompletion, estimateCostCents, supportsVision } f
 import { launchBrowser, newPage, executeBrowserAction, currentUrl, captureStorageState } from './browser.mjs';
 import { gate } from './safety.mjs';
 import { executeSyncScriptTool, SYNCSCRIPT_TOOL_SCHEMAS } from './syncscript-tools.mjs';
+import { startScreencast } from './screencast.mjs';
 
 const MAX_STEPS_DEFAULT = 25;
 const MAX_PROMPT_HISTORY = 12;
@@ -95,18 +96,19 @@ POLICY (this run):
 - Trusted sites for autonomy: ${trustedSites.join(', ') || 'none'}
 - Blocked sites: ${blockedSites.join(', ') || 'none'}
 
-EFFICIENCY (CRITICAL):
-- Be DECISIVE. Plan: extract data → save it → finish. Do not re-explore.
+BUDGET DISCIPLINE (each step ≈ 1¢; per-run cap is small):
+- Plan a SHORT path before the first action: "I'll go to X, extract Y, save N, finish."
+- The extract_links action auto-scrolls to load lazy images — call it ONCE per page; calling it again returns the same data.
 - For collection tasks ("save N images/links/articles"):
-    1. goto the source page once.
-    2. Call extract_links ONCE to get all URLs you need.
-    3. Call add_to_resource_library N times BACK-TO-BACK, one per item.
-    4. Call finish() with what you saved. DO NOT browse further.
-- Each extra step costs ~1¢. Goal complete in 5-8 steps for typical save tasks.
-- If extract_links returns fewer than N items, save what you got and finish — don't keep re-extracting.
+    1. goto a SOURCE PAGE that has STATIC <img> tags. Bing image search and Wikipedia work great. Avoid Google image search at first paint — its grid is JS-rendered.
+       Good URLs: https://www.bing.com/images/search?q=QUERY  •  https://en.wikipedia.org/wiki/TOPIC
+    2. extract_links with filter='img' ONCE.
+    3. add_to_resource_library N times back-to-back, one per item.
+    4. finish() with a 1-sentence summary of what you saved.
+- If extract_links returned < N items, save what you got and finish anyway — don't keep re-extracting.
 
 Other rules:
-- Reason briefly (1 sentence) before each action.
+- Reason in ≤1 sentence per turn (keeps cost low).
 - Before clicking destructive labels (Submit, Pay, Delete, Confirm, Buy, Send), call request_user_approval first if you're not Tier-D on a trusted site.
 - If a browser_action returns "tier_X_disallows:Y", DO NOT retry — try extract_links/extract_text instead, or call finish() with what you have.
 - Use create_task / add_to_resource_library when the user asks to save — don't recreate as browser clicks.
@@ -163,6 +165,23 @@ export async function runAgentLoop({ run, sb }) {
     return { outcome: 'failed', stepsExecuted: 0, totalCostCents: 0 };
   }
 
+  // Start CDP screencast — this powers the live "watch the agent browse"
+  // view in the UI. WS subscribers get JPEG frames as the page changes.
+  // Failures here are non-fatal: agent still runs, just no live video.
+  let stopScreencast = () => {};
+  try {
+    stopScreencast = await startScreencast({
+      runId: run.id,
+      page,
+      fps: 12,
+      quality: 60,
+      maxWidth: 1024,
+      maxHeight: 768,
+    });
+  } catch (e) {
+    console.warn(`[runner ${run.id}] screencast start failed (non-fatal):`, e?.message || e);
+  }
+
   const history = [
     { role: 'system', content: SYSTEM_PROMPT({ tier, trustedSites: policy.trusted_sites || [], blockedSites: policy.blocked_sites || [] }) },
     { role: 'user', content: `Goal: ${goal}` },
@@ -173,6 +192,14 @@ export async function runAgentLoop({ run, sb }) {
   let outcome = 'failed';
   let summary = null;
   let waitingApproval = false;
+  // Heuristic auto-finish for collection tasks. If the user said "save 3 X" or
+  // "find 5 Y", parse N and stop AS SOON AS we've successfully called the
+  // matching tool N times — without waiting for the model to call finish().
+  // Free-tier Llama-3.3 is mediocre at "I've done enough, stop now"; this
+  // saves the rest of the budget for actual work.
+  const requestedCountMatch = /\b(\d{1,2})\b/.exec(String(goal || ''));
+  const requestedCount = requestedCountMatch ? Math.min(20, Math.max(1, parseInt(requestedCountMatch[1], 10))) : null;
+  let savesCompleted = 0;
   // Bail out quickly if the model can't emit structured tool calls — common
   // failure for non-FC-tuned free models. Three thoughts in a row → abort.
   let consecutiveNoToolTurns = 0;
@@ -493,6 +520,21 @@ export async function runAgentLoop({ run, sb }) {
         if (ssRes && ssRes.ok !== false) {
           lastActionKey = '';
           consecutiveSameAction = 0;
+          // Auto-finish: if the user asked for N items and we've saved N,
+          // stop now. The model's natural urge to keep browsing is the
+          // single biggest cost-of-ownership leak in the free-tier path.
+          if (
+            requestedCount &&
+            (tc.name === 'add_to_resource_library' || tc.name === 'create_task' || tc.name === 'add_note')
+          ) {
+            savesCompleted += 1;
+            if (savesCompleted >= requestedCount) {
+              outcome = 'done';
+              summary = `Saved ${savesCompleted} item${savesCompleted === 1 ? '' : 's'} via ${tc.name}.`;
+              didFinish = true;
+              break;
+            }
+          }
         }
       }
 
@@ -508,6 +550,9 @@ export async function runAgentLoop({ run, sb }) {
 
     if (outcome === 'failed' && !summary) summary = 'Stopped: max steps reached.';
   } finally {
+    // Stop the CDP screencast first so we don't ack frames into a dying
+    // browser. Subscribers get a clean close(1000) with reason 'run_complete'.
+    try { await stopScreencast(); } catch { /* ignore */ }
     // Persist storageState (cookies, localStorage) so the next run starts
     // already logged in. Best-effort — failure here is non-fatal.
     try {
