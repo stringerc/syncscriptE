@@ -28,6 +28,7 @@ import { syncShadowTaskProjection } from '../contracts/runtime/backend-projectio
 import {
   executeAuthorityRoutedCommand,
 } from '../contracts/runtime/backend-authority-routing';
+import { useAuth } from './AuthContext';
 
 function extractPrimaryAgent(assignees: any[], collaborators: any[]): { id?: string; name: string } | null {
   const entries = [...(Array.isArray(assignees) ? assignees : []), ...(Array.isArray(collaborators) ? collaborators : [])];
@@ -121,6 +122,7 @@ interface TasksProviderProps {
 }
 
 export function TasksProvider({ children }: TasksProviderProps) {
+  const { loading: authLoading, accessToken } = useAuth();
   const TASKS_REFRESH_TIMEOUT_MS = 12000;
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
@@ -174,9 +176,11 @@ export function TasksProvider({ children }: TasksProviderProps) {
     }
   }, [withTimeout]);
   
+  // Wait for auth hydration so SupabaseTaskRepository sees JWT + user id (avoids empty first fetch).
   useEffect(() => {
-    refreshTasks();
-  }, [refreshTasks]);
+    if (authLoading) return;
+    void refreshTasks();
+  }, [authLoading, accessToken, refreshTasks]);
 
   useEffect(() => {
     const onNexusTools = (ev: Event) => {

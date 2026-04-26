@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router';
 import { withDashboardScheduleDemoFallback } from '../utils/dashboard-schedule-demo';
 import { HelpCircle, Zap, ArrowRight, Sparkles, Brain, Activity, Crown, CloudRain, Navigation } from 'lucide-react';
 import { useUserProfile } from '../utils/user-profile';
@@ -19,6 +20,7 @@ import { WeatherWeekOutlookModal } from './WeatherWeekOutlookModal';
 import { TaskDetailModal } from './TaskDetailModal';
 import { getTaskParticipantFaces } from '../utils/task-avatar-display';
 import { TaskParticipantAvatarStack } from './TaskParticipantAvatarStack';
+import { navigationLinks } from '../utils/navigation';
 
 /**
  * 🧠 AI FOCUS SECTION WITH ENERGY ADAPTIVE AGENT
@@ -79,6 +81,7 @@ import { TaskParticipantAvatarStack } from './TaskParticipantAvatarStack';
  */
 
 export function AIFocusSection() {
+  const navigate = useNavigate();
   const [showWeatherModal, setShowWeatherModal] = useState(false);
   const [showRouteModal, setShowRouteModal] = useState(false);
   const [showWeekOutlook, setShowWeekOutlook] = useState(false);
@@ -145,9 +148,8 @@ export function AIFocusSection() {
     return 'Low energy - consider rest or light activities';
   };
   
-  // Simple navigation without useNavigate to avoid Router context issues
   const navigateToEnergy = () => {
-    window.location.hash = '#/energy';
+    navigate(navigationLinks.sidebar.energy);
   };
 
   return (
@@ -180,7 +182,7 @@ export function AIFocusSection() {
                 size="sm"
                 className="border-teal-500/40 text-teal-300 hover:bg-teal-500/10"
                 onClick={() => {
-                  window.location.hash = '#/tasks';
+                  navigate(navigationLinks.sidebar.tasks);
                 }}
               >
                 Go to tasks

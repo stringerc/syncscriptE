@@ -39,6 +39,13 @@ function shouldHideFeedbackFab(pathname: string): boolean {
   if (pathname.startsWith('/app/')) return true;
   const exact = new Set([
     '/',
+    '/login',
+    '/signup',
+    '/auth',
+    '/logout',
+    '/forgot-password',
+    '/auth/callback',
+    '/oauth-callback',
     '/dashboard',
     '/tasks',
     '/calendar',

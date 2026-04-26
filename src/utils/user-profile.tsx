@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, ReactNode, useEffect } from 'react';
+import { useAuth } from '../contexts/AuthContext';
 
 export interface UserProfile {
   id: string;
@@ -66,6 +67,8 @@ function migrateLegacySeedProfile(storedProfile: Partial<UserProfile>): UserProf
 }
 
 export function UserProfileProvider({ children }: { children: ReactNode }) {
+  const { user: authUser, loading: authLoading } = useAuth();
+
   const [profile, setProfile] = useState<UserProfile>(() => {
     // Try to load from localStorage
     const stored = localStorage.getItem(USER_PROFILE_STORAGE_KEY);
@@ -84,6 +87,43 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     localStorage.setItem(USER_PROFILE_STORAGE_KEY, JSON.stringify(profile));
   }, [profile]);
+
+  // Keep dashboard Settings + AI surfaces aligned with Supabase session / Edge profile.
+  // Without this, local `userProfile` can stay on the demo seed after email/password login.
+  useEffect(() => {
+    if (authLoading || !authUser?.id) return;
+
+    setProfile((prev) => {
+      const sameAccount = prev.id === authUser.id;
+      const base: UserProfile = sameAccount
+        ? prev
+        : {
+            ...DEFAULT_PROFILE,
+            energyReadinessOverride: prev.energyReadinessOverride,
+          };
+
+      const name = (authUser.name || '').trim() || base.name;
+      const email = (authUser.email || '').trim() || base.email;
+      const avatar = (authUser.photoUrl || '').trim() || base.avatar;
+
+      if (
+        base.id === authUser.id &&
+        base.name === name &&
+        base.email === email &&
+        base.avatar === avatar
+      ) {
+        return prev;
+      }
+
+      return {
+        ...base,
+        id: authUser.id,
+        name,
+        email,
+        avatar,
+      };
+    });
+  }, [authLoading, authUser?.id, authUser?.name, authUser?.email, authUser?.photoUrl]);
 
   const updateProfile = (updates: Partial<UserProfile>) => {
     setProfile(prev => ({ ...prev, ...updates }));
