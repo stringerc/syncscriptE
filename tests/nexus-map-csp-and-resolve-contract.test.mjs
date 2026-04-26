@@ -16,5 +16,9 @@ assert.ok(
   /worker-src[^;]*'self'[^;]*blob:/.test(csp) || /worker-src[^;]*blob:[^;]*'self'/.test(csp),
   'vercel.json CSP must set worker-src for blob workers (e.g. AgentLiveCanvas / bundler worker URLs)',
 );
+assert.ok(
+  csp.includes('us-assets.i.posthog.com') && csp.includes('eu-assets.i.posthog.com'),
+  'vercel.json CSP must allow PostHog US/EU asset hosts (web-vitals, recorder, surveys, config)',
+);
 
 console.log('nexus-map-csp-and-resolve-contract: ok');

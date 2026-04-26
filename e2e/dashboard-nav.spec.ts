@@ -65,4 +65,13 @@ test.describe('mobile viewport', () => {
     await page.locator('#syncscript-mobile-bottom-nav').getByRole('button', { name: 'Home' }).click();
     await expect(page).toHaveURL(/\/dashboard$/);
   });
+
+  test('from /tasks, bottom nav Calendar navigates to /calendar', async ({ page }) => {
+    await page.goto('/tasks', { waitUntil: 'domcontentloaded' });
+    await expect(page.getByRole('tablist', { name: 'Projects OS sections' })).toBeVisible({
+      timeout: 20_000,
+    });
+    await page.locator('#syncscript-mobile-bottom-nav').getByRole('button', { name: 'Calendar' }).click();
+    await expect(page).toHaveURL(/\/calendar$/);
+  });
 });
