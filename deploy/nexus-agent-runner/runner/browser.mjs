@@ -168,7 +168,9 @@ export async function executeBrowserAction(page, action) {
           }
           if (filterKind === 'all' || filterKind === 'img') {
             // Include lazy-loaded sources: data-src, data-original, srcset.
-            const imgs = Array.from(document.querySelectorAll('img[src],img[data-src],img[data-original]')).slice(0, max * 3);
+            // Filter out UI noise so the LLM only sees content photos.
+            const imgs = Array.from(document.querySelectorAll('img[src],img[data-src],img[data-original]')).slice(0, max * 6);
+            const candidates = [];
             for (const img of imgs) {
               const src = img.getAttribute('src') ||
                           img.getAttribute('data-src') ||
@@ -179,14 +181,30 @@ export async function executeBrowserAction(page, action) {
               try {
                 const abs = new URL(src, location.href).toString();
                 if (!abs.startsWith('http')) continue;
+                // Skip UI/icon assets that pollute generic image extracts.
+                const lower = abs.toLowerCase();
+                if (
+                  lower.endsWith('.svg') ||
+                  /\/(icons?|static|sprites?|emoji|favicon|logos?|chrome|ui-|ux-)\b/.test(lower) ||
+                  /\/rp\//.test(lower) ||                              // bing UI bundles
+                  /\.ico(\?|$)/.test(lower) ||                         // favicons
+                  /external-content.*\/ip\d?\//.test(lower)            // DDG favicon proxy
+                ) continue;
                 const w = img.naturalWidth || img.getAttribute('width') || 0;
                 const h = img.naturalHeight || img.getAttribute('height') || 0;
                 const alt = (img.getAttribute('alt') || '').trim().slice(0, 120);
-                if (Number(w) > 60 || Number(h) > 60 || (!w && !h)) {
-                  out.images.push({ src: abs, alt, width: Number(w) || null, height: Number(h) || null });
-                  if (out.images.length >= max) break;
+                // Score: bigger pictures with alt text first.
+                const area = (Number(w) || 0) * (Number(h) || 0);
+                const score = area + (alt ? 5000 : 0);
+                if (Number(w) > 80 || Number(h) > 80 || (!w && !h)) {
+                  candidates.push({ src: abs, alt, width: Number(w) || null, height: Number(h) || null, _score: score });
                 }
               } catch { /* ignore */ }
+            }
+            candidates.sort((a, b) => b._score - a._score);
+            for (const c of candidates.slice(0, max)) {
+              const { _score: _, ...clean } = c;
+              out.images.push(clean);
             }
           }
           return out;

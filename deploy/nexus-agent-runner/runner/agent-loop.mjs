@@ -99,13 +99,13 @@ POLICY (this run):
 BUDGET DISCIPLINE (each step ≈ 1¢; per-run cap is small):
 - Plan a SHORT path before the first action: "I'll go to X, extract Y, save N, finish."
 - The extract_links action auto-scrolls to load lazy images — call it ONCE per page; calling it again returns the same data.
-- For collection tasks ("save N images/links/articles"):
-    1. goto a SOURCE PAGE that has STATIC <img> tags. Bing image search and Wikipedia work great. Avoid Google image search at first paint — its grid is JS-rendered.
-       Good URLs: https://www.bing.com/images/search?q=QUERY  •  https://en.wikipedia.org/wiki/TOPIC
-    2. extract_links with filter='img' ONCE.
-    3. add_to_resource_library N times back-to-back, one per item.
-    4. finish() with a 1-sentence summary of what you saved.
-- If extract_links returned < N items, save what you got and finish anyway — don't keep re-extracting.
+- For "save / find / collect N images on TOPIC":
+    1. goto Wikipedia FIRST: https://en.wikipedia.org/wiki/TOPIC (e.g. /wiki/Dolphin) — its <img> tags are real photos rendered at first paint. Image search engines (Google/Bing) lazy-load via JS and often return UI icons.
+    2. extract_links with filter='img' ONCE. Pictures with alt text are real content; tiny SVGs are UI noise (already filtered out).
+    3. add_to_resource_library N times back-to-back, one per item from result.images. The "src" field IS the URL.
+    4. finish() with a 1-sentence summary of what you saved. STOP HERE — do not browse further.
+- For "save N articles/links": Wikipedia, news sites, blog homepages → extract_links filter='a' → save URLs.
+- If extract_links returned < N items, save what you got and finish anyway. Don't re-extract; the page hasn't changed.
 
 Other rules:
 - Reason in ≤1 sentence per turn (keeps cost low).
