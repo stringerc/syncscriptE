@@ -187,6 +187,32 @@ vercel_deploy_log*.txt
 /ex052-*.png
 /ex052-*.json
 
+# Local-only planning / audit markdown at repo root (canonical research: integrations/research/)
+/PHASE_2A_*.md
+/PHASE_2B_*.md
+/PHASE_2_TO_2A_*.md
+/EX015*.md
+/EX053*.md
+/AI_FRONTIER*.md
+/COUNCIL_MEMBER_CHECKLIST.md
+/IMPLEMENTATION_MASTER_PLAN.md
+/OWNERSHIP_RACI.md
+/RELEASE_GATES.md
+/RISKS_AND_DECISIONS.md
+/STABILIZATION_CHECKLIST.md
+/SYNCSCRIPT_AGENT_MAP.md
+/TRACEABILITY_LIVE.md
+/VISUAL_ARCHITECTURE.md
+/gemini-qa-report.md
+
+# Local app bundles / scratch trees
+/main/
+/server.js
+/skills/
+/upre_app/
+/reports/
+/tmp-cortana-ref-*.jpg
+
 # Local VS Code / Cursor workspace settings (machine-specific)
 .vscode/
 
