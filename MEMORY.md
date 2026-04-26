@@ -231,7 +231,39 @@ You cannot guarantee **infinite** local space; you can make exhaustion **unlikel
 
 Plus: **default NIM model swapped from vision to text-FC**, `tool_choice: 'required'` with graceful `'auto'` fallback, and a 3-consecutive-non-tool-turn abort that names the model so users know to BYOK upgrade. Commit `2b3a6b5`.
 
-### Self-publishing tunnel URL (2026-04-25 night, prod commit `5b009b0`)
+### Agent Mode in-depth audit (2026-04-25 night, prod commit `d4fc8a1`)
+
+User reported: "no live view of agent navigating; agent says it did things but didn't; cost cap reached." Real-run audit ran 6 progressive smoke tests, found and fixed 8 distinct bugs:
+
+| # | Bug | Fix | Commit |
+|---|---|---|---|
+| 1 | Screenshots NEVER captured (text-only LLM disabled them entirely, but the UI still needed them) | Always capture screenshots; vision flag only controls if they go to LLM prompt | 66af0c9 |
+| 2 | Default tier was 'A' (no clicks possible) — every real task failed instantly | Migration `20260426020000`: default 'B' + backfill users still on 10¢ caps; per_run_cost 10→50¢ | 66af0c9 |
+| 3 | No way to grab image/link URLs without clicking — agent tried to click each result | New `extract_links` browser action (DOM evaluate) + system prompt "prefer extract_links over click" | 66af0c9 |
+| 4 | Same-block infinite loop (5+ same gate-block burned cost cap with no useful action) | Repeat-block tripwire after 3 same-reason blocks; abort with "raise tier in Settings" | 66af0c9 |
+| 5 | extract_links not in Tier A allowlist (it's read-only, should be allowed at A) | Added to allowlist in `safety.mjs` | 09b9061 |
+| 6 | extract_links result data NEVER reached the LLM ("ok" with no payload → model loops) | Serialize links/images arrays into the `tool` history message (4KB cap) | 33b8582 |
+| 7 | Same-action repeat detector didn't reset on successful tool_call → premature abort | Reset counter on any `ssRes.ok !== false` tool_call | 25162b2 |
+| 8 | `/phone/nexus-execute` Edge endpoint only handles tasks, not `add_to_resource_library` etc. | Map each Nexus tool to a task with semantic prefix (`[Bookmark]`, `[Doc]`, etc.) | 8ec6356 |
+| 9 | No 429 retry on NVIDIA NIM rate limits (mid-run failures with no recovery) | Exponential backoff retry for 429/5xx, honors `Retry-After` header, max 3 retries | 8ec6356 |
+
+**Verified working end-to-end:**
+- Run `ef04305f`: agent went to Google Images, extract_links, add_to_resource_library → saved real bookmark `[Bookmark] Dolphin Pictures` with `task_id=task_177717050...` and `ok=true`. Screenshots captured at every step.
+- Run `2ee55b89`: agent typed search, pressed Enter, navigated to results — but extract_links got 0 images on Google's modern lazy-loaded image search. Reached max steps without saving.
+
+**Known limitations of free-tier path** (NVIDIA NIM `llama-3.3-70b-instruct`):
+1. **Planning quality** — model over-explores rather than executing the cheapest path. "Save 3 dolphin pictures" → it correctly extracts URLs and calls `add_to_resource_library`, but then keeps browsing instead of saving 2 more and finishing. **Mitigation:** BYOK Anthropic Claude Sonnet (`provider=anthropic` in BYOK Settings) handles this in 5-8 steps reliably.
+2. **Lazy-loaded pages** — Google image search renders `<img>` tags via JS after initial paint. `extract_links filter=img` sees 0-2 images. **Mitigation:** prompt user to use Bing/DuckDuckGo image search, OR add a `scroll_until_loaded` action (TODO).
+3. **No real "library" yet** — `add_to_resource_library` writes a task with `[Bookmark]` prefix to the existing `/phone/nexus-execute` endpoint, since the actual `user_files` library is for uploaded blobs. **Mitigation:** new `/phone/agent-execute` Edge route with a real bookmarks table — not blocking.
+
+**What works right now (confirmed):**
+- Live screenshot stream in `AgentRunStream` UI (real-time via Supabase Realtime channel `agent-run:<id>`)
+- Tier-B users can click, type, navigate, scroll, extract
+- Real saves to user's task list (visible in Tasks tab + as `[Bookmark]` prefix)
+- 429 rate limits don't kill runs (auto-backoff)
+- Same-action / same-block tripwires prevent burn-down loops
+
+## Self-publishing tunnel URL (2026-04-25 night, prod commit `5b009b0`)
 
 Solved the ephemeral-URL problem **without** requiring a Cloudflare account auth click. Architecture:
 
