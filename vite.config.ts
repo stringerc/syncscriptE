@@ -1,8 +1,9 @@
 
-import { defineConfig, loadEnv, type Plugin } from 'vite';
+import { defineConfig, loadEnv, type Plugin, type PluginOption } from 'vite';
 import react from '@vitejs/plugin-react-swc';
 import { VitePWA } from 'vite-plugin-pwa';
 import vitePrerender from 'vite-plugin-prerender';
+import { sentryVitePlugin } from '@sentry/vite-plugin';
 import path from 'path';
 import { readFileSync } from 'fs';
 import { execSync } from 'child_process';
@@ -550,6 +551,30 @@ export default defineConfig({
           }),
         ]
       : []),
+    // Sentry Vite plugin — must be the LAST plugin so it sees final bundles.
+    // No-op when SENTRY_AUTH_TOKEN isn't set (local dev / preview without secret).
+    // When set (Vercel prod with the org auth token):
+    //   - Creates a release named after the commit SHA
+    //   - Uploads source maps tagged with that release
+    //   - Strips the sourceMappingURL=... comment from the public JS so users
+    //     can't deobfuscate, but Sentry can still resolve stack traces.
+    ...(process.env.SENTRY_AUTH_TOKEN
+      ? [
+          sentryVitePlugin({
+            org: 'quicksync',
+            project: 'javascript-nextjs',
+            authToken: process.env.SENTRY_AUTH_TOKEN,
+            release: {
+              name: SYNCSCRIPT_BUILD_SHA,
+              uploadLegacySourcemaps: false,
+            },
+            sourcemaps: {
+              filesToDeleteAfterUpload: ['build/**/*.map'],
+            },
+            telemetry: false,
+          }) as PluginOption,
+        ]
+      : []),
   ],
     resolve: {
       extensions: ['.js', '.jsx', '.ts', '.tsx', '.json'],
@@ -609,6 +634,10 @@ export default defineConfig({
     build: {
       target: 'esnext',
       outDir: 'build',
+      // 'hidden' = emit .map files but DON'T add sourceMappingURL=... comment to
+      // public JS. Users can't deobfuscate; sentry-cli + sentryVitePlugin still
+      // upload + delete the maps so the build dir stays clean afterwards.
+      sourcemap: process.env.SENTRY_AUTH_TOKEN ? 'hidden' : false,
       rollupOptions: {
         output: {
           manualChunks(id) {
