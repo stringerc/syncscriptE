@@ -34,9 +34,16 @@ interface FloatingFeedbackButtonProps {
   className?: string;
 }
 
+function normalizePathname(pathname: string): string {
+  if (!pathname) return '/';
+  const trimmed = pathname.replace(/\/+$/, '');
+  return trimmed === '' ? '/' : trimmed;
+}
+
 /** Hide Discord FAB on dashboard / app shell so it isn’t confused with product chrome. */
 function shouldHideFeedbackFab(pathname: string): boolean {
-  if (pathname.startsWith('/app/')) return true;
+  const p = normalizePathname(pathname);
+  if (p.startsWith('/app/')) return true;
   const exact = new Set([
     '/',
     '/login',
@@ -66,8 +73,8 @@ function shouldHideFeedbackFab(pathname: string): boolean {
     '/settings',
     '/onboarding',
   ]);
-  if (exact.has(pathname)) return true;
-  return /^\/(permission-testing|design-system|showcase)/.test(pathname);
+  if (exact.has(p)) return true;
+  return /^\/(permission-testing|design-system|showcase)/.test(p);
 }
 
 export function FloatingFeedbackButton({ 
@@ -75,9 +82,8 @@ export function FloatingFeedbackButton({
   className = '' 
 }: FloatingFeedbackButtonProps) {
   const { pathname } = useLocation();
-  if (shouldHideFeedbackFab(pathname)) {
-    return null;
-  }
+  const hideFab = shouldHideFeedbackFab(pathname);
+
   // Track if user has seen the welcome modal
   const [hasSeenWelcome, setHasSeenWelcome] = useState(() => {
     if (typeof window === 'undefined') return true;
@@ -104,11 +110,13 @@ export function FloatingFeedbackButton({
       localStorage.setItem('syncscript_feedback_welcome_seen', 'true');
     }
   }, []);
-  
+
+  if (hideFab) return null;
+
   // Keyboard shortcut removed — Shift+? is a common typing character
   // and should not be hijacked for navigation. Discord is accessible
   // via the floating button in the bottom-right corner.
-  
+
   const handleOpenDiscord = () => {
     // Capture page context for better feedback
     const context = {

@@ -116,7 +116,7 @@ export const PLANS: PricingPlan[] = [
       { text: 'Priority Voice + Phone', included: true, highlight: true },
       { text: 'SLA guarantee', included: true },
       { text: 'Onboarding assistance', included: true },
-      { text: 'Advanced compliance (SOC 2, HIPAA)', included: true },
+      { text: 'Advanced compliance support (SOC 2 / HIPAA alignment — scoped to plan)', included: true },
     ],
     cta: 'Contact Sales',
     ctaAction: 'contact',

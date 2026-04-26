@@ -541,8 +541,12 @@ export function SignupPage() {
 
         {/* Footer */}
         <div className="mt-8 text-center text-xs text-slate-500">
-          <p>Protected by bank-level encryption</p>
-          <p className="mt-1">SOC 2 Type II Certified</p>
+          <p>TLS encryption for sign-up · Data encrypted at rest</p>
+          <p className="mt-1">
+            <Link to="/trust" className="text-slate-400 hover:text-cyan-400 transition-colors">
+              Trust & security overview
+            </Link>
+          </p>
         </div>
       </motion.div>
     </div>

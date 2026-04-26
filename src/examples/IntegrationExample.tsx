@@ -367,7 +367,7 @@ function MigrationDemo() {
               ✅ 180+ integrations (Jira, Linear, Asana, Notion, etc.)<br />
               ✅ Automatic token refresh<br />
               ✅ Webhooks for real-time sync<br />
-              ✅ SOC 2 compliance<br />
+              ✅ Enterprise-oriented security practices<br />
               💰 $250-600/month
             </p>
           </div>

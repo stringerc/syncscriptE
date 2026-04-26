@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 
 const BADGES = [
-  { label: 'SOC 2 Type II', icon: Award },
+  { label: 'SOC 2 program (in progress)', icon: Award },
   { label: 'AES-256', icon: Lock },
   { label: 'GDPR Compliant', icon: FileCheck },
   { label: '99.9% Uptime', icon: Shield },
@@ -99,7 +99,7 @@ export function SecurityPage() {
 
           <SecSection icon={FileCheck} title="Compliance">
             <p className="text-gray-300 leading-relaxed mb-3">
-              We align with major privacy and security frameworks: GDPR (EU), CCPA (California), and SOC 2 Type II. Our practices are designed to meet enterprise and regulatory expectations.
+              We align with major privacy and security frameworks: GDPR (EU) and CCPA (California). We are building toward SOC 2–aligned controls; we do not claim SOC 2 Type II certification today. Our practices are designed to meet enterprise and regulatory expectations.
             </p>
             <p className="text-gray-300 leading-relaxed">
               We maintain documentation for compliance reviews and can provide summaries or questionnaires upon request for qualified customers.

@@ -64,7 +64,7 @@ export function PrivacyPage() {
           </Section>
 
           <Section icon={Shield} title="Data Security">
-            We protect your data with industry-standard security measures including AES-256 encryption at rest, TLS 1.3 encryption in transit, and SOC 2 Type II certified infrastructure. Access to production data is restricted to authorized personnel with multi-factor authentication. We conduct regular security audits and penetration testing.
+            We protect your data with industry-standard security measures including AES-256 encryption at rest and TLS 1.3 encryption in transit. Access to production data is restricted to authorized personnel with multi-factor authentication. We conduct regular security audits and penetration testing.
           </Section>
 
           <Section icon={Clock} title="Data Retention">
