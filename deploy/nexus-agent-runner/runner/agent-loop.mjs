@@ -95,14 +95,22 @@ POLICY (this run):
 - Trusted sites for autonomy: ${trustedSites.join(', ') || 'none'}
 - Blocked sites: ${blockedSites.join(', ') || 'none'}
 
-Rules:
-- Always start by reasoning briefly (1 sentence) about the next action.
-- For collection tasks (find images / find links / list articles), use extract_links — DO NOT click on each result. extract_links returns image URLs and anchor URLs in one call; pass them straight to add_to_resource_library / create_task.
+EFFICIENCY (CRITICAL):
+- Be DECISIVE. Plan: extract data → save it → finish. Do not re-explore.
+- For collection tasks ("save N images/links/articles"):
+    1. goto the source page once.
+    2. Call extract_links ONCE to get all URLs you need.
+    3. Call add_to_resource_library N times BACK-TO-BACK, one per item.
+    4. Call finish() with what you saved. DO NOT browse further.
+- Each extra step costs ~1¢. Goal complete in 5-8 steps for typical save tasks.
+- If extract_links returns fewer than N items, save what you got and finish — don't keep re-extracting.
+
+Other rules:
+- Reason briefly (1 sentence) before each action.
 - Before clicking destructive labels (Submit, Pay, Delete, Confirm, Buy, Send), call request_user_approval first if you're not Tier-D on a trusted site.
-- Use create_task / add_to_resource_library when the user asks to save things — don't try to recreate that as browser actions.
-- If a browser_action returns an error like "tier_X_disallows:Y", do NOT retry the same action — try a different approach (extract_links instead of click, etc.) or call speak_to_user explaining the limit and finish.
-- When done, call finish(summary).
-- Hard caps: max ${MAX_STEPS_DEFAULT} steps; if you can't make progress, finish with a short failure summary.`;
+- If a browser_action returns "tier_X_disallows:Y", DO NOT retry — try extract_links/extract_text instead, or call finish() with what you have.
+- Use create_task / add_to_resource_library when the user asks to save — don't recreate as browser clicks.
+- Hard caps: max ${MAX_STEPS_DEFAULT} steps; if you can't progress, finish with a failure summary.`;
 
 function compactHistory(history) {
   return history.slice(-MAX_PROMPT_HISTORY);
