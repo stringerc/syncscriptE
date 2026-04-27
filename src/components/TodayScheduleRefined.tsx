@@ -473,14 +473,13 @@ export function TodayScheduleRefined({ tasks: tasksProp, loading: loadingProp }:
     return (
       <motion.div
         key={task.id}
-        layout
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, x: -50, scale: 0.95 }}
-        whileHover={{ scale: 1.01 }}
+        whileHover={{ scale: 1.01, zIndex: 2 }}
         whileTap={{ scale: 0.995 }}
         className={`
-          relative rounded-xl border transition-all cursor-pointer overflow-visible group touch-manipulation
+          relative z-0 rounded-xl border transition-all cursor-pointer overflow-visible group touch-manipulation
           ${isNextUp 
             ? 'bg-gradient-to-br from-teal-500/20 via-blue-500/10 to-purple-500/10 border-teal-500/50 shadow-lg shadow-teal-500/20' 
             : 'bg-[#2a2d35] border-gray-700 hover:border-gray-600'
@@ -657,13 +656,13 @@ export function TodayScheduleRefined({ tasks: tasksProp, loading: loadingProp }:
         {/* Pulsing glow for next up */}
         {isNextUp && (
           <motion.div
-            className="absolute inset-0 rounded-xl pointer-events-none"
+            className="pointer-events-none absolute inset-0 rounded-xl"
             animate={{
               boxShadow: [
-                '0 0 0 0 rgba(20, 184, 166, 0.4)',
-                '0 0 0 4px rgba(20, 184, 166, 0.1)',
-                '0 0 0 0 rgba(20, 184, 166, 0.4)'
-              ]
+                '0 0 16px 0 rgba(20, 184, 166, 0.22)',
+                '0 0 22px 0 rgba(20, 184, 166, 0.32)',
+                '0 0 16px 0 rgba(20, 184, 166, 0.22)',
+              ],
             }}
             transition={{ duration: 2, repeat: Infinity }}
           />
@@ -673,7 +672,7 @@ export function TodayScheduleRefined({ tasks: tasksProp, loading: loadingProp }:
   };
   
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex min-h-0 flex-1 flex-col">
       {/* Header */}
       <div className="flex items-start justify-between mb-3">
         <div>
@@ -723,7 +722,7 @@ export function TodayScheduleRefined({ tasks: tasksProp, loading: loadingProp }:
       )}
       
       {/* Content */}
-      <div className="flex-1 overflow-y-auto hide-scrollbar space-y-4">
+      <div className="flex-1 min-h-0 space-y-4 overflow-y-auto px-2 py-2 hide-scrollbar [scrollbar-gutter:stable]">
         {loading ? (
           <div className="text-gray-400 text-center py-8 text-sm">Loading tasks...</div>
         ) : getSmartSchedule.length === 0 ? (
@@ -733,14 +732,18 @@ export function TodayScheduleRefined({ tasks: tasksProp, loading: loadingProp }:
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="text-center py-8"
+            className="py-8 text-center"
           >
-            <motion.div
-              animate={{ rotate: [0, 10, -10, 0] }}
-              transition={{ duration: 2, repeat: Infinity, repeatDelay: 3 }}
-            >
-              <Sparkles className="w-12 h-12 text-teal-400 mx-auto mb-3" />
-            </motion.div>
+            {/* Fixed box so rotation never expands scrollable layout (no scrollbar flicker). */}
+            <div className="mx-auto mb-3 flex h-16 w-16 shrink-0 items-center justify-center">
+              <motion.div
+                animate={{ rotate: [0, 10, -10, 0] }}
+                transition={{ duration: 2, repeat: Infinity, repeatDelay: 3 }}
+                className="flex h-12 w-12 items-center justify-center will-change-transform"
+              >
+                <Sparkles className="h-12 w-12 text-teal-400" />
+              </motion.div>
+            </div>
             <h4 className="text-white font-semibold mb-1">All caught up!</h4>
             <p className="text-gray-400 text-sm mb-4">Your schedule is clear</p>
             <div className="space-y-2">

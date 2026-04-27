@@ -200,7 +200,7 @@ export function TodaySection() {
         {/* RESEARCH: Things 3 (2024), Todoist (2023) - "Fixed height prevents layout shift by 89%" */}
         {/* RESEARCH: Apple Reminders (2024) - "Smooth internal scrolling increases user control by 91%" */}
         <div 
-          className="bg-[#1e2128] rounded-2xl p-4 sm:p-6 border border-gray-800 flex flex-col card-hover shadow-lg hover:border-gray-700 transition-all overflow-y-auto scroll-smooth hide-scrollbar max-h-[min(70vh,28rem)] md:max-h-[480px]" 
+          className="bg-[#1e2128] rounded-2xl p-4 sm:p-6 border border-gray-800 flex min-h-0 flex-1 flex-col card-hover shadow-lg hover:border-gray-700 transition-all max-h-[min(70vh,28rem)] md:max-h-[480px] overflow-hidden" 
         >
           <TodayScheduleRefined tasks={tasksForSchedule} loading={loading} />
         </div>
