@@ -1,7 +1,24 @@
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router';
 import { withDashboardScheduleDemoFallback } from '../utils/dashboard-schedule-demo';
-import { HelpCircle, Zap, ArrowRight, Sparkles, Brain, Activity, Crown, CloudRain, Navigation } from 'lucide-react';
+import {
+  HelpCircle,
+  Zap,
+  ArrowRight,
+  Sparkles,
+  Brain,
+  Activity,
+  Crown,
+  CloudRain,
+  Navigation,
+  Clock,
+  Sun,
+  Moon,
+  Cloud,
+  CloudLightning,
+  CloudSnow,
+} from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import { useUserProfile } from '../utils/user-profile';
 import { useTasks } from '../hooks/useTasks';
 import { getTopPriorityTasks } from '../utils/intelligent-task-selector';
@@ -9,7 +26,6 @@ import { useEnergy } from '../contexts/EnergyContext';
 import { motion } from 'motion/react';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
-import { Clock } from 'lucide-react';
 import { getROYGBIVProgress } from '../utils/progress-calculations';
 import { getReadinessPercentFromTotalEnergy } from '../hooks/useCurrentReadiness';
 import { useWeatherRoute } from '../hooks/useWeatherRoute';
@@ -79,6 +95,60 @@ import { navigationLinks } from '../utils/navigation';
  * ⚡ Animated Transitions
  *    Smooth animations when energy changes
  */
+
+function currentWeatherStatusIcon(weather: {
+  condition: string;
+  description: string;
+  icon: string;
+}): LucideIcon {
+  const c = weather.condition.toLowerCase();
+  const d = weather.description.toLowerCase();
+  const isNight = /n$/.test(String(weather.icon));
+  if (c.includes('thunder') || d.includes('thunder') || c.includes('tornado')) return CloudLightning;
+  if (c.includes('rain') || c.includes('drizzle') || d.includes('rain') || d.includes('drizzle')) return CloudRain;
+  if (c.includes('snow') || d.includes('snow') || c.includes('sleet')) return CloudSnow;
+  if (c.includes('fog') || c.includes('mist') || d.includes('fog') || d.includes('mist')) return Cloud;
+  if (c.includes('cloud') || c.includes('overcast')) return Cloud;
+  if (c.includes('clear') || c.includes('fair')) return isNight ? Moon : Sun;
+  return isNight ? Moon : Sun;
+}
+
+function CalmWeatherSummaryCard(props: {
+  weather: { condition: string; description: string; icon: string; city: string; temp: number };
+  onOpenWeek: () => void;
+}) {
+  const { weather, onOpenWeek } = props;
+  const CalmIcon = currentWeatherStatusIcon(weather);
+  return (
+    <motion.div
+      className="cursor-pointer rounded-lg border border-emerald-500/20 bg-gradient-to-r from-emerald-950/45 to-teal-950/45 p-3 transition-colors hover:border-emerald-400/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/50"
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      onClick={onOpenWeek}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onOpenWeek();
+        }
+      }}
+    >
+      <div className="mb-2 flex flex-col items-center gap-2 text-center">
+        <CalmIcon className="h-9 w-9 shrink-0 text-emerald-300" aria-hidden />
+        <div className="w-full min-w-0 text-left">
+          <p className="text-sm font-medium text-white">
+            {weather.description} in {weather.city}
+          </p>
+          <p className="text-xs text-gray-400">{Math.round(weather.temp)}°F</p>
+        </div>
+      </div>
+      <p className="text-xs text-gray-300">
+        No high-impact weather alert right now. Tap for the 7-day outlook and calendar check.
+      </p>
+    </motion.div>
+  );
+}
 
 export function AIFocusSection() {
   const navigate = useNavigate();
@@ -556,6 +626,13 @@ export function AIFocusSection() {
               );
             })}
 
+            {!weatherLoading && weather && weatherAlerts.length === 0 && (
+              <CalmWeatherSummaryCard
+                weather={weather}
+                onOpenWeek={() => setShowWeekOutlook(true)}
+              />
+            )}
+
             {/* ROUTE ALERTS - Traffic & road conditions (Top 1 Only) */}
             {!weatherLoading && routeAlerts.length > 0 && routeAlerts.slice(0, 1).map((alert, index) => {
               // Sample attendees for route conflicts (matches modal data)
@@ -675,39 +752,6 @@ export function AIFocusSection() {
                 </motion.div>
               );
             })}
-            
-            {/* NO ALERTS - Show current weather status */}
-            {!weatherLoading && weatherAlerts.length === 0 && routeAlerts.length === 0 && weather && (
-              <motion.div 
-                className="bg-gradient-to-r from-emerald-950/30 to-teal-950/30 rounded-lg p-3 border border-emerald-500/20 cursor-pointer hover:border-emerald-400/35 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/50"
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                onClick={() => setShowWeekOutlook(true)}
-                role="button"
-                tabIndex={0}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    setShowWeekOutlook(true);
-                  }
-                }}
-              >
-                <div className="mb-3 flex flex-col items-center gap-2 text-center">
-                  <CloudRain className="h-9 w-9 shrink-0 text-emerald-400" aria-hidden />
-                  <div className="w-full min-w-0 text-left">
-                    <p className="text-sm font-medium text-white">{weather.condition} in {weather.city}</p>
-                    <p className="text-xs text-gray-400">{Math.round(weather.temp)}°F • {weather.description}</p>
-                  </div>
-                </div>
-                <div className="flex flex-col items-center gap-2 text-center">
-                  <Sparkles className="h-4 w-4 shrink-0 text-emerald-400" aria-hidden />
-                  <p className="w-full text-left text-xs font-medium text-emerald-300">Clear conditions ahead</p>
-                </div>
-                <p className="text-gray-300 text-xs">
-                  ✨ Tap for the week ahead and any calendar weather flags
-                </p>
-              </motion.div>
-            )}
           </div>
         </motion.div>
       </div>

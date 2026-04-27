@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { useLocation } from 'react-router';
+import { useLocation, useNavigate } from 'react-router';
 import { format, addDays } from 'date-fns';
 /**
  * Calendar Events Page - Main calendar interface
@@ -169,6 +169,7 @@ function eventTimeMs(v: Date | string): number {
 
 export function CalendarEventsPage() {
   const location = useLocation(); // Track route changes
+  const navigate = useNavigate();
   const { profile } = useUserProfile(); // Get current user from context
   const [currentView, setCurrentView] = useState<'day' | 'week' | 'month' | 'timeline'>('day');
   
@@ -1407,6 +1408,17 @@ export function CalendarEventsPage() {
     setSelectedEvent(event);
     setEventModalOpen(true);
   };
+
+  // Deep link from dashboard (and elsewhere): /calendar?eventId=<id> opens the same EventModal as an in-tab click
+  React.useEffect(() => {
+    const id = new URLSearchParams(location.search).get('eventId');
+    if (!id) return;
+    const ev = mergedEvents.find((e) => e.id === id);
+    if (!ev) return;
+    setSelectedEvent(ev);
+    setEventModalOpen(true);
+    navigate('/calendar', { replace: true });
+  }, [location.search, mergedEvents, navigate]);
 
   // Handle saving event — PATCH linked Google/Outlook when title/time changes (KV sync group)
   const handleSaveEvent = React.useCallback(

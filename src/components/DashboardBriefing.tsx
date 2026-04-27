@@ -76,8 +76,9 @@ export function DashboardBriefing() {
       transition={{ duration: 0.4 }}
       className="max-w-[1600px] mx-auto mb-2"
     >
-      <div className="bg-gradient-to-r from-[#1a1d24]/80 via-[#1e2128]/80 to-[#1a1d24]/80 border border-gray-800/50 rounded-xl px-3 py-4 sm:px-5">
-        <div className="flex min-w-0 flex-wrap items-center justify-center gap-x-6 gap-y-5 sm:justify-between sm:gap-x-8">
+      <div className="bg-gradient-to-r from-[#1a1d24]/80 via-[#1e2128]/80 to-[#1a1d24]/80 border border-gray-800/50 rounded-xl px-3 py-4 sm:px-5 md:px-7 lg:px-10">
+        {/* Mobile: tight centered clusters. md+: roomier horizontal rhythm (desktop “open” layout). */}
+        <div className="flex min-w-0 flex-wrap items-center justify-center gap-x-6 gap-y-5 sm:justify-between sm:gap-x-8 md:gap-x-12 lg:gap-x-16 xl:gap-x-20 2xl:gap-x-24">
           
           {/* Peak Window */}
           <div className="flex min-w-0 items-center gap-2.5 px-1 sm:px-0">

@@ -66,9 +66,10 @@ export function WeatherWeekOutlookModal({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="w-[calc(100%-0.75rem)] max-w-[min(98vw,52rem)] gap-0 overflow-hidden border border-sky-500/20 bg-gradient-to-b from-[#0a1628] via-[#0d1b2e] to-[#0a1628] p-0 text-gray-100 shadow-2xl shadow-sky-950/50 sm:max-w-[min(98vw,52rem)]"
+        overlayClassName="z-[480] bg-black/75 backdrop-blur-sm"
+        className="w-[calc(100%-0.75rem)] max-w-[min(98vw,52rem)] gap-0 overflow-hidden border border-sky-500/35 bg-gradient-to-b from-[#060d18] via-[#0a1524] to-[#060d18] p-0 text-gray-100 shadow-2xl shadow-black/60 sm:max-w-[min(98vw,52rem)]"
       >
-        <div className="border-b border-sky-500/15 bg-gradient-to-r from-sky-950/50 via-blue-950/40 to-indigo-950/50 px-4 py-3 pr-12 sm:px-5 sm:py-4">
+        <div className="border-b border-sky-500/25 bg-gradient-to-r from-sky-950/75 via-blue-950/65 to-indigo-950/75 px-4 py-3 pr-12 sm:px-5 sm:py-4">
           <DialogHeader className="gap-1 text-left">
             <div className="flex flex-wrap items-center gap-2">
               <DialogTitle className="flex items-center gap-2 text-base font-semibold tracking-tight text-white sm:text-xl">
@@ -112,12 +113,12 @@ export function WeatherWeekOutlookModal({
             </div>
           ) : (
             <div
-              className="relative z-10 w-full overflow-hidden rounded-xl border border-sky-500/25 bg-sky-950/40 shadow-inner shadow-black/20"
+              className="relative z-10 w-full overflow-hidden rounded-xl border border-sky-500/35 bg-sky-950/80 shadow-inner shadow-black/40"
               aria-label="Seven day forecast, left to right"
             >
               {/* gap-px + bg on wrapper draws vertical lines between days */}
               <div
-                className="grid w-full grid-cols-7 gap-px bg-white/15"
+                className="grid w-full grid-cols-7 gap-px bg-white/20"
                 dir="ltr"
               >
                 {rows.map((row, i) => {
@@ -142,10 +143,10 @@ export function WeatherWeekOutlookModal({
                         setSelectedDateKey((k) => (k === row.dateKey ? null : row.dateKey))
                       }
                       className={[
-                        'relative flex min-h-[128px] min-w-0 flex-col items-center border-0 bg-[#070f1a] px-0.5 py-2 text-center transition-colors sm:min-h-[148px] sm:px-1 sm:py-2.5',
+                        'relative flex min-h-[128px] min-w-0 flex-col items-center border-0 bg-[#0a1422] px-0.5 py-2 text-center transition-colors sm:min-h-[148px] sm:px-1 sm:py-2.5',
                         isSelected
-                          ? 'ring-2 ring-inset ring-sky-400/70 bg-sky-950/80'
-                          : 'hover:bg-sky-950/50',
+                          ? 'ring-2 ring-inset ring-sky-400/80 bg-sky-950/95'
+                          : 'hover:bg-sky-900/80',
                       ].join(' ')}
                     >
                       <div className="relative flex w-full flex-col items-center">
@@ -204,7 +205,7 @@ export function WeatherWeekOutlookModal({
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="text-center text-xs text-sky-200/50 sm:text-sm"
+                className="text-center text-xs text-sky-200/75 sm:text-sm"
               >
                 {rows.length === 0
                   ? null
@@ -268,7 +269,7 @@ export function WeatherWeekOutlookModal({
         </div>
 
         {onOpenConflictDetails && (
-          <div className="border-t border-white/10 bg-black/30 px-4 py-2.5 sm:px-5">
+          <div className="border-t border-white/15 bg-[#04080f] px-4 py-2.5 sm:px-5">
             <Button
               type="button"
               variant="ghost"

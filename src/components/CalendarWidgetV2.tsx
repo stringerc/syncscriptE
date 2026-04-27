@@ -152,7 +152,7 @@ export function CalendarWidgetV2({ className = '' }: CalendarWidgetV2Props) {
   const [showEventCreationModal, setShowEventCreationModal] = useState(false);
   const [prefilledEventDate, setPrefilledEventDate] = useState<Date | undefined>();
   const [prefilledEventTime, setPrefilledEventTime] = useState<string | undefined>();
-  
+
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
   
@@ -600,9 +600,18 @@ export function CalendarWidgetV2({ className = '' }: CalendarWidgetV2Props) {
                 <motion.div
                   key={day}
                   className="relative aspect-square"
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`Open ${currentDate.toLocaleDateString('en-US', { month: 'long' })} ${day}${dayEvents.length ? `, ${dayEvents.length} event${dayEvents.length === 1 ? '' : 's'}` : ', no events'}`}
                   onMouseEnter={() => setHoveredDay(day)}
                   onMouseLeave={() => setHoveredDay(null)}
                   onClick={() => setSelectedDay(day)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      setSelectedDay(day);
+                    }
+                  }}
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                   transition={{ type: 'spring', stiffness: 400, damping: 20 }}
@@ -635,9 +644,9 @@ export function CalendarWidgetV2({ className = '' }: CalendarWidgetV2Props) {
                     ══════════════════════════════════════════════════════════════
                   */}
                   <div
-                    className={`relative w-full h-full flex flex-col items-center justify-center rounded-lg cursor-pointer transition-all ${
+                    className={`relative z-10 flex h-full w-full cursor-pointer flex-col items-center justify-center rounded-lg transition-all ${
                       isToday
-                        ? 'bg-gradient-to-br from-blue-500 to-teal-500 text-white shadow-lg shadow-blue-500/30 font-bold z-10'
+                        ? 'bg-gradient-to-br from-blue-500 to-teal-500 text-white shadow-lg shadow-blue-500/30 font-bold'
                         : isHovered && dayEvents.length > 0
                         ? 'bg-gray-700/50 text-white border border-teal-400/50'
                         : dayEvents.length > 0
@@ -645,27 +654,28 @@ export function CalendarWidgetV2({ className = '' }: CalendarWidgetV2Props) {
                         : 'text-gray-500 hover:bg-gray-800/20 hover:text-gray-400'
                     }`}
                   >
-                    {/* Day number */}
-                    <span className="text-xs font-medium mb-0.5">{day}</span>
-                    
-                    {/*
-                      ══════════════════════════════════════════════════════════
-                      LAYER 3: EVENT DOTS (Apple Calendar 2024)
-                      ══════════════════════════════════════════════════════════
-                    */}
-                    {dayEvents.length > 0 && !isToday && (
-                      <div className="flex gap-0.5 mb-0.5">
+                    {/* Day number — dots sit directly below (Google Calendar / Apple month affordance) */}
+                    <span className="text-xs font-medium leading-none">{day}</span>
+                    {dayEvents.length > 0 ? (
+                      <div
+                        className="mt-1 flex min-h-[6px] items-center justify-center gap-0.5"
+                        aria-label={`${dayEvents.length} event${dayEvents.length === 1 ? '' : 's'}`}
+                      >
                         {dayEvents.slice(0, 3).map((event, idx) => (
-                          <motion.div
-                            key={idx}
-                            className="w-1 h-1 rounded-full"
-                            style={{ backgroundColor: getEventColor(event) }}
+                          <motion.span
+                            key={event.id}
+                            className="block h-1 w-1 shrink-0 rounded-full"
+                            style={{
+                              backgroundColor: isToday ? 'rgba(255,255,255,0.92)' : getEventColor(event),
+                            }}
                             initial={{ scale: 0 }}
                             animate={{ scale: 1 }}
                             transition={{ delay: idx * 0.05, type: 'spring', stiffness: 500 }}
                           />
                         ))}
                       </div>
+                    ) : (
+                      <span className="mt-1 block min-h-[6px]" aria-hidden />
                     )}
                     
                     {/*
@@ -1173,10 +1183,10 @@ export function CalendarWidgetV2({ className = '' }: CalendarWidgetV2Props) {
         {selectedDay !== null && createPortal(
           <motion.div
             initial={{ opacity: 0 }}
-            animate={{ opacity: 0.6 }}
+            animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
-            className="fixed inset-0 bg-black backdrop-blur-sm z-[99999] flex items-center justify-center p-4"
+            className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/75 p-4 backdrop-blur-md"
             onClick={() => setSelectedDay(null)}
           >
             <motion.div
@@ -1185,7 +1195,10 @@ export function CalendarWidgetV2({ className = '' }: CalendarWidgetV2Props) {
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
               transition={{ type: 'spring', stiffness: 300, damping: 25 }}
               onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-2xl bg-[#2a2d35] border border-gray-700 rounded-2xl shadow-2xl overflow-hidden flex flex-col"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="calendar-day-modal-title"
+              className="flex w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-gray-600/80 bg-[#252830] shadow-2xl shadow-black/50"
               style={{ maxHeight: 'calc(100vh - 2rem)' }}
             >
               {/*
@@ -1194,9 +1207,9 @@ export function CalendarWidgetV2({ className = '' }: CalendarWidgetV2Props) {
                 RESEARCH: Apple HIG (2024) - "Clear date context reduces confusion by 58%"
                 ══════════════════════════════════════════════════════════════════════
               */}
-              <div className="flex items-start justify-between p-6 pb-4 border-b border-gray-700 flex-shrink-0 bg-gradient-to-br from-gray-800/50 to-gray-900/50">
+              <div className="flex flex-shrink-0 items-start justify-between border-b border-gray-700/90 bg-gradient-to-br from-gray-900/90 to-[#1a1d24] p-6 pb-4">
                 <div>
-                  <h4 className="text-white font-bold text-xl mb-1">
+                  <h4 id="calendar-day-modal-title" className="mb-1 text-xl font-bold text-white">
                     {new Date(year, month, selectedDay).toLocaleDateString('en-US', { weekday: 'long' })}
                   </h4>
                   <p className="text-gray-400 text-sm mb-2">
@@ -1466,13 +1479,13 @@ export function CalendarWidgetV2({ className = '' }: CalendarWidgetV2Props) {
                       <motion.div
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
-                        className="bg-[#1e2128] rounded-xl p-6 border border-gray-800 text-center"
+                        className="rounded-xl border border-gray-700/80 bg-[#1e2128] p-6 text-center"
                       >
-                        <div className="w-12 h-12 rounded-full bg-gray-800 flex items-center justify-center mx-auto mb-3">
-                          <CalendarIcon className="w-6 h-6 text-gray-600" />
+                        <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-gray-800/90">
+                          <CalendarIcon className="h-6 w-6 text-gray-500" />
                         </div>
-                        <p className="text-gray-400 text-sm font-medium mb-1">No events scheduled</p>
-                        <p className="text-gray-600 text-xs">Your day is wide open!</p>
+                        <p className="mb-1 text-sm font-medium text-gray-300">Nothing on your calendar this day</p>
+                        <p className="text-xs text-gray-500">Same schedule as the Calendar tab — add an event or enjoy the open time.</p>
                       </motion.div>
                     ) : (
                       getDayEvents(selectedDay)
@@ -1486,13 +1499,23 @@ export function CalendarWidgetV2({ className = '' }: CalendarWidgetV2Props) {
                           return (
                             <motion.div
                               key={event.id}
+                              role="button"
+                              tabIndex={0}
+                              aria-label={`${event.title}, ${formatTime(event.startTime)} to ${formatTime(event.endTime)}. Open full details.`}
                               initial={{ opacity: 0, x: -20 }}
                               animate={{ opacity: 1, x: 0 }}
                               transition={{ delay: index * 0.05, type: 'spring', stiffness: 300 }}
-                              className="bg-[#1e2128] rounded-xl p-4 border border-gray-700 hover:border-gray-600 transition-all cursor-pointer group relative overflow-hidden"
+                              className="group relative cursor-pointer overflow-hidden rounded-xl border border-gray-700 bg-[#1e2128] p-4 transition-all hover:border-teal-500/35 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/50"
                               onClick={() => {
                                 setSelectedDay(null);
-                                navigate(`/calendar?eventId=${event.id}`);
+                                navigate(`/calendar?eventId=${encodeURIComponent(event.id)}`);
+                              }}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter' || e.key === ' ') {
+                                  e.preventDefault();
+                                  setSelectedDay(null);
+                                  navigate(`/calendar?eventId=${encodeURIComponent(event.id)}`);
+                                }
                               }}
                             >
                               {/*

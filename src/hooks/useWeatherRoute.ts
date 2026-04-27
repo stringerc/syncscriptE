@@ -29,7 +29,7 @@
  * ══════════════════════════════════════════════════════════════════════════════
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { projectId, publicAnonKey } from '../utils/supabase/info';
 import type { ForecastDaySlice } from '../utils/weather-event-conflicts';
 import { getWeatherCoords, WEATHER_COORDS_FALLBACK } from '../utils/weather-geolocation';
@@ -165,7 +165,6 @@ export function useWeatherRoute(): UseWeatherRouteReturn {
       }
 
       setWeather(normalized);
-      generateWeatherAlerts(normalized);
       generateRouteAlerts();
 
       try {
@@ -213,96 +212,99 @@ export function useWeatherRoute(): UseWeatherRouteReturn {
     }
   };
 
-  const generateWeatherAlerts = (weatherData: WeatherData) => {
-    const alerts: WeatherAlert[] = [];
-    const currentHour = new Date().getHours();
-    
-    // ══════════════════════════════════════════════════════════════════════════════
-    // DEMO MODE: ALWAYS SHOW SAMPLE WEATHER CONFLICTS
-    // ══════════════════════════════════════════════════════════════════════════════
-    // This demonstrates the advanced weather conflict detection system
-    // In production, these would be based on actual weather forecast data
-    // Research: Dark Sky (2024) - "Hyperlocal minute-by-minute precipitation forecasts"
-    // ══════════════════════════════════════════════════════════════════════════════
-    
-    // CONFLICT 1: Heavy Rain affecting Client Site Visit
-    alerts.push({
-      type: 'rain',
-      severity: 'high',
-      message: 'Heavy rain expected this afternoon',
-      time: '2:00 PM',
-      icon: '🌧️',
-      affectedEvents: ['Client Site Visit - Acme Corp'],
-      suggestion: 'Consider rescheduling or converting to virtual meeting'
-    });
-    
-    // CONFLICT 2: Thunderstorm affecting Outdoor Event (CRITICAL)
-    alerts.push({
-      type: 'storm',
-      severity: 'high',
-      message: 'Severe thunderstorm warning',
-      time: '4:30 PM',
-      icon: '⛈️',
-      affectedEvents: ['Outdoor Team Photoshoot'],
-      suggestion: 'Reschedule outdoor event - lightning safety risk'
-    });
-    
-    // ══════════════════════════════════════════════════════════════════════════════
-    // REAL WEATHER ALERTS (when applicable)
-    // ══════════════════════════════════════════════════════════════════════════════
-    
-    // Check for rain (in addition to demo data)
-    if (weatherData.condition.toLowerCase().includes('rain') && !alerts.some(a => a.type === 'rain')) {
-      alerts.push({
-        type: 'rain',
-        severity: weatherData.description.toLowerCase().includes('heavy') ? 'high' : 'medium',
-        message: `${weatherData.description} expected`,
-        time: `${currentHour + 2}:00 PM`,
-        icon: '⛈️',
-        affectedEvents: ['Outdoor activities'],
-        suggestion: 'Bring an umbrella or reschedule outdoor plans'
-      });
-    }
-    
-    // Check for snow
-    if (weatherData.condition.toLowerCase().includes('snow')) {
-      alerts.push({
-        type: 'snow',
-        severity: 'high',
-        message: `${weatherData.description} expected`,
-        time: `${currentHour + 1}:00 PM`,
-        icon: '❄️',
-        affectedEvents: ['Commute', 'Client meeting'],
-        suggestion: 'Leave early or reschedule meetings'
-      });
-    }
-    
-    // Check for extreme heat
-    if (weatherData.temp > 90) {
-      alerts.push({
-        type: 'heat',
-        severity: 'medium',
-        message: 'High temperature alert',
-        time: 'Today',
-        icon: '🌡️',
-        suggestion: 'Stay hydrated and avoid outdoor activities during peak hours'
-      });
-    }
-    
-    // Check for extreme cold
-    if (weatherData.temp < 32) {
-      alerts.push({
-        type: 'cold',
-        severity: 'medium',
-        message: 'Freezing temperatures',
-        time: 'Today',
-        icon: '🥶',
-        suggestion: 'Dress warmly and watch for icy conditions'
-      });
-    }
-    
-    setWeatherAlerts(alerts);
-  };
+  /** Build alerts from the same /weather + /weather/forecast data as the header widget (location-based). */
+  const buildWeatherAlertsFromData = useCallback(
+    (weatherData: WeatherData, daily: ForecastDaySlice[] | null | undefined): WeatherAlert[] => {
+      const alerts: WeatherAlert[] = [];
+      const c = weatherData.condition.toLowerCase();
+      const desc = weatherData.description.toLowerCase();
+      const now = new Date();
+      const lp = (n: number) => String(n).padStart(2, '0');
+      const todayKey = `${now.getFullYear()}-${lp(now.getMonth() + 1)}-${lp(now.getDate())}`;
+
+      const todaySlice =
+        Array.isArray(daily) && daily.length > 0
+          ? daily.find((d) => d.dateKey === todayKey) ?? daily[0]
+          : null;
+
+      const currentHasStorm =
+        c.includes('thunder') || desc.includes('thunder') || c.includes('tornado');
+      const currentHasRain = !currentHasStorm && (c.includes('rain') || c.includes('drizzle') || desc.includes('rain') || desc.includes('drizzle'));
+      const currentHasSnow = c.includes('snow') || desc.includes('snow');
+
+      if (currentHasStorm) {
+        alerts.push({
+          type: 'storm',
+          severity: 'high',
+          message: `${weatherData.description} now`,
+          time: 'Now',
+          icon: '⛈️',
+          suggestion: 'Move indoors if lightning is nearby or winds are high',
+        });
+      } else if (currentHasRain) {
+        alerts.push({
+          type: 'rain',
+          severity: desc.includes('heavy') ? 'high' : 'medium',
+          message: `${weatherData.description} now`,
+          time: 'Now',
+          icon: '🌧️',
+          suggestion: 'Allow extra time if you are driving or between meetings',
+        });
+      } else if (currentHasSnow) {
+        alerts.push({
+          type: 'snow',
+          severity: 'high',
+          message: `${weatherData.description} now`,
+          time: 'Now',
+          icon: '❄️',
+          suggestion: 'Check roads and allow extra travel time',
+        });
+      } else if (todaySlice) {
+        const tc = todaySlice.condition.toLowerCase();
+        const td = todaySlice.description.toLowerCase();
+        const pop = todaySlice.pop;
+        const dayRiskRain =
+          pop >= 0.28 && (tc.includes('rain') || tc.includes('drizzle') || td.includes('rain') || td.includes('drizzle'));
+        if (dayRiskRain) {
+          const hour = now.getHours();
+          const when = hour < 11 ? 'this afternoon' : hour < 17 ? 'later today' : 'tonight';
+          const sev: WeatherAlert['severity'] = pop >= 0.65 ? 'high' : pop >= 0.45 ? 'medium' : 'low';
+          alerts.push({
+            type: 'rain',
+            severity: sev,
+            message: `${todaySlice.description} possible ${when}`,
+            time: 'Today',
+            icon: pop >= 0.5 ? '🌧️' : '🌤️',
+            suggestion: 'Open the week view for a day-by-day breakdown.',
+          });
+        }
+      }
+
+      if (weatherData.temp > 90) {
+        alerts.push({
+          type: 'heat',
+          severity: 'medium',
+          message: 'High temperature alert',
+          time: 'Today',
+          icon: '🌡️',
+          suggestion: 'Stay hydrated and avoid strenuous outdoor work at peak heat',
+        });
+      }
+      if (weatherData.temp < 32) {
+        alerts.push({
+          type: 'cold',
+          severity: 'medium',
+          message: 'Freezing or near-freezing temperatures',
+          time: 'Today',
+          icon: '🥶',
+          suggestion: 'Icy surfaces possible — allow extra time',
+        });
+      }
+
+      return alerts;
+    },
+    [],
+  );
 
   const generateRouteAlerts = () => {
     const alerts: RouteAlert[] = [];
@@ -366,6 +368,14 @@ export function useWeatherRoute(): UseWeatherRouteReturn {
     
     setRouteAlerts(alerts);
   };
+
+  useEffect(() => {
+    if (!weather) {
+      setWeatherAlerts([]);
+      return;
+    }
+    setWeatherAlerts(buildWeatherAlertsFromData(weather, forecastOutlook?.daily));
+  }, [weather, forecastOutlook, buildWeatherAlertsFromData]);
 
   useEffect(() => {
     let cancelled = false;
