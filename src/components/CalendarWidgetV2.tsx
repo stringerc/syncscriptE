@@ -597,32 +597,23 @@ export function CalendarWidgetV2({ className = '' }: CalendarWidgetV2Props) {
               const badge = getDayBadge(day);
 
               return (
-                <motion.div
+                <button
                   key={day}
-                  className="relative aspect-square"
-                  role="button"
-                  tabIndex={0}
+                  type="button"
+                  className="relative aspect-square border-0 bg-transparent p-0 font-inherit text-left outline-none transition-transform duration-150 hover:scale-[1.04] active:scale-[0.97] focus-visible:ring-2 focus-visible:ring-teal-500/60 focus-visible:ring-offset-2 focus-visible:ring-offset-[#1e2128]"
                   aria-label={`Open ${currentDate.toLocaleDateString('en-US', { month: 'long' })} ${day}${dayEvents.length ? `, ${dayEvents.length} event${dayEvents.length === 1 ? '' : 's'}` : ', no events'}`}
                   onMouseEnter={() => setHoveredDay(day)}
                   onMouseLeave={() => setHoveredDay(null)}
                   onClick={() => setSelectedDay(day)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault();
-                      setSelectedDay(day);
-                    }
-                  }}
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  transition={{ type: 'spring', stiffness: 400, damping: 20 }}
                 >
                   {/*
                     ══════════════════════════════════════════════════════════════
                     LAYER 1: HEAT MAP BACKGROUND (Google Calendar 2024)
+                    Decorative only — must not intercept clicks (hit target = button)
                     ══════════════════════════════════════════════════════════════
                   */}
                   <motion.div
-                    className="absolute inset-0 rounded-lg"
+                    className="pointer-events-none absolute inset-0 rounded-lg"
                     style={{
                       background: density > 0
                         ? `linear-gradient(135deg, rgba(59, 130, 246, ${density / 400}), rgba(16, 185, 129, ${density / 500}))`
@@ -740,7 +731,7 @@ export function CalendarWidgetV2({ className = '' }: CalendarWidgetV2Props) {
                       />
                     </svg>
                   )}
-                </motion.div>
+                </button>
               );
             })}
           </div>
@@ -1179,12 +1170,13 @@ export function CalendarWidgetV2({ className = '' }: CalendarWidgetV2Props) {
            - Click outside to dismiss (expected by 96% of users)
         ══════════════════════════════════════════════════════════════════════════════
       */}
-      <AnimatePresence>
-        {selectedDay !== null && createPortal(
+      {selectedDay !== null &&
+        typeof document !== 'undefined' &&
+        createPortal(
           <motion.div
+            key={selectedDay}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
             className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/75 p-4 backdrop-blur-md"
             onClick={() => setSelectedDay(null)}
@@ -1192,10 +1184,10 @@ export function CalendarWidgetV2({ className = '' }: CalendarWidgetV2Props) {
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
               transition={{ type: 'spring', stiffness: 300, damping: 25 }}
               onClick={(e) => e.stopPropagation()}
               role="dialog"
+              data-state="open"
               aria-modal="true"
               aria-labelledby="calendar-day-modal-title"
               className="flex w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-gray-600/80 bg-[#252830] shadow-2xl shadow-black/50"
@@ -1675,9 +1667,8 @@ export function CalendarWidgetV2({ className = '' }: CalendarWidgetV2Props) {
               </div>
             </motion.div>
           </motion.div>,
-          document.body
+          document.body,
         )}
-      </AnimatePresence>
       
       {/* Universal Event Creation Modal - RESEARCH: Google Calendar (2024) + Notion (2024) + OpenTable (2024) */}
       <UniversalEventCreationModal
