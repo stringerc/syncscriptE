@@ -81,6 +81,32 @@ interface UserProfile {
   firstEnergyLogAt?: string;    // Timestamp of first energy log
 }
 
+// OAuth and email signup may store `full_name` / `picture` on `user.user_metadata` while KV still has "User".
+function defaultDisplayNameFromUser(user: {
+  email?: string | null;
+  user_metadata?: Record<string, string | undefined>;
+}): string {
+  const m = user.user_metadata || {};
+  const given = m["given_name"]?.trim();
+  const fam = m["family_name"]?.trim();
+  const fromParts = given || fam ? [given, fam].filter(Boolean).join(" ").trim() : "";
+  for (const candidate of [m["full_name"], m["name"], fromParts, m["preferred_username"]]) {
+    if (candidate && String(candidate).trim().length) {
+      return String(candidate).trim();
+    }
+  }
+  const local = (user.email || "").split("@")[0] || "User";
+  return local && local.trim().length ? local : "User";
+}
+
+function defaultPhotoFromUser(user: { user_metadata?: Record<string, string | undefined> }): string | undefined {
+  const m = user.user_metadata || {};
+  for (const k of [m["avatar_url"], m["picture"]]) {
+    if (k && String(k).trim().length) return String(k).trim();
+  }
+  return undefined;
+}
+
 const app = new Hono();
 
 // Enable logger
@@ -1492,7 +1518,8 @@ app.get("/make-server-57781ad9/user/profile", async (c) => {
       const defaultProfile: UserProfile = {
         id: user.id,
         email: user.email || '',
-        name: user.user_metadata?.name || 'User',
+        name: defaultDisplayNameFromUser(user),
+        photoUrl: defaultPhotoFromUser(user),
         onboardingCompleted: false,
         createdAt: new Date().toISOString(),
         // ✅ FIRST-TIME USER EXPERIENCE FLAGS
@@ -1507,8 +1534,19 @@ app.get("/make-server-57781ad9/user/profile", async (c) => {
     }
     
     console.log('[AUTH API] Profile retrieved for:', user.id);
-    
-    return c.json({ ...userProfile, email: user.email ?? userProfile.email });
+
+    const merged: UserProfile = {
+      ...userProfile,
+      email: user.email ?? userProfile.email,
+    };
+    if (!merged.name || merged.name.trim() === "User" || merged.name.trim().length === 0) {
+      merged.name = defaultDisplayNameFromUser(user);
+    }
+    if (!merged.photoUrl || !String(merged.photoUrl).trim()) {
+      const p = defaultPhotoFromUser(user);
+      if (p) merged.photoUrl = p;
+    }
+    return c.json(merged);
   } catch (error) {
     console.error('[AUTH API] Profile fetch failed:', error);
     return c.json({ error: 'Failed to fetch profile', details: String(error) }, 500);

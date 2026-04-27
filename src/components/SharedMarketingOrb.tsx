@@ -2,6 +2,7 @@ import { lazy, Suspense, useState, useEffect } from 'react';
 import { useLocation } from 'react-router';
 import type { OrbKeyframe } from './landing/HeroScene';
 import { FloatingOrbs } from './FloatingOrbs';
+import { usePageVisibility } from '../hooks/usePageVisibility';
 
 const HeroScene = lazy(() =>
   import('./landing/HeroScene').then((m) => ({ default: m.HeroScene })),
@@ -30,8 +31,15 @@ const STATIC_ROUTE_KEYFRAMES: Record<string, OrbKeyframe[]> = {
 
 export function SharedMarketingOrb() {
   const { pathname } = useLocation();
+  const { reducedMotion, saveData, batteryLow, effectiveType } = usePageVisibility();
   const [ready, setReady] = useState(false);
   const isLanding = pathname === '/';
+  const skipHeavyVisuals =
+    reducedMotion ||
+    saveData ||
+    batteryLow ||
+    effectiveType === 'slow-2g' ||
+    effectiveType === '2g';
 
   useEffect(() => {
     if (!MARKETING_PATHS.has(pathname)) return;
@@ -52,6 +60,15 @@ export function SharedMarketingOrb() {
   if (!MARKETING_PATHS.has(pathname) || !ready) return null;
 
   const keyframes = STATIC_ROUTE_KEYFRAMES[pathname] ?? STATIC_ROUTE_KEYFRAMES['/'];
+
+  if (skipHeavyVisuals) {
+    return (
+      <div
+        className="fixed inset-0 z-0 pointer-events-none bg-gradient-to-br from-slate-950 via-slate-900 to-teal-950/35"
+        aria-hidden
+      />
+    );
+  }
 
   return (
     <>

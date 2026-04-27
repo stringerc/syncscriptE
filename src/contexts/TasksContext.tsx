@@ -29,6 +29,7 @@ import {
   executeAuthorityRoutedCommand,
 } from '../contracts/runtime/backend-authority-routing';
 import { useAuth } from './AuthContext';
+import { markDashboardSawRealTasksForUser, userHasDashboardTaskHistory } from '../utils/dashboard-task-history';
 
 function extractPrimaryAgent(assignees: any[], collaborators: any[]): { id?: string; name: string } | null {
   const entries = [...(Array.isArray(assignees) ? assignees : []), ...(Array.isArray(collaborators) ? collaborators : [])];
@@ -86,6 +87,8 @@ interface TasksContextValue {
   // State
   tasks: Task[];
   loading: boolean;
+  /** True after the first `refreshTasks` completes for the current session token (avoids AI Focus / demo mix before the first fetch). */
+  initialTasksLoadComplete: boolean;
   error: string | null;
   
   // Actions
@@ -122,11 +125,14 @@ interface TasksProviderProps {
 }
 
 export function TasksProvider({ children }: TasksProviderProps) {
-  const { loading: authLoading, accessToken } = useAuth();
+  const { user, loading: authLoading, accessToken } = useAuth();
   const TASKS_REFRESH_TIMEOUT_MS = 12000;
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
+  const [initialTasksLoadComplete, setInitialTasksLoadComplete] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const accessTokenRef = React.useRef<string | null>(null);
+  accessTokenRef.current = accessToken;
   
   // Energy System Integration
   const energyContext = useEnergy();
@@ -159,22 +165,49 @@ export function TasksProvider({ children }: TasksProviderProps) {
   
   // Load tasks on mount
   const refreshTasks = useCallback(async () => {
+    const tokenAtStart = accessTokenRef.current;
     try {
       setLoading(true);
       setError(null);
       const allTasks = await withTimeout(taskRepository.getTasks(), TASKS_REFRESH_TIMEOUT_MS);
-      setTasks(allTasks);
-      void syncShadowTaskProjection(allTasks as Array<Record<string, unknown>>).catch(() => {
-        // Shadow reads are non-authoritative in Batch 1; never block task refresh.
-      });
+      if (accessTokenRef.current === tokenAtStart) {
+        setTasks(allTasks);
+        if (user?.id && (allTasks?.length || 0) > 0) {
+          markDashboardSawRealTasksForUser(user.id);
+        }
+        void syncShadowTaskProjection(allTasks as Array<Record<string, unknown>>).catch(() => {
+          // Shadow reads are non-authoritative in Batch 1; never block task refresh.
+        });
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to load tasks';
-      setError(message);
-      toast.error('Failed to load tasks', { description: message });
+      if (accessTokenRef.current === tokenAtStart) {
+        setError(message);
+        toast.error('Failed to load tasks', { description: message });
+      }
     } finally {
-      setLoading(false);
+      if (accessTokenRef.current === tokenAtStart) {
+        setLoading(false);
+        setInitialTasksLoadComplete(true);
+      }
     }
-  }, [withTimeout]);
+  }, [withTimeout, user?.id]);
+
+  useEffect(() => {
+    if (user?.id && tasks.length > 0) {
+      markDashboardSawRealTasksForUser(user.id);
+    }
+  }, [user?.id, tasks.length]);
+
+  const hasDashboardTaskHistory = React.useMemo(() => {
+    if (!user?.id) return false;
+    if (tasks.length > 0) return true;
+    return userHasDashboardTaskHistory(user.id);
+  }, [user?.id, tasks.length]);
+
+  useEffect(() => {
+    setInitialTasksLoadComplete(false);
+  }, [accessToken]);
   
   // Wait for auth hydration so SupabaseTaskRepository sees JWT + user id (avoids empty first fetch).
   useEffect(() => {
@@ -781,6 +814,8 @@ export function TasksProvider({ children }: TasksProviderProps) {
   const value: TasksContextValue = {
     tasks,
     loading,
+    initialTasksLoadComplete,
+    hasDashboardTaskHistory,
     error,
     refreshTasks,
     createTask,

@@ -202,11 +202,21 @@ function useNoiseCanvas(
     let lastFrame = 0;
     const FRAME_INTERVAL = frameInterval;
 
+    /**
+     * Idle / background tabs: do not keep a 60Hz rAF chain alive (browser still invokes the
+     * callback; scheduling every frame while throttling was burning CPU in background).
+     * Resume on visibilitychange — same pattern as Page Lifecycle API guidance.
+     */
     const draw = (now: number) => {
-      raf = requestAnimationFrame(draw);
+      if (document.hidden) {
+        raf = 0;
+        return;
+      }
 
-      if (document.hidden) return;
-      if (now - lastFrame < FRAME_INTERVAL) return;
+      if (now - lastFrame < FRAME_INTERVAL) {
+        raf = requestAnimationFrame(draw);
+        return;
+      }
       lastFrame = now;
 
       const t = now * 0.001;
@@ -258,12 +268,23 @@ function useNoiseCanvas(
           ctx.drawImage(f.sprite, fx - size * 0.5, fy - size * 0.5, size, size);
         }
       }
+
+      raf = requestAnimationFrame(draw);
     };
+
+    const onVisibility = () => {
+      if (!document.hidden && !raf) {
+        raf = requestAnimationFrame(draw);
+      }
+    };
+    document.addEventListener('visibilitychange', onVisibility);
 
     raf = requestAnimationFrame(draw);
 
     return () => {
       cancelAnimationFrame(raf);
+      raf = 0;
+      document.removeEventListener('visibilitychange', onVisibility);
       window.removeEventListener('resize', resize);
     };
   }, [canvasRef, dprCap, frameInterval, includeFlybys, noiseFadeRef, system]);

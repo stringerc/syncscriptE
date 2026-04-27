@@ -124,7 +124,6 @@ function DashboardProviders({ children }: { children: ReactNode }) {
             <OpenClawProvider autoConnect={false}>
               <GamificationPreferencesProvider>
                 <GamificationProvider>
-                  <UserProfileProvider>
                     <UserPreferencesProvider>
                       <CalendarNavigationProvider>
                         <PermissionProvider>
@@ -138,7 +137,6 @@ function DashboardProviders({ children }: { children: ReactNode }) {
                         </PermissionProvider>
                       </CalendarNavigationProvider>
                     </UserPreferencesProvider>
-                  </UserProfileProvider>
                 </GamificationProvider>
               </GamificationPreferencesProvider>
             </OpenClawProvider>
@@ -189,6 +187,7 @@ function DashboardCatchAll() {
 function AppContent() {
   return (
     <AuthProvider>
+      <UserProfileProvider>
       <Router>
         <BfcacheRouterSync />
         <AnalyticsTracker />
@@ -323,6 +322,7 @@ function AppContent() {
           </ParticleTransitionProvider>
         </NexusVoiceCallProvider>
       </Router>
+      </UserProfileProvider>
     </AuthProvider>
   );
 }

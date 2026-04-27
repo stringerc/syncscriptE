@@ -36,6 +36,25 @@ const DEFAULT_PROFILE: UserProfile = {
   energyReadinessOverride: 0, // Start at 0% (RED) for new users
 };
 
+function isPlaceholderDisplayName(name: string | undefined | null): boolean {
+  if (name == null) return true;
+  const t = name.trim();
+  if (!t) return true;
+  return /^user$/i.test(t);
+}
+
+function defaultNameFromEmail(email: string | undefined | null): string {
+  if (!email) return 'User';
+  const local = email.split('@')[0] || '';
+  if (!local.trim()) return 'User';
+  return local
+    .replace(/[._]+/g, ' ')
+    .split(' ')
+    .filter(Boolean)
+    .map((p) => p.charAt(0).toUpperCase() + p.slice(1).toLowerCase())
+    .join(' ');
+}
+
 function migrateLegacySeedProfile(storedProfile: Partial<UserProfile>): UserProfile {
   const merged: UserProfile = { ...DEFAULT_PROFILE, ...storedProfile };
   const alreadyMigrated = localStorage.getItem(PROFILE_MIGRATION_FLAG_KEY) === 'true';
@@ -95,18 +114,32 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
 
     setProfile((prev) => {
       const sameAccount = prev.id === authUser.id;
+      // Do not keep demo `DEFAULT_PROFILE` name/avatar when switching to a new account — the spread
+      // was leaving "Jordan Smith" + Unsplash in `base` and `(auth).name || base.name` then showed the wrong person.
       const base: UserProfile = sameAccount
         ? prev
         : {
             ...DEFAULT_PROFILE,
+            name: '',
+            email: '',
+            avatar: '',
+            id: authUser.id,
             energyReadinessOverride: prev.energyReadinessOverride,
           };
 
-      const name = (authUser.name || '').trim() || base.name;
+      const authName = (authUser.name || '').trim();
+      const nameFromAuth = authName && !isPlaceholderDisplayName(authName) ? authName : '';
+      const name = nameFromAuth
+        || (sameAccount && base.name && !isPlaceholderDisplayName(base.name) ? base.name : '')
+        || (!isPlaceholderDisplayName(defaultNameFromEmail(authUser.email)) ? defaultNameFromEmail(authUser.email) : '')
+        || 'User';
+
       const email = (authUser.email || '').trim() || base.email;
-      const avatar = (authUser.photoUrl || '').trim() || base.avatar;
+      const authAvatar = (authUser.photoUrl || '').trim();
+      const avatar = authAvatar || (sameAccount && base.avatar ? base.avatar : '') || '';
 
       if (
+        sameAccount &&
         base.id === authUser.id &&
         base.name === name &&
         base.email === email &&

@@ -502,13 +502,24 @@ export function HeroScene({
     const LERP_SPEED = 0.035;
 
     const animate = () => {
-      if (pausedRef.current) { isRunning = false; return; }
+      if (pausedRef.current) {
+        isRunning = false;
+        return;
+      }
 
-      animId = requestAnimationFrame(animate);
+      if (document.hidden) {
+        pausedRef.current = true;
+        isRunning = false;
+        return;
+      }
+
       isRunning = true;
 
       const nowMs = performance.now();
-      if (nowMs - lastFrameMs < dynamicFrameIntervalMs) return;
+      if (nowMs - lastFrameMs < dynamicFrameIntervalMs) {
+        animId = requestAnimationFrame(animate);
+        return;
+      }
       lastFrameMs = nowMs;
 
       clock.update();
@@ -566,6 +577,8 @@ export function HeroScene({
       } else if (renderCostEmaMs < 8) {
         dynamicFrameIntervalMs = Math.max(dynamicFrameIntervalMs - 0.5, FRAME_INTERVAL_MS);
       }
+
+      animId = requestAnimationFrame(animate);
     };
 
     const startLoop = () => {

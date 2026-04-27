@@ -87,18 +87,21 @@ export function AIFocusSection() {
   const [showWeekOutlook, setShowWeekOutlook] = useState(false);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
 
-  const { tasks, loading } = useTasks();
+  const { tasks, loading, initialTasksLoadComplete, hasDashboardTaskHistory } = useTasks();
   const { energy } = useEnergy();
   const { profile } = useUserProfile(); // Get current user from context
 
-  const tasksWithScheduleDemo = useMemo(
-    () => withDashboardScheduleDemoFallback(tasks),
-    [tasks],
-  );
+  const tasksWithScheduleDemo = useMemo(() => {
+    if (!initialTasksLoadComplete) return tasks;
+    return withDashboardScheduleDemoFallback(tasks, {
+      hasEstablishedTaskHistory: hasDashboardTaskHistory,
+    });
+  }, [tasks, initialTasksLoadComplete, hasDashboardTaskHistory]);
   
   // Get top 2 priority tasks using research-backed AI selection
   const topPriorityTasks = getTopPriorityTasks(tasksWithScheduleDemo, 2);
   const primaryTask = topPriorityTasks[0];
+  const showTaskListLoading = loading && !initialTasksLoadComplete;
   
   // ══════════════════════════════════════════════════════════════════════════════
   // UNIFIED ENERGY CALCULATION WITH ROYGBIV LOOP PROGRESSION
@@ -164,7 +167,7 @@ export function AIFocusSection() {
             <HelpCircle className="w-5 h-5 text-gray-400 hover:text-teal-400 transition-colors cursor-pointer shrink-0 mt-0.5" />
           </div>
           
-          {loading ? (
+          {showTaskListLoading ? (
             <div className="text-gray-400 text-center py-8">Analyzing your tasks...</div>
           ) : !primaryTask ? (
             <div className="text-gray-400 text-center py-8 space-y-4 px-2">

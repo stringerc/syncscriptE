@@ -87,15 +87,9 @@ function getPriorityLabel(priority: string): string {
 }
 
 export function TodaySection() {
-  const { tasks, loading, toggleTaskCompletion } = useTasks();
+  const { tasks, loading, toggleTaskCompletion, hasDashboardTaskHistory } = useTasks();
   const { events } = useCalendarEvents();
   const { profile } = useUserProfile(); // Get current user
-  
-  // Debug logging to verify context is properly loaded
-  console.log('🔍 [TodaySection] Context loaded:', {
-    hasToggleTaskCompletion: !!toggleTaskCompletion,
-    type: typeof toggleTaskCompletion
-  });
   
   // RESEARCH: Nielsen Norman Group (2023) - "Modal State Management for Consistent Interactions"
   // - Centralized modal state reduces bugs by 64%
@@ -115,15 +109,15 @@ export function TodaySection() {
   // - Reduces task creation abandonment by 41%
   const [isNewTaskDialogOpen, setIsNewTaskDialogOpen] = useState(false);
   
-  // Debug log to verify new file is loaded
-  console.log('✅ TodaySection loaded - NEW VERSION with centralized date');
-  
   // Ensure events is always an array (guard against undefined)
   const safeEvents = events || [];
   const safeTasks = tasks || [];
   const tasksForSchedule = useMemo(
-    () => withDashboardScheduleDemoFallback(safeTasks),
-    [safeTasks],
+    () =>
+      withDashboardScheduleDemoFallback(safeTasks, {
+        hasEstablishedTaskHistory: hasDashboardTaskHistory,
+      }),
+    [safeTasks, hasDashboardTaskHistory],
   );
 
   // Get top priority tasks (excluding those in AI Focus section)

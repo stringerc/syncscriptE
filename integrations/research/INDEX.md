@@ -45,6 +45,7 @@ From the repo root, **`npm run research:scan`** runs the same script against **t
 
 | Title | Date | Outcome (one line) | Artifact / archive path | Key command or commit |
 |-------|------|--------------------|---------------------------|------------------------|
+| Idle CPU / marketing orb profiling | 2026-04-26 | Chrome Performance recipe (4× CPU, 10s `/` + `/dashboard`); code pointers for rAF, timers, PWA precache | `./PERF_IDLE_CPU_PROFILING.md` | DevTools Performance · `document.hidden` guards |
 | RUM SLOs (PostHog + Sentry) | 2026-04-26 | p75 LCP/INP + error-rate targets; monthly review; complements Lighthouse (synthetic) | `./RUM_SLO_SYNCSCRIPT.md` | PostHog web vitals · Sentry release health |
 | Companion protocol policy + `openchrome` | 2026-04-11 | Allowlisted `syncscript-companion://` actions, trust/audit notes, Chrome-specific open with path guard + `events.jsonl` | `./studies/2026-04-11-companion-protocol-policy.md` · `src/config/public-links.ts` | `npm run verify:protocol-guard` in `desktop-shell` |
 | Nexus agent capabilities manifest | 2026-04-11 | Single TS manifest + docs; landing blurb wired via `NexusCapabilityBlurb` | `./nexus-agent-capabilities.md` · `src/config/nexus-tool-manifest.ts` | Align OpenClaw tools with manifest IDs |
@@ -64,6 +65,7 @@ From the repo root, **`npm run research:scan`** runs the same script against **t
 | No auto-ship skills (policy) | 2026-04-17 | Encodes **no** bulk ClawHub / **no** auto-merge / **no** unvetted bridge replacement | `./WHY_WE_DO_NOT_AUTO_SHIP_SKILLS.md` | With `SKILL_AUDIT_AUTOMATION_POLICY.md` |
 | Skill discovery matrix + triage | 2026-04-17 | Query matrix vs in-repo stack; human playbook; issue template | `./SKILL_DISCOVERY_QUERY_MATRIX.md` · `./SKILL_TRIAGE_PLAYBOOK.md` · `.github/ISSUE_TEMPLATE/skill_evaluation.md` | `npm run skill:source-audit` · `npm run skill:source-audit:ci` |
 | Nexus observability + quality bar | 2026-04-17 | Same-origin **`NEXUS_*_CHAT_PATH`** constants; **`emitNexusTrace`** includes **`toolTraceEntries`** / **`toolRepairNudged`**; Vercel log sampling + SLO ideas | `./NEXUS_OBSERVABILITY_AND_QUALITY.md` · `src/config/nexus-vercel-ai-routes.ts` | `npm test` (includes `nexus-client-route-consistency`) |
+| SyncScript full feature catalog | 2026-04-26 | Repo-grounded inventory by **sidebar rail**, Settings tabs, marketing/auth, `/app/*` shell, APIs, crons, Edge domains | `./SYNCSCRIPT_FULL_FEATURE_CATALOG.md` | Skim after large route or nav changes |
 
 **Per-study doc** (short markdown): **setup → method → result → follow-ups** — even if raw logs are deleted later.
 

@@ -1,8 +1,11 @@
 /**
  * Dashboard "Today's schedule" + AI Focus demo fallback.
  *
- * Production uses Supabase (often empty for new visitors); mock data only loads with MockTaskRepository.
- * When the user has no open real tasks, we merge sample tasks so the dashboard matches a populated account.
+ * Production often returns 0 tasks for a brand-new account. In that case we merge sample tasks so
+ * the dashboard is not a blank wall.
+ *
+ * If the user has real task rows in the list but they are all complete, we do **not** add demos
+ * (otherwise "Review Q4" / "Client presentation" reappear after they finish everything).
  */
 
 import { getFreshMockTasks } from '../data/mockTasks';
@@ -59,14 +62,36 @@ export function getDashboardScheduleDemoTasks(): Task[] {
   });
 }
 
+export type DashboardScheduleDemoOptions = {
+  /**
+   * From local signal once this user has had real task rows; when API returns `[]` we still
+   * suppress demos (e.g. user deleted all tasks after being established).
+   */
+  hasEstablishedTaskHistory?: boolean;
+};
+
 /**
  * If there is at least one open non-demo task, return tasks unchanged.
- * Otherwise merge demo tasks (replacing any stale demo rows).
+ * If there is at least one real (non-demo) task row but none are open, return only that list
+ * (all complete) — do not add samples.
+ * If there are no real tasks: add schedule demos only for first-time / new accounts, not
+ * when `hasEstablishedTaskHistory` (per-device) is set.
  */
-export function withDashboardScheduleDemoFallback(tasks: Task[] | undefined | null): Task[] {
+export function withDashboardScheduleDemoFallback(
+  tasks: Task[] | undefined | null,
+  options?: DashboardScheduleDemoOptions,
+): Task[] {
+  const { hasEstablishedTaskHistory = false } = options || {};
   const list = tasks || [];
   const hasOpenReal = list.some((t) => isDashboardOpenTask(t) && !isDashboardDemoTask(t));
   if (hasOpenReal) return list;
   const withoutDemos = list.filter((t) => !isDashboardDemoTask(t));
+  if (withoutDemos.length > 0) {
+    // User has real tasks in the list but everything is done — no phantom demo work.
+    return withoutDemos;
+  }
+  if (hasEstablishedTaskHistory) {
+    return [];
+  }
   return [...withoutDemos, ...getDashboardScheduleDemoTasks()];
 }

@@ -75,6 +75,7 @@ export function WeekView({
   // Update current time every minute
   useEffect(() => {
     const interval = setInterval(() => {
+      if (typeof document !== 'undefined' && document.hidden) return;
       setCurrentTime(new Date());
     }, 60000); // Update every minute
     return () => clearInterval(interval);

@@ -505,7 +505,8 @@ export default defineConfig({
         clientsClaim: true,
         cleanupOutdatedCaches: true,
         globPatterns: ['**/*.{js,css,html,svg,png,jpg,jpeg,webp,woff2,mp3}'],
-        globIgnores: ['**/images/blog/**', '**/*.map'],
+        // Optional Three vendor chunk is large — precache bloats install/update; runtime still loads from network/cache.
+        globIgnores: ['**/images/blog/**', '**/*.map', '**/vendor-three-*.js'],
         maximumFileSizeToCacheInBytes: 8 * 1024 * 1024,
         runtimeCaching: [
           {

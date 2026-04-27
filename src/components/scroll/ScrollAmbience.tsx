@@ -60,6 +60,8 @@ export function ScrollAmbience() {
 
     const state = stateRef.current;
 
+    const FRAME_MS = 1000 / 30;
+
     const draw = () => {
       const w = window.innerWidth;
       const h = window.innerHeight;
@@ -100,15 +102,34 @@ export function ScrollAmbience() {
       ctx.fillRect(0, 0, w, h);
     };
 
-    const loop = () => {
+    let lastDraw = 0;
+    const loop = (now: number) => {
+      if (document.hidden) {
+        rafRef.current = 0;
+        return;
+      }
+      if (now - lastDraw < FRAME_MS) {
+        rafRef.current = requestAnimationFrame(loop);
+        return;
+      }
+      lastDraw = now;
       draw();
       rafRef.current = requestAnimationFrame(loop);
     };
+
+    const onVisibility = () => {
+      if (!document.hidden && !rafRef.current && !reducedMotion) {
+        rafRef.current = requestAnimationFrame(loop);
+      }
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+
     rafRef.current = requestAnimationFrame(loop);
 
     if (reducedMotion) {
       draw();
       cancelAnimationFrame(rafRef.current);
+      rafRef.current = 0;
     }
 
     const sections = Array.from(
@@ -154,6 +175,8 @@ export function ScrollAmbience() {
 
     return () => {
       cancelAnimationFrame(rafRef.current);
+      rafRef.current = 0;
+      document.removeEventListener('visibilitychange', onVisibility);
       triggers.forEach((t) => t.kill());
       window.removeEventListener('resize', resize);
     };

@@ -897,6 +897,8 @@ export function NexusVoiceCallProvider({ children }: { children: ReactNode }) {
   const [heardText, setHeardText] = useState('');
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  /** Wall-clock start for active call — duration UI uses `Date.now() - start` so background tab throttling does not skew MAX_CALL_DURATION. */
+  const callWallClockStartRef = useRef<number | null>(null);
   const processingRef = useRef(false);
   const activeRef = useRef(false);
   const speakingRef = useRef(false);
@@ -1461,6 +1463,7 @@ export function NexusVoiceCallProvider({ children }: { children: ReactNode }) {
       setCallStatus('idle');
       setMessages([]);
       setCallDuration(0);
+      callWallClockStartRef.current = null;
       setSessionId(null);
 
       if (playGoodbye) {
@@ -1613,21 +1616,27 @@ export function NexusVoiceCallProvider({ children }: { children: ReactNode }) {
     addMessage('nexus', greetingDisplay);
     activeRef.current = true;
     setCallStatus('active');
+    callWallClockStartRef.current = Date.now();
 
     timerRef.current = setInterval(() => {
-      setCallDuration((prev) => {
-        const next = prev + 1;
-        if (next >= MAX_CALL_DURATION) {
-          setTimeout(() => {
-            if (activeRef.current) {
-              addMessage('nexus', TIME_LIMIT_MSG);
-              speakPhrase(TIME_LIMIT_MSG, null).then(() => endCallInternal({ playGoodbye: false }));
-            }
-          }, 0);
-          if (timerRef.current) clearInterval(timerRef.current);
+      if (!activeRef.current) return;
+      const start = callWallClockStartRef.current;
+      if (start == null) return;
+      const next = Math.floor((Date.now() - start) / 1000);
+      setCallDuration(next);
+      if (next >= MAX_CALL_DURATION) {
+        if (timerRef.current) {
+          clearInterval(timerRef.current);
+          timerRef.current = null;
         }
-        return next;
-      });
+        callWallClockStartRef.current = null;
+        setTimeout(() => {
+          if (activeRef.current) {
+            addMessage('nexus', TIME_LIMIT_MSG);
+            speakPhrase(TIME_LIMIT_MSG, null).then(() => endCallInternal({ playGoodbye: false }));
+          }
+        }, 0);
+      }
     }, 1000);
 
     // Greeting: prefer env mode, otherwise Kokoro first; always fall back to bundled MP3 if TTS is silent

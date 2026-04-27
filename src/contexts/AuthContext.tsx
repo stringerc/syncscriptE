@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import type { User as SupabaseAuthUser } from '@supabase/supabase-js';
 import { projectId, publicAnonKey } from '../utils/supabase/info';
 import { supabase } from '../utils/supabase/client';
 import { clearAllAppData } from '../utils/session-cleanup';
@@ -43,6 +44,52 @@ interface User {
   emailConfirmedAt?: string | null;
   /** If email change is pending confirmation, the new address (Supabase `new_email`). */
   pendingEmail?: string | null;
+}
+
+function isPlaceholderDisplayName(n: string | undefined | null): boolean {
+  if (n == null) return true;
+  const t = n.trim();
+  if (!t) return true;
+  return /^user$/i.test(t);
+}
+
+function displayNameFromSupabaseUserMetadata(su: SupabaseAuthUser | null | undefined): string | undefined {
+  if (!su) return undefined;
+  const m = (su.user_metadata || {}) as Record<string, string | undefined>;
+  const parts = [m.given_name, m.family_name].filter(
+    (x) => x != null && String(x).trim().length > 0,
+  ) as string[];
+  const joined = parts.length ? parts.map((p) => p.trim()).join(' ') : '';
+  for (const candidate of [m.full_name, m.name, joined, m.preferred_username]) {
+    if (typeof candidate === 'string' && candidate.trim().length) {
+      return candidate.trim();
+    }
+  }
+  return undefined;
+}
+
+function photoFromSupabaseUserMetadata(su: SupabaseAuthUser | null | undefined): string | undefined {
+  if (!su) return undefined;
+  const m = (su.user_metadata || {}) as Record<string, string | undefined>;
+  for (const p of [m.avatar_url, m.picture, m.picture_url]) {
+    if (typeof p === 'string' && p.trim()) {
+      return p.trim();
+    }
+  }
+  return undefined;
+}
+
+/** Edge KV / legacy profiles sometimes store `name: "User"`; OAuth data lives on `user.user_metadata`. */
+function mergeUserWithSupabaseSessionIdentity(
+  u: User,
+  su: SupabaseAuthUser | null | undefined,
+): User {
+  if (!su) return u;
+  const fromMeta = displayNameFromSupabaseUserMetadata(su);
+  const fromMetaPhoto = photoFromSupabaseUserMetadata(su);
+  const name = isPlaceholderDisplayName(u.name) && fromMeta ? fromMeta : (u.name || fromMeta || 'User');
+  const photoUrl = (u.photoUrl && u.photoUrl.trim()) ? u.photoUrl : (fromMetaPhoto || u.photoUrl);
+  return { ...u, name, photoUrl };
 }
 
 interface AuthContextType {
@@ -293,8 +340,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       );
 
       if (response.ok) {
-        const userData = await response.json();
-        setUser(overlayAuthEmail(userData));
+        const userData = (await response.json()) as User;
+        setUser(overlayAuthEmail(mergeUserWithSupabaseSessionIdentity(userData, authUser)));
         void mergeOnboardingEnergyFromSupabase(userId);
         localStorage.setItem('syncscript_auth_user_id', userData?.id || userId);
         if (!userData?.isGuest) {
@@ -306,30 +353,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setDisableRemoteProfileFetch(true);
         setUser((prev) =>
           prev
-            ? overlayAuthEmail(prev)
-            : overlayAuthEmail({
-                id: userId,
-                email: authUser?.email || '',
-                name: 'User',
-                onboardingCompleted: false,
-                createdAt: new Date().toISOString(),
-                isFirstTime: true,
-                hasLoggedEnergy: false,
-              }),
+            ? overlayAuthEmail(mergeUserWithSupabaseSessionIdentity(prev, authUser))
+            : overlayAuthEmail(
+                mergeUserWithSupabaseSessionIdentity(
+                  {
+                    id: userId,
+                    email: authUser?.email || '',
+                    name: 'User',
+                    onboardingCompleted: false,
+                    createdAt: new Date().toISOString(),
+                    isFirstTime: true,
+                    hasLoggedEnergy: false,
+                  },
+                  authUser,
+                ),
+              ),
         );
       } else {
         setUser((prev) =>
           prev
-            ? overlayAuthEmail(prev)
-            : overlayAuthEmail({
-                id: userId,
-                email: authUser?.email || '',
-                name: 'User',
-                onboardingCompleted: false,
-                createdAt: new Date().toISOString(),
-                isFirstTime: true,
-                hasLoggedEnergy: false,
-              }),
+            ? overlayAuthEmail(mergeUserWithSupabaseSessionIdentity(prev, authUser))
+            : overlayAuthEmail(
+                mergeUserWithSupabaseSessionIdentity(
+                  {
+                    id: userId,
+                    email: authUser?.email || '',
+                    name: 'User',
+                    onboardingCompleted: false,
+                    createdAt: new Date().toISOString(),
+                    isFirstTime: true,
+                    hasLoggedEnergy: false,
+                  },
+                  authUser,
+                ),
+              ),
         );
       }
     } catch (error) {
@@ -354,16 +411,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           : u;
       setUser((prev) =>
         prev
-          ? overlayCatch(prev)
-          : overlayCatch({
-              id: userId,
-              email: auCatch?.email || '',
-              name: 'User',
-              onboardingCompleted: false,
-              createdAt: new Date().toISOString(),
-              isFirstTime: true,
-              hasLoggedEnergy: false,
-            }),
+          ? overlayCatch(mergeUserWithSupabaseSessionIdentity(prev, auCatch))
+          : overlayCatch(
+              mergeUserWithSupabaseSessionIdentity(
+                {
+                  id: userId,
+                  email: auCatch?.email || '',
+                  name: 'User',
+                  onboardingCompleted: false,
+                  createdAt: new Date().toISOString(),
+                  isFirstTime: true,
+                  hasLoggedEnergy: false,
+                },
+                auCatch,
+              ),
+            ),
       );
     } finally {
       profileFetchInFlightRef.current = null;

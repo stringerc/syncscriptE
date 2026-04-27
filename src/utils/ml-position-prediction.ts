@@ -437,12 +437,9 @@ export function saveMLPatterns() {
 }
 
 /**
- * Auto-save patterns periodically
+ * Persist on unload only — a global 30s setInterval was waking timers on every tab that
+ * imported this module (wasted CPU + battery for a dev-only predictor).
  */
 if (typeof window !== 'undefined') {
-  // Save every 30 seconds
-  setInterval(saveMLPatterns, 30000);
-  
-  // Save on page unload
   window.addEventListener('beforeunload', saveMLPatterns);
 }

@@ -32,6 +32,7 @@ export function CurrentTimeLine({ currentTime, offsetTop, isInViewport }: Curren
   // Update time every second for smooth animation
   useEffect(() => {
     const interval = setInterval(() => {
+      if (typeof document !== 'undefined' && document.hidden) return;
       setTime(new Date());
     }, 1000);
     
@@ -68,6 +69,7 @@ export function CurrentTimeLine({ currentTime, offsetTop, isInViewport }: Curren
     >
       {/* Pulsing indicator dot */}
       <motion.div
+        data-pause-when-hidden
         animate={{
           scale: [1, 1.2, 1],
           opacity: [1, 0.7, 1],
@@ -112,6 +114,7 @@ export function useCurrentTimePosition(timelineStartDate: Date): number {
   
   useEffect(() => {
     const calculatePosition = () => {
+      if (typeof document !== 'undefined' && document.hidden) return;
       const now = new Date();
       const diffMs = now.getTime() - timelineStartDate.getTime();
       const diffMinutes = diffMs / (1000 * 60);
