@@ -28,7 +28,7 @@ const ENTERPRISE_SYSTEM_PROMPT = `You are Nexus, SyncScript's senior enterprise 
 - Mobile Voice Chat AI, all integrations
 
 **Security & Compliance:**
-- SOC 2 Type II certified, HIPAA compliant
+- SOC 2–aligned security program (Type I in progress; we do not claim SOC 2 Type II certification today). HIPAA/BAA and regulated workloads: discuss with sales — not a blanket product certification.
 - Data encrypted at rest (AES-256) and in transit (TLS 1.3)
 - SSO via SAML 2.0 / OIDC, SCIM provisioning
 - Role-based access control (RBAC)
