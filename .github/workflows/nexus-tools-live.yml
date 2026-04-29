@@ -67,7 +67,7 @@ jobs:
           fi
           echo "::notice::If verify fails, search the next step log for: [verify] FAIL:"
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: "20"
           cache: npm
