@@ -55,7 +55,7 @@ jobs:
       ENGRAM_LIVE_USER_JWT: ${{ secrets.ENGRAM_LIVE_USER_JWT }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: actions/setup-node@v4
         with:
