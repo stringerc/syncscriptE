@@ -7,9 +7,11 @@ import { EnterpriseAgentModal } from '../enterprise/EnterpriseAgentModal';
 import { EnterpriseMissionCalendar } from '../enterprise/EnterpriseMissionCalendar';
 import { EnterpriseOfficeSimulation } from '../enterprise/EnterpriseOfficeSimulation';
 import { EnterpriseTeamModal } from '../enterprise/EnterpriseTeamModal';
+import { EnterpriseBusinessPlanTab } from '../enterprise/EnterpriseBusinessPlanTab';
+import { DashboardLayout } from '../layout/DashboardLayout';
 import { getEnterpriseFeatureFlags } from '../../utils/enterprise-feature-flags';
 
-type EnterpriseTab = 'mission' | 'agents' | 'office' | 'memory';
+type EnterpriseTab = 'mission' | 'agents' | 'office' | 'memory' | 'plan';
 
 type EnterpriseAgent = {
   id: string;
@@ -99,8 +101,9 @@ export function EnterpriseToolsPage() {
   };
 
   return (
-    <main className="min-h-screen bg-[#0f1115] px-4 py-8 text-white md:px-8">
-      <section className="mx-auto max-w-6xl space-y-5">
+    <DashboardLayout>
+      <div className="mx-auto max-w-6xl space-y-5 text-white">
+      <section className="space-y-5">
         <header className="rounded-2xl border border-white/10 bg-[#171a21] p-6">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
@@ -128,6 +131,7 @@ export function EnterpriseToolsPage() {
               { id: 'agents', label: 'Agents', icon: Users2 },
               { id: 'office', label: 'Office', icon: Building2 },
               { id: 'memory', label: 'Memory', icon: Clock3 },
+              { id: 'plan', label: 'Plan', icon: FileText },
             ].map(({ id, label, icon: Icon }) => (
               <button
                 key={id}
@@ -289,6 +293,7 @@ export function EnterpriseToolsPage() {
           addAction(`Team note (${selectedTeam}): ${note}`, selectedTeam);
         }}
       />
-    </main>
+      </div>
+    </DashboardLayout>
   );
 }
