@@ -8,6 +8,7 @@ import { Loader2, X, MessageSquare, CheckCircle2, AlertTriangle, PauseCircle, Se
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useAgentRunDetail, useAgentRunControls, type AgentRunStatus, type AgentRunStep } from '@/hooks/useAgentRuns';
+import { AgentBrowserFrame } from './AgentBrowserFrame';
 import { AgentLiveCanvas } from './AgentLiveCanvas';
 
 interface Props {
@@ -32,6 +33,26 @@ export function AgentRunStream({ runId, onClose }: Props) {
     }
     return null;
   }, [steps]);
+
+  /** URL for browser chrome — prefer latest browser_action with url, then screenshot steps. */
+  const agentPageUrl = useMemo(() => {
+    for (let i = steps.length - 1; i >= 0; i--) {
+      const s = steps[i];
+      if (s.kind === 'browser_action') {
+        const u = (s.payload as { action?: { url?: string } })?.action?.url;
+        if (typeof u === 'string' && u.trim()) return u.trim();
+      }
+      if (s.kind === 'screenshot') {
+        const u = (s.payload as { url?: string })?.url;
+        if (typeof u === 'string' && u.trim()) return u.trim();
+      }
+    }
+    if (latestShot?.kind === 'screenshot') {
+      const u = (latestShot.payload as { url?: string })?.url;
+      if (typeof u === 'string' && u.trim()) return u.trim();
+    }
+    return null;
+  }, [steps, latestShot]);
 
   if (!run) {
     return (
@@ -78,17 +99,20 @@ export function AgentRunStream({ runId, onClose }: Props) {
       <div className="flex-1 grid grid-rows-[1fr_auto] md:grid-rows-1 md:grid-cols-[1fr_280px] min-h-0 overflow-hidden">
         {/* Live agent browser — CDP screencast over WebSocket while running,
             falls back to latest captured screenshot when paused/done. */}
-        <div className="relative overflow-hidden border-r border-gray-800/60 min-h-0">
-          <AgentLiveCanvas
-            runId={run.id}
-            isActive={run.status === 'running' || run.status === 'waiting_user'}
-            fallbackScreenshotB64={latestShot?.screenshot_b64 ?? null}
-            fallbackUrlLabel={
-              latestShot?.kind === 'screenshot' && typeof (latestShot.payload as { url?: string })?.url === 'string'
-                ? (latestShot.payload as { url?: string }).url
-                : null
-            }
-          />
+        <div className="relative flex min-h-0 min-w-0 flex-col overflow-hidden border-r border-gray-800/60 p-2 md:p-3">
+          <AgentBrowserFrame url={agentPageUrl} isLive={run.status === 'running' || run.status === 'waiting_user'}>
+            <AgentLiveCanvas
+              runId={run.id}
+              isActive={run.status === 'running' || run.status === 'waiting_user'}
+              fallbackScreenshotB64={latestShot?.screenshot_b64 ?? null}
+              fallbackUrlLabel={
+                latestShot?.kind === 'screenshot' && typeof (latestShot.payload as { url?: string })?.url === 'string'
+                  ? (latestShot.payload as { url?: string }).url
+                  : null
+              }
+              suppressUrlFooter
+            />
+          </AgentBrowserFrame>
         </div>
 
         {/* Action log */}

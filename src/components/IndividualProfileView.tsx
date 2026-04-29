@@ -24,7 +24,7 @@
  * ⚡ Customizable Widget Dashboard
  */
 
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'motion/react';
 import { 
   User, Edit, Save, X, Mail, MapPin, Clock, Link as LinkIcon, Plus, Trash2,
@@ -156,19 +156,32 @@ export function IndividualProfileView() {
     },
   ]);
 
-  // 🎯 Contribution Heatmap Data (GitHub-style)
-  const generateHeatmapData = () => {
-    const data = [];
-    const today = new Date();
-    for (let i = 364; i >= 0; i--) {
-      const date = new Date(today);
-      date.setDate(date.getDate() - i);
-      const activity = Math.floor(Math.random() * 10); // 0-9 activities per day
-      data.push({ date, activity });
-    }
-    return data;
-  };
-  const [heatmapData] = useState(generateHeatmapData());
+  // Contribution heatmap — real counts from Edge `activity/summary` when signed in
+  const [heatmapData, setHeatmapData] = useState<{ date: Date; activity: number }[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const cells = await fetchActivitySummary(371);
+      const byDay = new Map(cells.map((c) => [c.date, c.count]));
+      const today = new Date();
+      const data: { date: Date; activity: number }[] = [];
+      for (let i = 364; i >= 0; i--) {
+        const date = new Date(today);
+        date.setDate(date.getDate() - i);
+        const key = date.toISOString().slice(0, 10);
+        data.push({ date, activity: byDay.get(key) || 0 });
+      }
+      if (!cancelled) setHeatmapData(data);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const heatmapMax = useMemo(
+    () => Math.max(1, ...heatmapData.map((d) => d.activity), 9),
+    [heatmapData],
+  );
 
   // Original values for cancel
   const [originalValues, setOriginalValues] = useState({
@@ -685,8 +698,9 @@ export function IndividualProfileView() {
           <Card className="bg-[#1e2128] border-gray-800 p-6">
             <h3 className="text-white font-medium mb-4 flex items-center gap-2">
               <Calendar className="w-5 h-5 text-teal-400" />
-              Activity Heatmap (Last 12 Months)
+              Activity heatmap (last ~12 months)
             </h3>
+            <p className="text-xs text-gray-500 mb-3">Aggregated from tasks and other work signals you log in SyncScript.</p>
             <div className="overflow-x-auto">
               <div className="inline-flex flex-col gap-1">
                 {[0, 1, 2, 3, 4, 5, 6].map((day) => (
@@ -694,7 +708,7 @@ export function IndividualProfileView() {
                     {Array.from({ length: 52 }).map((_, week) => {
                       const dataIndex = week * 7 + day;
                       const data = heatmapData[dataIndex];
-                      const intensity = data ? Math.min(data.activity / 9, 1) : 0;
+                      const intensity = data ? Math.min(data.activity / heatmapMax, 1) : 0;
                       return (
                         <div
                           key={week}
@@ -703,7 +717,7 @@ export function IndividualProfileView() {
                             backgroundColor: intensity === 0 ? '#1e2128' :
                               `rgba(16, 185, 129, ${0.2 + intensity * 0.8})`
                           }}
-                          title={data ? `${data.activity} activities on ${data.date.toLocaleDateString()}` : ''}
+                          title={data ? `${data.activity} work units · ${data.date.toLocaleDateString()}` : ''}
                         />
                       );
                     })}

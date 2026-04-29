@@ -14,6 +14,7 @@ import {
   type IntegrationActionResult,
   type CalendarEventInput,
 } from "./integration-actions.tsx";
+import { recordTaskCompleted } from "./activity-record.ts";
 
 const app = new Hono();
 
@@ -503,9 +504,13 @@ app.put("/tasks/:id", async (c) => {
   const tasks = await getTasks(user.id);
   const idx = tasks.findIndex((t) => t.id === id);
   if (idx < 0) return c.json({ error: "Task not found" }, 404);
+  const wasCompleted = Boolean(tasks[idx].completed);
   const merged = normalizeTask({ ...tasks[idx], ...updates, id, updatedAt: new Date().toISOString() }, user.email || "You");
   tasks[idx] = merged;
   await saveTasks(user.id, tasks);
+  if (merged.completed && !wasCompleted) {
+    void recordTaskCompleted(supabase, user.id, { id: merged.id, title: merged.title });
+  }
   return c.json(merged);
 });
 
@@ -540,6 +545,9 @@ app.post("/tasks/:id/toggle", async (c) => {
     user.email || "You",
   );
   await saveTasks(user.id, tasks);
+  if (completed) {
+    void recordTaskCompleted(supabase, user.id, { id: tasks[idx].id, title: tasks[idx].title });
+  }
   return c.json(tasks[idx]);
 });
 

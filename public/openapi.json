@@ -8,7 +8,8 @@
     "license": { "name": "Proprietary" }
   },
   "servers": [
-    { "url": "https://www.syncscript.app", "description": "Production" }
+    { "url": "https://www.syncscript.app", "description": "Production" },
+    { "url": "https://kwhnrlzibgfedtxpkbgb.supabase.co/functions/v1/make-server-57781ad9", "description": "Supabase Edge (same-origin style paths: /business-plan, /activity/summary, …). Send `apikey` + `Authorization: Bearer <jwt|sspat_*>`." }
   ],
   "tags": [
     { "name": "Agent", "description": "Nexus Agent Mode \u2014 drive a real headless browser on behalf of the user." },
@@ -25,6 +26,12 @@
         "scheme": "bearer",
         "bearerFormat": "JWT",
         "description": "Supabase access token from the user's session."
+      },
+      "syncscriptPat": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "sspat_*",
+        "description": "Personal access token (`sspat_…`) minted via `POST /api-tokens` (JWT only). Scopes: tasks:read/write, activity:read/write, business_plan:read/write."
       }
     },
     "schemas": {
@@ -120,6 +127,33 @@
     "/api/agent/webhooks-rotate":      { "post": { "summary": "Rotate the HMAC signing secret",      "tags": ["Webhooks"], "responses": { "200": { "description": "OK" } } } },
     "/api/agent/webhooks-deliveries":  { "get":  { "summary": "Recent delivery attempts",            "tags": ["Webhooks"], "responses": { "200": { "description": "OK" } } } },
     "/api/agent/webhooks-replay":      { "post": { "summary": "Replay a failed / DLQ'd delivery",    "tags": ["Webhooks"], "responses": { "200": { "description": "OK" } } } },
+    "/business-plan": {
+      "get": { "summary": "Load structured business plan sections", "tags": ["ProductivityEdge"], "security": [{ "supabaseJwt": [] }, { "syncscriptPat": [] }], "responses": { "200": { "description": "OK" } } },
+      "put": { "summary": "Upsert business plan sections", "tags": ["ProductivityEdge"], "security": [{ "supabaseJwt": [] }, { "syncscriptPat": [] }], "responses": { "200": { "description": "OK" } } }
+    },
+    "/business-plan/export.md": {
+      "get": { "summary": "Export plan as markdown", "tags": ["ProductivityEdge"], "security": [{ "supabaseJwt": [] }, { "syncscriptPat": [] }], "responses": { "200": { "description": "text/markdown" } } }
+    },
+    "/activity/summary": {
+      "get": { "summary": "Daily activity counts for heatmap", "tags": ["ProductivityEdge"], "security": [{ "supabaseJwt": [] }, { "syncscriptPat": [] }], "parameters": [{ "name": "days", "in": "query", "schema": { "type": "integer", "default": 371 } }], "responses": { "200": { "description": "OK" } } }
+    },
+    "/activity/events": {
+      "post": { "summary": "Append activity event (focus_block, external_ide_session, …)", "tags": ["ProductivityEdge"], "security": [{ "supabaseJwt": [] }, { "syncscriptPat": [] }], "responses": { "200": { "description": "OK" } } }
+    },
+    "/social/prefs": {
+      "get": { "summary": "Heatmap visibility + friend feed opt-in", "tags": ["ProductivityEdge"], "security": [{ "supabaseJwt": [] }, { "syncscriptPat": [] }], "responses": { "200": { "description": "OK" } } },
+      "put": { "summary": "Update social prefs (JWT only)", "tags": ["ProductivityEdge"], "security": [{ "supabaseJwt": [] }], "responses": { "200": { "description": "OK" } } }
+    },
+    "/friends/activity-feed": {
+      "get": { "summary": "Friend activity stream (RPC)", "tags": ["ProductivityEdge"], "security": [{ "supabaseJwt": [] }], "responses": { "200": { "description": "OK" } } }
+    },
+    "/api-tokens": {
+      "get": { "summary": "List PAT metadata (masked)", "tags": ["ProductivityEdge"], "security": [{ "supabaseJwt": [] }], "responses": { "200": { "description": "OK" } } },
+      "post": { "summary": "Create PAT (plaintext returned once)", "tags": ["ProductivityEdge"], "security": [{ "supabaseJwt": [] }], "responses": { "200": { "description": "OK" } } }
+    },
+    "/api-tokens/{id}": {
+      "delete": { "summary": "Revoke PAT", "tags": ["ProductivityEdge"], "security": [{ "supabaseJwt": [] }], "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }], "responses": { "200": { "description": "OK" } } }
+    },
     "/api/phone/{endpoint}": {
       "get": {
         "summary": "Phone API sub-route (TwiML, call status, …)",

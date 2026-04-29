@@ -15,6 +15,7 @@ import { AgentSettingsTab } from '../settings/AgentSettingsTab';
 import { FilesLibraryEmbed } from '../settings/FilesLibraryEmbed';
 import { WebhooksTab } from '../settings/WebhooksTab';
 import { AuditLogTab } from '../settings/AuditLogTab';
+import { SocialHeatmapPrefsCard, CursorPatTokensCard } from '../settings/ProductivityPrivacyCards';
 import { StripeConnectSettings } from '../settings/StripeConnectSettings';
 import { BillingSettings } from '../billing/BillingSettings';
 import { motion } from 'motion/react';
@@ -1676,6 +1677,9 @@ export function SettingsPage() {
                 </div>
               </div>
             </Card>
+
+            <SocialHeatmapPrefsCard />
+            <CursorPatTokensCard />
 
             <Card className="bg-[#1e2128] border-gray-800 p-6">
               <h2 className="text-white text-xl mb-4 flex items-center gap-2">

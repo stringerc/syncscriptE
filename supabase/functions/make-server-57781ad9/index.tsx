@@ -26,6 +26,7 @@ import aiABTesting from "./ai-ab-testing.tsx";
 import aiCrossAgentMemory from "./ai-cross-agent-memory.tsx";
 import aiPredictivePrefetch from "./ai-predictive-prefetch.tsx";
 import emailTaskRoutes from "./email-task-routes.tsx";
+import socialProductivityRoutes from "./social-productivity-routes.tsx";
 import resourcesLibraryRoutes from "./resources-library-routes.tsx";
 import pushDeviceRoutes from "./push-device-routes.tsx";
 import financialRoutes from "./financial-routes.tsx";
@@ -1864,6 +1865,7 @@ app.post('/make-server-57781ad9/admin/metrics/ces', performanceMetrics.recordCES
 // ====================================================================
 app.route('/make-server-57781ad9/email', emailSystemRoutes);
 app.route('/make-server-57781ad9', emailTaskRoutes);
+app.route('/make-server-57781ad9', socialProductivityRoutes);
 app.route('/make-server-57781ad9', resourcesLibraryRoutes);
 app.route('/make-server-57781ad9/push', pushDeviceRoutes);
 

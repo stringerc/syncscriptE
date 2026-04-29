@@ -5,12 +5,16 @@
  *   1. If user has an active byok_keys row for the provider they selected:
  *      a. Read decrypted key from vault via admin_read_byok_key.
  *      b. Call that provider's OpenAI-compatible endpoint with the key.
- *   2. Otherwise: NVIDIA NIM with the platform-shared NVIDIA_API_KEY (free tier).
+ *   2. Otherwise: first **platform** env key in the same volume order as `ai-service`
+ *      (NVIDIA → Groq → Anthropic → …). No single-provider hard requirement if
+ *      another platform key is set on Vercel / the runner.
  *
  * All providers are accessed via the OpenAI Chat Completions wire format —
  * Anthropic and Gemini ship OpenAI-compatible shim endpoints; OpenRouter is
  * native OpenAI shape; Groq, xAI, Mistral, Ollama, and "custom_openai_compat"
  * all already implement the same surface. **One HTTP shape, nine providers.**
+ * Request bodies pass through `openai-compat-model-policy.ts` (Kimi tool fields,
+ * o/GPT-5 token + sampling quirks) before every `fetch`.
  *
  * Vision input: every provider that supports vision accepts `image_url` content
  * parts in the same OpenAI shape (`{ type: 'image_url', image_url: { url: 'data:image/png;base64,...' } }`).
@@ -18,6 +22,10 @@
  */
 
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import {
+  finalizeChatCompletionRequestBody,
+  sanitizeChatMessagesForModel,
+} from './openai-compat-model-policy';
 
 export type AgentLLMProvider =
   | 'nvidia'
@@ -53,7 +61,8 @@ export const DEFAULT_MODELS: Record<AgentLLMProvider, string> = {
   openrouter: 'google/gemini-2.5-pro',
   gemini: 'gemini-2.5-pro',
   openai: 'gpt-4o',
-  anthropic: 'claude-sonnet-4-5',
+  /** Default BYOK Anthropic = Haiku for cost; set `byok_keys.default_model` to e.g. `claude-sonnet-4-5` for frontier quality. */
+  anthropic: 'claude-haiku-4-5',
   groq: 'llama-3.2-90b-vision-preview',
   xai: 'grok-2-vision-1212',
   mistral: 'pixtral-large-latest',
@@ -73,6 +82,53 @@ const PROVIDER_BASE_URLS: Record<Exclude<AgentLLMProvider, 'ollama' | 'custom_op
   mistral: 'https://api.mistral.ai/v1',
 };
 
+/** Vercel / runner process.env names for platform (non-BYOK) keys — aligned with `ai-service` providers. */
+const PLATFORM_LLM_ENV_KEYS: Record<Exclude<AgentLLMProvider, 'ollama' | 'custom_openai_compat'>, string> = {
+  nvidia: 'NVIDIA_API_KEY',
+  groq: 'GROQ_API_KEY',
+  anthropic: 'ANTHROPIC_API_KEY',
+  openrouter: 'OPENROUTER_API_KEY',
+  gemini: 'GEMINI_API_KEY',
+  openai: 'OPENAI_API_KEY',
+  xai: 'XAI_API_KEY',
+  mistral: 'MISTRAL_API_KEY',
+};
+
+/** Same relative priority as `api/_lib/ai-service.ts` `PROVIDER_FAILOVER_ORDER` (minus non-agent providers). */
+const PLATFORM_LLM_FALLBACK_ORDER: Exclude<AgentLLMProvider, 'ollama' | 'custom_openai_compat'>[] = [
+  'nvidia',
+  'groq',
+  'anthropic',
+  'openrouter',
+  'gemini',
+  'openai',
+  'xai',
+  'mistral',
+];
+
+function resolvePlatformSharedLlmConfig(): AgentLLMConfig | { error: string } {
+  for (const provider of PLATFORM_LLM_FALLBACK_ORDER) {
+    const envName = PLATFORM_LLM_ENV_KEYS[provider];
+    const raw = process.env[envName];
+    const apiKey = typeof raw === 'string' ? raw.trim() : '';
+    if (!apiKey) continue;
+
+    const authHeaderName = provider === 'anthropic' ? 'x-api-key' : 'Authorization';
+    const authHeader = provider === 'anthropic' ? apiKey : `Bearer ${apiKey}`;
+    const model = DEFAULT_MODELS[provider];
+    return {
+      provider,
+      model,
+      baseUrl: PROVIDER_BASE_URLS[provider],
+      authHeader,
+      authHeaderName,
+      isByok: false,
+      label: `platform:${provider}/${model}`,
+    };
+  }
+  return { error: 'no_byok_and_no_platform_llm_key' };
+}
+
 function svc(): SupabaseClient | null {
   const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '';
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
@@ -82,11 +138,11 @@ function svc(): SupabaseClient | null {
 
 /**
  * Resolve the LLM config for a given user. If the user has a `byok_keys` row,
- * use it. Otherwise fall back to the platform NVIDIA NIM key (free tier).
+ * use it. Otherwise fall back to the first configured platform LLM env key.
  *
  * Caller can pin a provider via `preferProvider` (e.g. user explicitly chose
  * a provider for this run); we'll use it only if the user actually has a key
- * for it, otherwise fall back to NVIDIA.
+ * for it, otherwise fall back to the platform chain.
  */
 export async function resolveAgentLLMConfig(
   userId: string,
@@ -115,9 +171,17 @@ export async function resolveAgentLLMConfig(
     return byokConfig(sb, userId, preferProvider, byokMap[preferProvider]);
   }
 
-  // Otherwise prefer any active BYOK key in priority order.
+  // Otherwise prefer any active BYOK key: fast/cheap Groq before OpenRouter / Anthropic Haiku default.
   const byokPriority: AgentLLMProvider[] = [
-    'openrouter', 'anthropic', 'openai', 'gemini', 'xai', 'mistral', 'groq', 'ollama', 'custom_openai_compat',
+    'groq',
+    'openrouter',
+    'anthropic',
+    'openai',
+    'gemini',
+    'xai',
+    'mistral',
+    'ollama',
+    'custom_openai_compat',
   ];
   for (const p of byokPriority) {
     if (byokMap[p]) {
@@ -126,19 +190,7 @@ export async function resolveAgentLLMConfig(
     }
   }
 
-  // Free tier — NVIDIA NIM.
-  const apiKey = process.env.NVIDIA_API_KEY || '';
-  if (!apiKey) return { error: 'no_byok_and_no_nvidia_key' };
-
-  return {
-    provider: 'nvidia',
-    model: DEFAULT_MODELS.nvidia,
-    baseUrl: PROVIDER_BASE_URLS.nvidia,
-    authHeader: `Bearer ${apiKey}`,
-    authHeaderName: 'Authorization',
-    isByok: false,
-    label: `nvidia/${DEFAULT_MODELS.nvidia}`,
-  };
+  return resolvePlatformSharedLlmConfig();
 }
 
 async function byokConfig(
@@ -250,16 +302,23 @@ export async function callAgentChat(
     headers['X-Title'] = 'SyncScript Nexus Agent';
   }
 
-  const body: Record<string, unknown> = {
+  const messagesSanitized = sanitizeChatMessagesForModel(
+    cfg.model,
+    args.messages as ReadonlyArray<Record<string, unknown>>,
+  );
+
+  const draft: Record<string, unknown> = {
     model: cfg.model,
-    messages: args.messages,
+    messages: messagesSanitized,
     temperature: args.temperature ?? 0.2,
     max_tokens: args.maxTokens ?? 1024,
   };
   if (args.tools && args.tools.length > 0) {
-    body.tools = args.tools;
-    body.tool_choice = args.toolChoice ?? 'auto';
+    draft.tools = args.tools;
+    draft.tool_choice = args.toolChoice ?? 'auto';
   }
+
+  const body = finalizeChatCompletionRequestBody(cfg.model, draft);
 
   const ctrl = new AbortController();
   const timeoutMs = args.timeoutMs ?? 120_000;
@@ -321,7 +380,7 @@ export function estimateCostCents(cfg: AgentLLMConfig, usage?: { prompt_tokens?:
     openrouter: { in: 0.5, out: 1.5 },
     gemini: { in: 0.125, out: 0.5 },
     openai: { in: 0.25, out: 1 },
-    anthropic: { in: 0.3, out: 1.5 },
+    anthropic: { in: 0.15, out: 0.75 }, // Haiku-default BYOK; conservative vs Sonnet
     groq: { in: 0.09, out: 0.09 },
     xai: { in: 0.2, out: 1 },
     mistral: { in: 0.2, out: 0.6 },

@@ -65,6 +65,7 @@ import {
   type SocialRelationshipRecord,
   type SocialType,
 } from '../utils/social-chat';
+import { FriendsActivityFeedPanel } from './social/FriendsActivityFeedPanel';
 
 interface AIAssistantPanelProps {
   isOpen: boolean;
@@ -958,6 +959,7 @@ export function AIAssistantPanel({
               );
             })}
           </div>
+          <FriendsActivityFeedPanel enabled={isAuthenticatedSocial && socialTab === 'friends'} />
         </div>
       )}
 

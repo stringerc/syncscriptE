@@ -54,6 +54,8 @@ interface Props {
   isActive: boolean;
   fallbackScreenshotB64?: string | null;
   fallbackUrlLabel?: string | null;
+  /** When true, omit the floating URL caption (e.g. parent shows an omnibox). */
+  suppressUrlFooter?: boolean;
 }
 
 interface LiveTokenResponse {
@@ -361,7 +363,7 @@ export function AgentLiveCanvas({ runId, isActive, fallbackScreenshotB64, fallba
         {status === 'paused' && <span>paused (tab hidden)</span>}
       </div>
 
-      {fallbackUrlLabel && (
+      {fallbackUrlLabel && !suppressUrlFooter && (
         <div className="absolute bottom-2 left-2 right-2 mx-auto max-w-md rounded-md bg-black/60 backdrop-blur-sm px-2 py-1 text-[10px] text-gray-300 truncate text-center pointer-events-none">
           {fallbackUrlLabel}
         </div>

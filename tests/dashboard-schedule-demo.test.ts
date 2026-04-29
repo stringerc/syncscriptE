@@ -6,6 +6,8 @@ import assert from 'node:assert/strict';
 import {
   withDashboardScheduleDemoFallback,
   isDashboardDemoTask,
+  resolveDashboardScheduleProjection,
+  listOpenUserTasks,
 } from '../src/utils/dashboard-schedule-demo';
 
 const makeTask = (id: string, overrides: Record<string, unknown> = {}) =>
@@ -43,4 +45,20 @@ test('empty list, new user: demos present', () => {
 test('empty list, established user: no demos', () => {
   const r = withDashboardScheduleDemoFallback([], { hasEstablishedTaskHistory: true });
   assert.equal(r.length, 0);
+});
+
+test('resolveDashboardScheduleProjection mirrors merge + flags demo fallback', () => {
+  const p = resolveDashboardScheduleProjection([], { hasEstablishedTaskHistory: false });
+  assert.deepEqual(
+    p.scheduleTasks.map((t) => t.id),
+    withDashboardScheduleDemoFallback([], { hasEstablishedTaskHistory: false }).map(
+      (t) => t.id,
+    ),
+  );
+  assert.equal(p.demoFallbackActive, true);
+  assert.ok(p.demoTaskIds.size > 0);
+});
+
+test('listOpenUserTasks on empty', () => {
+  assert.deepEqual(listOpenUserTasks([]), []);
 });

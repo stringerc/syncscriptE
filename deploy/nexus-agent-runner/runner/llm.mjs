@@ -6,7 +6,28 @@ import { createClient } from '@supabase/supabase-js';
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const NVIDIA_API_KEY = process.env.NVIDIA_API_KEY;
+
+const PLATFORM_LLM_ENV_KEYS = {
+  nvidia: 'NVIDIA_API_KEY',
+  groq: 'GROQ_API_KEY',
+  anthropic: 'ANTHROPIC_API_KEY',
+  openrouter: 'OPENROUTER_API_KEY',
+  gemini: 'GEMINI_API_KEY',
+  openai: 'OPENAI_API_KEY',
+  xai: 'XAI_API_KEY',
+  mistral: 'MISTRAL_API_KEY',
+};
+
+const PLATFORM_LLM_FALLBACK_ORDER = [
+  'nvidia',
+  'groq',
+  'anthropic',
+  'openrouter',
+  'gemini',
+  'openai',
+  'xai',
+  'mistral',
+];
 
 const PROVIDER_BASE_URLS = {
   nvidia: 'https://integrate.api.nvidia.com/v1',
@@ -70,7 +91,7 @@ export async function resolveLLMConfig(userId) {
     .eq('user_id', userId)
     .eq('active', true);
 
-  const priority = ['openrouter', 'anthropic', 'openai', 'gemini', 'xai', 'mistral', 'groq', 'ollama', 'custom_openai_compat'];
+  const priority = ['groq', 'openrouter', 'anthropic', 'openai', 'gemini', 'xai', 'mistral', 'ollama', 'custom_openai_compat'];
   for (const p of priority) {
     const row = rows?.find((r) => r.provider === p);
     if (!row) continue;
@@ -79,8 +100,13 @@ export async function resolveLLMConfig(userId) {
     return makeConfig(p, row.default_model || DEFAULT_MODELS[p], secret, row.endpoint_url, true);
   }
 
-  if (!NVIDIA_API_KEY) throw new Error('No BYOK and no NVIDIA_API_KEY set');
-  return makeConfig('nvidia', DEFAULT_MODELS.nvidia, NVIDIA_API_KEY, null, false);
+  for (const p of PLATFORM_LLM_FALLBACK_ORDER) {
+    const envName = PLATFORM_LLM_ENV_KEYS[p];
+    const k = String(process.env[envName] || '').trim();
+    if (!k) continue;
+    return makeConfig(p, DEFAULT_MODELS[p], k, null, false);
+  }
+  throw new Error('No BYOK and no platform LLM env key (set one of NVIDIA_API_KEY, GROQ_API_KEY, …)');
 }
 
 function makeConfig(provider, model, apiKey, endpointUrl, isByok) {

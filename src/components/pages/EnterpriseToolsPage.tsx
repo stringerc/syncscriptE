@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Building2, Clock3, Cpu, FolderKanban, Users2 } from 'lucide-react';
+import { Building2, Clock3, Cpu, FileText, FolderKanban, Users2 } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
@@ -232,6 +232,8 @@ export function EnterpriseToolsPage() {
             </div>
           </section>
         )}
+
+        {activeTab === 'plan' && <EnterpriseBusinessPlanTab />}
 
         <div className="flex flex-wrap items-center gap-2">
           <Button variant="outline" onClick={() => navigate('/dashboard')}>Back to dashboard</Button>

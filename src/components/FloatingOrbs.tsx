@@ -208,7 +208,10 @@ function useNoiseCanvas(
      * Resume on visibilitychange — same pattern as Page Lifecycle API guidance.
      */
     const draw = (now: number) => {
-      if (document.hidden) {
+      // Pause when this tab is in the background OR the browser window lost focus
+      // (e.g. YouTube on another monitor). Avoids burning GPU/CPU while music/video
+      // runs in a focused tab — same lifecycle idea as HeroScene visibility handling.
+      if (document.hidden || (typeof document.hasFocus === 'function' && !document.hasFocus())) {
         raf = 0;
         return;
       }
@@ -272,19 +275,21 @@ function useNoiseCanvas(
       raf = requestAnimationFrame(draw);
     };
 
-    const onVisibility = () => {
-      if (!document.hidden && !raf) {
+    const onResume = () => {
+      if (!document.hidden && document.hasFocus() && !raf) {
         raf = requestAnimationFrame(draw);
       }
     };
-    document.addEventListener('visibilitychange', onVisibility);
+    document.addEventListener('visibilitychange', onResume);
+    window.addEventListener('focus', onResume);
 
     raf = requestAnimationFrame(draw);
 
     return () => {
       cancelAnimationFrame(raf);
       raf = 0;
-      document.removeEventListener('visibilitychange', onVisibility);
+      document.removeEventListener('visibilitychange', onResume);
+      window.removeEventListener('focus', onResume);
       window.removeEventListener('resize', resize);
     };
   }, [canvasRef, dprCap, frameInterval, includeFlybys, noiseFadeRef, system]);

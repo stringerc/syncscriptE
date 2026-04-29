@@ -1,0 +1,15 @@
+---
+description: Enterprise business plan + Cursor alignment — read exported plan for roadmap work
+globs:
+alwaysApply: false
+---
+
+# Enterprise business plan (SyncScript + Cursor)
+
+When planning **product strategy**, **roadmap**, **go-to-market**, or **large refactors** that affect syncscript.app positioning:
+
+1. Read **`SESSION_START.md`** and **`MEMORY.md`** (quick context first).
+2. If present in the repo, read **`BUSINESS_PLAN.md`** (exported from Dashboard → Enterprise → **Plan** tab → “Copy markdown”) or ask the operator to paste the latest export.
+3. Prefer the **in-app** source of truth (Supabase-backed Enterprise Plan tab); the markdown file is a **mirror** for Cursor and git.
+
+Do not paste PATs or `sspat_*` tokens into chat. Use Settings → Privacy → Cursor / MCP tokens and env vars only.

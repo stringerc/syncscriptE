@@ -70,7 +70,28 @@ test('RLS policies scope every table to auth.uid()', () => {
 const DISPATCHER = read('api/agent/[action].ts');
 
 test('agent dispatcher maps every documented action', () => {
-  const expected = ['list', 'run', 'start', 'cancel', 'interject', 'approve', 'byok-list', 'byok-set', 'byok-delete', 'policy'];
+  const expected = [
+    'list',
+    'run',
+    'start',
+    'cancel',
+    'interject',
+    'approve',
+    'byok-list',
+    'byok-set',
+    'byok-delete',
+    'policy',
+    'live-token',
+    'webhooks-list',
+    'webhooks-create',
+    'webhooks-delete',
+    'webhooks-rotate',
+    'webhooks-deliveries',
+    'webhooks-replay',
+    'webhooks-event-types',
+    'llm-stack',
+    'executor-bridge',
+  ];
   for (const a of expected) {
     assert.match(DISPATCHER, new RegExp(`case '${a}':\\s+return handle`));
   }
@@ -86,6 +107,14 @@ test('dispatcher checks quota before insert via check_agent_run_quota RPC', () =
   assert.match(DISPATCHER, /res\.status\(429\)\.json\(\{ error: 'quota_exceeded'/);
 });
 
+test('dispatcher wires LLM stack + optional executor bridge helpers', () => {
+  assert.match(DISPATCHER, /getLlmStackDiagnostic/);
+  assert.match(DISPATCHER, /handleLlmStack/);
+  assert.match(DISPATCHER, /primary_is_nvidia/);
+  assert.match(DISPATCHER, /probeExecutorBridge/);
+  assert.match(DISPATCHER, /invokeExecutorBridge/);
+});
+
 test('byok-set rejects bad providers + missing endpoint for custom', () => {
   assert.match(DISPATCHER, /VALID_PROVIDERS\.includes\(provider/);
   assert.match(DISPATCHER, /endpoint_url_required_for_custom/);
@@ -96,10 +125,11 @@ test('byok-set rejects bad providers + missing endpoint for custom', () => {
 // ─────────────────────────────────────────────────────────────────────
 const ADAPTER = read('api/_lib/agent-llm-adapter.ts');
 
-test('adapter falls back to NVIDIA NIM when no BYOK key matches', () => {
+test('adapter falls back to first configured platform LLM env when no BYOK', () => {
+  assert.match(ADAPTER, /PLATFORM_LLM_FALLBACK_ORDER/);
   assert.match(ADAPTER, /'meta\/llama-3\.2-90b-vision-instruct'/);
   assert.match(ADAPTER, /https:\/\/integrate\.api\.nvidia\.com\/v1/);
-  assert.match(ADAPTER, /no_byok_and_no_nvidia_key/);
+  assert.match(ADAPTER, /no_byok_and_no_platform_llm_key/);
 });
 
 test('adapter supports all nine providers + custom endpoint', () => {
@@ -118,6 +148,11 @@ test('estimateCostCents has per-provider rates so caps mean something', () => {
   for (const p of ['nvidia', 'openrouter', 'gemini', 'openai', 'anthropic', 'groq']) {
     assert.match(ADAPTER, new RegExp(`${p}: \\{ in:`));
   }
+});
+
+test('BYOK static priority lists groq before openrouter', () => {
+  // Do not use lazy `[\s\S]+?]` — it stops at `AgentLLMProvider[]` before the array body.
+  assert.match(ADAPTER, /'groq',\s*\n\s*'openrouter',/);
 });
 
 // ─────────────────────────────────────────────────────────────────────
@@ -190,6 +225,18 @@ test('AppAIPage wires the new sidebar panel + agent run stream', () => {
   assert.match(APPAI, /from '\.\.\/\.\.\/\.\.\/components\/nexus\/AgentRunStream'/);
   assert.match(APPAI, /<AppAiSidebarPanel/);
   assert.match(APPAI, /selectedAgentRunId/);
+});
+
+test('AgentRunStream wraps live canvas with in-app browser chrome', () => {
+  const stream = read('src/components/nexus/AgentRunStream.tsx');
+  assert.match(stream, /AgentBrowserFrame/);
+  assert.match(stream, /suppressUrlFooter/);
+});
+
+test('SharedMarketingOrb pauses heavy WebGL when window loses focus', () => {
+  const orb = read('src/components/SharedMarketingOrb.tsx');
+  assert.match(orb, /focused/);
+  assert.match(orb, /!focused/);
 });
 
 test('AppAIPage routes agent-intent messages to /api/agent/start', () => {

@@ -163,6 +163,26 @@ import { getCurrentDate } from '../../utils/app-date';
 // ═══════════════════════════════════════════════════════════════════════════
 // import { CalendarZoomControls, ZOOM_LEVELS, ZoomLevel, getDefaultZoomLevel } from '../calendar/CalendarZoomControls';
 
+/** Calendar / sidebar split — persisted width (px). */
+const CALENDAR_RAIL_WIDTH_STORAGE_KEY = 'syncscript_calendar_rail_width_px';
+const CALENDAR_RAIL_WIDTH_DEFAULT = 320;
+const CALENDAR_RAIL_WIDTH_MIN = 260;
+const CALENDAR_RAIL_WIDTH_MAX = 480;
+
+function readCalendarRailWidthFromStorage(): number {
+  if (typeof window === 'undefined') return CALENDAR_RAIL_WIDTH_DEFAULT;
+  try {
+    const raw = localStorage.getItem(CALENDAR_RAIL_WIDTH_STORAGE_KEY);
+    const n = raw ? Number.parseInt(raw, 10) : NaN;
+    if (Number.isFinite(n) && n >= CALENDAR_RAIL_WIDTH_MIN && n <= CALENDAR_RAIL_WIDTH_MAX) {
+      return n;
+    }
+  } catch {
+    /* ignore */
+  }
+  return CALENDAR_RAIL_WIDTH_DEFAULT;
+}
+
 function eventTimeMs(v: Date | string): number {
   return v instanceof Date ? v.getTime() : new Date(v).getTime();
 }
@@ -353,6 +373,116 @@ export function CalendarEventsPage() {
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
+  }, []);
+
+  const calendarRailRowRef = useRef<HTMLDivElement>(null);
+  const calendarRailWidthRef = useRef(readCalendarRailWidthFromStorage());
+  const [calendarRailWidth, setCalendarRailWidthState] = useState(
+    () => calendarRailWidthRef.current,
+  );
+  const railDragRef = useRef<{ startX: number; startW: number } | null>(null);
+
+  const persistCalendarRailWidth = () => {
+    try {
+      localStorage.setItem(CALENDAR_RAIL_WIDTH_STORAGE_KEY, String(calendarRailWidthRef.current));
+    } catch {
+      /* ignore */
+    }
+  };
+
+  const clampRailWidth = (w: number, rowWidth: number) => {
+    const splitter = 12;
+    const minTimeline = 224;
+    const maxRail = Math.min(
+      CALENDAR_RAIL_WIDTH_MAX,
+      Math.max(CALENDAR_RAIL_WIDTH_MIN, rowWidth - minTimeline - splitter - 12),
+    );
+    const minRail = Math.min(CALENDAR_RAIL_WIDTH_MIN, Math.max(200, maxRail - 1));
+    return Math.min(maxRail, Math.max(minRail, Math.round(w)));
+  };
+
+  const handleCalendarRailPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    const row = calendarRailRowRef.current;
+    if (!row) return;
+    railDragRef.current = { startX: e.clientX, startW: calendarRailWidthRef.current };
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    e.currentTarget.setPointerCapture(e.pointerId);
+  };
+
+  const handleCalendarRailPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    const drag = railDragRef.current;
+    const row = calendarRailRowRef.current;
+    if (!drag || !row) return;
+    const rowW = row.getBoundingClientRect().width;
+    const delta = e.clientX - drag.startX;
+    const next = clampRailWidth(drag.startW - delta, rowW);
+    calendarRailWidthRef.current = next;
+    setCalendarRailWidthState(next);
+  };
+
+  const handleCalendarRailPointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    const wasDragging = railDragRef.current !== null;
+    if (wasDragging) {
+      try {
+        e.currentTarget.releasePointerCapture(e.pointerId);
+      } catch {
+        /* not captured */
+      }
+    }
+    railDragRef.current = null;
+    document.body.style.removeProperty('cursor');
+    document.body.style.removeProperty('user-select');
+    if (wasDragging) persistCalendarRailWidth();
+  };
+
+  const handleCalendarRailDoubleClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    const row = calendarRailRowRef.current;
+    const rowW = row?.getBoundingClientRect().width ?? 1200;
+    const next = clampRailWidth(CALENDAR_RAIL_WIDTH_DEFAULT, rowW);
+    calendarRailWidthRef.current = next;
+    setCalendarRailWidthState(next);
+    persistCalendarRailWidth();
+  };
+
+  const handleCalendarRailKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight' && e.key !== 'Home') return;
+    e.preventDefault();
+    const row = calendarRailRowRef.current;
+    if (!row) return;
+    const rowW = row.getBoundingClientRect().width;
+    const step = e.shiftKey ? 24 : 10;
+    let w = calendarRailWidthRef.current;
+    if (e.key === 'Home') {
+      w = CALENDAR_RAIL_WIDTH_DEFAULT;
+    } else if (e.key === 'ArrowLeft') {
+      w -= step;
+    } else {
+      w += step;
+    }
+    const next = clampRailWidth(w, rowW);
+    calendarRailWidthRef.current = next;
+    setCalendarRailWidthState(next);
+    persistCalendarRailWidth();
+  };
+
+  React.useEffect(() => {
+    const onResize = () => {
+      const row = calendarRailRowRef.current;
+      if (!row) return;
+      const rowW = row.getBoundingClientRect().width;
+      const next = clampRailWidth(calendarRailWidthRef.current, rowW);
+      if (next !== calendarRailWidthRef.current) {
+        calendarRailWidthRef.current = next;
+        setCalendarRailWidthState(next);
+        persistCalendarRailWidth();
+      }
+    };
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
   }, []);
   
   // PHASE 4: Multi-day scroll mode (DEFAULT: INFINITE SCROLL)
@@ -2213,7 +2343,7 @@ export function CalendarEventsPage() {
   return (
     <DashboardLayout aiInsightsContent={aiInsightsContent}>
       <motion.div 
-        className="flex flex-col gap-6"
+        className="flex min-w-0 flex-col gap-6"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3 }}
@@ -2350,19 +2480,20 @@ export function CalendarEventsPage() {
           </div>
         </div>
 
-        {/* Calendar Layout - Calendar grid on left, Sidebar on right */}
-        <div className="flex gap-6 min-h-screen">
-          
-          {/* Left: Calendar Area - Fixed height with internal scroll */}
-          <div className="flex-1 flex flex-col gap-4 overflow-hidden" style={{ height: '3200px' }}>
-            
-            {/* ADVANCED UX: Feature Introduction Banner */}
+        {/* Calendar + sidebar: flex row (not grid) so timeline + 320px rail stay visually side-by-side
+            inside overflow-x-auto; nested grid + full-width flex parents was unreliable in some builds. */}
+        <div className="flex min-h-[min(100dvh,56rem)] min-w-0 flex-col gap-6">
+          <div className="flex min-w-0 flex-col gap-4 overflow-x-auto overflow-y-visible overscroll-x-contain">
             <AdvancedFeaturesBanner />
 
-            {/* Main Content Grid - Calendar + Right Sidebar Panels */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-full overflow-hidden">
-            {/* Calendar View - Full height expanding container */}
-            <div className="lg:col-span-2 flex flex-col overflow-hidden">
+            <div
+              ref={calendarRailRowRef}
+              className="flex min-h-[min(70dvh,52rem)] w-full min-w-0 flex-row flex-nowrap items-stretch gap-0"
+            >
+            <div
+              data-layout="calendar-timeline"
+              className="flex min-h-[min(70dvh,52rem)] min-w-[14rem] max-w-full flex-1 flex-col self-stretch pr-2"
+            >
               {/* PHASE 4: Multi-Day Scroll View or Single Day View */}
               {currentView === 'day' && !isMultiDayMode && <DayCalendarView 
               currentDate={currentDate} 
@@ -2651,8 +2782,45 @@ export function CalendarEventsPage() {
             )}
           </div>
 
-          {/* Sidebar - Stacks naturally, extends page height */}
-          <div className="flex-shrink-0 flex flex-col space-y-4" style={{ width: '320px' }}>
+            <div
+              role="separator"
+              aria-orientation="vertical"
+              aria-valuenow={Math.round(calendarRailWidth)}
+              aria-valuemin={CALENDAR_RAIL_WIDTH_MIN}
+              aria-valuemax={CALENDAR_RAIL_WIDTH_MAX}
+              tabIndex={0}
+              aria-label="Resize calendar and sidebar. Double-click to reset width."
+              className="group relative z-10 flex w-3 shrink-0 cursor-col-resize touch-none select-none items-stretch justify-center px-0.5 outline-none focus-visible:ring-2 focus-visible:ring-teal-500/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[#141619]"
+              onPointerDown={handleCalendarRailPointerDown}
+              onPointerMove={handleCalendarRailPointerMove}
+              onPointerUp={handleCalendarRailPointerUp}
+              onPointerCancel={handleCalendarRailPointerUp}
+              onLostPointerCapture={() => {
+                const wasDragging = railDragRef.current !== null;
+                railDragRef.current = null;
+                document.body.style.removeProperty('cursor');
+                document.body.style.removeProperty('user-select');
+                if (wasDragging) persistCalendarRailWidth();
+              }}
+              onDoubleClick={handleCalendarRailDoubleClick}
+              onKeyDown={handleCalendarRailKeyDown}
+            >
+              <span
+                className="pointer-events-none my-1 block h-[calc(100%-0.5rem)] w-px rounded-full bg-gradient-to-b from-transparent via-gray-500/55 to-transparent shadow-[0_0_12px_rgba(45,212,191,0.04)] transition-[color,box-shadow] duration-200 group-hover:via-teal-400/45 group-active:via-teal-300/60 motion-reduce:transition-none"
+                aria-hidden
+              />
+            </div>
+
+          {/* Sidebar — width from drag / persisted; stays right of timeline */}
+          <aside
+            data-layout="calendar-rail"
+            className="flex h-auto min-h-0 shrink-0 flex-col space-y-4 pl-2"
+            style={{
+              width: calendarRailWidth,
+              minWidth: calendarRailWidth,
+              maxWidth: calendarRailWidth,
+            }}
+          >
             {/* Calendar Intelligence Banner - moved to sidebar */}
             {(currentView === 'day' || currentView === 'week') && (
               <CalendarIntelligenceBanner events={mergedEvents} currentDate={currentDate} />
@@ -2753,12 +2921,10 @@ export function CalendarEventsPage() {
             
             {/* LAST ITEM - Page scroll ends here */}
             <EnergyOptimizationPanel />
-          </div>
+          </aside>
         </div>
-        
-          </div> {/* End Left: Scrollable Calendar Area */}
-          
-        </div> {/* End Calendar Layout */}
+        </div>
+        </div>
 
         {/* Event Modal */}
         {selectedEvent && (
@@ -3130,7 +3296,7 @@ function DayCalendarView({ currentDate, events, onEventClick, onDropTask, onMove
   const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
   
   return (
-    <div className="bg-[#1e2128] border border-gray-800 rounded-xl overflow-hidden flex flex-col h-full">
+    <div className="flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden rounded-xl border border-gray-800 bg-[#1e2128]">
       {/* Day Header */}
       <div className="border-b border-gray-800 p-4 flex-shrink-0 relative z-[100] bg-[#1e2128]">
         <div className="text-center">
@@ -3141,7 +3307,7 @@ function DayCalendarView({ currentDate, events, onEventClick, onDropTask, onMove
       </div>
 
       {/* SLOT MACHINE EFFECT: Scrollable content with fixed viewport */}
-      <div className="flex-1 overflow-y-auto hide-scrollbar scroll-smooth">
+      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto hide-scrollbar scroll-smooth">
         {/* Precision Time Grid with Events */}
         <PrecisionDayView
           events={dayEvents}

@@ -1,0 +1,17 @@
+{
+  "name": "syncscript-cursor-mcp",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "MCP server for Cursor — SyncScript Edge tasks, activity, business plan (JWT or sspat_* PAT).",
+  "main": "server.mjs",
+  "scripts": {
+    "start": "node server.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.0"
+  }
+}

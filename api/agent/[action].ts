@@ -14,6 +14,9 @@
  *   POST /api/agent/byok-delete       — delete a BYOK row + vault entry
  *   GET  /api/agent/policy            — get current automation_policies row
  *   POST /api/agent/policy            — update tier / caps / lists
+ *   GET  /api/agent/llm-stack         — platform LLM + runner + executor-bridge flags (no secrets)
+ *   GET  /api/agent/executor-bridge   — probe optional external gateway (`NEXUS_EXECUTOR_BRIDGE_URL`)
+ *   POST /api/agent/executor-bridge   — invoke gateway (Hermes-shaped JSON); needs bridge secret
  *
  * All endpoints require an authenticated Supabase user; service-role lifts the
  * heavy work (vault writes, RPCs).
@@ -28,6 +31,12 @@ import {
   resolveAgentLLMConfig,
   type AgentLLMProvider,
 } from '../_lib/agent-llm-adapter';
+import { getLlmStackDiagnostic, isAIConfigured } from '../_lib/ai-service';
+import {
+  getExecutorBridgeConfig,
+  invokeExecutorBridge,
+  probeExecutorBridge,
+} from '../_lib/nexus-executor-bridge';
 
 const SUPABASE_URL =
   process.env.SUPABASE_URL ||
@@ -123,6 +132,8 @@ async function rawHandler(req: VercelRequest, res: VercelResponse) {
     case 'webhooks-deliveries': return handleWebhooksDeliveries(sb, userId, req, res);
     case 'webhooks-replay':     return handleWebhooksReplay(sb, userId, req, res);
     case 'webhooks-event-types': return handleWebhooksEventTypes(sb, userId, req, res);
+    case 'llm-stack':            return handleLlmStack(sb, userId, req, res);
+    case 'executor-bridge':     return handleExecutorBridge(sb, userId, req, res);
     default:
       return res.status(404).json({ error: `unknown_action: ${action}` });
   }
@@ -440,6 +451,75 @@ async function handlePolicy(sb: any, userId: string, req: VercelRequest, res: Ve
   }
   const { data: row } = await sb.from('automation_policies').select('*').eq('user_id', userId).maybeSingle();
   return res.status(200).json({ policy: row });
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// LLM STACK + OPTIONAL EXECUTOR BRIDGE (gateway worker, Hermes/OpenClaw-shaped)
+// ─────────────────────────────────────────────────────────────────────
+
+async function handleLlmStack(_sb: any, _userId: string, req: VercelRequest, res: VercelResponse) {
+  if (req.method !== 'GET') return res.status(405).json({ error: 'method_not_allowed' });
+  const stack = getLlmStackDiagnostic();
+  const bridge = getExecutorBridgeConfig();
+  const agentRunnerEnv = Boolean((process.env.AGENT_RUNNER_BASE_URL || '').trim());
+  const agentRunnerToken = Boolean((process.env.AGENT_RUNNER_TOKEN || process.env.NEXUS_PHONE_EDGE_SECRET || '').trim());
+
+  let bridgeHost: string | null = null;
+  if (bridge.baseUrl) {
+    try {
+      bridgeHost = new URL(bridge.baseUrl).host;
+    } catch {
+      bridgeHost = null;
+    }
+  }
+
+  return res.status(200).json({
+    platform_llm: {
+      ...stack,
+      any_provider_ready: isAIConfigured(),
+      /** True when the first hop in `chain` is NVIDIA (default if `AI_PROVIDER` unset or `nvidia`). */
+      primary_is_nvidia: stack.primary === 'nvidia',
+    },
+    agent_runner: {
+      env_base_configured: agentRunnerEnv,
+      token_configured: agentRunnerToken,
+      note: 'Published tunnel URL may also live in runner_endpoints (not exposed here).',
+    },
+    executor_bridge: {
+      configured: bridge.configured,
+      base_url_host: bridgeHost,
+      invoke_path: bridge.invokePath,
+      secret_configured: bridge.hasSecret,
+    },
+  });
+}
+
+async function handleExecutorBridge(_sb: any, userId: string, req: VercelRequest, res: VercelResponse) {
+  const c = getExecutorBridgeConfig();
+  if (!c.configured) {
+    return res.status(200).json({ configured: false, message: 'Set NEXUS_EXECUTOR_BRIDGE_URL to enable' });
+  }
+
+  if (req.method === 'GET') {
+    const probe = await probeExecutorBridge();
+    const status = probe.ok ? 200 : 503;
+    return res.status(status).json({ configured: true, probe });
+  }
+
+  if (req.method === 'POST') {
+    if (!c.hasSecret) {
+      return res.status(503).json({ error: 'bridge_secret_required', message: 'Set NEXUS_EXECUTOR_BRIDGE_SECRET for invoke' });
+    }
+    const body = await readJsonBody(req);
+    const out = await invokeExecutorBridge({ userId, body });
+    return res.status(out.ok ? 200 : out.status >= 400 ? out.status : 502).json({
+      ok: out.ok,
+      upstream_status: out.status,
+      result: out.json ?? out.text,
+    });
+  }
+
+  return res.status(405).json({ error: 'method_not_allowed' });
 }
 
 // ─────────────────────────────────────────────────────────────────────

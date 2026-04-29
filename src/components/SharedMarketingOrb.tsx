@@ -31,13 +31,14 @@ const STATIC_ROUTE_KEYFRAMES: Record<string, OrbKeyframe[]> = {
 
 export function SharedMarketingOrb() {
   const { pathname } = useLocation();
-  const { reducedMotion, saveData, batteryLow, effectiveType } = usePageVisibility();
+  const { reducedMotion, saveData, batteryLow, effectiveType, focused } = usePageVisibility();
   const [ready, setReady] = useState(false);
   const isLanding = pathname === '/';
   const skipHeavyVisuals =
     reducedMotion ||
     saveData ||
     batteryLow ||
+    !focused ||
     effectiveType === 'slow-2g' ||
     effectiveType === '2g';
 

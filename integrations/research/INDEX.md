@@ -66,6 +66,9 @@ From the repo root, **`npm run research:scan`** runs the same script against **t
 | Skill discovery matrix + triage | 2026-04-17 | Query matrix vs in-repo stack; human playbook; issue template | `./SKILL_DISCOVERY_QUERY_MATRIX.md` · `./SKILL_TRIAGE_PLAYBOOK.md` · `.github/ISSUE_TEMPLATE/skill_evaluation.md` | `npm run skill:source-audit` · `npm run skill:source-audit:ci` |
 | Nexus observability + quality bar | 2026-04-17 | Same-origin **`NEXUS_*_CHAT_PATH`** constants; **`emitNexusTrace`** includes **`toolTraceEntries`** / **`toolRepairNudged`**; Vercel log sampling + SLO ideas | `./NEXUS_OBSERVABILITY_AND_QUALITY.md` · `src/config/nexus-vercel-ai-routes.ts` | `npm test` (includes `nexus-client-route-consistency`) |
 | SyncScript full feature catalog | 2026-04-26 | Repo-grounded inventory by **sidebar rail**, Settings tabs, marketing/auth, `/app/*` shell, APIs, crons, Edge domains | `./SYNCSCRIPT_FULL_FEATURE_CATALOG.md` | Skim after large route or nav changes |
+| Nexus LLM compat + executor bridge | 2026-04-26 | Central OpenAI-compat sanitization (Kimi `is_error`, o/GPT-5 token + sampling); `GET llm-stack` + optional `executor-bridge` probe/invoke; Hermes-shaped gateway secret | `./NEXUS_LLM_COMPAT_AND_EXECUTOR_BRIDGE.md` | `npm test` (policy + agent contract) |
+| Startup cloud credits (AWS / Google / Microsoft) | 2026-04-26 | Apply-yourself playbook: official links, Bedrock/Vertex/Azure model verification in-console, SyncScript blurbs; no auto-submit | `./STARTUP_CLOUD_CREDITS_PLAYBOOK.md` | Human clicks Apply; refresh tiers yearly |
+| Activity spine + social visibility + Cursor PAT | 2026-04-27 | Event types, RLS, PAT scopes, friend feed RPC, business plan export; heatmap from real data | `./SYNCSCRIPT_ACTIVITY_AND_SOCIAL_SPINE.md` | `supabase db push` · Edge `/activity/*` · `integrations/cursor-syncscript-mcp/` |
 
 **Per-study doc** (short markdown): **setup → method → result → follow-ups** — even if raw logs are deleted later.
 

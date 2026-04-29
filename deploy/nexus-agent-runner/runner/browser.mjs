@@ -7,9 +7,26 @@ import { chromium } from 'playwright';
 
 const TIMEOUT = parseInt(process.env.AGENT_RUNNER_BROWSER_TIMEOUT_MS || '120000', 10);
 
+/**
+ * Default **headless** on Oracle/Docker (no X11). Set `AGENT_RUNNER_HEADED=1` on a
+ * host with a real display (local Mac dev, or a VM with VNC/Xvfb + DISPLAY) to
+ * open a visible Chromium window the operator can watch like a normal browser.
+ * CDP screencast to the dashboard still works in both modes.
+ */
+function useHeadless() {
+  const raw = String(process.env.AGENT_RUNNER_HEADED || '').trim().toLowerCase();
+  const headed = raw === '1' || raw === 'true' || raw === 'yes';
+  return !headed;
+}
+
 export async function launchBrowser() {
+  const headless = useHeadless();
+  const slowMo = headless
+    ? 0
+    : Math.max(0, parseInt(process.env.AGENT_RUNNER_SLOW_MO_MS || '0', 10) || 0);
   return chromium.launch({
-    headless: true,
+    headless,
+    slowMo,
     args: [
       '--disable-blink-features=AutomationControlled',
       '--disable-dev-shm-usage',

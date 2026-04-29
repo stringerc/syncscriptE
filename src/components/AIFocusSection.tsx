@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router';
-import { withDashboardScheduleDemoFallback } from '../utils/dashboard-schedule-demo';
+import { listOpenUserTasks } from '../utils/dashboard-schedule-demo';
 import {
   HelpCircle,
   Zap,
@@ -157,19 +157,15 @@ export function AIFocusSection() {
   const [showWeekOutlook, setShowWeekOutlook] = useState(false);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
 
-  const { tasks, loading, initialTasksLoadComplete, hasDashboardTaskHistory } = useTasks();
+  const { tasks, loading, initialTasksLoadComplete } = useTasks();
   const { energy } = useEnergy();
   const { profile } = useUserProfile(); // Get current user from context
 
-  const tasksWithScheduleDemo = useMemo(() => {
-    if (!initialTasksLoadComplete) return tasks;
-    return withDashboardScheduleDemoFallback(tasks, {
-      hasEstablishedTaskHistory: hasDashboardTaskHistory,
-    });
-  }, [tasks, initialTasksLoadComplete, hasDashboardTaskHistory]);
-  
-  // Get top 2 priority tasks using research-backed AI selection
-  const topPriorityTasks = getTopPriorityTasks(tasksWithScheduleDemo, 2);
+  // Rank only real tasks from context — schedule onboarding samples never appear here.
+  const topPriorityTasks = useMemo(() => {
+    if (!initialTasksLoadComplete) return [];
+    return getTopPriorityTasks(tasks, 2);
+  }, [tasks, initialTasksLoadComplete]);
   const primaryTask = topPriorityTasks[0];
   const showTaskListLoading = loading && !initialTasksLoadComplete;
   
@@ -242,7 +238,7 @@ export function AIFocusSection() {
           ) : !primaryTask ? (
             <div className="text-gray-400 text-center py-8 space-y-4 px-2">
               <p className="text-gray-300">
-                {tasksWithScheduleDemo.some((t) => !t.completed)
+                {listOpenUserTasks(tasks).length > 0
                   ? 'We could not rank your open tasks yet.'
                   : 'No open tasks yet.'}
               </p>
@@ -780,7 +776,7 @@ export function AIFocusSection() {
       />
 
       <TaskDetailModal
-        task={(tasksWithScheduleDemo || []).find((t) => t.id === selectedTaskId) ?? null}
+        task={(tasks || []).find((t) => t.id === selectedTaskId) ?? null}
         open={selectedTaskId !== null}
         onOpenChange={(open) => {
           if (!open) setSelectedTaskId(null);

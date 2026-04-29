@@ -13,18 +13,21 @@ export function NexusCapabilityBlurb({ variant = 'marketing' }: { variant?: Vari
     return (
       <section
         data-testid="nexus-capabilities-landing"
-        className="mx-auto max-w-6xl px-4 py-12 md:py-16 border-t border-white/10"
+        className="mx-auto max-w-6xl border-t border-white/[0.06] bg-[#070c12]/50 px-4 py-16 md:px-6 md:py-20"
         style={{ contentVisibility: 'auto', containIntrinsicSize: '600px' }}
       >
-        <h2 className="text-2xl md:text-3xl font-semibold tracking-tight">What you can ask inside SyncScript</h2>
-        <p className="mt-3 text-sm text-[#b9c7d8] max-w-3xl">
+        <h2 className="text-fluid-3xl font-semibold tracking-tight text-white">What you can ask inside SyncScript</h2>
+        <p className="mt-4 max-w-3xl text-sm leading-relaxed text-[#9eb0c4] md:text-base">
           Your assistant stays inside clear boundaries: it helps you move around the app, open safe links, search files you uploaded, and (when you install the desktop companion) hand off to your browser with your consent.
         </p>
-        <ul className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 text-sm text-[#d0dce8]">
+        <ul className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 text-sm text-[#d0dce8]">
           {items.map((c) => (
-            <li key={c.id} className="rounded-xl border border-white/10 bg-[#111924]/80 px-4 py-3">
-              <span className="font-medium text-[#e6edf4]">{c.title}</span>
-              <span className="block mt-1 text-[#9fb2c8] text-xs leading-relaxed">{c.description}</span>
+            <li
+              key={c.id}
+              className="rounded-2xl border border-white/[0.08] bg-gradient-to-b from-[#0f1620] to-[#0a1018] px-4 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]"
+            >
+              <span className="font-medium text-[#e8f0f7]">{c.title}</span>
+              <span className="mt-1 block text-xs leading-relaxed text-[#8da3bb]">{c.description}</span>
             </li>
           ))}
         </ul>

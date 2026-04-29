@@ -136,6 +136,7 @@ test('disconnect_browser_site filters cookies by domain match (suffix-aware)', (
 test('runner loads + saves storageState via the new RPCs', () => {
   const browser = read('deploy/nexus-agent-runner/runner/browser.mjs');
   const loop = read('deploy/nexus-agent-runner/runner/agent-loop.mjs');
+  assert.match(browser, /AGENT_RUNNER_HEADED/);
   assert.match(browser, /export async function captureStorageState/);
   assert.match(browser, /storageState/);
   assert.match(loop, /admin_load_browser_context/);

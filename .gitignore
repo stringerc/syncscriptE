@@ -88,7 +88,7 @@ test-*.js
 
 # Temp directories (root only — do not ignore `src/lib` app sources)
 /lib/
-social/
+/social/
 scripts/*
 !scripts/engram-public-supabase-url.mjs
 !scripts/bringup-hermes-tunnel-supabase.sh

@@ -21,6 +21,15 @@ Vercel /api/agent/start  ──>  agent_runs row (Postgres)
 
 Image is built automatically by **GitHub Actions** on every push to `main` that touches this folder. You don't build locally — you `docker pull` on the VM.
 
+## How you “see” the browser today vs a native window
+
+| Mode | What you see | Where it runs |
+|------|----------------|---------------|
+| **Default (headless)** | Live JPEG stream + timeline in the dashboard (**`AgentLiveCanvas`** → WebSocket `/v1/runs/:id/live`, CDP `Page.startScreencast`) plus per-step screenshots in Postgres. Same pattern as Browserbase / Operator-style products — not a separate OS Chrome window. | Oracle Docker |
+| **Headed (`AGENT_RUNNER_HEADED=1`)** | A **real Chromium window** on the runner host (Mac with display, or Linux with X11/VNC and `DISPLAY` set). Still get dashboard screencast if the network path is up. | Dev machine or GUI-capable VM |
+
+Set in **`env.example`**: `AGENT_RUNNER_HEADED`, optional `AGENT_RUNNER_SLOW_MO_MS`. **Do not** enable headed inside default Oracle Docker unless you have injected a display stack (e.g. Xvfb + x11vnc); it will fail without `DISPLAY`.
+
 ## Deploy in five commands
 
 Once Cloudflare-tunnel + GHCR access are set up, future updates are 5 minutes total.
@@ -79,6 +88,31 @@ curl https://nexus-agent-runner.syncscript.app/v1/health
 # Or run the contract smoke from the repo:
 node scripts/verify-agent-runner-live.mjs
 ```
+
+### See a real Chromium window on **your** screen (local Mac)
+
+Deploying the Vercel app does **not** open Chrome on your desktop — the runner lives on the VM (headless) or you run it locally. To prove headed Playwright works on your machine (same engine as the runner):
+
+```bash
+cd /path/to/syncscript
+npx playwright install chromium   # once
+npm run verify:headed-browser     # opens a visible window ~5s, then exits
+```
+
+Skip the window (CI / SSH without display): `VERIFY_HEADED_SKIP=1 npm run verify:headed-browser`.  
+Headless but still assert navigation: `VERIFY_HEADED_HEADLESS=1 npm run verify:headed-browser`.
+
+After you merge runner changes, **re-pull the Docker image on Oracle** (`sudo /opt/nexus-agent-runner/bringup.sh`). Set `AGENT_RUNNER_HEADED=1` only where `DISPLAY` exists — not in default Docker on Oracle.
+
+### End-to-end live stream in the app (production-shaped)
+
+Needs `SUPABASE_SERVICE_ROLE_KEY`, `AGENT_RUNNER_TOKEN`, and a reachable runner URL (from `runner_endpoints` or `AGENT_RUNNER_BASE_URL`):
+
+```bash
+node scripts/smoke-agent-live-screencast.mjs
+```
+
+Expect binary WebSocket frames while the run executes; that is what **`AgentLiveCanvas`** consumes in the dashboard.
 
 ### Vercel side
 

@@ -587,6 +587,11 @@ export function TodayScheduleRefined({ tasks: tasksProp, loading: loadingProp }:
                   >
                     {task.title}
                   </h4>
+                  {isDashboardDemoTask(task) && (
+                    <span className="shrink-0 rounded border border-indigo-400/35 bg-indigo-500/15 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-indigo-200">
+                      Sample
+                    </span>
+                  )}
                   {urgency && (
                     <motion.span
                       animate={{ scale: task.urgencyMinutes && task.urgencyMinutes < 30 ? [1, 1.1, 1] : 1 }}

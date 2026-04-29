@@ -54,6 +54,9 @@ const PageLoading = () => (
 // ============================================================================
 
 const LandingPage = lazy(() => import('./components/pages/LandingPage').then(m => ({ default: m.LandingPage })));
+const LandingPageElite = lazy(() =>
+  import('./components/pages/LandingPageElite').then((m) => ({ default: m.LandingPageElite })),
+);
 const DashboardPage = lazy(() => import('./components/pages/DashboardPage').then(m => ({ default: m.DashboardPage })));
 const TasksGoalsPage = lazy(() => import('./components/pages/TasksGoalsPage').then(m => ({ default: m.TasksGoalsPage })));
 const CalendarEventsPage = lazy(() => import('./components/pages/CalendarEventsPage').then(m => ({ default: m.CalendarEventsPage })));
@@ -206,6 +209,7 @@ function AppContent() {
               <Routes>
                 {/* ── Marketing routes — lightweight, no dashboard providers ── */}
                 <Route path="/" element={<LandingPage />} />
+                <Route path="/landing-elite" element={<LandingPageElite />} />
                 <Route element={<MarketingShell />}>
                   <Route path="/features" element={null} />
                   <Route path="/pricing" element={null} />

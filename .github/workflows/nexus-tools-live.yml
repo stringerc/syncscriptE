@@ -1,5 +1,7 @@
 # Live Nexus tool loop + Edge tasks (same JWT pattern as Engram Edge verify).
-# Secrets are optional: without GROQ_API_KEY / JWT the job may skip or fail Step 1.
+#
+# Operator checklist + triage: .github/docs/NEXUS_TOOLS_LIVE_VERIFY.md
+# (GitHub: stringerc/syncscriptE → Settings → Secrets → Actions)
 #
 # Reuses ENGRAM_LIVE_USER_JWT so one repository secret powers both Engram discover smoke
 # and Nexus Step 2 (see scripts/verify-nexus-tools-live.ts).
@@ -17,6 +19,7 @@ on:
       - "api/_lib/nexus-tool-loop.ts"
       - "api/_lib/nexus-actions-executor.ts"
       - ".github/workflows/nexus-tools-live.yml"
+      - ".github/docs/NEXUS_TOOLS_LIVE_VERIFY.md"
 
 concurrency:
   group: nexus-tools-live-${{ github.ref }}
@@ -31,16 +34,38 @@ jobs:
     timeout-minutes: 15
 
     env:
+      # Prefer Groq in CI: workflow documents GROQ_API_KEY; NVIDIA may be unset or rate-limited.
+      AI_PROVIDER: groq
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
       VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
       SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
       GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
       NVIDIA_API_KEY: ${{ secrets.NVIDIA_API_KEY }}
       # Same signed-in user JWT as Edge bridges / Engram discover (optional).
+      # If set but expired, Step 2 fails at getUser — rotate in repo Settings → Secrets.
       NEXUS_LIVE_TEST_JWT: ${{ secrets.ENGRAM_LIVE_USER_JWT }}
 
     steps:
       - uses: actions/checkout@v4
+
+      - name: Preflight — AI keys + JWT hint
+        env:
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          NVIDIA_API_KEY: ${{ secrets.NVIDIA_API_KEY }}
+          ENGRAM_JWT: ${{ secrets.ENGRAM_LIVE_USER_JWT }}
+        run: |
+          set -euo pipefail
+          doc=".github/docs/NEXUS_TOOLS_LIVE_VERIFY.md"
+          if [ -z "${GROQ_API_KEY:-}" ] && [ -z "${NVIDIA_API_KEY:-}" ]; then
+            echo "::error::Nexus tools live verify needs GROQ_API_KEY or NVIDIA_API_KEY in repo Actions secrets (stringerc/syncscriptE). See ${doc}"
+            exit 1
+          fi
+          if [ -z "${ENGRAM_JWT:-}" ]; then
+            echo "::notice::ENGRAM_LIVE_USER_JWT is unset — verify script will skip Step 2 (Step 1 only). To run the full path, add a current Supabase user access_token for project kwhnrlzibgfedtxpkbgb. See ${doc}"
+          else
+            echo "::notice::ENGRAM_LIVE_USER_JWT is set — Step 2 will run. If the job fails on JWT/getUser, rotate that secret. See ${doc}"
+          fi
+          echo "::notice::If verify fails, search the next step log for: [verify] FAIL:"
 
       - uses: actions/setup-node@v4
         with:

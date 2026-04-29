@@ -142,7 +142,7 @@ export function PrecisionDayView({
   return (
     <div 
       ref={scrollContainerRef}
-      className="flex-1 overflow-y-auto hide-scrollbar relative"
+      className="min-h-0 flex-1 overflow-y-auto hide-scrollbar relative"
       style={{
         // ⚡ CRITICAL FIX #4: Create stacking context isolation
         // RESEARCH: MDN Web Docs - isolation property creates new stacking context

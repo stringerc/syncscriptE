@@ -135,3 +135,76 @@ test.describe('dashboard stacks below md width', () => {
     );
   });
 });
+
+test.describe('/calendar day grid + right rail (guest)', () => {
+  test.setTimeout(90_000);
+
+  test.beforeEach(async ({ context }) => {
+    await installDevGuestSession(context);
+  });
+
+  test('timeline and rail share one flex row (chat closed)', async ({ page, context }) => {
+    await installChatAssistantClosed(context);
+    await page.setViewportSize(DESKTOP);
+    await page.goto('/calendar', { waitUntil: 'domcontentloaded' });
+    await expect(page).toHaveURL(/\/calendar$/, { timeout: 30_000 });
+
+    const timeline = page.locator('[data-layout="calendar-timeline"]');
+    const rail = page.locator('[data-layout="calendar-rail"]');
+    await expect(timeline).toBeVisible({ timeout: 60_000 });
+    await expect(rail).toBeVisible({ timeout: 20_000 });
+
+    const tb = await timeline.boundingBox();
+    const rb = await rail.boundingBox();
+    expect(tb, 'timeline bounding box').toBeTruthy();
+    expect(rb, 'rail bounding box').toBeTruthy();
+    if (!tb || !rb) return;
+    expect(Math.abs(tb.y - rb.y), 'rail must not stack below timeline (same flex row)').toBeLessThan(28);
+    expect(rb.x, 'rail should sit to the right of the timeline column').toBeGreaterThanOrEqual(
+      tb.x - 4,
+    );
+  });
+
+  test('timeline and rail stay one flex row with chat assistant open (narrow main)', async ({
+    page,
+    context,
+  }) => {
+    await installChatAssistantOpen(context);
+    await page.setViewportSize(DESKTOP);
+    await page.goto('/calendar', { waitUntil: 'domcontentloaded' });
+    await expect(page).toHaveURL(/\/calendar$/, { timeout: 30_000 });
+
+    const timeline = page.locator('[data-layout="calendar-timeline"]');
+    const rail = page.locator('[data-layout="calendar-rail"]');
+    await expect(timeline).toBeVisible({ timeout: 60_000 });
+    await expect(rail).toBeVisible({ timeout: 20_000 });
+
+    const tb = await timeline.boundingBox();
+    const rb = await rail.boundingBox();
+    expect(tb && rb).toBeTruthy();
+    if (!tb || !rb) return;
+    expect(Math.abs(tb.y - rb.y), 'with chat open, rail must not drop under the day grid').toBeLessThan(
+      28,
+    );
+  });
+
+  test('iPhone-width: still one flex row (horizontal scroll if needed)', async ({ page, context }) => {
+    await installChatAssistantClosed(context);
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('/calendar', { waitUntil: 'domcontentloaded' });
+    await expect(page).toHaveURL(/\/calendar$/, { timeout: 30_000 });
+
+    const timeline = page.locator('[data-layout="calendar-timeline"]');
+    const rail = page.locator('[data-layout="calendar-rail"]');
+    await expect(timeline).toBeVisible({ timeout: 60_000 });
+    await expect(rail).toBeVisible({ timeout: 20_000 });
+
+    const tb = await timeline.boundingBox();
+    const rb = await rail.boundingBox();
+    expect(tb && rb).toBeTruthy();
+    if (!tb || !rb) return;
+    expect(Math.abs(tb.y - rb.y), 'mobile: sidebar must remain beside calendar, not below').toBeLessThan(
+      36,
+    );
+  });
+});

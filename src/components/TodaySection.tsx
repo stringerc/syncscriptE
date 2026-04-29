@@ -16,7 +16,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { toast } from 'sonner@2.0.3';
 import { calculateCollaboratorProgress } from '../utils/progress-calculations';
 import { useUserProfile } from '../utils/user-profile';
-import { withDashboardScheduleDemoFallback } from '../utils/dashboard-schedule-demo';
+import { resolveDashboardScheduleProjection } from '../utils/dashboard-schedule-demo';
 
 /**
  * 🎯 TODAY SECTION - Quick Task Completion & Contextual Creation
@@ -114,9 +114,9 @@ export function TodaySection() {
   const safeTasks = tasks || [];
   const tasksForSchedule = useMemo(
     () =>
-      withDashboardScheduleDemoFallback(safeTasks, {
+      resolveDashboardScheduleProjection(safeTasks, {
         hasEstablishedTaskHistory: hasDashboardTaskHistory,
-      }),
+      }).scheduleTasks,
     [safeTasks, hasDashboardTaskHistory],
   );
 

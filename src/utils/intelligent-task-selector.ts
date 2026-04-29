@@ -10,6 +10,7 @@
  */
 
 import { Task, Priority, EnergyLevel } from '../types/task';
+import { isDashboardDemoTask } from './dashboard-schedule-demo';
 
 interface CurrentContext {
   currentHour: number; // 0-23
@@ -252,13 +253,15 @@ function scoreTaskForNow(task: Task, context: CurrentContext): TaskScore {
 
 /**
  * Get top N priority tasks for "What should I be doing right now" card.
- * Scores **all** incomplete tasks (same pool as Today's schedule). Collaboration is a small tie-breaker only,
- * so solo tasks are never excluded just because a team task exists elsewhere.
+ * Scores **incomplete user tasks only** — dashboard schedule samples (`__demo_schedule_*`) are excluded
+ * so this card never suggests work that does not exist on the Tasks tab.
  */
 export function getTopPriorityTasks(tasks: Task[], count: number = 2): TaskScore[] {
   const context = getCurrentContext();
 
-  const incomplete = tasks.filter((task) => !task.completed);
+  const incomplete = tasks.filter(
+    (task) => !task.completed && !isDashboardDemoTask(task),
+  );
   if (incomplete.length === 0) return [];
 
   const scoredTasks: TaskScore[] = incomplete.map((task) => {

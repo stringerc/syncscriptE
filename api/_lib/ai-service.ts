@@ -7,16 +7,29 @@
  *
  * Supported providers (all expose an OpenAI-compatible chat/completions API):
  *   nvidia     — NVIDIA NIM (default, FREE, many models via build.nvidia.com)
+ *   groq       — Groq (fast; second in volume failover after NVIDIA when keyed)
+ *   anthropic  — Claude Haiku via Anthropic OpenAI-compat `/v1/chat/completions`
+ *                (optional `ANTHROPIC_API_KEY`; model `ANTHROPIC_HAIKU_MODEL` or `claude-haiku-4-5`)
  *   moonshot   — Moonshot AI / Kimi K2 Turbo (fast, no queue)
  *   deepseek   — DeepSeek API (cheap fallback)
  *   openrouter — OpenRouter multi-model gateway
  *   openai     — OpenAI GPT-4o / GPT-4o-mini
- *   groq       — Groq (Llama 3, ultra-fast)
+ *
+ * Failover order (when keys exist): primary (`AI_PROVIDER`) → **nvidia → groq → anthropic**
+ * → remaining providers — so free/cheap volume paths run before paid Haiku.
  *
  * Usage:
  *   import { callAI } from '../_lib/ai-service';
  *   const result = await callAI(messages, { maxTokens: 1024 });
+ *
+ * Model compatibility (Kimi tool `is_error`, o-series sampling, GPT-5 token fields)
+ * is centralized in `openai-compat-model-policy.ts` and applied on every request.
  */
+
+import {
+  finalizeChatCompletionRequestBody,
+  sanitizeChatMessagesForModel,
+} from './openai-compat-model-policy';
 
 // ---------------------------------------------------------------------------
 // Provider configuration
@@ -25,8 +38,11 @@
 interface ProviderConfig {
   url: string;
   model: string;
-  keyEnv: string;            // name of the env var holding the API key
-  headerPrefix?: string;     // defaults to "Bearer"
+  keyEnv: string; // name of the env var holding the API key
+  headerPrefix?: string; // defaults to "Bearer" when authStyle is bearer
+  /** Anthropic OpenAI-compat uses `x-api-key` + `anthropic-version`, not Bearer */
+  authStyle?: 'bearer' | 'x-api-key';
+  extraHeaders?: Record<string, string>;
 }
 
 const PROVIDERS: Record<string, ProviderConfig> = {
@@ -60,7 +76,49 @@ const PROVIDERS: Record<string, ProviderConfig> = {
     model: 'llama-3.3-70b-versatile',
     keyEnv: 'GROQ_API_KEY',
   },
+  anthropic: {
+    url: 'https://api.anthropic.com/v1/chat/completions',
+    model: 'claude-haiku-4-5',
+    keyEnv: 'ANTHROPIC_API_KEY',
+    authStyle: 'x-api-key',
+    extraHeaders: { 'anthropic-version': '2023-06-01' },
+  },
 };
+
+/** Volume-tier failover: free NVIDIA → fast Groq → optional platform Haiku, then other keys. */
+const PROVIDER_FAILOVER_ORDER = [
+  'nvidia',
+  'groq',
+  'anthropic',
+  'moonshot',
+  'deepseek',
+  'openrouter',
+  'openai',
+] as const;
+
+function authHeaders(providerName: string, apiKey: string): Record<string, string> {
+  const cfg = PROVIDERS[providerName];
+  const key = apiKey.trim();
+  const base: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+  if (cfg?.authStyle === 'x-api-key') {
+    base['x-api-key'] = key;
+    if (cfg.extraHeaders) Object.assign(base, cfg.extraHeaders);
+    return base;
+  }
+  base.Authorization = `${cfg?.headerPrefix || 'Bearer'} ${key}`;
+  if (cfg?.extraHeaders) Object.assign(base, cfg.extraHeaders);
+  return base;
+}
+
+function resolvedModel(providerName: string, provider: ProviderConfig, optsModel?: string): string {
+  if (optsModel) return optsModel;
+  if (providerName === 'anthropic' && process.env.ANTHROPIC_HAIKU_MODEL?.trim()) {
+    return process.env.ANTHROPIC_HAIKU_MODEL.trim();
+  }
+  return provider.model;
+}
 
 // ---------------------------------------------------------------------------
 // Public interface
@@ -92,24 +150,62 @@ export interface AICallResult {
 // Resolve which providers to try, in order
 // ---------------------------------------------------------------------------
 
+function providerHasKey(name: string): boolean {
+  const cfg = PROVIDERS[name];
+  if (!cfg) return false;
+  const key = process.env[cfg.keyEnv];
+  return Boolean(key && String(key).trim());
+}
+
 function getProviderChain(): string[] {
-  // Primary provider from env, default to nvidia (FREE via build.nvidia.com)
+  // Primary provider from env, default to nvidia (FREE via build.nvidia.com).
+  // Only include the preferred provider when its key exists — otherwise the first API call
+  // always throws (e.g. CI with GROQ only), and scripts like verify-nexus-tools-live look flaky.
   const requested = (process.env.AI_PROVIDER || 'nvidia').toLowerCase().trim();
-  const primary = PROVIDERS[requested] ? requested : 'nvidia';
+  const preferred = PROVIDERS[requested] ? requested : 'nvidia';
 
-  // Fallback chain — every configured provider after the primary
-  const chain: string[] = [primary];
+  const chain: string[] = [];
+  const seen = new Set<string>();
 
-  // Add other providers that have a key configured
-  for (const [name] of Object.entries(PROVIDERS)) {
-    if (name === primary) continue;
-    const key = process.env[PROVIDERS[name].keyEnv];
-    if (key && key.trim()) {
+  if (providerHasKey(preferred)) {
+    chain.push(preferred);
+    seen.add(preferred);
+  }
+
+  // Volume-aware order for fallbacks (keys required), then any remaining keyed providers.
+  for (const name of PROVIDER_FAILOVER_ORDER) {
+    if (seen.has(name)) continue;
+    if (providerHasKey(name)) {
       chain.push(name);
+      seen.add(name);
     }
+  }
+  for (const name of Object.keys(PROVIDERS)) {
+    if (seen.has(name)) continue;
+    if (providerHasKey(name)) chain.push(name);
   }
 
   return chain;
+}
+
+/** Operator / diagnostics: no secret values, safe for authenticated Settings probes. */
+export function getLlmStackDiagnostic(): {
+  ai_provider_env: string;
+  primary: string;
+  chain: string[];
+  keys_present: Record<string, boolean>;
+} {
+  const chain = getProviderChain();
+  const keys_present: Record<string, boolean> = {};
+  for (const name of Object.keys(PROVIDERS)) {
+    keys_present[name] = providerHasKey(name);
+  }
+  return {
+    ai_provider_env: (process.env.AI_PROVIDER || 'nvidia').toLowerCase().trim(),
+    primary: chain[0] || 'nvidia',
+    chain,
+    keys_present,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -129,20 +225,19 @@ async function callProvider(
     throw new Error(`${provider.keyEnv} not configured for provider ${providerName}`);
   }
 
-  const model = opts.model || provider.model;
+  const model = resolvedModel(providerName, provider, opts.model);
+
+  const body = finalizeChatCompletionRequestBody(model, {
+    model,
+    messages,
+    max_tokens: opts.maxTokens ?? 1024,
+    temperature: opts.temperature ?? 0.7,
+  });
 
   const response = await fetch(provider.url, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `${provider.headerPrefix || 'Bearer'} ${apiKey.trim()}`,
-    },
-    body: JSON.stringify({
-      model,
-      messages,
-      max_tokens: opts.maxTokens ?? 1024,
-      temperature: opts.temperature ?? 0.7,
-    }),
+    headers: authHeaders(providerName, apiKey),
+    body: JSON.stringify(body),
   });
 
   if (!response.ok) {
@@ -223,26 +318,30 @@ async function callProviderChat(
     throw new Error(`${provider.keyEnv} not configured for provider ${providerName}`);
   }
 
-  const model = opts.model || provider.model;
+  const model = resolvedModel(providerName, provider, opts.model);
 
-  const body: Record<string, unknown> = {
+  const messagesSanitized = sanitizeChatMessagesForModel(
     model,
-    messages,
+    messages as ReadonlyArray<Record<string, unknown>>,
+  );
+
+  const draft: Record<string, unknown> = {
+    model,
+    messages: messagesSanitized,
     max_tokens: opts.maxTokens ?? 1024,
     temperature: opts.temperature ?? 0.7,
   };
 
   if (opts.tools && opts.tools.length > 0) {
-    body.tools = opts.tools;
-    body.tool_choice = opts.tool_choice ?? 'auto';
+    draft.tools = opts.tools;
+    draft.tool_choice = opts.tool_choice ?? 'auto';
   }
+
+  const body = finalizeChatCompletionRequestBody(model, draft);
 
   const response = await fetch(provider.url, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `${provider.headerPrefix || 'Bearer'} ${apiKey.trim()}`,
-    },
+    headers: authHeaders(providerName, apiKey),
     body: JSON.stringify(body),
   });
 
@@ -308,22 +407,21 @@ export async function callAIStream(
     const apiKey = process.env[provider.keyEnv];
     if (!apiKey?.trim()) continue;
 
-    const model = opts.model || provider.model;
+    const model = resolvedModel(providerName, provider, opts.model);
 
     try {
+      const body = finalizeChatCompletionRequestBody(model, {
+        model,
+        messages,
+        max_tokens: opts.maxTokens ?? 1024,
+        temperature: opts.temperature ?? 0.7,
+        stream: true,
+      });
+
       const response = await fetch(provider.url, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `${provider.headerPrefix || 'Bearer'} ${apiKey.trim()}`,
-        },
-        body: JSON.stringify({
-          model,
-          messages,
-          max_tokens: opts.maxTokens ?? 1024,
-          temperature: opts.temperature ?? 0.7,
-          stream: true,
-        }),
+        headers: authHeaders(providerName, apiKey),
+        body: JSON.stringify(body),
       });
 
       if (!response.ok) {

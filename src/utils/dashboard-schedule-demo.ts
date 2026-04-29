@@ -70,6 +70,24 @@ export type DashboardScheduleDemoOptions = {
   hasEstablishedTaskHistory?: boolean;
 };
 
+/** Canonical dashboard schedule merge + metadata (single source for schedule vs AI parity). */
+export type DashboardScheduleProjection = {
+  /** Same list legacy `withDashboardScheduleDemoFallback` returned (context + optional demos). */
+  scheduleTasks: Task[];
+  /** Synthetic onboarding rows — never in TasksContext. */
+  demoTaskIds: ReadonlySet<string>;
+  /** True when samples were appended because there were no real open tasks. */
+  demoFallbackActive: boolean;
+};
+
+/**
+ * Open work that exists as real user tasks (excludes archived/completed and schedule demos).
+ * Use for "What should I do?" and any surface that must match the Tasks tab pool.
+ */
+export function listOpenUserTasks(tasks: Task[] | undefined | null): Task[] {
+  return (tasks || []).filter((t) => isDashboardOpenTask(t) && !isDashboardDemoTask(t));
+}
+
 /**
  * If there is at least one open non-demo task, return tasks unchanged.
  * If there is at least one real (non-demo) task row but none are open, return only that list
@@ -77,21 +95,41 @@ export type DashboardScheduleDemoOptions = {
  * If there are no real tasks: add schedule demos only for first-time / new accounts, not
  * when `hasEstablishedTaskHistory` (per-device) is set.
  */
+export function resolveDashboardScheduleProjection(
+  tasks: Task[] | undefined | null,
+  options?: DashboardScheduleDemoOptions,
+): DashboardScheduleProjection {
+  const { hasEstablishedTaskHistory = false } = options || {};
+  const list = tasks || [];
+  const hasOpenReal = list.some((t) => isDashboardOpenTask(t) && !isDashboardDemoTask(t));
+
+  let scheduleTasks: Task[];
+  if (hasOpenReal) {
+    scheduleTasks = list;
+  } else {
+    const withoutDemos = list.filter((t) => !isDashboardDemoTask(t));
+    if (withoutDemos.length > 0) {
+      scheduleTasks = withoutDemos;
+    } else if (hasEstablishedTaskHistory) {
+      scheduleTasks = [];
+    } else {
+      scheduleTasks = [...withoutDemos, ...getDashboardScheduleDemoTasks()];
+    }
+  }
+
+  const demoTaskIds = new Set(
+    scheduleTasks.filter((t) => isDashboardDemoTask(t)).map((t) => String(t.id)),
+  );
+  const demoFallbackActive =
+    demoTaskIds.size > 0 &&
+    !scheduleTasks.some((t) => isDashboardOpenTask(t) && !isDashboardDemoTask(t));
+
+  return { scheduleTasks, demoTaskIds, demoFallbackActive };
+}
+
 export function withDashboardScheduleDemoFallback(
   tasks: Task[] | undefined | null,
   options?: DashboardScheduleDemoOptions,
 ): Task[] {
-  const { hasEstablishedTaskHistory = false } = options || {};
-  const list = tasks || [];
-  const hasOpenReal = list.some((t) => isDashboardOpenTask(t) && !isDashboardDemoTask(t));
-  if (hasOpenReal) return list;
-  const withoutDemos = list.filter((t) => !isDashboardDemoTask(t));
-  if (withoutDemos.length > 0) {
-    // User has real tasks in the list but everything is done — no phantom demo work.
-    return withoutDemos;
-  }
-  if (hasEstablishedTaskHistory) {
-    return [];
-  }
-  return [...withoutDemos, ...getDashboardScheduleDemoTasks()];
+  return resolveDashboardScheduleProjection(tasks, options).scheduleTasks;
 }
