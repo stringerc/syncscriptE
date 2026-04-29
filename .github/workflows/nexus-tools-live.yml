@@ -46,7 +46,7 @@ jobs:
       NEXUS_LIVE_TEST_JWT: ${{ secrets.ENGRAM_LIVE_USER_JWT }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Preflight — AI keys + JWT hint
         env:
