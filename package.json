@@ -179,7 +179,7 @@
     "verify:ios:ui-test": "bash -c 'cd ios/App && xcodebuild test -scheme App -destination \"${DESTINATION:-$(node ../../scripts/ios-simulator-destination.mjs)}\" -only-testing:AppUITests'",
     "verify:aasa": "node scripts/verify-aasa-delivery.mjs",
     "verify:aasa:live": "VERIFY_AASA_LIVE=1 npm run verify:aasa",
-    "deploy:vercel:prod": "vercel deploy --prod --yes",
+    "deploy:vercel:prod": "vercel build --prod && vercel deploy --prebuilt --prod --yes",
     "verify:companion:protocol": "node scripts/verify-companion-protocol.mjs",
     "verify:companion:protocol:open": "COMPANION_OPEN=1 node scripts/verify-companion-protocol.mjs",
     "guard:vercel-functions": "node scripts/guard-vercel-function-count.mjs",
