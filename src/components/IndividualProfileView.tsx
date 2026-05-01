@@ -50,6 +50,7 @@ import { useEnergy } from '../contexts/EnergyContext';
 import { EnergyDisplay } from './energy/EnergyDisplay';
 import { getReadinessPercentFromTotalEnergy } from '../hooks/useCurrentReadiness';
 import { useUserProfile } from '../utils/user-profile';
+import { fetchActivitySummary } from '../utils/edge-productivity-client';
 
 interface ProfileLink {
   id: string;
