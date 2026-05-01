@@ -148,6 +148,7 @@
     "test:e2e:nexus-task": "npx playwright install chromium && PLAYWRIGHT_BASE_URL=${PLAYWRIGHT_BASE_URL:-https://www.syncscript.app} npx playwright test e2e/nexus-login-create-task.spec.ts --project=chromium",
     "test:e2e:nexus-voice-classic-task": "npx playwright install chromium && PLAYWRIGHT_BASE_URL=${PLAYWRIGHT_BASE_URL:-https://www.syncscript.app} npx playwright test e2e/nexus-voice-classic-create-task.spec.ts --project=chromium",
     "test:e2e:nexus-signed-in-smoke": "npx playwright install chromium && PLAYWRIGHT_BASE_URL=${PLAYWRIGHT_BASE_URL:-https://www.syncscript.app} CI=true npx playwright test e2e/nexus-signed-in-profile-and-calendar.spec.ts --project=chromium",
+    "test:e2e:signed-in-productivity": "npx playwright install chromium && PLAYWRIGHT_BASE_URL=${PLAYWRIGHT_BASE_URL:-https://www.syncscript.app} CI=true npx playwright test e2e/signed-in-productivity-edge.spec.ts --project=chromium",
     "test:e2e:nexus-app-ai-parity-deep": "npx playwright install chromium && PLAYWRIGHT_BASE_URL=${PLAYWRIGHT_BASE_URL:-https://www.syncscript.app} CI=true npx playwright test e2e/nexus-app-ai-parity-deep.spec.ts --project=chromium",
     "test:e2e:nexus-voice-immersive-prod": "npx playwright install chromium && PLAYWRIGHT_BASE_URL=${PLAYWRIGHT_BASE_URL:-https://www.syncscript.app} CI=true npx playwright test e2e/nexus-voice-immersive-prod.spec.ts --project=chromium",
     "test:e2e:app-ai-composer": "CI=true npm run build && npx playwright install chromium && npx playwright test e2e/app-ai-composer-ui.spec.ts --project=chromium",

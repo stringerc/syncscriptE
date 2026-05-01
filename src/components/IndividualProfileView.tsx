@@ -695,13 +695,13 @@ export function IndividualProfileView() {
           </Card>
 
           {/* Contribution Heatmap */}
-          <Card className="bg-[#1e2128] border-gray-800 p-6">
+          <Card className="bg-[#1e2128] border-gray-800 p-6" data-testid="profile-activity-heatmap-card">
             <h3 className="text-white font-medium mb-4 flex items-center gap-2">
               <Calendar className="w-5 h-5 text-teal-400" />
               Activity heatmap (last ~12 months)
             </h3>
             <p className="text-xs text-gray-500 mb-3">Aggregated from tasks and other work signals you log in SyncScript.</p>
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto" data-testid="profile-activity-heatmap-grid">
               <div className="inline-flex flex-col gap-1">
                 {[0, 1, 2, 3, 4, 5, 6].map((day) => (
                   <div key={day} className="flex gap-1">

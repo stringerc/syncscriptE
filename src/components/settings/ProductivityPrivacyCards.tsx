@@ -157,7 +157,13 @@ export function CursorPatTokensCard() {
         Scoped tokens for the SyncScript Edge productivity API. Use with{' '}
         <code className="text-xs text-cyan-300">integrations/cursor-syncscript-mcp</code> — see README.
       </p>
-      <Button type="button" className="mb-4" onClick={() => void onCreate()} disabled={creating || loading}>
+      <Button
+        type="button"
+        className="mb-4"
+        onClick={() => void onCreate()}
+        disabled={creating || loading}
+        data-testid="cursor-pat-create-token"
+      >
         {creating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
         Create token
       </Button>
@@ -173,7 +179,14 @@ export function CursorPatTokensCard() {
                 <span className="text-white">{t.label}</span>
                 <span className="ml-2 text-gray-500">{t.scopes?.join(', ')}</span>
               </span>
-              <Button type="button" variant="outline" size="sm" className="text-red-300 border-red-900/50" onClick={() => void onRevoke(t.id)}>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="text-red-300 border-red-900/50"
+                onClick={() => void onRevoke(t.id)}
+                data-testid={`cursor-pat-revoke-${t.id}`}
+              >
                 Revoke
               </Button>
             </li>

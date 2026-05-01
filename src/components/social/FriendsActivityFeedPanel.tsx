@@ -56,7 +56,7 @@ export function FriendsActivityFeedPanel({ enabled }: { enabled: boolean }) {
   if (!enabled) return null;
 
   return (
-    <div className="mb-3 rounded-lg border border-blue-500/20 bg-blue-500/5 p-3">
+    <div className="mb-3 rounded-lg border border-blue-500/20 bg-blue-500/5 p-3" data-testid="friends-activity-feed-panel">
       <div className="mb-2 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-blue-200">
         <Users className="h-3.5 w-3.5" />
         Friend activity

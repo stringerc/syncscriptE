@@ -303,14 +303,16 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             >
               {/* PERF-002: Avoid hidden panel work when closed */}
               {effectiveAIInsightsOpen && (
-                <AIAssistantPanel 
-                  isOpen={effectiveAIInsightsOpen} 
-                  onOpenAIInsights={() => {
-                    if (!effectiveAIInsightsOpen) {
-                      handleToggleAIInsights();
-                    }
-                  }}
-                />
+                <div data-testid="ai-assistant-panel" className="h-full min-h-0 flex flex-col">
+                  <AIAssistantPanel
+                    isOpen={effectiveAIInsightsOpen}
+                    onOpenAIInsights={() => {
+                      if (!effectiveAIInsightsOpen) {
+                        handleToggleAIInsights();
+                      }
+                    }}
+                  />
+                </div>
               )}
             </div>
           </div>

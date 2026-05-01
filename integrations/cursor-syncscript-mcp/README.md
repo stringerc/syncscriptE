@@ -7,6 +7,7 @@ Model Context Protocol (stdio) server that calls your **Supabase Edge** deployme
 1. Apply migration `20260427090000_activity_business_plan_api_tokens.sql` (`supabase db push`).
 2. Deploy Edge: `npm run deploy:edge:make-server` (from repo root).
 3. In SyncScript **Settings → Privacy**, create a **PAT** (or use a short-lived Supabase JWT — PAT is easier for Cursor).
+4. **Optional regression (signed-in UI + Edge):** from repo root, set `E2E_LOGIN_EMAIL` / `E2E_LOGIN_PASSWORD` (or `NEXUS_LIVE_TEST_*`) in `.env`, then run `npm run test:e2e:signed-in-productivity`. This Playwright spec hits `GET /activity/summary`, `POST`+`DELETE /api-tokens`, and `GET /friends/activity-feed` on the live app (`PLAYWRIGHT_BASE_URL`, default prod).
 
 ## Install
 
