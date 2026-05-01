@@ -95,6 +95,7 @@ scripts/*
 !scripts/verify-hermes-edge-live.mjs
 !scripts/verify-engram-edge-live.mjs
 !scripts/verify-prod-build.mjs
+!scripts/verify-edge-productivity-http.mjs
 !scripts/report-external-tooling-versions.mjs
 !scripts/push-nexus-e2e-secrets-to-github.mjs
 !scripts/guard-ci-script-refs.mjs
