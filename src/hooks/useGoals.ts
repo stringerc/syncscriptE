@@ -34,6 +34,7 @@ import { commandFailure, commandSuccess, type ContractCommandContext } from '../
 import { emitContractDomainEvent } from '../contracts/runtime/contract-runtime';
 import { syncShadowGoalProjection } from '../contracts/runtime/backend-projection-mirror';
 import { executeAuthorityRoutedCommand } from '../contracts/runtime/backend-authority-routing';
+import { postActivityEvent } from '../utils/edge-productivity-client';
 
 export type UserRole = 'creator' | 'admin' | 'collaborator' | 'viewer';
 
@@ -428,10 +429,6 @@ function useGoalsState(): UseGoalsReturn {
           : g
       ));
       
-      // In production, this would call API and award energy
-      // await api.updateGoal(goalId, { completed: newCompleted });
-      // await awardEnergyPoints(goalId, 'goal_completion');
-      
       emitContractDomainEvent(
         'goal.updated',
         'goal',
@@ -443,6 +440,17 @@ function useGoalsState(): UseGoalsReturn {
         { workspaceId: 'workspace-main' },
       );
       if (newCompleted) {
+        void postActivityEvent({
+          eventType: 'goal_progress',
+          intensity: 2,
+          metadata: {
+            goalId,
+            title: String(goal.title || '').trim().slice(0, 200),
+            source: 'web',
+            completed: true,
+          },
+          visibility: 'private',
+        }).catch(() => {});
         toast.success('🎉 Goal completed! Amazing work!', {
           description: goal.title,
         });

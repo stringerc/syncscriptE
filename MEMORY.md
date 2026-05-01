@@ -113,13 +113,16 @@
 
 ## Product — social + external IDE bridge (2026-04-27)
 
-**Spec:** `integrations/research/SYNCSCRIPT_ACTIVITY_AND_SOCIAL_SPINE.md` (catalog row in `integrations/research/INDEX.md`).
+**Spec:** `integrations/research/SYNCSCRIPT_ACTIVITY_AND_SOCIAL_SPINE.md` (catalog row in `integrations/research/INDEX.md`). **Roadmap (phases + architecture):** `integrations/research/CURSOR_SYNCSCRIPT_SOCIAL_PRODUCTIVITY_ROADMAP.md`.
 
 - **Enterprise → Plan tab:** structured business plan in-app; **Copy markdown** for `BUSINESS_PLAN.md` + Cursor rule **`.cursor/rules/14-enterprise-business-plan-cursor.mdc`**.
-- **Activity spine:** Postgres `user_activity_events` (+ task completion writes from Edge `email-task-routes` via `activity-record.ts`). **Profile heatmap** (`IndividualProfileView`) reads **`GET …/activity/summary`** (Edge `social-productivity-routes.tsx`).
+- **Activity spine:** Postgres `user_activity_events` (+ task completion writes from Edge `email-task-routes` via `activity-record.ts`). **Profile heatmap** (`IndividualProfileView`) reads **`GET …/activity/summary`** (Edge `social-productivity-routes.tsx`). **`POST …/activity/events`** is **rate-limited** (~60/min per user, HTTP 429) in `social-productivity-routes.tsx`.
+- **Goals → activity:** marking a goal complete in the dashboard calls **`postActivityEvent`** (`goal_progress`, private metadata) from `src/hooks/useGoals.ts` via `src/utils/edge-productivity-client.ts` (best-effort).
+- **Tasks:** dashboard path remains **`taskRepository`** / `SupabaseTaskRepository` → Edge. Legacy **`TaskService`** in `src/services/data-service.ts` **delegates** to `taskRepository` (same routes as MCP); not the primary app path.
 - **PAT + MCP:** Settings → Privacy → **Cursor / MCP access tokens** (`sspat_*`). MCP package **`integrations/cursor-syncscript-mcp/`** (see README). OpenAPI: **`public/openapi.json`** tag **ProductivityEdge** + second **server** URL for Edge base.
 - **Social defaults:** `user_social_prefs` defaults **private**; friend feed via RPC **`social_friend_activity_feed`** only when relationship **friend/accepted** + friend has **friend_feed_opt_in** + events visibility **`friends`/`public_summary`**. UI: **Settings → Privacy** cards + **AI Assistant panel → Social → Friends** strip (`FriendsActivityFeedPanel`).
-- **Deploy:** migration `20260427090000_activity_business_plan_api_tokens.sql` then **`npm run deploy:edge:make-server`**. Cursor conversations do **not** auto-append to MEMORY — curate manually or use `memory/YYYY-MM-DD.md` + hooks (see spec).
+- **Deploy:** migration `20260427090000_activity_business_plan_api_tokens.sql` then **`npm run deploy:edge:make-server`** (redeploy after Edge rate-limit / activity changes). Cursor conversations do **not** auto-append to MEMORY — curate manually or use `memory/YYYY-MM-DD.md` + hooks (see spec).
+- **Backlog:** automatic **`calendar_event_done`** from a single calendar save path — still **deferred** (see spine § Repo completion notes).
 
 ## Work completion — finish what we start
 When we take on a feature, integration, or production fix, **drive it to completion in one coherent effort** (same session / same PR-sized slice when possible): code + **migrations** if needed + **Supabase Edge deploy** when Edge changes + **Vercel** when `api/*` or env changes + **contract / smoke / verify scripts** that prove the path + **this `MEMORY.md`** (and a daily note if useful). **Avoid** landing half-wired routes, stale dashboard URLs, or “we’ll set env later” for **production-critical** flows unless the user explicitly cuts scope.

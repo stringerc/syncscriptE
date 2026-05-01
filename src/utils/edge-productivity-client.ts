@@ -113,6 +113,30 @@ export async function revokeApiToken(id: string): Promise<boolean> {
   return res.ok;
 }
 
+export type ActivityEventPayload = {
+  eventType: 'focus_block' | 'external_ide_session' | 'generic' | 'goal_progress' | 'calendar_event_done';
+  intensity?: number;
+  metadata?: Record<string, unknown>;
+  visibility?: 'private' | 'friends' | 'public_summary';
+  occurredAt?: string;
+};
+
+/** Append-only activity (signed-in JWT). Same route MCP uses with PAT + `activity:write`. */
+export async function postActivityEvent(payload: ActivityEventPayload): Promise<boolean> {
+  const res = await edgeFetch('/activity/events', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      eventType: payload.eventType,
+      intensity: payload.intensity ?? 1,
+      metadata: payload.metadata ?? {},
+      visibility: payload.visibility ?? 'private',
+      occurred_at: payload.occurredAt,
+    }),
+  });
+  return res.ok;
+}
+
 export type FriendActivityEvent = {
   event_id: string;
   actor_user_id: string;

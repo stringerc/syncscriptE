@@ -69,6 +69,7 @@ From the repo root, **`npm run research:scan`** runs the same script against **t
 | Nexus LLM compat + executor bridge | 2026-04-26 | Central OpenAI-compat sanitization (Kimi `is_error`, o/GPT-5 token + sampling); `GET llm-stack` + optional `executor-bridge` probe/invoke; Hermes-shaped gateway secret | `./NEXUS_LLM_COMPAT_AND_EXECUTOR_BRIDGE.md` | `npm test` (policy + agent contract) |
 | Startup cloud credits (AWS / Google / Microsoft) | 2026-04-26 | Apply-yourself playbook: official links, Bedrock/Vertex/Azure model verification in-console, SyncScript blurbs; no auto-submit | `./STARTUP_CLOUD_CREDITS_PLAYBOOK.md` | Human clicks Apply; refresh tiers yearly |
 | Activity spine + social visibility + Cursor PAT | 2026-04-27 | Event types, RLS, PAT scopes, friend feed RPC, business plan export; heatmap from real data | `./SYNCSCRIPT_ACTIVITY_AND_SOCIAL_SPINE.md` | `supabase db push` · Edge `/activity/*` · `integrations/cursor-syncscript-mcp/` |
+| Cursor + SyncScript social productivity roadmap | 2026-04-30 | Canonical phased roadmap (Mermaid, phases, risks); heatmap + HTTP pointers corrected; completion table | `./CURSOR_SYNCSCRIPT_SOCIAL_PRODUCTIVITY_ROADMAP.md` | With spine doc + `MEMORY.md` § Product — social |
 
 **Per-study doc** (short markdown): **setup → method → result → follow-ups** — even if raw logs are deleted later.
 

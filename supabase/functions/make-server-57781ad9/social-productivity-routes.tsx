@@ -66,6 +66,31 @@ const DEFAULT_PLAN_SECTIONS: Record<string, string> = {
   asks: "",
 };
 
+/** Sliding-window rate limit for POST /activity/events (per user id). */
+const ACTIVITY_POST_TIMESTAMPS = new Map<string, number[]>();
+const ACTIVITY_POST_MAX_PER_MINUTE = 60;
+
+function allowActivityPost(userId: string): boolean {
+  const now = Date.now();
+  const windowMs = 60_000;
+  const prev = ACTIVITY_POST_TIMESTAMPS.get(userId) || [];
+  const pruned = prev.filter((t) => now - t < windowMs);
+  if (pruned.length >= ACTIVITY_POST_MAX_PER_MINUTE) {
+    ACTIVITY_POST_TIMESTAMPS.set(userId, pruned);
+    return false;
+  }
+  pruned.push(now);
+  ACTIVITY_POST_TIMESTAMPS.set(userId, pruned);
+  if (ACTIVITY_POST_TIMESTAMPS.size > 50_000) {
+    for (const [k, v] of ACTIVITY_POST_TIMESTAMPS) {
+      const kept = v.filter((t) => now - t < windowMs);
+      if (kept.length === 0) ACTIVITY_POST_TIMESTAMPS.delete(k);
+      else ACTIVITY_POST_TIMESTAMPS.set(k, kept);
+    }
+  }
+  return true;
+}
+
 app.get("/activity/summary", async (c) => {
   const auth = await requireJwtOrPat(c);
   if (!auth) return c.json({ error: "Unauthorized" }, 401);
@@ -93,6 +118,9 @@ app.get("/activity/summary", async (c) => {
 app.post("/activity/events", async (c) => {
   const auth = await requireJwtOrPat(c);
   if (!auth) return c.json({ error: "Unauthorized" }, 401);
+  if (!allowActivityPost(auth.userId)) {
+    return c.json({ error: "Too many activity events; retry in a minute." }, 429);
+  }
   if (auth.patScopes && !hasScope(auth, "activity:write")) {
     return c.json({ error: "Forbidden" }, 403);
   }

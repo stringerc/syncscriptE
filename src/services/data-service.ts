@@ -1,8 +1,10 @@
 /**
  * DATA SERVICE
- * Service layer for data operations
- * In production, these would call backend APIs
- * For now, they work with mock data
+ *
+ * **Tasks:** `TaskService` delegates to `taskRepository` (same Supabase Edge `make-server-57781ad9`
+ * `/tasks` routes as the dashboard). Use this for scripts/tests that should not import React context.
+ *
+ * **Goals / events / users / …:** still legacy `BaseService` stubs unless wired later.
  */
 
 import {
@@ -24,6 +26,7 @@ import {
   PaginatedResponse,
   PaginationParams,
 } from '../types/data-model';
+import { taskRepository } from './index';
 
 // ============================================================================
 // BASE SERVICE
@@ -51,58 +54,90 @@ class BaseService {
 // TASK SERVICE
 // ============================================================================
 
-export class TaskService extends BaseService {
+type CreateTaskPayload = Parameters<typeof taskRepository.createTask>[0];
+
+function toCreateTaskPayload(data: CreateTaskRequest): CreateTaskPayload {
+  const due =
+    data.due_date === undefined
+      ? undefined
+      : typeof data.due_date === 'string'
+        ? data.due_date
+        : (data.due_date as Date).toISOString?.() ?? String(data.due_date);
+  return {
+    title: data.title,
+    description: data.description,
+    priority: data.priority as CreateTaskPayload['priority'],
+    tags: data.tags,
+    dueDate: due,
+  } as CreateTaskPayload;
+}
+
+type UpdateTaskPayload = Parameters<typeof taskRepository.updateTask>[1];
+
+function toUpdateTaskPayload(data: UpdateTaskRequest): UpdateTaskPayload {
+  return {
+    title: data.title,
+    description: data.description,
+    status: data.status as UpdateTaskPayload['status'],
+    priority: data.priority as UpdateTaskPayload['priority'],
+    tags: data.tags,
+    dueDate:
+      data.due_date === undefined
+        ? undefined
+        : typeof data.due_date === 'string'
+          ? data.due_date
+          : (data.due_date as Date).toISOString?.() ?? String(data.due_date),
+  } as UpdateTaskPayload;
+}
+
+export class TaskService {
   async list(
     filters?: TaskFilters,
     pagination?: PaginationParams
   ): Promise<PaginatedResponse<Task>> {
-    return this.fetch('/tasks', {
-      method: 'GET',
-      headers: { 'Content-Type': 'application/json' },
-    });
+    const tasks = await taskRepository.getTasks(filters as Parameters<typeof taskRepository.getTasks>[0]);
+    const safe = (tasks || []) as Task[];
+    const page = Math.max(1, pagination?.page ?? 1);
+    const limit = Math.max(1, pagination?.limit ?? safe.length || 50);
+    const start = (page - 1) * limit;
+    const slice = safe.slice(start, start + limit);
+    const total = safe.length;
+    return {
+      data: slice,
+      total,
+      page,
+      limit,
+      total_pages: Math.max(1, Math.ceil(total / limit)),
+    };
   }
 
   async get(id: string): Promise<Task> {
-    return this.fetch(`/tasks/${id}`);
+    const t = await taskRepository.getTaskById(id);
+    if (!t) throw new Error(`Task not found: ${id}`);
+    return t;
   }
 
   async create(data: CreateTaskRequest): Promise<Task> {
-    return this.fetch('/tasks', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
-    });
+    return taskRepository.createTask(toCreateTaskPayload(data));
   }
 
   async update(id: string, data: UpdateTaskRequest): Promise<Task> {
-    return this.fetch(`/tasks/${id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
-    });
+    return taskRepository.updateTask(id, toUpdateTaskPayload(data));
   }
 
   async delete(id: string): Promise<void> {
-    return this.fetch(`/tasks/${id}`, { method: 'DELETE' });
+    await taskRepository.deleteTask(id);
   }
 
+  /** Same semantics as dashboard toggle — Edge `POST /tasks/:id/toggle` (records `task_completed` activity when completing). */
   async complete(id: string): Promise<Task> {
-    return this.fetch(`/tasks/${id}/complete`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return taskRepository.toggleTaskCompletion(id);
   }
 
-  async addAttachment(
-    taskId: string,
-    file: File
-  ): Promise<Task> {
-    const formData = new FormData();
-    formData.append('file', file);
-    return this.fetch(`/tasks/${taskId}/attachments`, {
-      method: 'POST',
-      body: formData,
-    });
+  async addAttachment(_taskId: string, _file: File): Promise<Task> {
+    throw new Error(
+      'Task attachments are not exposed on Edge task routes — use Settings → Files / library flows.',
+    );
   }
 }
 

@@ -56,10 +56,20 @@ Phase-1 implementation: **query-time aggregation** from `user_activity_events` g
 
 - PAT theft = account API access until revoked—**HTTPS only**, short labels, rotate on leak.
 - Public summaries must **never** include raw MCP payloads or file contents by default.
-- Rate-limit `POST /activity/events` per user (Edge in-memory map or reuse existing rate limiter).
+- Rate-limit `POST /activity/events` per user — **implemented** in `social-productivity-routes.tsx` (sliding 60 req / minute / user, HTTP 429 when exceeded).
 
 ## References
 
 - Tasks Edge: `supabase/functions/make-server-57781ad9/email-task-routes.tsx`
 - Social RPCs: `src/utils/social-chat.ts`, migration `20260308000000_create_social_chat_tables.sql`
 - MCP + operator runbook: `integrations/cursor-syncscript-mcp/README.md`, `MEMORY.md` § Product — social + external IDE bridge
+
+## Repo completion notes (2026-04-30)
+
+| Item | Status |
+|------|--------|
+| `POST /activity/events` rate limit | **Shipped** — `supabase/functions/make-server-57781ad9/social-productivity-routes.tsx` |
+| Goal marked complete → activity | **Shipped** — `src/hooks/useGoals.ts` calls `postActivityEvent` (`goal_progress`, private metadata) via `src/utils/edge-productivity-client.ts` |
+| `task_completed` on Edge task toggle/PUT | **Existing** — `activity-record.ts` + `email-task-routes.tsx` |
+| Calendar event “done” auto-row | **Deferred** — calendar stack is fragmented (providers + local); emit `calendar_event_done` from a single authoritative save path when one is chosen |
+| Canonical roadmap (Cursor + social product) | **`integrations/research/CURSOR_SYNCSCRIPT_SOCIAL_PRODUCTIVITY_ROADMAP.md`** |
