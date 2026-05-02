@@ -47,6 +47,9 @@ test.describe('Signed-in productivity Edge (PAT, heatmap, friend feed)', () => {
     const res = await summary;
     expect(res.ok(), `activity/summary HTTP ${res.status()}`).toBeTruthy();
 
+    // Heatmap card lives under profile sub-tab "Analytics", not default "Overview"
+    await page.getByRole('tab', { name: /^Analytics$/i }).click();
+
     const card = page.getByTestId('profile-activity-heatmap-card');
     await expect(card).toBeVisible({ timeout: 30_000 });
     const grid = page.getByTestId('profile-activity-heatmap-grid');
@@ -110,6 +113,7 @@ test.describe('Signed-in productivity Edge (PAT, heatmap, friend feed)', () => {
     await dismissFloatingChecklistIfPresent(page);
 
     await page.goto('/dashboard', { waitUntil: 'domcontentloaded' });
+    await dismissFloatingChecklistIfPresent(page);
 
     const toggle = page.getByRole('button', { name: /Open Chat Assistant/i });
     await expect(toggle).toBeVisible({ timeout: 30_000 });
