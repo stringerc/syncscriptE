@@ -10,6 +10,14 @@ export async function acceptCookiesIfPresent(page: Page): Promise<void> {
   }
 }
 
+/** Dismiss fixed onboarding checklist if it blocks sidebar / chat controls. */
+export async function dismissFloatingChecklistIfPresent(page: Page): Promise<void> {
+  const btn = page.getByRole('button', { name: /Dismiss checklist/i });
+  if (await btn.isVisible({ timeout: 4000 }).catch(() => false)) {
+    await btn.click();
+  }
+}
+
 export type LoginResult = {
   /** Present when `waitForProfile` is true (default). */
   profileResponse?: import('@playwright/test').Response;

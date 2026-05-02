@@ -16,16 +16,9 @@
  */
 import { test, expect } from '@playwright/test';
 import { getNexusE2ECredentials } from './helpers/nexus-e2e-env';
-import { loginToSyncScript } from './helpers/nexus-app-ai-login';
+import { dismissFloatingChecklistIfPresent, loginToSyncScript } from './helpers/nexus-app-ai-login';
 
 const { email, password } = getNexusE2ECredentials();
-
-async function dismissFloatingChecklistIfPresent(page: import('@playwright/test').Page): Promise<void> {
-  const btn = page.getByRole('button', { name: /Dismiss checklist/i });
-  if (await btn.isVisible({ timeout: 4000 }).catch(() => false)) {
-    await btn.click();
-  }
-}
 
 test.describe('Signed-in productivity Edge (PAT, heatmap, friend feed)', () => {
   test.skip(!email || !password, 'Set E2E_LOGIN_* or NEXUS_LIVE_TEST_* in .env');

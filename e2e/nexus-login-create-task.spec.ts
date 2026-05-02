@@ -1,9 +1,17 @@
 /**
  * E2E: sign in → App Nexus chat → ask to create a task → confirm toast or tasks UI.
  * Credentials: E2E_LOGIN_EMAIL + E2E_LOGIN_PASSWORD, or NEXUS_LIVE_TEST_EMAIL + NEXUS_LIVE_TEST_PASSWORD (from .env).
+ *
+ * Slow path: full `nexus-user` JSON waits on LLM + tool loop (often minutes). Not part of
+ * `npm run verify:release-battery` — run `npm run verify:release-battery:nexus-task` when needed.
  */
 import { test, expect } from '@playwright/test';
 import { getNexusE2ECredentials } from './helpers/nexus-e2e-env';
+import {
+  acceptCookiesIfPresent,
+  dismissFloatingChecklistIfPresent,
+  loginToSyncScript,
+} from './helpers/nexus-app-ai-login';
 
 const { email, password } = getNexusE2ECredentials();
 
@@ -13,22 +21,16 @@ test.describe('Nexus create task after login', () => {
   test.skip(!email || !password, 'Set E2E_LOGIN_EMAIL/E2E_LOGIN_PASSWORD or NEXUS_LIVE_TEST_* in .env');
 
   test('login, ask Nexus to create a task, see confirmation', async ({ page }) => {
-    test.setTimeout(180_000);
+    test.slow();
+    test.setTimeout(420_000);
 
-    await page.goto('/login', { waitUntil: 'domcontentloaded' });
-
-    const acceptCookies = page.getByRole('button', { name: /Accept All Cookies/i });
-    if (await acceptCookies.isVisible({ timeout: 5000 }).catch(() => false)) {
-      await acceptCookies.click();
-    }
-
-    await page.getByPlaceholder('you@example.com').fill(email);
-    await page.getByPlaceholder('••••••••').fill(password);
-    await page.getByRole('button', { name: /^Sign in$/ }).click();
-
-    await expect(page).not.toHaveURL(/\/login/, { timeout: 60_000 });
+    await loginToSyncScript(page, email, password);
+    await dismissFloatingChecklistIfPresent(page);
 
     await page.goto('/app/ai-assistant', { waitUntil: 'domcontentloaded' });
+    await acceptCookiesIfPresent(page);
+    await dismissFloatingChecklistIfPresent(page);
+
     const composer = page.getByRole('textbox', { name: /Message to Nexus/i });
     await expect(composer).toBeVisible({ timeout: 30_000 });
     // App AI renders duplicate voice CTAs (mobile + desktop); use .first() for strict mode.
@@ -38,12 +40,13 @@ test.describe('Nexus create task after login', () => {
 
     const nexusResp = page.waitForResponse(
       (r) => r.url().includes('/api/ai/nexus-user') && r.request().method() === 'POST',
-      { timeout: 120_000 },
+      { timeout: 360_000 },
     );
 
     await composer.fill(
       `Create a task titled "${uniqueTitle}" with priority medium. Use your tools to save it.`,
     );
+    // Match nexus-signed-in-profile-and-calendar: Enter submits; Send can stay disabled if React state lags.
     await composer.press('Enter');
 
     const response = await nexusResp;
