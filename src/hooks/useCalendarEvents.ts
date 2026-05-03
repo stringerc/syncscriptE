@@ -16,8 +16,18 @@ import { syncShadowScheduleProjection } from '../contracts/runtime/backend-proje
 import {
   executeAuthorityRoutedCommand,
 } from '../contracts/runtime/backend-authority-routing';
+import { supabase } from '../utils/supabase/client';
+import { projectId } from '../utils/supabase/info';
+import { buildPrimaryEventFromEdgeLocalHold } from '../utils/nexus-voice-calendar-event';
 
 const STORAGE_KEY = 'syncscript_calendar_events';
+
+/** Dedupe Edge-hydrated rows vs voice/UI-created events with the same title + minute. */
+function dedupeCalendarKey(e: { title: string; startTime: Date }): string {
+  const t = new Date(e.startTime).getTime();
+  const bucket = Math.floor(t / 60_000) * 60_000;
+  return `${String(e.title || '').trim().toLowerCase()}|${bucket}`;
+}
 
 function toValidDate(value: unknown, fallback: Date): Date {
   const parsed = value instanceof Date ? value : new Date(value as any);
@@ -108,6 +118,74 @@ export function useCalendarEvents() {
       // Storage full or unavailable — silent fail
     }
   }, [events]);
+
+  /** Hydrate server-backed in-app holds (MCP / Cursor / capture inbox) when signed in with a real JWT. */
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    let cancelled = false;
+
+    const hydrateEdgeLocalCalendar = async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      if (!token || token.startsWith('gst_')) return;
+      try {
+        const res = await fetch(
+          `https://${projectId}.supabase.co/functions/v1/make-server-57781ad9/calendar/local-events`,
+          { headers: { Authorization: `Bearer ${token}` } },
+        );
+        if (!res.ok || cancelled) return;
+        const data = (await res.json()) as { events?: Array<Record<string, unknown>> };
+        const rows = Array.isArray(data.events) ? data.events : [];
+        if (rows.length === 0) return;
+        setEvents((prev) => {
+          const keys = new Set(prev.map((e) => dedupeCalendarKey(e)));
+          const existingIds = new Set(prev.map((e) => e.id));
+          const toAdd: Event[] = [];
+          for (const row of rows) {
+            const r = row as {
+              id: string;
+              title: string;
+              start_iso: string;
+              end_iso: string;
+              source?: string;
+              created_at?: string;
+            };
+            if (!r?.id || !r.start_iso || !r.end_iso) continue;
+            const ev = buildPrimaryEventFromEdgeLocalHold(r);
+            if (existingIds.has(ev.id)) continue;
+            const k = dedupeCalendarKey(ev);
+            if (keys.has(k)) continue;
+            keys.add(k);
+            existingIds.add(ev.id);
+            toAdd.push(ev);
+          }
+          if (toAdd.length === 0) return prev;
+          return [...toAdd, ...prev];
+        });
+      } catch {
+        /* offline / CORS */
+      }
+    };
+
+    void hydrateEdgeLocalCalendar();
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      if (
+        (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') &&
+        session?.access_token &&
+        !session.access_token.startsWith('gst_')
+      ) {
+        void hydrateEdgeLocalCalendar();
+      }
+    });
+    return () => {
+      cancelled = true;
+      subscription.unsubscribe();
+    };
+  }, []);
 
   useEffect(() => {
     void syncShadowScheduleProjection(events as Array<Record<string, unknown>>).catch(() => {

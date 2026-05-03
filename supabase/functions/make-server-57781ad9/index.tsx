@@ -30,6 +30,7 @@ import socialProductivityRoutes from "./social-productivity-routes.tsx";
 import resourcesLibraryRoutes from "./resources-library-routes.tsx";
 import pushDeviceRoutes from "./push-device-routes.tsx";
 import financialRoutes from "./financial-routes.tsx";
+import { hasScope, requireJwtOrPat, type AuthCtx } from "./pat-auth.ts";
 
 // Validate required environment variables at startup
 function requireEnv(name: string): string {
@@ -1494,28 +1495,43 @@ app.post("/make-server-57781ad9/auth/signup", async (c) => {
   }
 });
 
-// Get User Profile
+// Get User Profile (JWT or PAT with profile:read)
 app.get("/make-server-57781ad9/user/profile", async (c) => {
   try {
-    const accessToken = c.req.header('Authorization')?.split(' ')[1];
-    
+    const accessToken = c.req.header('Authorization')?.split(' ')?.[1];
+
     if (!accessToken) {
       return c.json({ error: 'Missing authorization token' }, 401);
     }
-    
-    // Verify token and get user
-    const { data: { user }, error } = await supabase.auth.getUser(accessToken);
-    
-    if (error || !user) {
-      console.error('[AUTH API] Invalid token:', error);
+
+    const auth = await requireJwtOrPat(c, supabase);
+    if (!auth) {
+      console.error('[AUTH API] Invalid token (profile get)');
       return c.json({ error: 'Unauthorized' }, 401);
     }
-    
-    // Get user profile from KV store
+    const ctx: AuthCtx = { userId: auth.userId, email: auth.email, patScopes: auth.patScopes };
+    if (auth.patScopes && !hasScope(ctx, 'profile:read')) {
+      return c.json({ error: 'Forbidden' }, 403);
+    }
+
+    let user: { id: string; email?: string | null; user_metadata?: Record<string, string | undefined> };
+    if (accessToken.startsWith('eyJ')) {
+      const { data: { user: u }, error } = await supabase.auth.getUser(accessToken);
+      if (error || !u || u.id !== auth.userId) {
+        return c.json({ error: 'Unauthorized' }, 401);
+      }
+      user = u;
+    } else {
+      const { data: row, error } = await supabase.auth.admin.getUserById(auth.userId);
+      if (error || !row?.user) {
+        return c.json({ error: 'Unauthorized' }, 401);
+      }
+      user = row.user as typeof user;
+    }
+
     const userProfile = await kv.get(`user:${user.id}`);
-    
+
     if (!userProfile) {
-      // Create default profile if not exists
       const defaultProfile: UserProfile = {
         id: user.id,
         email: user.email || '',
@@ -1523,17 +1539,16 @@ app.get("/make-server-57781ad9/user/profile", async (c) => {
         photoUrl: defaultPhotoFromUser(user),
         onboardingCompleted: false,
         createdAt: new Date().toISOString(),
-        // ✅ FIRST-TIME USER EXPERIENCE FLAGS
         isFirstTime: true,
         hasLoggedEnergy: false,
-        onboardingStep: 0
+        onboardingStep: 0,
       };
-      
+
       await kv.set(`user:${user.id}`, defaultProfile);
-      
+
       return c.json(defaultProfile);
     }
-    
+
     console.log('[AUTH API] Profile retrieved for:', user.id);
 
     const merged: UserProfile = {
@@ -1554,25 +1569,41 @@ app.get("/make-server-57781ad9/user/profile", async (c) => {
   }
 });
 
-// Update User Profile
+// Update User Profile (JWT or PAT with profile:write)
 app.put("/make-server-57781ad9/user/profile", async (c) => {
   try {
-    const accessToken = c.req.header('Authorization')?.split(' ')[1];
-    
+    const accessToken = c.req.header('Authorization')?.split(' ')?.[1];
+
     if (!accessToken) {
       return c.json({ error: 'Missing authorization token' }, 401);
     }
-    
-    // Verify token
-    const { data: { user }, error } = await supabase.auth.getUser(accessToken);
-    
-    if (error || !user) {
+
+    const auth = await requireJwtOrPat(c, supabase);
+    if (!auth) {
       return c.json({ error: 'Unauthorized' }, 401);
     }
-    
+    const ctx: AuthCtx = { userId: auth.userId, email: auth.email, patScopes: auth.patScopes };
+    if (auth.patScopes && !hasScope(ctx, 'profile:write')) {
+      return c.json({ error: 'Forbidden' }, 403);
+    }
+
+    let user: { id: string; email?: string | null };
+    if (accessToken.startsWith('eyJ')) {
+      const { data: { user: u }, error } = await supabase.auth.getUser(accessToken);
+      if (error || !u || u.id !== auth.userId) {
+        return c.json({ error: 'Unauthorized' }, 401);
+      }
+      user = u;
+    } else {
+      const { data: row, error } = await supabase.auth.admin.getUserById(auth.userId);
+      if (error || !row?.user) {
+        return c.json({ error: 'Unauthorized' }, 401);
+      }
+      user = row.user;
+    }
+
     const updates = await c.req.json() as Record<string, unknown>;
-    
-    // Get existing profile
+
     const existingProfile = await kv.get(`user:${user.id}`) as UserProfile;
     
     if (!existingProfile) {

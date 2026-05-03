@@ -16,7 +16,15 @@ test('index.ts imports social productivity + financial routes', () => {
   assert.match(idxTs, /import\s+financialRoutes\s+from\s+["']\.\/financial-routes\.tsx["']/);
 });
 
+test('index.ts imports capture inbox routes', () => {
+  assert.match(idxTs, /import\s+captureInboxRoutes\s+from\s+["']\.\/capture-inbox-routes\.tsx["']/);
+});
+
 test('index.ts mounts productivity and financial under /make-server-57781ad9', () => {
   assert.match(idxTs, /app\.route\(['"]\/make-server-57781ad9['"],\s*socialProductivityRoutes\)/);
   assert.match(idxTs, /app\.route\(["']\/make-server-57781ad9\/financial["'],\s*financialRoutes\)/);
+});
+
+test('index.ts mounts capture inbox under /make-server-57781ad9', () => {
+  assert.match(idxTs, /app\.route\(['"]\/make-server-57781ad9['"],\s*captureInboxRoutes\)/);
 });

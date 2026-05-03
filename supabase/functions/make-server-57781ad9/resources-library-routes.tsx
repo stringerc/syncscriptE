@@ -9,6 +9,7 @@
 import { Hono } from "npm:hono";
 import { createClient } from "npm:@supabase/supabase-js";
 import * as kv from "./kv_store.tsx";
+import { hasScope, requireJwtOnly, requireJwtOrPat, type AuthCtx } from "./pat-auth.ts";
 
 const app = new Hono();
 
@@ -19,15 +20,18 @@ const supabase = createClient(
 
 const BUCKET = "user-library";
 const MAX_FILE_BYTES = 50 * 1024 * 1024;
+/** JSON/base64 uploads (MCP, agents) — keep small; use multipart `/resources/upload` for large binaries. */
+const MAX_JSON_UPLOAD_BYTES = 1024 * 1024;
 
 type AuthUser = { id: string };
 
-async function requireUser(c: { req: { header: (n: string) => string | undefined } }): Promise<AuthUser | null> {
-  const accessToken = c.req.header("Authorization")?.split(" ")[1];
-  if (!accessToken) return null;
-  const { data: { user } } = await supabase.auth.getUser(accessToken);
-  if (!user) return null;
-  return { id: user.id };
+async function requireLibraryUser(c: any, need: "library:read" | "library:write"): Promise<AuthUser | Response> {
+  const auth = await requireJwtOrPat(c, supabase);
+  if (!auth) return c.json({ error: "Unauthorized" }, 401);
+  if (auth.patScopes && auth.patScopes.length > 0 && !hasScope(auth as AuthCtx, need)) {
+    return c.json({ error: "Forbidden", detail: `token needs scope ${need}` }, 403);
+  }
+  return { id: auth.userId };
 }
 
 async function getUserSubscription(userId: string): Promise<Record<string, unknown> | null> {
@@ -124,9 +128,22 @@ async function ensureBucket(): Promise<boolean> {
 
 const ENTITY_TYPES = new Set(["task", "calendar_event", "milestone", "step", "invoice", "goal", "library"]);
 
-app.post("/resources/upload", async (c) => {
-  const user = await requireUser(c);
-  if (!user) return c.json({ error: "Unauthorized" }, 401);
+/** Shared storage + metadata path for library bytes (multipart or JSON). */
+async function ingestLibraryBuffer(
+  c: any,
+  user: AuthUser,
+  buf: ArrayBuffer,
+  origName: string,
+  mime: string,
+  contextType: string,
+  contextId: string,
+  maxBytes: number,
+): Promise<Response> {
+  const size = buf.byteLength;
+  if (size < 1) return c.json({ error: "empty_file" }, 400);
+  if (size > maxBytes) {
+    return c.json({ error: "file_too_large", max_bytes: maxBytes }, 413);
+  }
 
   if (!(await ensureBucket())) {
     return c.json({ error: "storage_unavailable" }, 503);
@@ -139,39 +156,18 @@ app.post("/resources/upload", async (c) => {
     return c.json({ error: "storage_quota_exceeded", limit_mb: limitMb }, 413);
   }
 
-  let formData: FormData;
-  try {
-    formData = await c.req.formData();
-  } catch {
-    return c.json({ error: "invalid_form" }, 400);
-  }
-
-  const file = formData.get("file");
-  if (!file || !(file instanceof File)) {
-    return c.json({ error: "file_required" }, 400);
-  }
-
-  if (file.size > MAX_FILE_BYTES) {
-    return c.json({ error: "file_too_large", max_bytes: MAX_FILE_BYTES }, 413);
-  }
-
-  const projectedMb = Math.ceil(file.size / (1024 * 1024)) || 1;
+  const projectedMb = Math.ceil(size / (1024 * 1024)) || 1;
   if (usedMb + projectedMb > limitMb) {
     return c.json({ error: "storage_quota_exceeded", limit_mb: limitMb }, 413);
   }
 
-  const buf = await file.arrayBuffer();
   const sha = await sha256Hex(buf);
-
-  const contextType = String(formData.get("contextType") || "").trim();
-  const contextId = String(formData.get("contextId") || "").trim();
-
   const fileId = crypto.randomUUID();
-  const safeName = sanitizeFilename(file.name);
+  const safeName = sanitizeFilename(origName);
   const storagePath = `${user.id}/${fileId}/${safeName}`;
 
   const { error: upErr } = await supabase.storage.from(BUCKET).upload(storagePath, buf, {
-    contentType: file.type || "application/octet-stream",
+    contentType: mime || "application/octet-stream",
     upsert: false,
   });
   if (upErr) {
@@ -188,9 +184,9 @@ app.post("/resources/upload", async (c) => {
       storage_path: storagePath,
       provider: "supabase",
       sha256: sha,
-      size_bytes: file.size,
-      mime_type: file.type || null,
-      original_filename: file.name,
+      size_bytes: size,
+      mime_type: mime || null,
+      original_filename: origName,
     })
     .select("id")
     .single();
@@ -225,17 +221,76 @@ app.post("/resources/upload", async (c) => {
     provider: "supabase" as const,
     objectKey: storagePath,
     url: signed?.signedUrl || "",
-    contentType: file.type || "application/octet-stream",
-    size: file.size,
+    contentType: mime || "application/octet-stream",
+    size,
     file_id: fileId,
     sha256: sha,
     link_id: linkId,
   });
+}
+
+app.post("/resources/upload", async (c) => {
+  const user = await requireLibraryUser(c, "library:write");
+  if (user instanceof Response) return user;
+
+  let formData: FormData;
+  try {
+    formData = await c.req.formData();
+  } catch {
+    return c.json({ error: "invalid_form" }, 400);
+  }
+
+  const file = formData.get("file");
+  if (!file || !(file instanceof File)) {
+    return c.json({ error: "file_required" }, 400);
+  }
+
+  const buf = await file.arrayBuffer();
+  const contextType = String(formData.get("contextType") || "").trim();
+  const contextId = String(formData.get("contextId") || "").trim();
+  return ingestLibraryBuffer(c, user, buf, file.name, file.type || "application/octet-stream", contextType, contextId, MAX_FILE_BYTES);
+});
+
+/**
+ * JSON body upload for MCP / agents (base64). Max 1 MiB decoded; larger files → multipart `/resources/upload`.
+ */
+app.post("/resources/upload-json", async (c) => {
+  const user = await requireLibraryUser(c, "library:write");
+  if (user instanceof Response) return user;
+
+  let body: Record<string, unknown>;
+  try {
+    body = (await c.req.json()) as Record<string, unknown>;
+  } catch {
+    return c.json({ error: "invalid_json" }, 400);
+  }
+
+  const filename = String(body.filename || body.name || "").trim();
+  if (!filename) return c.json({ error: "filename_required" }, 400);
+
+  const b64 = String(body.base64 || body.data || "").trim();
+  if (!b64) return c.json({ error: "base64_required" }, 400);
+
+  let buf: ArrayBuffer;
+  try {
+    const bin = atob(b64.replace(/\s/g, ""));
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    buf = bytes.buffer;
+  } catch {
+    return c.json({ error: "invalid_base64" }, 400);
+  }
+
+  const mime = String(body.mimeType || body.mime || "application/octet-stream").trim().slice(0, 200);
+  const contextType = String(body.contextType || "").trim();
+  const contextId = String(body.contextId || "").trim();
+
+  return ingestLibraryBuffer(c, user, buf, filename, mime, contextType, contextId, MAX_JSON_UPLOAD_BYTES);
 });
 
 app.get("/resources/files", async (c) => {
-  const user = await requireUser(c);
-  if (!user) return c.json({ error: "Unauthorized" }, 401);
+  const user = await requireLibraryUser(c, "library:read");
+  if (user instanceof Response) return user;
 
   const url = new URL(c.req.url);
   const limit = Math.min(100, Math.max(1, parseInt(url.searchParams.get("limit") || "30", 10)));
@@ -267,8 +322,8 @@ app.get("/resources/files", async (c) => {
  * Query params: q (required), limit (default 20, max 50)
  */
 app.get("/resources/search", async (c) => {
-  const user = await requireUser(c);
-  if (!user) return c.json({ error: "Unauthorized" }, 401);
+  const user = await requireLibraryUser(c, "library:read");
+  if (user instanceof Response) return user;
 
   const url = new URL(c.req.url);
   const rawQ = String(url.searchParams.get("q") || "").trim();
@@ -333,8 +388,11 @@ app.get("/resources/search", async (c) => {
  * Email a signed download link for a library file to the authenticated user's account email.
  */
 app.post("/resources/file/:id/email-self", async (c) => {
-  const user = await requireUser(c);
-  if (!user) return c.json({ error: "Unauthorized" }, 401);
+  const auth = await requireJwtOnly(c, supabase);
+  if (!auth) {
+    return c.json({ error: "Unauthorized", detail: "JWT required — PAT cannot resolve account email for library self-mail" }, 401);
+  }
+  const user = { id: auth.userId };
 
   const accessToken = c.req.header("Authorization")?.split(" ")[1];
   if (!accessToken) return c.json({ error: "Unauthorized" }, 401);
@@ -383,8 +441,8 @@ app.post("/resources/file/:id/email-self", async (c) => {
  * Pin a file to the user's library collection (entity_type `library`).
  */
 app.post("/resources/file/:id/pin-to-library", async (c) => {
-  const user = await requireUser(c);
-  if (!user) return c.json({ error: "Unauthorized" }, 401);
+  const user = await requireLibraryUser(c, "library:write");
+  if (user instanceof Response) return user;
 
   const id = c.req.param("id");
   if (!id) return c.json({ error: "missing_id" }, 400);
@@ -421,8 +479,8 @@ app.post("/resources/file/:id/pin-to-library", async (c) => {
 });
 
 app.get("/resources/file/:id/signed-url", async (c) => {
-  const user = await requireUser(c);
-  if (!user) return c.json({ error: "Unauthorized" }, 401);
+  const user = await requireLibraryUser(c, "library:read");
+  if (user instanceof Response) return user;
   const id = c.req.param("id");
   if (!id) return c.json({ error: "missing_id" }, 400);
 
@@ -446,8 +504,8 @@ app.get("/resources/file/:id/signed-url", async (c) => {
 });
 
 app.post("/resources/link", async (c) => {
-  const user = await requireUser(c);
-  if (!user) return c.json({ error: "Unauthorized" }, 401);
+  const user = await requireLibraryUser(c, "library:write");
+  if (user instanceof Response) return user;
 
   const body = await c.req.json().catch(() => ({}));
   const fileId = String(body.file_id || "").trim();
@@ -489,8 +547,8 @@ app.post("/resources/link", async (c) => {
 });
 
 app.delete("/resources/file/:id", async (c) => {
-  const user = await requireUser(c);
-  if (!user) return c.json({ error: "Unauthorized" }, 401);
+  const user = await requireLibraryUser(c, "library:write");
+  if (user instanceof Response) return user;
   const id = c.req.param("id");
   if (!id) return c.json({ error: "missing_id" }, 400);
 

@@ -14,7 +14,18 @@ import {
   type IntegrationActionResult,
   type CalendarEventInput,
 } from "./integration-actions.tsx";
+import {
+  CALENDAR_HOLD_PREFS_KEY,
+  CALENDAR_SYNC_GROUPS_KEY,
+  type CalendarHoldPrefs,
+  type CalendarSyncGroup,
+  normalizeHoldTargets,
+  appendCalendarSyncGroup,
+  runCalendarHold,
+} from "./calendar-hold-exec.ts";
+import { listLocalCalendarEvents } from "./calendar-local-kv.ts";
 import { recordTaskCompleted } from "./activity-record.ts";
+import { hasScope, requireJwtOrPat, type AuthCtx } from "./pat-auth.ts";
 
 const app = new Hono();
 
@@ -24,60 +35,6 @@ const supabase = createClient(
 );
 
 const TASKS_KEY = (userId: string) => `tasks:v1:${userId}`;
-const CALENDAR_HOLD_PREFS_KEY = (userId: string) => `calendar:hold_prefs:v1:${userId}`;
-const CALENDAR_SYNC_GROUPS_KEY = (userId: string) => `calendar:sync_groups:v1:${userId}`;
-
-type CalendarHoldPrefs = { autoTargets?: ("google" | "outlook")[] };
-
-type CalendarSyncGroup = {
-  id: string;
-  created_at: string;
-  title: string;
-  start_time: string;
-  end_time: string;
-  instances: { provider: string; event_id?: string; link?: string | null }[];
-};
-
-function normalizeHoldTargets(raw: unknown): ("google" | "outlook")[] | null {
-  if (!Array.isArray(raw) || raw.length === 0) return null;
-  const out: ("google" | "outlook")[] = [];
-  for (const x of raw) {
-    const s = String(x).toLowerCase();
-    if (s === "google" || s === "outlook") out.push(s);
-  }
-  return out.length ? out : null;
-}
-
-async function appendCalendarSyncGroup(
-  userId: string,
-  title: string,
-  startTime: string,
-  endTime: string,
-  results: IntegrationActionResult[],
-): Promise<string | null> {
-  const ok = results.filter((r) => r.success && r.data);
-  if (ok.length === 0) return null;
-  const id = crypto.randomUUID();
-  const instances = ok.map((r) => ({
-    provider: r.provider,
-    event_id: r.data?.eventId as string | undefined,
-    link: (r.data?.htmlLink ?? r.data?.webLink) as string | null | undefined,
-  }));
-  const row: CalendarSyncGroup = {
-    id,
-    created_at: new Date().toISOString(),
-    title,
-    start_time: startTime,
-    end_time: endTime,
-    instances,
-  };
-  const key = CALENDAR_SYNC_GROUPS_KEY(userId);
-  const prev = (await kv.get(key)) as { groups?: CalendarSyncGroup[] } | null;
-  const groups = Array.isArray(prev?.groups) ? [...prev.groups] : [];
-  groups.unshift(row);
-  await kv.set(key, { groups: groups.slice(0, 100) });
-  return id;
-}
 
 function toShortCalendarProvider(p: string): "google" | "outlook" | null {
   const s = p.toLowerCase();
@@ -194,12 +151,24 @@ type EmailMetadata = {
   cachedAt: string;
 };
 
-async function requireUser(c: any): Promise<AuthUser | null> {
+/** Browser / dashboard JWT only — never PAT (email, invoices, OAuth-backed surfaces). */
+async function requireJwtUser(c: any): Promise<AuthUser | null> {
   const accessToken = c.req.header("Authorization")?.split(" ")[1];
   if (!accessToken) return null;
   const { data: { user } } = await supabase.auth.getUser(accessToken);
   if (!user) return null;
   return { id: user.id, email: user.email };
+}
+
+type PatTaskCalendarScope = "tasks:read" | "tasks:write" | "calendar:read" | "calendar:write";
+
+/** JWT or Cursor PAT; PAT must include `scope` when scopes are present on the token row. */
+async function requireJwtOrPatUser(c: any, scope: PatTaskCalendarScope): Promise<AuthUser | Response> {
+  const auth = await requireJwtOrPat(c, supabase);
+  if (!auth) return c.json({ error: "Unauthorized" }, 401);
+  const ctx: AuthCtx = { userId: auth.userId, email: auth.email, patScopes: auth.patScopes };
+  if (auth.patScopes && !hasScope(ctx, scope)) return c.json({ error: "Forbidden" }, 403);
+  return { id: auth.userId, email: auth.email };
 }
 
 function normalizeTask(raw: any, userName: string): TaskRecord {
@@ -463,15 +432,15 @@ async function pruneAndSaveCache(userId: string, provider: string, incoming: Ema
 }
 
 app.get("/tasks", async (c) => {
-  const user = await requireUser(c);
-  if (!user) return c.json({ error: "Unauthorized" }, 401);
+  const user = await requireJwtOrPatUser(c, "tasks:read");
+  if (user instanceof Response) return user;
   const tasks = await getTasks(user.id);
   return c.json(applyTaskFilters(tasks, new URL(c.req.url).searchParams));
 });
 
 app.post("/tasks", async (c) => {
-  const user = await requireUser(c);
-  if (!user) return c.json({ error: "Unauthorized" }, 401);
+  const user = await requireJwtOrPatUser(c, "tasks:write");
+  if (user instanceof Response) return user;
   const body = await c.req.json();
   const tasks = await getTasks(user.id);
   const now = new Date().toISOString();
@@ -497,8 +466,8 @@ app.post("/tasks", async (c) => {
 });
 
 app.put("/tasks/:id", async (c) => {
-  const user = await requireUser(c);
-  if (!user) return c.json({ error: "Unauthorized" }, 401);
+  const user = await requireJwtOrPatUser(c, "tasks:write");
+  if (user instanceof Response) return user;
   const id = c.req.param("id");
   const updates = await c.req.json();
   const tasks = await getTasks(user.id);
@@ -515,8 +484,8 @@ app.put("/tasks/:id", async (c) => {
 });
 
 app.delete("/tasks/:id", async (c) => {
-  const user = await requireUser(c);
-  if (!user) return c.json({ error: "Unauthorized" }, 401);
+  const user = await requireJwtOrPatUser(c, "tasks:write");
+  if (user instanceof Response) return user;
   const id = c.req.param("id");
   const tasks = await getTasks(user.id);
   const next = tasks.filter((t) => t.id !== id);
@@ -525,8 +494,8 @@ app.delete("/tasks/:id", async (c) => {
 });
 
 app.post("/tasks/:id/toggle", async (c) => {
-  const user = await requireUser(c);
-  if (!user) return c.json({ error: "Unauthorized" }, 401);
+  const user = await requireJwtOrPatUser(c, "tasks:write");
+  if (user instanceof Response) return user;
   const id = c.req.param("id");
   const tasks = await getTasks(user.id);
   const idx = tasks.findIndex((t) => t.id === id);
@@ -555,9 +524,17 @@ app.post("/tasks/:id/toggle", async (c) => {
  * GET /calendar/hold-preferences — default calendars for provider=auto (Hermes + UI).
  * PUT body: { autoTargets: ("google"|"outlook")[] } — empty = all connected (same as both).
  */
+/** In-app calendar rows (KV) when no Google/Outlook — same store MCP /calendar/hold uses for local_only. */
+app.get("/calendar/local-events", async (c) => {
+  const user = await requireJwtOrPatUser(c, "calendar:read");
+  if (user instanceof Response) return user;
+  const events = await listLocalCalendarEvents(user.id);
+  return c.json({ events });
+});
+
 app.get("/calendar/hold-preferences", async (c) => {
-  const user = await requireUser(c);
-  if (!user) return c.json({ error: "Unauthorized" }, 401);
+  const user = await requireJwtOrPatUser(c, "calendar:read");
+  if (user instanceof Response) return user;
   const prefs = (await kv.get(CALENDAR_HOLD_PREFS_KEY(user.id))) as CalendarHoldPrefs | null;
   return c.json({
     autoTargets: prefs?.autoTargets ?? ["google", "outlook"],
@@ -566,8 +543,8 @@ app.get("/calendar/hold-preferences", async (c) => {
 });
 
 app.put("/calendar/hold-preferences", async (c) => {
-  const user = await requireUser(c);
-  if (!user) return c.json({ error: "Unauthorized" }, 401);
+  const user = await requireJwtOrPatUser(c, "calendar:write");
+  if (user instanceof Response) return user;
   let body: Record<string, unknown> = {};
   try {
     body = (await c.req.json()) as Record<string, unknown>;
@@ -589,7 +566,7 @@ app.put("/calendar/hold-preferences", async (c) => {
 
 /** GET /calendar/sync-groups — recent linked holds (same logical event across providers). For merged UI. */
 app.get("/calendar/sync-groups", async (c) => {
-  const user = await requireUser(c);
+  const user = await requireJwtUser(c);
   if (!user) return c.json({ error: "Unauthorized" }, 401);
   const prev = (await kv.get(CALENDAR_SYNC_GROUPS_KEY(user.id))) as { groups?: CalendarSyncGroup[] } | null;
   const groups = Array.isArray(prev?.groups) ? prev.groups : [];
@@ -601,8 +578,8 @@ app.get("/calendar/sync-groups", async (c) => {
  * Body: { targets: ("google"|"outlook")[], title?, start_time?, end_time?, time_zone? }
  */
 app.patch("/calendar/sync-group/:id", async (c) => {
-  const user = await requireUser(c);
-  if (!user) return c.json({ error: "Unauthorized" }, 401);
+  const user = await requireJwtOrPatUser(c, "calendar:write");
+  if (user instanceof Response) return user;
   const id = c.req.param("id");
   let body: Record<string, unknown> = {};
   try {
@@ -688,120 +665,20 @@ app.patch("/calendar/sync-group/:id", async (c) => {
  * Response may include sync_group_id when instances are recorded for cross-calendar linking.
  */
 app.post("/calendar/hold", async (c) => {
-  const user = await requireUser(c);
-  if (!user) return c.json({ error: "Unauthorized" }, 401);
+  const user = await requireJwtOrPatUser(c, "calendar:write");
+  if (user instanceof Response) return user;
   let body: Record<string, unknown> = {};
   try {
     body = (await c.req.json()) as Record<string, unknown>;
   } catch {
     return c.json({ error: "Invalid JSON" }, 400);
   }
-  const title = String(body.title || "").trim();
-  const startIso = String(body.start_iso || body.startTime || "").trim();
-  let endIso = String(body.end_iso || body.endTime || "").trim();
-  const timeZone = String(body.time_zone || body.timeZone || "").trim() || undefined;
-  const rawProvider = String(body.provider || "auto").toLowerCase();
-  if (!title || !startIso) {
-    return c.json({ error: "title and start_iso required" }, 400);
-  }
-  if (!["auto", "google", "outlook"].includes(rawProvider)) {
-    return c.json({ error: "provider must be auto, google, or outlook" }, 400);
-  }
-  const start = new Date(startIso);
-  if (Number.isNaN(start.getTime())) {
-    return c.json({ error: "invalid start_iso" }, 400);
-  }
-  let end: Date;
-  if (endIso) {
-    end = new Date(endIso);
-    if (Number.isNaN(end.getTime())) {
-      return c.json({ error: "invalid end_iso" }, 400);
-    }
-  } else {
-    end = new Date(start.getTime() + 30 * 60 * 1000);
-  }
-
-  const eventInput = {
-    title,
-    startTime: start.toISOString(),
-    endTime: end.toISOString(),
-    ...(timeZone ? { timeZone } : {}),
-  };
-
-  let results: IntegrationActionResult[];
-  if (rawProvider === "google") {
-    results = [await createGoogleCalendarEvent(user.id, eventInput)];
-  } else if (rawProvider === "outlook") {
-    results = [await createOutlookCalendarEvent(user.id, eventInput)];
-  } else {
-    const explicit = normalizeHoldTargets(body.targets);
-    let targets: ("google" | "outlook")[];
-    if (explicit) {
-      targets = explicit;
-    } else {
-      const prefs = (await kv.get(CALENDAR_HOLD_PREFS_KEY(user.id))) as CalendarHoldPrefs | null;
-      targets = prefs?.autoTargets?.length ? prefs.autoTargets : ["google", "outlook"];
-    }
-    results = await syncCalendarEventToTargets(user.id, eventInput, targets);
-  }
-
-  if (results.length === 0) {
-    return c.json(
-      {
-        error: "No calendar connected — connect Google Calendar and/or Outlook in Integrations",
-        code: "NO_CALENDAR",
-      },
-      422,
-    );
-  }
-
-  const anySuccess = results.some((r) => r.success);
-  if (!anySuccess) {
-    return c.json(
-      {
-        error: results.map((r) => r.error || `${r.provider} failed`).join("; "),
-        results: results.map((r) => ({
-          provider: r.provider,
-          success: r.success,
-          error: r.error,
-        })),
-      },
-      502,
-    );
-  }
-
-  const syncGroupId = await appendCalendarSyncGroup(
-    user.id,
-    title,
-    eventInput.startTime,
-    eventInput.endTime,
-    results,
-  );
-
-  const firstOk = results.find((r) => r.success);
-  const payload: Record<string, unknown> = {
-    success: true,
-    provider_mode: rawProvider,
-    results: results.map((r) => ({
-      provider: r.provider,
-      success: r.success,
-      error: r.error || null,
-      data: r.data || null,
-    })),
-  };
-  if (syncGroupId) {
-    payload.sync_group_id = syncGroupId;
-  }
-  if (firstOk?.data) {
-    payload.event_id = firstOk.data.eventId;
-    payload.html_link = firstOk.data.htmlLink ?? firstOk.data.webLink;
-    payload.summary = firstOk.data.summary ?? firstOk.data.subject;
-  }
-  return c.json(payload);
+  const out = await runCalendarHold(user.id, body);
+  return c.json(out.json, out.status);
 });
 
 app.get("/email/settings", async (c) => {
-  const user = await requireUser(c);
+  const user = await requireJwtUser(c);
   if (!user) return c.json({ error: "Unauthorized" }, 401);
   const settings = (await kv.get(EMAIL_SETTINGS_KEY(user.id))) || {};
   return c.json({
@@ -811,7 +688,7 @@ app.get("/email/settings", async (c) => {
 });
 
 app.put("/email/settings", async (c) => {
-  const user = await requireUser(c);
+  const user = await requireJwtUser(c);
   if (!user) return c.json({ error: "Unauthorized" }, 401);
   const body = await c.req.json();
   const current = (await kv.get(EMAIL_SETTINGS_KEY(user.id))) || {};
@@ -831,7 +708,7 @@ app.post("/email/events/sent", async (c) => {
   }
   const webhookSecret = Deno.env.get("EMAIL_EVENT_WEBHOOK_SECRET");
   const headerSecret = c.req.header("x-syncscript-webhook-secret");
-  const authUser = await requireUser(c);
+  const authUser = await requireJwtUser(c);
   if (webhookSecret && headerSecret !== webhookSecret && !authUser) {
     return c.json({ error: "Unauthorized webhook call" }, 401);
   }
@@ -920,7 +797,7 @@ app.post("/email/events/sent", async (c) => {
 });
 
 app.get("/email/messages", async (c) => {
-  const user = await requireUser(c);
+  const user = await requireJwtUser(c);
   if (!user) return c.json({ error: "Unauthorized" }, 401);
   const q = new URL(c.req.url).searchParams;
   const provider = (q.get("provider") || "all").toLowerCase();
@@ -1007,7 +884,7 @@ app.get("/email/messages", async (c) => {
 });
 
 app.get("/email/messages/:provider/:messageId", async (c) => {
-  const user = await requireUser(c);
+  const user = await requireJwtUser(c);
   if (!user) return c.json({ error: "Unauthorized" }, 401);
 
   const provider = c.req.param("provider");
@@ -1062,7 +939,7 @@ app.get("/email/messages/:provider/:messageId", async (c) => {
 });
 
 app.post("/email/reply", async (c) => {
-  const user = await requireUser(c);
+  const user = await requireJwtUser(c);
   if (!user) return c.json({ error: "Unauthorized" }, 401);
 
   try {
@@ -1154,7 +1031,7 @@ app.post("/email/reply", async (c) => {
 });
 
 app.get("/email/automation/metrics", async (c) => {
-  const user = await requireUser(c);
+  const user = await requireJwtUser(c);
   if (!user) return c.json({ error: "Unauthorized" }, 401);
   const tasks = await getTasks(user.id);
   const emailCompleted = tasks.filter((t) => t.completed && t.tags?.includes("email")).length;
@@ -1254,14 +1131,14 @@ async function saveInvoices(userId: string, invoices: InvoiceRecord[]): Promise<
 }
 
 app.get("/invoices", async (c) => {
-  const user = await requireUser(c);
+  const user = await requireJwtUser(c);
   if (!user) return c.json({ error: "Unauthorized" }, 401);
   const invoices = await getInvoices(user.id);
   return c.json(invoices);
 });
 
 app.post("/invoices", async (c) => {
-  const user = await requireUser(c);
+  const user = await requireJwtUser(c);
   if (!user) return c.json({ error: "Unauthorized" }, 401);
   const body = await c.req.json();
   const invoices = await getInvoices(user.id);
@@ -1296,7 +1173,7 @@ app.post("/invoices", async (c) => {
 });
 
 app.put("/invoices/:id", async (c) => {
-  const user = await requireUser(c);
+  const user = await requireJwtUser(c);
   if (!user) return c.json({ error: "Unauthorized" }, 401);
   const id = c.req.param("id");
   const updates = await c.req.json();
@@ -1309,7 +1186,7 @@ app.put("/invoices/:id", async (c) => {
 });
 
 app.delete("/invoices/:id", async (c) => {
-  const user = await requireUser(c);
+  const user = await requireJwtUser(c);
   if (!user) return c.json({ error: "Unauthorized" }, 401);
   const id = c.req.param("id");
   const invoices = await getInvoices(user.id);
@@ -1322,7 +1199,7 @@ app.delete("/invoices/:id", async (c) => {
 const INVOICE_SETTINGS_KEY = (userId: string) => `invoice_settings:${userId}`;
 
 app.get("/invoice-settings", async (c) => {
-  const user = await requireUser(c);
+  const user = await requireJwtUser(c);
   if (!user) return c.json({ error: "Unauthorized" }, 401);
   const settings = await kv.get(INVOICE_SETTINGS_KEY(user.id));
   const opted = await kv.get(`benchmark_opt_in:${user.id}`);
@@ -1333,7 +1210,7 @@ app.get("/invoice-settings", async (c) => {
 });
 
 app.put("/invoice-settings", async (c) => {
-  const user = await requireUser(c);
+  const user = await requireJwtUser(c);
   if (!user) return c.json({ error: "Unauthorized" }, 401);
   const body = await c.req.json();
   if (typeof body.benchmark_opt_in === "boolean") {
@@ -1348,7 +1225,7 @@ app.put("/invoice-settings", async (c) => {
 });
 
 app.get("/invoice-settings/connected-emails", async (c) => {
-  const user = await requireUser(c);
+  const user = await requireJwtUser(c);
   if (!user) return c.json({ error: "Unauthorized" }, 401);
   const emails: { provider: string; email: string }[] = [];
   for (const provider of ["google_mail", "outlook_mail"]) {
@@ -1363,14 +1240,14 @@ app.get("/invoice-settings/connected-emails", async (c) => {
 const RECURRING_INVOICES_KEY = (userId: string) => `recurring_invoices:v1:${userId}`;
 
 app.get("/recurring-invoices", async (c) => {
-  const user = await requireUser(c);
+  const user = await requireJwtUser(c);
   if (!user) return c.json({ error: "Unauthorized" }, 401);
   const raw = await kv.get(RECURRING_INVOICES_KEY(user.id));
   return c.json(Array.isArray(raw) ? raw : []);
 });
 
 app.put("/recurring-invoices", async (c) => {
-  const user = await requireUser(c);
+  const user = await requireJwtUser(c);
   if (!user) return c.json({ error: "Unauthorized" }, 401);
   const body = await c.req.json().catch(() => ({}));
   const schedules = Array.isArray(body.schedules) ? body.schedules : [];
@@ -1453,14 +1330,14 @@ app.post("/internal/firma-webhook", async (c) => {
 const AGENT_PERSONAS_KEY = (userId: string) => `agent_personas:${userId}`;
 
 app.get("/agent-personas", async (c) => {
-  const user = await requireUser(c);
+  const user = await requireJwtUser(c);
   if (!user) return c.json({ error: "Unauthorized" }, 401);
   const personas = await kv.get(AGENT_PERSONAS_KEY(user.id));
   return c.json(Array.isArray(personas) ? personas : []);
 });
 
 app.post("/agent-personas", async (c) => {
-  const user = await requireUser(c);
+  const user = await requireJwtUser(c);
   if (!user) return c.json({ error: "Unauthorized" }, 401);
   const body = await c.req.json();
   const personas = (await kv.get(AGENT_PERSONAS_KEY(user.id))) || [];
@@ -1480,7 +1357,7 @@ app.post("/agent-personas", async (c) => {
 });
 
 app.delete("/agent-personas/:id", async (c) => {
-  const user = await requireUser(c);
+  const user = await requireJwtUser(c);
   if (!user) return c.json({ error: "Unauthorized" }, 401);
   const id = c.req.param("id");
   const personas = (await kv.get(AGENT_PERSONAS_KEY(user.id))) || [];

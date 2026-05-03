@@ -70,6 +70,8 @@ From the repo root, **`npm run research:scan`** runs the same script against **t
 | Startup cloud credits (AWS / Google / Microsoft) | 2026-04-26 | Apply-yourself playbook: official links, Bedrock/Vertex/Azure model verification in-console, SyncScript blurbs; no auto-submit | `./STARTUP_CLOUD_CREDITS_PLAYBOOK.md` | Human clicks Apply; refresh tiers yearly |
 | Activity spine + social visibility + Cursor PAT | 2026-04-27 | Event types, RLS, PAT scopes, friend feed RPC, business plan export; heatmap from real data | `./SYNCSCRIPT_ACTIVITY_AND_SOCIAL_SPINE.md` | `supabase db push` · Edge `/activity/*` · `integrations/cursor-syncscript-mcp/` |
 | Cursor + SyncScript social productivity roadmap | 2026-04-30 | Canonical phased roadmap (Mermaid, phases, risks); heatmap + HTTP pointers corrected; completion table | `./CURSOR_SYNCSCRIPT_SOCIAL_PRODUCTIVITY_ROADMAP.md` | With spine doc + `MEMORY.md` § Product — social |
+| Cursor MCP → tasks/calendar consent flow | 2026-05-03 | Tool approval in Cursor = primary write consent; optional **`/capture/inbox`** queue for suggest-then-commit (Edge + dashboard strip + MCP); Nexus vs MCP sources; stdio smoke lists + calls capture inbox | `./CURSOR_CALENDAR_TASK_CAPTURE_FLOW.md` | `npm run verify:cursor-syncscript-mcp` · Settings `#cursor-mcp-bridge` |
+| MCP parity + library + week snapshot | 2026-04-26 | Task create field parity; **`syncscript_week_snapshot`**; user **library** PAT (`library:read`/`write`) + **`POST /resources/upload-json`** (1 MiB); goals/workstream/friend-feed gaps explicit | `./MCP_PARITY_AND_ROADMAP.md` | `npm run verify:cursor-syncscript-mcp` · rotate PAT · Edge deploy |
 
 **Per-study doc** (short markdown): **setup → method → result → follow-ups** — even if raw logs are deleted later.
 

@@ -9,6 +9,7 @@ import { hasContextualInsights } from '../../utils/ai-context-config';
 import { AIAssistantPanel } from '../AIAssistantPanel';
 import { OnboardingChecklist } from '../onboarding/OnboardingChecklist';
 import { useAuth } from '../../contexts/AuthContext';
+import { CaptureInboxStrip } from './CaptureInboxStrip';
 interface DashboardLayoutProps {
   children: ReactNode;
 }
@@ -233,6 +234,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           isAIInsightsOpen={isAIInsightsOpen}
           onToggleAIInsights={handleToggleAIInsights}
         />
+        {!user?.isGuest ? <CaptureInboxStrip /> : null}
 
         {/* Content Area with Sidebar */}
         <div className="flex-1 flex overflow-hidden relative">

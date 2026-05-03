@@ -1,5 +1,6 @@
 import { Hono } from "npm:hono";
 import { createClient } from "npm:@supabase/supabase-js";
+import { hasScope, requireJwtOnly, requireJwtOrPat, sha256Hex } from "./pat-auth.ts";
 
 const app = new Hono();
 
@@ -7,54 +8,6 @@ const supabase = createClient(
   Deno.env.get("SUPABASE_URL")!,
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
 );
-
-async function sha256Hex(input: string): Promise<string> {
-  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(input));
-  return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, "0")).join("");
-}
-
-type AuthCtx = {
-  userId: string;
-  email?: string | null;
-  /** Present when authenticated via PAT */
-  patScopes?: string[] | null;
-};
-
-function hasScope(ctx: AuthCtx, need: string): boolean {
-  if (!ctx.patScopes || ctx.patScopes.length === 0) return true;
-  return ctx.patScopes.includes(need);
-}
-
-async function requireJwtOrPat(c: { req: { header: (n: string) => string | undefined } }): Promise<AuthCtx | null> {
-  const accessToken = c.req.header("Authorization")?.split(" ")?.[1];
-  if (!accessToken) return null;
-  if (accessToken.startsWith("eyJ")) {
-    const { data: { user }, error } = await supabase.auth.getUser(accessToken);
-    if (error || !user?.id) return null;
-    return { userId: user.id, email: user.email };
-  }
-  if (accessToken.startsWith("sspat_")) {
-    const hash = await sha256Hex(accessToken);
-    const { data, error } = await supabase
-      .from("user_api_tokens")
-      .select("user_id, scopes, id")
-      .eq("token_hash", hash)
-      .maybeSingle();
-    if (error || !data?.user_id) return null;
-    await supabase.from("user_api_tokens").update({ last_used_at: new Date().toISOString() }).eq("id", data.id);
-    return { userId: String(data.user_id), patScopes: Array.isArray(data.scopes) ? data.scopes as string[] : [] };
-  }
-  return null;
-}
-
-/** JWT only — PAT cannot mint PATs */
-async function requireJwtOnly(c: { req: { header: (n: string) => string | undefined } }): Promise<AuthCtx | null> {
-  const accessToken = c.req.header("Authorization")?.split(" ")?.[1];
-  if (!accessToken || !accessToken.startsWith("eyJ")) return null;
-  const { data: { user }, error } = await supabase.auth.getUser(accessToken);
-  if (error || !user?.id) return null;
-  return { userId: user.id, email: user.email };
-}
 
 const DEFAULT_PLAN_SECTIONS: Record<string, string> = {
   problem: "",
@@ -92,7 +45,7 @@ function allowActivityPost(userId: string): boolean {
 }
 
 app.get("/activity/summary", async (c) => {
-  const auth = await requireJwtOrPat(c);
+  const auth = await requireJwtOrPat(c, supabase);
   if (!auth) return c.json({ error: "Unauthorized" }, 401);
   if (auth.patScopes && !hasScope(auth, "tasks:read") && !hasScope(auth, "activity:read")) {
     return c.json({ error: "Forbidden" }, 403);
@@ -116,7 +69,7 @@ app.get("/activity/summary", async (c) => {
 });
 
 app.post("/activity/events", async (c) => {
-  const auth = await requireJwtOrPat(c);
+  const auth = await requireJwtOrPat(c, supabase);
   if (!auth) return c.json({ error: "Unauthorized" }, 401);
   if (!allowActivityPost(auth.userId)) {
     return c.json({ error: "Too many activity events; retry in a minute." }, 429);
@@ -155,7 +108,7 @@ app.post("/activity/events", async (c) => {
 });
 
 app.get("/business-plan", async (c) => {
-  const auth = await requireJwtOrPat(c);
+  const auth = await requireJwtOrPat(c, supabase);
   if (!auth) return c.json({ error: "Unauthorized" }, 401);
   if (auth.patScopes && !hasScope(auth, "business_plan:read")) {
     return c.json({ error: "Forbidden" }, 403);
@@ -171,7 +124,7 @@ app.get("/business-plan", async (c) => {
 });
 
 app.put("/business-plan", async (c) => {
-  const auth = await requireJwtOrPat(c);
+  const auth = await requireJwtOrPat(c, supabase);
   if (!auth) return c.json({ error: "Unauthorized" }, 401);
   if (auth.patScopes && !hasScope(auth, "business_plan:write")) {
     return c.json({ error: "Forbidden" }, 403);
@@ -201,7 +154,7 @@ app.put("/business-plan", async (c) => {
 });
 
 app.get("/business-plan/export.md", async (c) => {
-  const auth = await requireJwtOrPat(c);
+  const auth = await requireJwtOrPat(c, supabase);
   if (!auth) return c.json({ error: "Unauthorized" }, 401);
   if (auth.patScopes && !hasScope(auth, "business_plan:read")) {
     return c.json({ error: "Forbidden" }, 403);
@@ -231,7 +184,7 @@ app.get("/business-plan/export.md", async (c) => {
 });
 
 app.get("/social/prefs", async (c) => {
-  const auth = await requireJwtOrPat(c);
+  const auth = await requireJwtOrPat(c, supabase);
   if (!auth) return c.json({ error: "Unauthorized" }, 401);
   const { data, error } = await supabase
     .from("user_social_prefs")
@@ -247,7 +200,7 @@ app.get("/social/prefs", async (c) => {
 });
 
 app.put("/social/prefs", async (c) => {
-  const auth = await requireJwtOnly(c);
+  const auth = await requireJwtOnly(c, supabase);
   if (!auth) return c.json({ error: "Unauthorized" }, 401);
   let body: Record<string, unknown> = {};
   try {
@@ -286,7 +239,7 @@ app.put("/social/prefs", async (c) => {
 });
 
 app.get("/friends/activity-feed", async (c) => {
-  const auth = await requireJwtOnly(c);
+  const auth = await requireJwtOnly(c, supabase);
   if (!auth) return c.json({ error: "Unauthorized" }, 401);
   const limit = Math.min(100, Math.max(1, Number(c.req.query("limit")) || 40));
   const jwt = c.req.header("Authorization")?.split(" ")?.[1];
@@ -311,7 +264,7 @@ app.get("/friends/activity-feed", async (c) => {
 });
 
 app.get("/api-tokens", async (c) => {
-  const auth = await requireJwtOnly(c);
+  const auth = await requireJwtOnly(c, supabase);
   if (!auth) return c.json({ error: "Unauthorized" }, 401);
   const { data, error } = await supabase
     .from("user_api_tokens")
@@ -323,7 +276,7 @@ app.get("/api-tokens", async (c) => {
 });
 
 app.post("/api-tokens", async (c) => {
-  const auth = await requireJwtOnly(c);
+  const auth = await requireJwtOnly(c, supabase);
   if (!auth) return c.json({ error: "Unauthorized" }, 401);
   let body: Record<string, unknown> = {};
   try {
@@ -340,9 +293,18 @@ app.post("/api-tokens", async (c) => {
     "activity:write",
     "business_plan:read",
     "business_plan:write",
+    "calendar:read",
+    "calendar:write",
+    "profile:read",
+    "profile:write",
+    "capture:read",
+    "capture:write",
+    "capture:commit",
+    "library:read",
+    "library:write",
   ];
   const scopes = Array.isArray(rawScopes) && rawScopes.length
-    ? rawScopes.map((s) => String(s)).filter(Boolean).slice(0, 12)
+    ? rawScopes.map((s) => String(s)).filter(Boolean).slice(0, 24)
     : defaultScopes;
   const plain = `sspat_${crypto.randomUUID().replace(/-/g, "")}${crypto.randomUUID().replace(/-/g, "").slice(0, 16)}`;
   const token_hash = await sha256Hex(plain);
@@ -356,7 +318,7 @@ app.post("/api-tokens", async (c) => {
 });
 
 app.delete("/api-tokens/:id", async (c) => {
-  const auth = await requireJwtOnly(c);
+  const auth = await requireJwtOnly(c, supabase);
   if (!auth) return c.json({ error: "Unauthorized" }, 401);
   const id = c.req.param("id");
   const { error } = await supabase.from("user_api_tokens").delete().eq("id", id).eq("user_id", auth.userId);

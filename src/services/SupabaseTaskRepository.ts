@@ -12,7 +12,7 @@ const LOCAL_AUTH_USER_ID_KEY = 'syncscript_auth_user_id';
 
 export class SupabaseTaskRepository implements ITaskRepository {
   /**
-   * Edge `/tasks` uses `supabase.auth.getUser(jwt)` — only real Supabase JWTs work.
+   * Edge `/tasks` accepts a real Supabase JWT or a Settings PAT (`sspat_*`) with `tasks:read` / `tasks:write`.
    * Custom guest tokens (`gst_*` / `gst_local_*`) and the anon key always get 401; avoid calling the network for those.
    */
   private async getAuthContext(): Promise<{

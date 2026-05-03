@@ -50,6 +50,10 @@ export type PostCalendarHoldResultRow = {
 
 export type PostCalendarHoldResponse = {
   success?: boolean;
+  /** True when no Google/Outlook — event stored server-side; calendar tab hydrates via GET /calendar/local-events. */
+  local_only?: boolean;
+  local_event_id?: string;
+  message?: string;
   sync_group_id?: string;
   provider_mode?: string;
   results?: PostCalendarHoldResultRow[];

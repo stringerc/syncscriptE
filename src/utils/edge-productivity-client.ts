@@ -153,3 +153,60 @@ export async function fetchFriendActivityFeed(limit = 40): Promise<FriendActivit
   const j = await res.json().catch(() => ({}));
   return Array.isArray(j.events) ? j.events : [];
 }
+
+export type CaptureInboxKind = 'task_draft' | 'calendar_hold_draft' | 'generic';
+export type CaptureInboxStatus = 'pending' | 'committed' | 'dismissed';
+
+export type CaptureInboxItem = {
+  id: string;
+  kind: CaptureInboxKind;
+  title: string;
+  payload: Record<string, unknown>;
+  source: string;
+  status: CaptureInboxStatus;
+  commit_result?: Record<string, unknown> | null;
+  created_at: string;
+  updated_at?: string;
+};
+
+export async function listCaptureInbox(status: CaptureInboxStatus | 'all' = 'pending'): Promise<CaptureInboxItem[]> {
+  const q = status === 'all' ? '' : `?status=${encodeURIComponent(status)}`;
+  const res = await edgeFetch(`/capture/inbox${q}`);
+  if (!res.ok) return [];
+  const j = await res.json().catch(() => ({}));
+  return Array.isArray(j.items) ? j.items : [];
+}
+
+export async function createCaptureInboxItem(input: {
+  kind: CaptureInboxKind;
+  title?: string;
+  payload?: Record<string, unknown>;
+  source?: string;
+}): Promise<CaptureInboxItem | null> {
+  const res = await edgeFetch('/capture/inbox', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      kind: input.kind,
+      title: input.title,
+      payload: input.payload ?? {},
+      source: input.source ?? 'dashboard',
+    }),
+  });
+  if (!res.ok) return null;
+  return res.json();
+}
+
+export async function commitCaptureInboxItem(id: string): Promise<{ ok: boolean; error?: string }> {
+  const res = await edgeFetch(`/capture/inbox/${encodeURIComponent(id)}/commit`, { method: 'POST' });
+  if (!res.ok) {
+    const j = await res.json().catch(() => ({}));
+    return { ok: false, error: String((j as { error?: string }).error || res.statusText) };
+  }
+  return { ok: true };
+}
+
+export async function dismissCaptureInboxItem(id: string): Promise<boolean> {
+  const res = await edgeFetch(`/capture/inbox/${encodeURIComponent(id)}/dismiss`, { method: 'POST' });
+  return res.ok;
+}

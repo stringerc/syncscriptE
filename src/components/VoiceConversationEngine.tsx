@@ -755,6 +755,12 @@ export function VoiceConversationEngine({
                 end_iso: d.end_iso,
                 provider: 'auto',
               });
+              if (holdRes.local_only) {
+                toast.message(
+                  'Saved on your SyncScript calendar — connect Google or Outlook under Settings → Integrations to sync.',
+                  { duration: 6000 },
+                );
+              }
               if (holdRes.sync_group_id && Array.isArray(holdRes.results)) {
                 const instances = holdRes.results
                   .filter((r) => r.success && r.data)

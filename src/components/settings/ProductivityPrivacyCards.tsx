@@ -148,7 +148,7 @@ export function CursorPatTokensCard() {
   };
 
   return (
-    <Card className="bg-[#1e2128] border-gray-800 p-6">
+    <Card id="cursor-mcp-bridge" className="bg-[#1e2128] border-gray-800 p-6 scroll-mt-24">
       <h2 className="text-white text-xl mb-2 flex items-center gap-2">
         <KeyRound className="w-5 h-5 text-cyan-400" />
         Cursor / MCP access tokens
@@ -157,6 +157,29 @@ export function CursorPatTokensCard() {
         Scoped tokens for the SyncScript Edge productivity API. Use with{' '}
         <code className="text-xs text-cyan-300">integrations/cursor-syncscript-mcp</code> — see README.
       </p>
+      <details className="mb-4 rounded-md border border-gray-700 bg-[#171c22] px-3 py-2 text-sm text-gray-300">
+        <summary className="cursor-pointer text-gray-200 select-none">How tasks & calendar dates sync</summary>
+        <ul className="mt-2 list-disc space-y-2 pl-5 text-xs text-gray-400">
+          <li>
+            <span className="text-gray-300">In Cursor:</span> when the agent calls an MCP tool (e.g. create task or
+            calendar hold), you approve that tool call in Cursor — that is the consent step. Successful calls write
+            straight to your Edge-backed tasks / calendar APIs.
+          </li>
+          <li>
+            <span className="text-gray-300">In syncscript.app:</span> new tasks show under Tasks & Goals; holds may
+            sync to Google/Outlook if connected. There is no extra “login approval” modal for MCP writes — refresh or
+            navigate to see updates.
+          </li>
+          <li>
+            <span className="text-gray-300">Nexus (chat/voice/phone):</span> same server routes where supported; voice
+            may open task/calendar modals (see MEMORY Nexus voice notes).
+          </li>
+          <li>
+            Operator check: <code className="text-cyan-600/90">npm run verify:cursor-syncscript-mcp</code> exercises
+            stdio <code className="text-cyan-600/90">tools/list</code> + <code className="text-cyan-600/90">syncscript_list_tasks</code>.
+          </li>
+        </ul>
+      </details>
       <Button
         type="button"
         className="mb-4"

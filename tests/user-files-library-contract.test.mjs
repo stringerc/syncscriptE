@@ -15,6 +15,8 @@ const mig = readFileSync(join(root, 'supabase/migrations/20260412100000_user_fil
 assert.match(app, /path="library"/);
 assert.match(nav, /library:\s*'\/library'/);
 assert.ok(edge.includes('/resources/upload'));
+assert.ok(edge.includes('/resources/upload-json'));
+assert.ok(edge.includes('requireLibraryUser'));
 assert.ok(edge.includes('/resources/search'));
 assert.ok(edge.includes('/resources/file/:id/email-self'));
 assert.ok(edge.includes('/resources/file/:id/pin-to-library'));

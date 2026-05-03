@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "syncscript": {
+      "command": "node",
+      "args": ["${workspaceFolder}/integrations/cursor-syncscript-mcp/server.mjs"],
+      "env": {},
+      "envFile": "${workspaceFolder}/.env"
+    }
+  }
+}

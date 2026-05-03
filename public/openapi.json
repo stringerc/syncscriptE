@@ -17,7 +17,8 @@
     { "name": "Policy", "description": "Per-user automation policy: tier, caps, blocked / trusted sites." },
     { "name": "Webhooks", "description": "Subscribe an external URL to receive signed event deliveries." },
     { "name": "Live", "description": "Real-time signals (live screencast token, run status)." },
-    { "name": "Phone", "description": "Twilio-backed Nexus phone — calls, TwiML, post-call summaries. Response shapes vary by sub-route (JSON vs TwiML XML)." }
+    { "name": "Phone", "description": "Twilio-backed Nexus phone — calls, TwiML, post-call summaries. Response shapes vary by sub-route (JSON vs TwiML XML)." },
+    { "name": "ProductivityEdge", "description": "Supabase Edge `make-server-57781ad9` — tasks, calendar, capture inbox, activity, business plan, user file library, profile. Use second server URL + `apikey` + Bearer JWT or `sspat_*` PAT." }
   ],
   "components": {
     "securitySchemes": {
@@ -31,7 +32,7 @@
         "type": "http",
         "scheme": "bearer",
         "bearerFormat": "sspat_*",
-        "description": "Personal access token (`sspat_…`) minted via `POST /api-tokens` (JWT only). Scopes: tasks:read/write, activity:read/write, business_plan:read/write."
+        "description": "Personal access token (`sspat_…`) minted via `POST /api-tokens` (JWT only). Default scopes include tasks, activity, business_plan, calendar, profile, capture, library (see Settings → Privacy)."
       }
     },
     "schemas": {
@@ -153,6 +154,30 @@
     },
     "/api-tokens/{id}": {
       "delete": { "summary": "Revoke PAT", "tags": ["ProductivityEdge"], "security": [{ "supabaseJwt": [] }], "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }], "responses": { "200": { "description": "OK" } } }
+    },
+    "/resources/upload": {
+      "post": { "summary": "Upload library file (multipart form, max ~50 MiB)", "tags": ["ProductivityEdge"], "security": [{ "supabaseJwt": [] }, { "syncscriptPat": [] }], "responses": { "200": { "description": "OK" }, "413": { "description": "Quota / size" } } }
+    },
+    "/resources/upload-json": {
+      "post": { "summary": "Upload library file (JSON base64, max 1 MiB decoded; MCP/agents)", "tags": ["ProductivityEdge"], "security": [{ "supabaseJwt": [] }, { "syncscriptPat": [] }], "responses": { "200": { "description": "OK" }, "413": { "description": "Too large" } } }
+    },
+    "/resources/files": {
+      "get": { "summary": "List user library files", "tags": ["ProductivityEdge"], "security": [{ "supabaseJwt": [] }, { "syncscriptPat": [] }], "parameters": [{ "name": "limit", "in": "query", "schema": { "type": "integer" } }, { "name": "offset", "in": "query", "schema": { "type": "integer" } }], "responses": { "200": { "description": "OK" } } }
+    },
+    "/resources/search": {
+      "get": { "summary": "Search library by filename / extracted text", "tags": ["ProductivityEdge"], "security": [{ "supabaseJwt": [] }, { "syncscriptPat": [] }], "parameters": [{ "name": "q", "in": "query", "required": true, "schema": { "type": "string" } }, { "name": "limit", "in": "query", "schema": { "type": "integer" } }], "responses": { "200": { "description": "OK" } } }
+    },
+    "/resources/file/{id}/signed-url": {
+      "get": { "summary": "Mint short-lived signed download URL", "tags": ["ProductivityEdge"], "security": [{ "supabaseJwt": [] }, { "syncscriptPat": [] }], "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }], "responses": { "200": { "description": "OK" } } }
+    },
+    "/resources/link": {
+      "post": { "summary": "Link a file to a task, goal, calendar_event, …", "tags": ["ProductivityEdge"], "security": [{ "supabaseJwt": [] }, { "syncscriptPat": [] }], "responses": { "200": { "description": "OK" } } }
+    },
+    "/resources/file/{id}": {
+      "delete": { "summary": "Delete library file", "tags": ["ProductivityEdge"], "security": [{ "supabaseJwt": [] }, { "syncscriptPat": [] }], "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }], "responses": { "200": { "description": "OK" } } }
+    },
+    "/resources/file/{id}/email-self": {
+      "post": { "summary": "Email library file to self (JWT only; PAT blocked)", "tags": ["ProductivityEdge"], "security": [{ "supabaseJwt": [] }], "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }], "responses": { "200": { "description": "OK" }, "401": { "description": "PAT or missing auth" } } }
     },
     "/api/phone/{endpoint}": {
       "get": {
