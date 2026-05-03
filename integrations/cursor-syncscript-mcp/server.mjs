@@ -30,18 +30,71 @@ function isEnvUnset(key) {
   return v == null || String(v).trim() === "";
 }
 
-function loadRepoDotenv() {
+const DOTENV_KEYS = new Set([
+  "SYNCSCRIPT_EDGE_BASE",
+  "SYNCSCRIPT_BEARER",
+  "SYNCSCRIPT_PAT",
+  "NEXUS_PAT",
+  "SUPABASE_ANON_KEY",
+  "VITE_SUPABASE_ANON_KEY",
+]);
+
+function repoDotenvPath() {
   const here = dirname(fileURLToPath(import.meta.url));
   const repoRoot = join(here, "..", "..");
-  const envPath = (process.env.SYNCSCRIPT_MCP_ENV_FILE || "").trim() || join(repoRoot, ".env");
-  const keys = new Set([
-    "SYNCSCRIPT_EDGE_BASE",
-    "SYNCSCRIPT_BEARER",
-    "SYNCSCRIPT_PAT",
-    "NEXUS_PAT",
-    "SUPABASE_ANON_KEY",
-    "VITE_SUPABASE_ANON_KEY",
-  ]);
+  return (process.env.SYNCSCRIPT_MCP_ENV_FILE || "").trim() || join(repoRoot, ".env");
+}
+
+/** Parse whitelisted KEY=val lines into an object (values unquoted). */
+function parseRepoDotenvContent(raw) {
+  const out = {};
+  for (const line of raw.split("\n")) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) continue;
+    const m = trimmed.match(/^([A-Za-z_][A-Za-z0-9_]*)=(.*)$/);
+    if (!m) continue;
+    const key = m[1];
+    if (!DOTENV_KEYS.has(key)) continue;
+    let val = m[2].trim();
+    if (
+      (val.startsWith('"') && val.endsWith('"')) ||
+      (val.startsWith("'") && val.endsWith("'"))
+    ) {
+      val = val.slice(1, -1);
+    }
+    out[key] = val;
+  }
+  return out;
+}
+
+/**
+ * Re-apply whitelisted keys from repo `.env` before every Edge call so PAT
+ * rotations and Cursor's initial env snapshot cannot stay stale for long-lived stdio.
+ * File is small; a synchronous read per request is acceptable.
+ */
+function touchRepoDotenvFromDisk() {
+  const envPath = repoDotenvPath();
+  if (!existsSync(envPath)) return;
+  let raw;
+  try {
+    raw = readFileSync(envPath, "utf8");
+  } catch {
+    return;
+  }
+  const parsed = parseRepoDotenvContent(raw);
+  for (const [key, val] of Object.entries(parsed)) {
+    if (key === "VITE_SUPABASE_ANON_KEY") {
+      process.env.VITE_SUPABASE_ANON_KEY = val;
+      process.env.SUPABASE_ANON_KEY = val;
+    } else {
+      process.env[key] = val;
+    }
+  }
+}
+
+/** First paint: same keys as dotenv file, but do not override non-empty Cursor env (except we always refresh via mtime after edits). */
+function loadRepoDotenvInitial() {
+  const envPath = repoDotenvPath();
   if (!existsSync(envPath)) return;
   let raw;
   try {
@@ -55,7 +108,7 @@ function loadRepoDotenv() {
     const m = trimmed.match(/^([A-Za-z_][A-Za-z0-9_]*)=(.*)$/);
     if (!m) continue;
     const key = m[1];
-    if (!keys.has(key)) continue;
+    if (!DOTENV_KEYS.has(key)) continue;
     let val = m[2].trim();
     if (
       (val.startsWith('"') && val.endsWith('"')) ||
@@ -98,21 +151,34 @@ function applyDefaultPublicConfig() {
   }
 }
 
-loadRepoDotenv();
+loadRepoDotenvInitial();
 applyDefaultPublicConfig();
 resolveBearerToken();
 
-const BASE = (process.env.SYNCSCRIPT_EDGE_BASE || "").replace(/\/$/, "");
-const BEARER = process.env.SYNCSCRIPT_BEARER || "";
-const APIKEY = process.env.SUPABASE_ANON_KEY || "";
+function edgeBase() {
+  return (process.env.SYNCSCRIPT_EDGE_BASE || "").replace(/\/$/, "");
+}
+function edgeApikey() {
+  return process.env.SUPABASE_ANON_KEY || "";
+}
+function edgeBearer() {
+  return process.env.SYNCSCRIPT_BEARER || "";
+}
 
 function headers() {
-  const h = { apikey: APIKEY, "Content-Type": "application/json" };
-  if (BEARER) h.Authorization = `Bearer ${BEARER}`;
+  const apikey = edgeApikey();
+  const bearer = edgeBearer();
+  const h = { apikey, "Content-Type": "application/json" };
+  if (bearer) h.Authorization = `Bearer ${bearer}`;
   return h;
 }
 
 async function edgeFetch(path, init = {}) {
+  touchRepoDotenvFromDisk();
+  applyDefaultPublicConfig();
+  resolveBearerToken();
+  const BASE = edgeBase();
+  const APIKEY = edgeApikey();
   if (!BASE || !APIKEY) throw new Error("Set SYNCSCRIPT_EDGE_BASE and SUPABASE_ANON_KEY");
   const res = await fetch(`${BASE}${path}`, { ...init, headers: { ...headers(), ...init.headers } });
   const text = await res.text();
@@ -120,7 +186,7 @@ async function edgeFetch(path, init = {}) {
     let msg = `${res.status} ${text.slice(0, 400)}`;
     if (res.status === 401) {
       const hint =
-        !BEARER?.trim()
+        !edgeBearer()?.trim()
           ? "No bearer token: set SYNCSCRIPT_BEARER (sspat_… PAT or eyJ… JWT) in ~/.cursor/mcp.json env for key `syncscript`, or in SyncScript repo `.env` (Cursor does not load your shell profile). "
           : "Invalid or expired token / PAT scopes: revoke and create a new PAT in syncscript.app → Settings → Privacy (include tasks:read + tasks:write). ";
       msg += ` — ${hint}(Cursor may show this server as user-syncscript.)`;
@@ -148,7 +214,7 @@ function compactTaskBody(raw) {
 }
 
 const server = new Server(
-  { name: "syncscript-cursor-mcp", version: "1.3.0" },
+  { name: "syncscript-cursor-mcp", version: "1.3.1" },
   { capabilities: { tools: {} } },
 );
 
@@ -751,7 +817,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   }
 });
 
-if (!BEARER.trim()) {
+if (!edgeBearer().trim()) {
   const root = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
   console.error(
     `[syncscript-mcp] SYNCSCRIPT_BEARER is not set (Edge will return 401). Add one line to ${root}/.env:\n` +

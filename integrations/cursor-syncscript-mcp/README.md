@@ -37,6 +37,8 @@ After changing `mcp.json` or `.env`, **reload MCP** or restart Cursor.
 
 **`envFile` (Cursor):** You can point the server at the repo `.env` so `SYNCSCRIPT_BEARER` is not stored inside JSON — see `mcp.cursor.workspace.example.json` (project) or set `"envFile": "/absolute/path/to/syncscript/.env"` on the `syncscript` entry in `~/.cursor/mcp.json`.
 
+**PAT rotation (v1.3.1+):** Before each Edge request the server re-reads the repo `.env` and reapplies whitelisted keys (`SYNCSCRIPT_BEARER`, anon key, Edge base). You can update the PAT on disk and the next tool call uses it — **no MCP reload required**, once Cursor is running a build that includes this behavior.
+
 ## Cursor MCP config (example)
 
 **User-level** `~/.cursor/mcp.json` (recommended) so the server works from **any** workspace (e.g. Custody), not only when SyncScript is the open folder.
