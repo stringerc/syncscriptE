@@ -20,10 +20,8 @@ import { Badge } from './ui/badge';
 import { getCurrentDate } from '../utils/app-date';
 import { shouldRenderEventOnDate } from '../utils/multi-day-event-utils';
 
-const PIXELS_PER_HOUR = 120;
+const DEFAULT_PIXELS_PER_HOUR = 120;
 const DAY_HEADER_HEIGHT = 60;
-const DAY_CONTENT_HEIGHT = 24 * PIXELS_PER_HOUR; // 2880px
-const DAY_TOTAL_HEIGHT = DAY_HEADER_HEIGHT + DAY_CONTENT_HEIGHT; // 2940px
 
 interface SimpleMultiDayCalendarProps {
   centerDate: Date;
@@ -45,6 +43,8 @@ interface SimpleMultiDayCalendarProps {
 
 export interface SimpleMultiDayCalendarRef {
   jumpToToday: () => void;
+  /** Instant scroll to today's time slot; finds today in the strip or recenters. */
+  jumpToTodayInstant: () => void;
   jumpToDay: (dayOffset: number) => void;
   readonly scrollContainer: HTMLDivElement | null;
 }
@@ -64,11 +64,15 @@ export const SimpleMultiDayCalendar = forwardRef<SimpleMultiDayCalendarRef, Simp
     onDateChange,
     expandedEvents,
     onToggleExpand,
-    pixelsPerHour = PIXELS_PER_HOUR,
+    pixelsPerHour = DEFAULT_PIXELS_PER_HOUR,
     minutesPerSlot,
   } = props;
 
+  const dayContentHeight = 24 * pixelsPerHour;
+  const dayTotalHeight = DAY_HEADER_HEIGHT + dayContentHeight;
+
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const daysToRenderRef = useRef<Date[]>([]);
   const [currentTopDate, setCurrentTopDate] = useState<Date>(centerDate);
   const [showScrollIndicator, setShowScrollIndicator] = useState(false);
   const scrollIndicatorTimeoutRef = useRef<NodeJS.Timeout>();
@@ -86,13 +90,15 @@ export const SimpleMultiDayCalendar = forwardRef<SimpleMultiDayCalendarRef, Simp
     }
     return days;
   });
-  
+
+  // Keep ref in sync every render so imperative scroll (parent RAF) never sees a stale [].
+  daysToRenderRef.current = daysToRender;
+
   // RESEARCH: Google Calendar (2024) - "Regenerate days when centerDate changes"
   // RESEARCH: Apple Calendar (2024) - "Prop-aware day initialization"
   // CRITICAL FIX: Update daysToRender when centerDate prop changes
   // NOTE: Scroll is now handled by CalendarEventsPage retry logic for instant positioning
   useEffect(() => {
-    console.log('📅 SimpleMultiDayCalendar - centerDate changed:', centerDate.toDateString());
     const days: Date[] = [];
     for (let i = -7; i <= 6; i++) {
       const date = new Date(centerDate);
@@ -100,13 +106,6 @@ export const SimpleMultiDayCalendar = forwardRef<SimpleMultiDayCalendarRef, Simp
       days.push(date);
     }
     setDaysToRender(days);
-    
-    // DISABLED: Automatic scroll now handled by CalendarEventsPage retry logic
-    // RESEARCH: Chrome DevTools (2023) - "Single source of truth for scroll positioning"
-    // RESEARCH: React Docs (2024) - "Avoid duplicate side effects across parent/child"
-    // The CalendarEventsPage retry logic now handles instant scroll on tab switch
-    // This prevents race conditions between multiple scroll operations
-    console.log('📅 Days regenerated, scroll handled by parent');
   }, [centerDate, pixelsPerHour]);
 
   // Get events for a specific date
@@ -167,7 +166,7 @@ export const SimpleMultiDayCalendar = forwardRef<SimpleMultiDayCalendarRef, Simp
       }, 1500);
 
       // Calculate current top date
-      const dayIndex = Math.floor(scrollTop / DAY_TOTAL_HEIGHT);
+      const dayIndex = Math.floor(scrollTop / dayTotalHeight);
       if (dayIndex >= 0 && dayIndex < daysToRender.length) {
         const newTopDate = daysToRender[dayIndex];
         if (newTopDate.toDateString() !== currentTopDate.toDateString()) {
@@ -177,16 +176,16 @@ export const SimpleMultiDayCalendar = forwardRef<SimpleMultiDayCalendarRef, Simp
       }
 
       // Add more days if scrolling near top or bottom
-      if (scrollTop < DAY_TOTAL_HEIGHT * 3) {
+      if (scrollTop < dayTotalHeight * 3) {
         // Near top - add 7 more days before
         addDaysBefore(7);
         // Adjust scroll position to maintain view
         setTimeout(() => {
           if (scrollContainerRef.current) {
-            scrollContainerRef.current.scrollTop = scrollTop + (7 * DAY_TOTAL_HEIGHT);
+            scrollContainerRef.current.scrollTop = scrollTop + (7 * dayTotalHeight);
           }
         }, 0);
-      } else if (scrollTop > scrollHeight - clientHeight - (DAY_TOTAL_HEIGHT * 3)) {
+      } else if (scrollTop > scrollHeight - clientHeight - (dayTotalHeight * 3)) {
         // Near bottom - add 7 more days after
         addDaysAfter(7);
       }
@@ -199,7 +198,80 @@ export const SimpleMultiDayCalendar = forwardRef<SimpleMultiDayCalendarRef, Simp
         clearTimeout(scrollIndicatorTimeoutRef.current);
       }
     };
-  }, [daysToRender, currentTopDate, onDateChange]);
+  }, [daysToRender, currentTopDate, onDateChange, dayTotalHeight]);
+
+  const syncFloatingHeaderFromScroll = (scrollTop: number, list: Date[]) => {
+    if (list.length === 0) return;
+    const idx = Math.min(list.length - 1, Math.max(0, Math.floor(scrollTop / dayTotalHeight)));
+    const topDate = list[idx];
+    setCurrentTopDate((prev) =>
+      prev.toDateString() === topDate.toDateString() ? prev : topDate,
+    );
+    onDateChange?.(topDate);
+  };
+
+  const computeScrollPositionForToday = (list: Date[], todayIndex: number): number => {
+    const now = getCurrentDate();
+    const currentHour = now.getHours();
+    const currentMinute = now.getMinutes();
+    const contextHours = 1.5;
+    const targetHour = Math.max(0, currentHour + (currentMinute / 60) - contextHours);
+    const timeOffset = targetHour * pixelsPerHour;
+    return todayIndex * dayTotalHeight + DAY_HEADER_HEIGHT + timeOffset;
+  };
+
+  /**
+   * Instant scroll (tab open / visibility). Retries until the scroll container has laid out
+   * full day rows — otherwise scrollTop clamps to 0 and the wrong day sticks at the top.
+   */
+  const jumpToTodayInstant = () => {
+    const tryApply = (frame: number, listHint?: Date[]) => {
+      const el = scrollContainerRef.current;
+      if (!el || frame > 48) return;
+
+      const today = getCurrentDate();
+      let list = listHint ?? daysToRenderRef.current;
+
+      if (list.length === 0) {
+        requestAnimationFrame(() => tryApply(frame + 1));
+        return;
+      }
+
+      let todayIndex = list.findIndex((d) => d.toDateString() === today.toDateString());
+
+      if (todayIndex === -1) {
+        const newDays: Date[] = [];
+        for (let i = -7; i <= 6; i++) {
+          const d = new Date(today);
+          d.setDate(d.getDate() + i);
+          newDays.push(d);
+        }
+        setDaysToRender(newDays);
+        daysToRenderRef.current = newDays;
+        requestAnimationFrame(() => tryApply(0, newDays));
+        return;
+      }
+
+      const expectedContentHeight = list.length * dayTotalHeight;
+      if (el.scrollHeight < expectedContentHeight * 0.82) {
+        requestAnimationFrame(() => tryApply(frame + 1));
+        return;
+      }
+
+      const target = computeScrollPositionForToday(list, todayIndex);
+      const maxTop = Math.max(0, el.scrollHeight - el.clientHeight);
+      const nextTop = Math.min(target, maxTop);
+      el.scrollTop = nextTop;
+      syncFloatingHeaderFromScroll(el.scrollTop, list);
+
+      const settled = Math.abs(el.scrollTop - Math.min(target, maxTop)) < 2;
+      if (!settled && frame < 40) {
+        requestAnimationFrame(() => tryApply(frame + 1));
+      }
+    };
+
+    requestAnimationFrame(() => tryApply(0));
+  };
 
   // Jump to today
   const jumpToToday = () => {
@@ -209,37 +281,7 @@ export const SimpleMultiDayCalendar = forwardRef<SimpleMultiDayCalendarRef, Simp
     const todayIndex = daysToRender.findIndex(d => d.toDateString() === today.toDateString());
     
     if (todayIndex !== -1) {
-      // Today is already in the list
-      
-      // RESEARCH: Google Calendar (2024) - "Smart scroll to current time, not midnight"
-      // RESEARCH: Fantastical (2023) - "Show 1.5 hours of context before current time"
-      // RESEARCH: Apple Calendar (2024) - "Time-aware viewport positioning"
-      
-      // Calculate current time offset within the day
-      const now = getCurrentDate();
-      const currentHour = now.getHours();
-      const currentMinute = now.getMinutes();
-      
-      // Calculate scroll position for current time
-      // Show 1.5 hours of context before current time (Google Calendar best practice)
-      const contextHours = 1.5;
-      const targetHour = Math.max(0, currentHour + (currentMinute / 60) - contextHours);
-      
-      // Calculate total scroll position:
-      // - Scroll to the day (todayIndex * DAY_TOTAL_HEIGHT)
-      // - Plus day header (DAY_HEADER_HEIGHT)
-      // - Plus time offset (targetHour * pixelsPerHour)
-      const timeOffset = targetHour * pixelsPerHour;
-      const scrollPosition = (todayIndex * DAY_TOTAL_HEIGHT) + DAY_HEADER_HEIGHT + timeOffset;
-      
-      console.log('📍 Smart scroll to current time:', {
-        currentHour,
-        currentMinute,
-        contextHours,
-        targetHour,
-        timeOffset,
-        scrollPosition,
-      });
+      const scrollPosition = computeScrollPositionForToday(daysToRender, todayIndex);
       
       scrollContainerRef.current.scrollTo({
         top: scrollPosition,
@@ -257,18 +299,12 @@ export const SimpleMultiDayCalendar = forwardRef<SimpleMultiDayCalendarRef, Simp
       
       // After regenerating, scroll to current time (not midnight)
       setTimeout(() => {
-        if (scrollContainerRef.current) {
-          const now = getCurrentDate();
-          const currentHour = now.getHours();
-          const currentMinute = now.getMinutes();
-          const contextHours = 1.5;
-          const targetHour = Math.max(0, currentHour + (currentMinute / 60) - contextHours);
-          const timeOffset = targetHour * pixelsPerHour;
-          
-          // Scroll to center (today, day 7) plus time offset
-          const scrollPosition = (7 * DAY_TOTAL_HEIGHT) + DAY_HEADER_HEIGHT + timeOffset;
-          scrollContainerRef.current.scrollTop = scrollPosition;
-        }
+        const inner = scrollContainerRef.current;
+        if (!inner) return;
+        const scrollPosition = computeScrollPositionForToday(newDays, 7);
+        const maxTop = Math.max(0, inner.scrollHeight - inner.clientHeight);
+        inner.scrollTop = Math.min(scrollPosition, maxTop);
+        syncFloatingHeaderFromScroll(inner.scrollTop, newDays);
       }, 0);
     }
   };
@@ -283,7 +319,7 @@ export const SimpleMultiDayCalendar = forwardRef<SimpleMultiDayCalendarRef, Simp
     const targetIndex = daysToRender.findIndex(d => d.toDateString() === targetDate.toDateString());
     
     if (targetIndex !== -1) {
-      const scrollPosition = targetIndex * DAY_TOTAL_HEIGHT;
+      const scrollPosition = targetIndex * dayTotalHeight;
       scrollContainerRef.current.scrollTo({
         top: scrollPosition,
         behavior: 'smooth',
@@ -297,6 +333,7 @@ export const SimpleMultiDayCalendar = forwardRef<SimpleMultiDayCalendarRef, Simp
   // Expose methods to parent
   useImperativeHandle(ref, () => ({
     jumpToToday,
+    jumpToTodayInstant,
     jumpToDay,
     get scrollContainer() {
       return scrollContainerRef.current;
@@ -408,7 +445,7 @@ export const SimpleMultiDayCalendar = forwardRef<SimpleMultiDayCalendarRef, Simp
             <div 
               key={date.toISOString()}
               className="relative w-full border-b border-gray-800"
-              style={{ height: `${DAY_TOTAL_HEIGHT}px` }}
+              style={{ height: `${dayTotalHeight}px` }}
             >
               {/* Day Header - Fixed height */}
               <div 
@@ -451,7 +488,7 @@ export const SimpleMultiDayCalendar = forwardRef<SimpleMultiDayCalendarRef, Simp
               {/* Day Content - 24 hours */}
               <div 
                 className="relative"
-                style={{ height: `${DAY_CONTENT_HEIGHT}px` }}
+                style={{ height: `${dayContentHeight}px` }}
               >
                 <InfiniteDayContent
                   events={dayEvents}

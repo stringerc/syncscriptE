@@ -192,7 +192,8 @@ export function CalendarEventsPage() {
   const navigate = useNavigate();
   const { profile } = useUserProfile(); // Get current user from context
   const [currentView, setCurrentView] = useState<'day' | 'week' | 'month' | 'timeline'>('day');
-  
+  const [isMultiDayMode, setIsMultiDayMode] = useState(true);
+
   // ═══════════════════════════════════════════════════════════════════════════
   // ZOOM STATE - TEMPORARILY DISABLED
   // ═══════════════════════════════════════════════════════════════════════════
@@ -242,12 +243,13 @@ export function CalendarEventsPage() {
   // Changed from useRef to useState so prop updates trigger calendar re-render
   const [centerDate, setCenterDate] = useState(() => getCurrentDate());
   
-  // RESEARCH: Google Calendar (2024) - "Reset to today when navigating to calendar tab"
-  // Update centerDate when route changes to ensure it's always current
+  // Anchor the multi-day strip to real "today" when entering the calendar route or when
+  // switching back to day + multi-day. Pathname-only updates miss: SPA stays on /calendar
+  // for days, or user toggles Single → Multi without a navigation event.
   useEffect(() => {
-    const today = getCurrentDate();
-    setCenterDate(today);
-  }, [location.pathname])
+    if (!location.pathname.includes('/calendar')) return;
+    setCenterDate(getCurrentDate());
+  }, [location.pathname, currentView, isMultiDayMode]);
   
   
   // Ref to access SimpleMultiDayCalendar methods
@@ -284,30 +286,12 @@ export function CalendarEventsPage() {
     // RESEARCH: Material Design (2024) - "Smooth scroll for user actions, instant for system actions"
     const instantScrollToToday = () => {
       if (!calendarRef.current?.scrollContainer) {
-        // Silent return - this is normal during initial mounting
         return false;
       }
-      
-      const today = getCurrentDate();
-      const scrollContainer = calendarRef.current.scrollContainer;
-      
-      // Calculate today's position
-      // Assuming 14 days rendered: days[-7 to +6], today is at index 7
-      const todayIndex = 7;
-      const currentHour = today.getHours();
-      const currentMinute = today.getMinutes();
-      const contextHours = 1.5;
-      const targetHour = Math.max(0, currentHour + (currentMinute / 60) - contextHours);
-      
-      const DAY_TOTAL_HEIGHT = 2940; // 60px header + 2880px content
-      const DAY_HEADER_HEIGHT = 60;
-      const PIXELS_PER_HOUR = 120;
-      const timeOffset = targetHour * PIXELS_PER_HOUR;
-      const scrollPosition = (todayIndex * DAY_TOTAL_HEIGHT) + DAY_HEADER_HEIGHT + timeOffset;
-      
-      
-      // INSTANT scroll (no animation)
-      scrollContainer.scrollTop = scrollPosition;
+      if (currentView !== 'day' || !isMultiDayMode) {
+        return true;
+      }
+      calendarRef.current.jumpToTodayInstant();
       return true;
     };
     
@@ -341,7 +325,7 @@ export function CalendarEventsPage() {
     
     // Also update currentDate state to today
     setCurrentDate(getCurrentDate());
-  }, [location.pathname, registerJumpToToday]); // Re-run when route changes
+  }, [location.pathname, registerJumpToToday, currentView, isMultiDayMode]);
   
   // RESEARCH: Motion App (2024) - "Recalculate scroll position when user returns to tab"
   // RESEARCH: Fantastical (2023) - "Smart time-aware scrolling on page visibility change"
@@ -356,7 +340,9 @@ export function CalendarEventsPage() {
         const maxAttempts = 3;
         const attemptScroll = () => {
           attempts++;
-          if (calendarRef.current) {
+          if (calendarRef.current?.jumpToTodayInstant) {
+            calendarRef.current.jumpToTodayInstant();
+          } else if (calendarRef.current) {
             calendarRef.current.jumpToToday();
           } else if (attempts < maxAttempts) {
             const delay = 100 * attempts; // 100ms, 200ms, 300ms
@@ -484,10 +470,7 @@ export function CalendarEventsPage() {
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
   }, []);
-  
-  // PHASE 4: Multi-day scroll mode (DEFAULT: INFINITE SCROLL)
-  const [isMultiDayMode, setIsMultiDayMode] = useState(true);
-  
+
   // EXPAND/COLLAPSE STATE - Research: Notion (2021) + Todoist (2022) pattern
   // Track which events are expanded to show full time-based height
   // Default: All minimized for cleaner calendar view
