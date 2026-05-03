@@ -91,7 +91,8 @@ Add `SYNCSCRIPT_BEARER=sspat_…` (PAT from **syncscript.app → Settings → Pr
 | `syncscript_put_business_plan` | PUT `/business-plan` | `business_plan:write` |
 | `syncscript_export_business_plan_md` | GET `/business-plan/export.md` | `business_plan:read` |
 | `syncscript_list_local_calendar_events` | GET `/calendar/local-events` | `calendar:read` |
-| `syncscript_calendar_hold` | POST `/calendar/hold` | `calendar:write` (returns **`local_only`** when no external calendar) |
+| `syncscript_calendar_hold` | POST `/calendar/hold` | `calendar:write` — set **`syncscript_only: true`** (or `local_only`) to save **only** to SyncScript in-app calendar (skips Google/Outlook). Otherwise returns **`local_only`** when no external calendar is linked. |
+| `syncscript_calendar_delete_external_event` | POST `/calendar/external/delete` | `calendar:write` — delete one Google or Outlook event by `event_id`; optional `sync_group_id` cleans the linked sync-group row. |
 | `syncscript_calendar_sync_groups` | GET `/calendar/sync-groups` | `calendar:read` |
 | `syncscript_calendar_sync_group_update` | PATCH `/calendar/sync-group/:id` | `calendar:write` |
 | `syncscript_calendar_hold_preferences_get` | GET `/calendar/hold-preferences` | `calendar:read` |

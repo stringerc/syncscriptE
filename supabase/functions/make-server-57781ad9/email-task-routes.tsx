@@ -658,7 +658,8 @@ app.patch("/calendar/sync-group/:id", async (c) => {
 
 /**
  * POST /calendar/hold — authenticated quick hold (Hermes executor + connected calendars).
- * Body: { title, start_iso, end_iso?, provider?, time_zone?, targets? }
+ * Body: { title, start_iso, end_iso?, provider?, time_zone?, targets?, syncscript_only?, local_only? }
+ *   syncscript_only / local_only: when true, skip Google/Outlook and append to SyncScript in-app calendar only.
  *   provider: "auto" | "google" | "outlook"
  *   targets: optional ["google","outlook"] when provider=auto — per-request override; else uses GET /calendar/hold-preferences.
  * Default end = start + 30m if end_iso omitted.
@@ -675,6 +676,51 @@ app.post("/calendar/hold", async (c) => {
   }
   const out = await runCalendarHold(user.id, body);
   return c.json(out.json, out.status);
+});
+
+/**
+ * POST /calendar/external/delete — remove one event from Google or Outlook (OAuth).
+ * Body: { provider: "google"|"outlook", event_id: string, sync_group_id?: string }
+ * Optional sync_group_id drops the matching row from GET /calendar/sync-groups after delete.
+ */
+app.post("/calendar/external/delete", async (c) => {
+  const user = await requireJwtOrPatUser(c, "calendar:write");
+  if (user instanceof Response) return user;
+  let body: Record<string, unknown> = {};
+  try {
+    body = (await c.req.json()) as Record<string, unknown>;
+  } catch {
+    return c.json({ error: "Invalid JSON" }, 400);
+  }
+  const provider = String(body.provider || "").toLowerCase();
+  const eventId = String(body.event_id || body.eventId || "").trim();
+  const syncGroupId = String(body.sync_group_id || body.syncGroupId || "").trim();
+  if (!eventId) return c.json({ error: "event_id required" }, 400);
+
+  let result: IntegrationActionResult;
+  if (provider === "google") {
+    result = await deleteGoogleCalendarEvent(user.id, eventId);
+  } else if (provider === "outlook") {
+    result = await deleteOutlookCalendarEvent(user.id, eventId);
+  } else {
+    return c.json({ error: "provider must be google or outlook" }, 400);
+  }
+
+  if (!result.success) {
+    return c.json(
+      { error: result.error || "delete failed", result: { provider: result.provider, success: false } },
+      502,
+    );
+  }
+
+  if (syncGroupId) {
+    const key = CALENDAR_SYNC_GROUPS_KEY(user.id);
+    const prev = (await kv.get(key)) as { groups?: CalendarSyncGroup[] } | null;
+    const groups = (Array.isArray(prev?.groups) ? prev.groups : []).filter((g) => g.id !== syncGroupId);
+    await kv.set(key, { groups });
+  }
+
+  return c.json({ ok: true, deleted: true, provider: result.provider, event_id: eventId });
 });
 
 app.get("/email/settings", async (c) => {

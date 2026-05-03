@@ -214,7 +214,7 @@ function compactTaskBody(raw) {
 }
 
 const server = new Server(
-  { name: "syncscript-cursor-mcp", version: "1.3.1" },
+  { name: "syncscript-cursor-mcp", version: "1.3.2" },
   { capabilities: { tools: {} } },
 );
 
@@ -372,7 +372,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
     {
       name: "syncscript_calendar_hold",
       description:
-        "POST /calendar/hold — block time on connected Google/Outlook when linked; if not linked, returns 200 with local_only (in-app calendar row on server). Requires calendar:write.",
+        "POST /calendar/hold — block time on connected Google/Outlook when linked; if not linked, returns 200 with local_only (in-app calendar row on server). Set syncscript_only: true to save only to SyncScript in-app calendar (never Google/Outlook). Requires calendar:write.",
       inputSchema: {
         type: "object",
         properties: {
@@ -382,8 +382,31 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
           provider: { type: "string", enum: ["auto", "google", "outlook"] },
           time_zone: { type: "string" },
           targets: { type: "array", items: { type: "string", enum: ["google", "outlook"] } },
+          syncscript_only: {
+            type: "boolean",
+            description: "If true, skip Google/Outlook and append to SyncScript local calendar only",
+          },
+          local_only: {
+            type: "boolean",
+            description: "Alias of syncscript_only",
+          },
         },
         required: ["title", "start_iso"],
+        additionalProperties: false,
+      },
+    },
+    {
+      name: "syncscript_calendar_delete_external_event",
+      description:
+        "POST /calendar/external/delete — delete one Google or Outlook calendar event by id (OAuth). Optional sync_group_id removes the linked sync-group row. Requires calendar:write.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          provider: { type: "string", enum: ["google", "outlook"] },
+          event_id: { type: "string", description: "Provider event id (e.g. Google event id)" },
+          sync_group_id: { type: "string", description: "Optional UUID from a prior hold response" },
+        },
+        required: ["provider", "event_id"],
         additionalProperties: false,
       },
     },
@@ -695,8 +718,22 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         provider: args?.provider ?? "auto",
         time_zone: args?.time_zone,
         targets: args?.targets,
+        syncscript_only: args?.syncscript_only,
+        local_only: args?.local_only,
       };
       const data = await edgeFetch("/calendar/hold", { method: "POST", body: JSON.stringify(body) });
+      return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+    }
+    if (name === "syncscript_calendar_delete_external_event") {
+      const body = {
+        provider: args?.provider,
+        event_id: args?.event_id,
+        sync_group_id: args?.sync_group_id,
+      };
+      const data = await edgeFetch("/calendar/external/delete", {
+        method: "POST",
+        body: JSON.stringify(body),
+      });
       return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
     }
     if (name === "syncscript_calendar_sync_groups") {

@@ -66,6 +66,13 @@ export async function appendCalendarSyncGroup(
   return id;
 }
 
+function bodyTruthySyncscriptOnly(body: Record<string, unknown>): boolean {
+  if (body.syncscript_only === true || body.local_only === true) return true;
+  const a = String(body.syncscript_only ?? "").trim().toLowerCase();
+  const b = String(body.local_only ?? "").trim().toLowerCase();
+  return a === "true" || a === "1" || a === "yes" || b === "true" || b === "1" || b === "yes";
+}
+
 /** Same semantics as POST /calendar/hold (no Hono context). */
 export async function runCalendarHold(
   userId: string,
@@ -75,12 +82,8 @@ export async function runCalendarHold(
   const startIso = String(body.start_iso || body.startTime || "").trim();
   let endIso = String(body.end_iso || body.endTime || "").trim();
   const timeZone = String(body.time_zone || body.timeZone || "").trim() || undefined;
-  const rawProvider = String(body.provider || "auto").toLowerCase();
   if (!title || !startIso) {
     return { status: 400, json: { error: "title and start_iso required" } };
-  }
-  if (!["auto", "google", "outlook"].includes(rawProvider)) {
-    return { status: 400, json: { error: "provider must be auto, google, or outlook" } };
   }
   const start = new Date(startIso);
   if (Number.isNaN(start.getTime())) {
@@ -94,6 +97,32 @@ export async function runCalendarHold(
     }
   } else {
     end = new Date(start.getTime() + 30 * 60 * 1000);
+  }
+
+  if (bodyTruthySyncscriptOnly(body)) {
+    const rec = await appendLocalCalendarEvent(userId, {
+      title,
+      start_iso: start.toISOString(),
+      end_iso: end.toISOString(),
+      source: "syncscript_only_hold",
+    });
+    return {
+      status: 200,
+      json: {
+        success: true,
+        local_only: true,
+        code: "SYNCSCRIPT_ONLY",
+        local_event_id: rec.id,
+        message:
+          "Saved to your SyncScript in-app calendar only. Google/Outlook were not contacted. Send syncscript_only: true on POST /calendar/hold (or MCP syncscript_calendar_hold) to keep holds in SyncScript.",
+        results: [],
+      },
+    };
+  }
+
+  const rawProvider = String(body.provider || "auto").toLowerCase();
+  if (!["auto", "google", "outlook"].includes(rawProvider)) {
+    return { status: 400, json: { error: "provider must be auto, google, or outlook" } };
   }
 
   const eventInput: CalendarEventInput = {

@@ -96,6 +96,15 @@ await check('POST /calendar/hold (no user JWT) → 401', async () => {
   if (r.status !== 401) throw new Error(`expected 401, got ${r.status}`);
 });
 
+await check('POST /calendar/external/delete (no user JWT) → 401', async () => {
+  const r = await fetch(`${BASE}/calendar/external/delete`, {
+    method: 'POST',
+    headers: { ...headersAnonOnly, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ provider: 'google', event_id: 'dummy' }),
+  });
+  if (r.status !== 401) throw new Error(`expected 401, got ${r.status}`);
+});
+
 await check('GET /user/profile (no user JWT) → 401', async () => {
   const r = await fetch(`${BASE}/user/profile`, { headers: headersAnonOnly });
   if (r.status !== 401) throw new Error(`expected 401, got ${r.status}`);
@@ -156,6 +165,30 @@ await check('POST /calendar/hold (real PAT + calendar:write) → 200|502', async
   if (![200, 502].includes(r.status)) {
     throw new Error(`expected 200 (provider or local_only hold) or 502 (provider error); got ${r.status} ${await r.text()}`);
   }
+});
+
+await check('POST /calendar/hold syncscript_only (real PAT) → 200 SYNCSCRIPT_ONLY', async () => {
+  const pat = process.env.SYNCSCRIPT_TEST_PAT;
+  if (!pat) return 'skip';
+  const t0 = Date.now() + 72 * 60 * 60 * 1000;
+  const start = new Date(t0).toISOString();
+  const end = new Date(t0 + 30 * 60 * 1000).toISOString();
+  const r = await fetch(`${BASE}/calendar/hold`, {
+    method: 'POST',
+    headers: headersPat(pat),
+    body: JSON.stringify({
+      title: 'verify-edge syncscript_only',
+      start_iso: start,
+      end_iso: end,
+      syncscript_only: true,
+    }),
+  });
+  if (r.status !== 200) throw new Error(`HTTP ${r.status} ${await r.text()}`);
+  const j = await r.json();
+  if (!j.local_only || j.code !== 'SYNCSCRIPT_ONLY') {
+    throw new Error('expected local_only + code SYNCSCRIPT_ONLY');
+  }
+  if (!j.local_event_id) throw new Error('missing local_event_id');
 });
 
 await check('POST /activity/events (malformed JSON) → 400 after auth', async () => {
