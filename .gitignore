@@ -108,6 +108,8 @@ scripts/*
 !scripts/free-tcp-port.mjs
 !scripts/run-verify-console-errors.mjs
 !scripts/verify-nexus-tools-live.ts
+!scripts/guard-app-ai-react-imports.mjs
+!scripts/skill-source-audit.sh
 
 # Large optional clone (run integrations/setup-engram.sh)
 integrations/engram_translator/
