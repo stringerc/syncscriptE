@@ -6,11 +6,11 @@ name: Visual regression (Chromatic)
 # until the user has set the secret.
 #
 # Setup (one-time):
-#   1) Create a free Chromatic account at https://www.chromatic.com
-#   2) Connect this repo, copy the project token
-#   3) Add it as a GitHub Actions secret named `CHROMATIC_PROJECT_TOKEN`
-#   4) (optional) Add the Chromatic GitHub check as a required status check
-#      on `main` so visual diffs gate merges
+# 1) Create a free Chromatic account at https://www.chromatic.com
+# 2) Connect this repo, copy the project token
+# 3) Add it as a GitHub Actions secret named `CHROMATIC_PROJECT_TOKEN`
+# 4) (optional) Add the Chromatic GitHub check as a required status check
+#    on `main` so visual diffs gate merges
 #
 # Snapshot definition: any Storybook story is auto-snapshotted. Until we
 # write stories, this job will run Chromatic's "build only" mode against
@@ -31,34 +31,27 @@ jobs:
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0  # Chromatic needs full history to detect baseline
-
       - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
-
+      - name: Check token
+        id: token
+        run: |
+          if [ -n "${{ secrets.CHROMATIC_PROJECT_TOKEN }}" ]; then
+            echo "has_token=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice title=Chromatic skipped::Add the CHROMATIC_PROJECT_TOKEN secret to enable visual regression. See chromatic.yml header."
+          fi
       - name: Install dependencies
         run: npm ci --legacy-peer-deps
-
-      - name: Skip cleanly if no token
-        if: ${{ secrets.CHROMATIC_PROJECT_TOKEN == '' }}
-        run: |
-          echo "::notice title=Chromatic skipped::Add the CHROMATIC_PROJECT_TOKEN secret to enable visual regression. See chromatic.yml header."
-          exit 0
-
-      - name: Build app (warm — Chromatic upload disabled until Storybook exists)
-        if: ${{ secrets.CHROMATIC_PROJECT_TOKEN != '' }}
+      - name: Build app
+        if: steps.token.outputs.has_token == 'true'
         run: npm run build
         env:
           VITE_SUPABASE_URL: https://placeholder.supabase.co
           VITE_SUPABASE_ANON_KEY: placeholder
-
-      # chromaui/action requires a Storybook `storybook-static` output. Without
-      # it the job fails after you add CHROMATIC_PROJECT_TOKEN — worse than
-      # helpful. Keep the token + build warm; wire Storybook then swap this for
-      # `chromaui/action@latest` + `storybookBuildDir: storybook-static`.
       - name: Chromatic placeholder (add Storybook to enable upload)
-        if: ${{ secrets.CHROMATIC_PROJECT_TOKEN != '' }}
+        if: steps.token.outputs.has_token == 'true'
         run: |
           echo "::notice title=Chromatic token present::CHROMATIC_PROJECT_TOKEN is set. Add Storybook + stories, then enable chromaui/action in chromatic.yml (see header comment)."
-          exit 0

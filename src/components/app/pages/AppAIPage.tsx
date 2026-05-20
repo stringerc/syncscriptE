@@ -977,7 +977,7 @@ export function AppAIPage() {
                 <button
                   type="button"
                   onClick={openClassicVoice}
-                  aria-label="Call Nexus — full voice session"
+                  aria-label="Call Nexus — compact"
                   className="inline-flex items-center gap-0.5 rounded-md border border-green-500/20 bg-green-500/10 px-2 py-0.5 text-[10px] font-medium text-green-400 transition-all hover:border-green-400/35 hover:bg-green-500/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-green-400/40"
                 >
                   <Phone className="h-3 w-3 shrink-0" aria-hidden />
