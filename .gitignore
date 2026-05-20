@@ -67,6 +67,7 @@ src/vercel.json
 # Agent workspace files (AGENTS.md memory system)
 # MEMORY.md is tracked in git (session continuity); edit freely — avoid secrets.
 memory/
+AGENT_ASCENSION_STATE.md
 JOURNAL.md
 JOURNAL.md.*
 
@@ -106,6 +107,7 @@ scripts/*
 !scripts/check-bundle-size.mjs
 !scripts/free-tcp-port.mjs
 !scripts/run-verify-console-errors.mjs
+!scripts/verify-nexus-tools-live.ts
 
 # Large optional clone (run integrations/setup-engram.sh)
 integrations/engram_translator/
