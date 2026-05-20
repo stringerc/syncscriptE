@@ -206,7 +206,7 @@ vercel_deploy_log*.txt
 /RELEASE_GATES.md
 /RISKS_AND_DECISIONS.md
 /STABILIZATION_CHECKLIST.md
-/SYNCSCRIPT_AGENT_MAP.md
+# SYNCSCRIPT_AGENT_MAP.md is now tracked — contract test reads it in CI
 /TRACEABILITY_LIVE.md
 /VISUAL_ARCHITECTURE.md
 /gemini-qa-report.md

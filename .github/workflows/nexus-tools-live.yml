@@ -46,7 +46,7 @@ jobs:
       NEXUS_LIVE_TEST_JWT: ${{ secrets.ENGRAM_LIVE_USER_JWT }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Preflight — AI keys + JWT hint
         env:
@@ -67,9 +67,9 @@ jobs:
           fi
           echo "::notice::If verify fails, search the next step log for: [verify] FAIL:"
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
-          node-version: "20"
+          node-version: "22"
           cache: npm
 
       - name: Install dependencies

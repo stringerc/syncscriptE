@@ -55,11 +55,11 @@ jobs:
       ENGRAM_LIVE_USER_JWT: ${{ secrets.ENGRAM_LIVE_USER_JWT }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
-          node-version: "20"
+          node-version: "22"
 
       - name: Hermes Edge live (GET /hermes/health)
         run: node scripts/verify-hermes-edge-live.mjs
