@@ -226,3 +226,4 @@ vercel_deploy_log*.txt
 
 # One-off executor script (not Vite bundle)
 src/executor/home-executor-runner.js
+!scripts/concierge-playbook-worker.mjs
