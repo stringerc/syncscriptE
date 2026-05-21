@@ -128,7 +128,7 @@ jobs:
       - name: Visual quality (build + 3 spec files)
         continue-on-error: true
         run: npm run test:e2e:visual-quality -- --update-snapshots=missing
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         if: always()
         with:
           name: visual-snapshots-linux
