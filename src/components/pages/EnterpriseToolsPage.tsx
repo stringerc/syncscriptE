@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Building2, Clock3, Cpu, FileText, FolderKanban, Users2 } from 'lucide-react';
+import { Building2, Clock3, Cpu, FileText, FolderKanban, Users2, BarChart3 } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
@@ -8,10 +8,11 @@ import { EnterpriseMissionCalendar } from '../enterprise/EnterpriseMissionCalend
 import { EnterpriseOfficeSimulation } from '../enterprise/EnterpriseOfficeSimulation';
 import { EnterpriseTeamModal } from '../enterprise/EnterpriseTeamModal';
 import { EnterpriseBusinessPlanTab } from '../enterprise/EnterpriseBusinessPlanTab';
+import { WeeklyMetricsDashboard } from '../admin/WeeklyMetricsDashboard';
 import { DashboardLayout } from '../layout/DashboardLayout';
 import { getEnterpriseFeatureFlags } from '../../utils/enterprise-feature-flags';
 
-type EnterpriseTab = 'mission' | 'agents' | 'office' | 'memory' | 'plan';
+type EnterpriseTab = 'mission' | 'agents' | 'office' | 'memory' | 'plan' | 'metrics';
 
 type EnterpriseAgent = {
   id: string;
@@ -132,6 +133,7 @@ export function EnterpriseToolsPage() {
               { id: 'office', label: 'Office', icon: Building2 },
               { id: 'memory', label: 'Memory', icon: Clock3 },
               { id: 'plan', label: 'Plan', icon: FileText },
+  { id: 'metrics', label: 'Metrics', icon: BarChart3 },
             ].map(({ id, label, icon: Icon }) => (
               <button
                 key={id}
@@ -238,6 +240,40 @@ export function EnterpriseToolsPage() {
         )}
 
         {activeTab === 'plan' && <EnterpriseBusinessPlanTab />}
+
+{activeTab === 'metrics' && (
+  <div className="space-y-6">
+    <WeeklyMetricsDashboard />
+    <section className="rounded-xl border border-white/10 bg-[#171a21] p-5">
+      <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+        <Users2 className="w-5 h-5 text-emerald-400" /> Design Partner Program
+      </h3>
+      <p className="text-xs text-white/50 mt-1 mb-4">Business Plan §4.3 — recruit, track, and publish case studies</p>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="rounded-lg border border-white/15 bg-[#1d212a] p-4">
+          <p className="text-2xl font-bold text-cyan-300">10</p>
+          <p className="text-xs text-white/50 mt-1">Target design partners</p>
+          <p className="text-xs text-white/30">Written weekly feedback required</p>
+        </div>
+        <div className="rounded-lg border border-white/15 bg-[#1d212a] p-4">
+          <p className="text-2xl font-bold text-white/90">1×</p>
+          <p className="text-xs text-white/50 mt-1">MCP week snapshot / week</p>
+          <p className="text-xs text-white/30">+ one Nexus voice workflow per week</p>
+        </div>
+        <div className="rounded-lg border border-white/15 bg-[#1d212a] p-4">
+          <p className="text-2xl font-bold text-white/90">3</p>
+          <p className="text-xs text-white/50 mt-1">Anonymized case studies</p>
+          <p className="text-xs text-white/30">Energy reorder + voice task creation</p>
+        </div>
+      </div>
+      <div className="mt-4 rounded-lg border border-cyan-500/20 bg-cyan-500/5 p-3">
+        <p className="text-xs text-cyan-200/80">
+          Key signals: time-to-first-calendar-hold and self-reported minutes saved. Track via MCP <code className="text-cyan-300/90">syncscript_week_snapshot</code> tool.
+        </p>
+      </div>
+    </section>
+  </div>
+)}
 
         <div className="flex flex-wrap items-center gap-2">
           <Button variant="outline" onClick={() => navigate('/dashboard')}>Back to dashboard</Button>

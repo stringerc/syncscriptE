@@ -2675,7 +2675,7 @@ function Icon33() {
 function PricingEnhanced3() {
   return (
     <div className="absolute h-[24px] left-[32px] top-0 w-[161.641px]" data-name="PricingEnhanced">
-      <p className="absolute font-['Inter:Regular',_sans-serif] font-normal leading-[24px] left-0 not-italic text-[#cad5e2] text-[16px] text-nowrap top-0 tracking-[-0.3125px] whitespace-pre">Up to 10 tasks per day</p>
+      <p className="absolute font-['Inter:Regular',_sans-serif] font-normal leading-[24px] left-0 not-italic text-[#cad5e2] text-[16px] text-nowrap top-0 tracking-[-0.3125px] whitespace-pre">Up to 5 tasks per day</p>
     </div>
   );
 }

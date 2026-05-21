@@ -82,6 +82,16 @@ export async function identifyAnalyticsUser(user: { id: string; email?: string |
  */
 export function track(event: string, props?: EventProps): void {
   if (typeof window === 'undefined') return;
+  // Mirror WAS-relevant events to WeeklyMetricsDashboard's localStorage tracker
+  // so the Metrics tab visualizes data even when PostHog is not configured.
+  const wasRecord = (window as any).__syncscript_was_record as
+    | ((e: 'dashboard_view' | 'task_completed' | 'calendar_action') => void)
+    | undefined;
+  if (wasRecord) {
+    if (event === 'dashboard_viewed') wasRecord('dashboard_view');
+    else if (event === 'task_completed') wasRecord('task_completed');
+    else if (event === 'calendar_action') wasRecord('calendar_action');
+  }
   if (!booted) {
     queue.push({ event, props });
     return;
@@ -102,6 +112,12 @@ export const Events = {
     track('voice_first_reply_ms', props),
   taskCreated: (props: { source: 'voice' | 'chat' | 'manual' | 'n8n' | 'agent' | 'phone' | 'email' }) =>
     track('task_created', props),
+  taskCompleted: (props: { source: 'manual' | 'voice' | 'chat' | 'agent'; priority?: string }) =>
+    track('task_completed', props),
+  calendarAction: (props: { action: 'create' | 'modify' | 'delete' | 'hold'; source?: string }) =>
+    track('calendar_action', props),
+  dashboardViewed: (props?: { section?: string }) =>
+    track('dashboard_viewed', props),
   attachmentDropped: (props: { mode: 'reference' | 'modify'; mime?: string; bytes?: number }) =>
     track('attachment_dropped', props),
   pricingPageView: () => track('pricing_page_view'),
