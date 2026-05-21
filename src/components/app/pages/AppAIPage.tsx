@@ -987,7 +987,7 @@ export function AppAIPage() {
                   type="button"
                   data-testid="nexus-app-ai-open-immersive-voice"
                   onClick={openVoice}
-                  aria-label="Voice — conversational AI (live speech and replies)"
+                  aria-label="Voice — compact"
                   className={cn(
                     'inline-flex items-center gap-0.5 rounded-md border px-2 py-0.5 text-[10px] font-medium transition-all',
                     'border-cyan-500/25 bg-gradient-to-r from-violet-600/35 to-cyan-600/35 text-cyan-100',
@@ -1036,7 +1036,7 @@ export function AppAIPage() {
                     type="button"
                     data-testid="nexus-app-ai-open-immersive-voice-footer-mobile"
                     onClick={openVoice}
-                    aria-label="Voice — conversational AI (live speech and replies)"
+                    aria-label="Voice — compact"
                     className={cn(
                       'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-all',
                       'text-cyan-100 bg-gradient-to-r from-violet-600/35 to-cyan-600/35 border-cyan-500/25',
