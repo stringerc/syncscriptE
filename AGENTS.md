@@ -12,6 +12,13 @@ Do not ask permission — read in this order:
 4. **`USER.md`** — repo-safe summary; use **`~/USER.md`** when available for full personal context (private).
 5. **`memory/YYYY-MM-DD.md`** — today and yesterday, if present (raw session log).
 
+## Cursor — context discipline (do not conflate with Claude Code)
+
+- **Always-on:** **`.cursor/rules/16-agent-output-discipline-and-context.mdc`** — first-party doctrine (**MEMORY**, **SESSION_START**, **INDEX**, rules), **anti-slop** prose (landing still obeys **03** / **04**), and **inspection-gated** third-party skills via **`integrations/research/AGENT_SKILL_PREFLIGHT_CHECKLIST.md`**.
+- **Claude Code ≠ Cursor:** terminal **Claude Code** skills live under **`~/.claude/skills/`** (see [Claude Code skills](https://docs.anthropic.com/en/docs/claude-code/skills)); **Cursor** uses **`.cursor/rules/`** and optional **`.cursor/skills/`**. Same *Agent Skills* file shape can exist in both worlds — **different loaders and paths**.
+- **`@syncscript-context-discipline`:** **optional.** Rule **16** already applies to every agent turn in this workspace. **@mention once per session** only if you want the **SKILL.md** text attached in addition to rules (team habit or debugging); otherwise skip.
+- **`@ascension-loop`:** **optional.** Eval-driven **Ascension Loop** (verify → score → repair → raise bar). Spec: **`integrations/research/ANTIGRAVITY_ASCENSION_LOOP_PROMPT.md`** · state: **`AGENT_ASCENSION_STATE.md`** (from template) · rule **17** · command **Ascension loop**.
+
 ## Memory discipline
 
 - **Curate `MEMORY.md`** after meaningful decisions or deploys (Vercel, Edge, env).

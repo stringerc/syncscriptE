@@ -12,6 +12,7 @@
 
 - Use **official / vendor** MCP servers (GitHub, Playwright, etc.) in **Cursor Settings → MCP** — **pin versions** where possible (reduces surprise upgrades in long sessions).
 - **Do not** confuse **OpenClaw ClawHub skills** (gateway) with **Cursor MCP** (IDE). Same words (“Playwright”) can mean different install paths.
+- **Google Drive / Docs via Composio:** step-by-step **`integrations/research/CURSOR_MCP_COMPOSIO_GOOGLE_SETUP.md`** (`cursor://settings` → MCP; **`https://app.composio.dev`** → Integrations → Google; OAuth in browser; no secrets in chat).
 
 ## GitHub (skill triage)
 
@@ -30,3 +31,7 @@
 
 - **`npm test`** before Nexus/voice/tool changes; **`CI=true npm run build`** for risky UI.
 - **No secrets** in rules or committed evals.
+
+## Claw Code, OpenClaw split, resonance (A + B + C)
+
+Always-on rule: **`.cursor/rules/15-claw-resonance-cursor-workflow.mdc`**. Narrative + Doc links + mapping to **`src/utils/resonance-calculus.ts`**: **`integrations/research/RESONANCE_DOCS_CURSOR_BRIDGE.md`**. Use this doc when you want **one place** that ties **IDE discipline**, **gateway orchestration**, and **optional circadian scheduling** (heuristic, not medical) without conflating Cursor MCP with ClawHub skills.

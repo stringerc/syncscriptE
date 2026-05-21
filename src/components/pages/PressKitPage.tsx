@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router';
-import { ArrowLeft, Download, Mail, Building2, Users, Calendar, TrendingUp } from 'lucide-react';
+import { ArrowLeft, Mail, Building2, Users, Calendar, TrendingUp } from 'lucide-react';
 import { motion } from 'motion/react';
 
 const BRAND_COLORS = [
@@ -17,9 +17,7 @@ const ASSETS = [
 ];
 
 const PRESS_RELEASES = [
-  { date: 'Feb 1, 2025', title: 'SyncScript Raises Seed Round to Scale Energy-First Scheduling' },
-  { date: 'Jan 15, 2025', title: 'SyncScript Launches AI-Powered Energy Scheduling for Teams' },
-  { date: 'Dec 10, 2024', title: 'SyncScript Beta Opens to First 1,000 Teams' },
+  { date: '2024', title: 'SyncScript enters open beta — energy-aware productivity for individuals and teams' },
 ];
 
 const BOILERPLATE = `SyncScript is an energy-first productivity platform that helps teams schedule work around when people do their best thinking—not just when a calendar is free. Founded in 2024, SyncScript combines calendar intelligence, AI suggestions, and energy tracking so individuals and teams can protect focus time and reduce context-switching.`;

@@ -110,14 +110,14 @@ export function TeamChat({
   };
 
   const handleCall = () => {
-    toast.info('Call feature', {
-      description: 'Powered by third-party provider (Coming Soon)',
+    toast.info('Voice calls', {
+      description: 'Team voice calls are on the roadmap. Join Discord to vote on priority.',
     });
   };
 
   const handleVideoCall = () => {
-    toast.info('Video call feature', {
-      description: 'Powered by third-party provider (Coming Soon)',
+    toast.info('Video calls', {
+      description: 'Team video calls are on the roadmap. Join Discord to vote on priority.',
     });
   };
 

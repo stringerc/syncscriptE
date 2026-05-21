@@ -1,0 +1,38 @@
+---
+description: Claw→Cursor habits, OpenClaw vs IDE split, resonance/heuristic scheduling (A+B+C)
+alwaysApply: true
+---
+
+# Claw Code, OpenClaw, and resonance — Cursor workflow (elite bar)
+
+**Goal:** Reduce variance with **governance + measurement + least privilege** — not skill hoarding. Deep reference: **`integrations/research/SYNCSCRIPT_OPENCLAW_EXCELLENCE_FRAMEWORK.md`**, **`integrations/research/CURSOR_IDE_EXCELLENCE_SYNCSCRIPT.md`**, **`integrations/research/RESONANCE_DOCS_CURSOR_BRIDGE.md`**.
+
+## A — Cursor-only (clawhip-style: keep noise out of context)
+
+1. Before substantive work, follow **`00-session-bootstrap.mdc`**: `SESSION_START.md` → rules index → `MEMORY.md` (quick context first) → `SOUL.md` / `USER.md`.
+2. Prefer **small diffs**; search/read adjacent code before editing; respect **`02-protected-files-never-touch.mdc`**.
+3. Put durable decisions in **`MEMORY.md`** / **`SESSION_START.md`** / **`integrations/research/`** — not only chat history.
+
+## B — OpenClaw / Hermes / Engram vs Cursor (split roles)
+
+1. **Cursor** = this repo’s **files, git, local tests, rules**. Do not assume the IDE is an OpenClaw gateway.
+2. **Hermes / OpenClaw / Engram** = **runtime orchestration** (long loops, tool invoke, optional gateway host). Use **`integrations/agent-playbooks/`** and **`09-multi-agent-orchestration.mdc`** — not a generic `hermes` binary path unless `TOOLS.md` says so.
+3. **MCP (Cursor Settings)** ≠ **ClawHub skills (gateway)**. Pin MCP versions; **`clawhub inspect`** before any community skill install; never mass-install on **production** gateways.
+
+## C — Resonance (Drive docs + `resonance-calculus.ts`) — modest IDE tie-in
+
+1. **Authoritative narrative + math** lives in Google Docs linked from **`integrations/research/RESONANCE_DOCS_CURSOR_BRIDGE.md`**. **App implementation** lives in **`src/utils/resonance-calculus.ts`** (e.g. **`getCircadianCurve`**, **`calculateResonanceScore`**).
+2. **Heuristic only (not medical):** For optional scheduling of **long, high-risk agent sessions**, prefer local daytime windows where the in-repo **cosinor β(t)** model is typically higher — see **`getCircadianCurve`** in `resonance-calculus.ts`. Urgent work overrides.
+3. **Homeostasis-style behavior in the IDE:** treat **CI + hooks + contract tests** as the “immune system” — do not merge changes that break stated gates without an explicit exception and fix plan.
+4. **Google Docs/Drive in agent sessions:** requires **Cursor MCP** + **Composio Google** active — steps in **`integrations/research/CURSOR_MCP_COMPOSIO_GOOGLE_SETUP.md`**. Logging into Composio in a browser does not by itself expose tools to this chat.
+
+## “Verify before done” (cross-cutting)
+
+- Nexus / tools / voice / contracts: **`npm test`** when touched.
+- Risky UI / build: **`CI=true npm run build`**.
+- After prod deploy: **`npm run verify:prod-build`** when HTML fingerprint matters (`07-syncscript-app-knowledge.mdc`).
+
+## What not to do
+
+- Do **not** vendor all of **`claw-code-main`** into this app for Cursor benefit — wrong layer; study **`PHILOSOPHY.md` / `USAGE.md`** for **process**, not bulk runtime import.
+- Do **not** silently change model routing, pricing, or user workflows based on resonance scores — that needs **product + privacy** review.

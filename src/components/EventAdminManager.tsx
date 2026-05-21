@@ -55,7 +55,7 @@ export function EventAdminManager({
     id: tm.id,
     name: tm.name,
     email: tm.email || `${tm.name.toLowerCase().replace(/\s+/g, '.')}@example.com`,
-    avatar: tm.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100',
+    avatar: tm.avatar || '',
     role: (event.permissionOverrides?.find(po => po.userId === tm.id)?.role || 'viewer') as EventRole,
   }));
 
@@ -74,7 +74,7 @@ export function EventAdminManager({
       id: `user-${Date.now()}`,
       name: inviteEmail.split('@')[0],
       email: inviteEmail,
-      avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100',
+      avatar: '',
       role: inviteRole,
     };
 

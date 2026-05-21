@@ -29,6 +29,15 @@ Not by embedding Cursor inside Antigravity, but by **sharing artifacts**:
 - Same **docs**: `MEMORY.md`, `integrations/research/*.md`, design tokens — both humans and tools read the same truth.
 - **Export** findings from exploratory sessions into **`memory/YYYY-MM-DD.md`** or tickets so Cursor sessions do not lose context.
 
+## Ascension Loop (shared eval mode)
+
+Both IDEs can run the same **score → verify → repair → raise bar** protocol:
+
+- **Doc:** `ANTIGRAVITY_ASCENSION_LOOP_PROMPT.md`
+- **State:** `AGENT_ASCENSION_STATE.md` (from template; gitignored)
+- **Cursor:** `@ascension-loop`, rule **17**, command **Ascension loop**
+- **Antigravity:** paste Master prompt + compounding tail from research doc
+
 ## Bottom line
 
 You do **not** have to choose one forever. **Antigravity-style computer use** and **Cursor-style repo engineering** solve overlapping but non-identical problems. Legendary UI still comes from **tokens, review, and measurement in git** — whichever IDE you used to type them.

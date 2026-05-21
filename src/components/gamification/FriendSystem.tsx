@@ -77,7 +77,7 @@ export function FriendSystem({ className }: { className?: string }) {
     {
       id: 'friend_1',
       name: 'Sarah Chen',
-      avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop',
+      avatar: '',
       level: 35,
       status: 'online',
       currentStreak: 28,
@@ -90,7 +90,7 @@ export function FriendSystem({ className }: { className?: string }) {
     {
       id: 'friend_2',
       name: 'Marcus Johnson',
-      avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop',
+      avatar: '',
       level: 32,
       status: 'online',
       currentStreak: 14,
@@ -103,7 +103,7 @@ export function FriendSystem({ className }: { className?: string }) {
     {
       id: 'friend_3',
       name: 'Elena Rodriguez',
-      avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100&h=100&fit=crop',
+      avatar: '',
       level: 29,
       status: 'away',
       currentStreak: 21,
@@ -116,7 +116,7 @@ export function FriendSystem({ className }: { className?: string }) {
     {
       id: 'friend_4',
       name: 'David Kim',
-      avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&h=100&fit=crop',
+      avatar: '',
       level: 27,
       status: 'offline',
       currentStreak: 7,
@@ -129,7 +129,7 @@ export function FriendSystem({ className }: { className?: string }) {
     {
       id: 'friend_5',
       name: 'Aisha Patel',
-      avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&h=100&fit=crop',
+      avatar: '',
       level: 31,
       status: 'online',
       currentStreak: 35,

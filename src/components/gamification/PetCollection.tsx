@@ -254,7 +254,7 @@ export function PetCollection({ className }: PetCollectionProps) {
                 Complete quests and achievements to hatch your first pet!
               </p>
               <Badge variant="outline" className="text-purple-400 border-purple-400">
-                Coming Soon: Pet Eggs
+                Roadmap: Pet Eggs
               </Badge>
             </div>
           ) : (

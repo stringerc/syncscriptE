@@ -135,7 +135,7 @@ export function GiftTradingSystem({ className }: { className?: string }) {
     {
       id: 'gift_1',
       senderName: 'Sarah Chen',
-      senderAvatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop',
+      senderAvatar: '',
       item: giftItems[0],
       receivedAt: new Date(Date.now() - 2 * 60 * 60 * 1000),
       claimed: false,
@@ -144,7 +144,7 @@ export function GiftTradingSystem({ className }: { className?: string }) {
     {
       id: 'gift_2',
       senderName: 'Marcus Johnson',
-      senderAvatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop',
+      senderAvatar: '',
       item: giftItems[1],
       receivedAt: new Date(Date.now() - 5 * 60 * 60 * 1000),
       claimed: true,
@@ -152,7 +152,7 @@ export function GiftTradingSystem({ className }: { className?: string }) {
     {
       id: 'gift_3',
       senderName: 'Aisha Patel',
-      senderAvatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&h=100&fit=crop',
+      senderAvatar: '',
       item: giftItems[2],
       receivedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
       claimed: false,
@@ -165,7 +165,7 @@ export function GiftTradingSystem({ className }: { className?: string }) {
     {
       id: 'sent_1',
       recipientName: 'Elena Rodriguez',
-      recipientAvatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100&h=100&fit=crop',
+      recipientAvatar: '',
       item: giftItems[0],
       sentAt: new Date(Date.now() - 1 * 60 * 60 * 1000),
       claimed: true,
@@ -173,7 +173,7 @@ export function GiftTradingSystem({ className }: { className?: string }) {
     {
       id: 'sent_2',
       recipientName: 'David Kim',
-      recipientAvatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&h=100&fit=crop',
+      recipientAvatar: '',
       item: giftItems[1],
       sentAt: new Date(Date.now() - 3 * 60 * 60 * 1000),
       claimed: false,
@@ -186,7 +186,7 @@ export function GiftTradingSystem({ className }: { className?: string }) {
       id: 'trade_1',
       type: 'received',
       otherUserName: 'Sarah Chen',
-      otherUserAvatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop',
+      otherUserAvatar: '',
       offering: [giftItems[3]],
       requesting: [giftItems[4]],
       status: 'pending',

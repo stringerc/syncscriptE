@@ -28,7 +28,7 @@ export function LeagueStandings({ className }: LeagueStandingsProps) {
     {
       userId: 'user1',
       userName: 'Sarah Chen',
-      userAvatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop',
+      userAvatar: '',
       rank: 1,
       xpEarned: 2450,
       trend: 'up',
@@ -36,7 +36,7 @@ export function LeagueStandings({ className }: LeagueStandingsProps) {
     {
       userId: 'user2',
       userName: 'Marcus Johnson',
-      userAvatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop',
+      userAvatar: '',
       rank: 2,
       xpEarned: 2180,
       trend: 'up',
@@ -53,7 +53,7 @@ export function LeagueStandings({ className }: LeagueStandingsProps) {
     {
       userId: 'user4',
       userName: 'Elena Rodriguez',
-      userAvatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100&h=100&fit=crop',
+      userAvatar: '',
       rank: 13,
       xpEarned: 1340,
       trend: 'down',
@@ -61,7 +61,7 @@ export function LeagueStandings({ className }: LeagueStandingsProps) {
     {
       userId: 'user5',
       userName: 'David Kim',
-      userAvatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&h=100&fit=crop',
+      userAvatar: '',
       rank: 14,
       xpEarned: 1290,
       trend: 'up',

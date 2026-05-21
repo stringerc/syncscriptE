@@ -7,7 +7,8 @@
 - **Stack:** Vite/React dashboard, Vercel **`api/*`**, Supabase Edge; production deploy flows vary by change type (see dated entries below).
 - **Product thesis (curated):** SyncScript does **not** try to replace Claude or other AIs—it **integrates** them into **one tenant-shaped work OS**, routes them through **Nexus** (chat / voice / tools) where appropriate, and keeps **energy-aware scheduling** as the **differentiated spine**. See **Product positioning — AI integration vs replacement** below.
 - **Start here:** **`SESSION_START.md`** → this file (quick section first) → **`AGENTS.md`**, **`SOUL.md`**, **`USER.md`** (repo; full personal context may be **`~/USER.md`**).
-- **Cursor:** Always-on **topic index** (not full MEMORY) → **`.cursor/rules/07-syncscript-app-knowledge.mdc`**. Full detail stays **here** in git; Cursor has no separate “vector ingest” for arbitrary MD—**curated rules + this file** is the supported pattern.
+- **Cursor:** **`.cursor/rules/07-syncscript-app-knowledge.mdc`** (topic index) + curated **`MEMORY.md`** / **`.cursor/rules/`** — no separate vector ingest. **2026-05-08:** Claw Code → Cursor habits, resonance docs bridge, Composio Google Docs MCP, Rube deprecation → **Composio For You** — full narrative + migration checklist in **§ Cursor — Claw Code, resonance, Composio MCP (2026-05-08)** below.
+- **Antigravity + Claude Code (cheap / “free” routing):** tri-lane strategy + **`free-claude-code`**-style proxy — **§ Antigravity + Claude Code + free proxy (2026-05-09)** below. **Does not affect SyncScript/Cursor** unless you reuse the same **OpenRouter** key in Vercel + proxy. **Operator:** **`npm run apply:free-claude-code-option-b`** (split Sonnet/Haiku `:free` models in **`~/src/free-claude-code/.env`**), **`npm run audit:claude-ide-separation`**, **`npm run verify:claude-code-proxy-lane`**, **`cc_lane_rate_limit_tip`** — runbook **`integrations/research/CLAUDE_CODE_FREE_PROXY_OPERATOR_RUNBOOK.md`**.
 - **Rules:** **`.cursor/rules/`** — never violate **`02-protected-files-never-touch.mdc`** (Nexus/energy/auth surfaces).
 - **Ship:** Small diffs; **`npm test`** when touching Nexus tools/voice/contracts; **`CI=true npm run build`** for risky UI. **After a meaningful prod deploy:** run **`npm run verify:prod-build`** until **MATCH**, or Actions **Verify production HTML build fingerprint** / **Production dashboard smoke** — **`npm test` green does not prove prod matches git.**
 - **Prod verification (operator):** When an agent says to **try something on [syncscript.app](https://www.syncscript.app)** or **check the live app**, that means **your canonical acceptance checklist** on production — sign in, exercise the flow, confirm the **shipped** UX matches intent (not only local dev). Edge-only changes still need app smoke where the UI calls those routes.
@@ -24,6 +25,14 @@
 - **Nexus voice latency / 504:** Voice uses **`postNexusUserVoiceTurn`** → single **`fetch`**; STT can show text while the UI waits for **full** JSON. **`vercel.json`** sets **`api/**/*.ts`** **`maxDuration: 300`** (was 60) so **`nexus-user`** multi-round **`runNexusToolLoop`** + cold start is less likely to hit **504 Gateway Timeout** (requires **Vercel Pro**-tier max duration; Hobby caps lower — check dashboard). **`runNexusToolLoop`** still allows several LLM rounds + tools + nudges. **Profile:** `localStorage.setItem('SYNCSCRIPT_VOICE_LATENCY','1')` reload → **`voice-latency-debug.ts`** + **`voiceLatencyLogNexusCorrelation`**. **Immersive orb:** **“Nexus is thinking…”** while **`isProcessingAI`**; **`clearInterimTranscript`** on turn start. **UI:** **`VoiceConversationEngine`** treats **502/503/504** with offline fallback + toast (not a thrown error). Dated detail: **2026-04-11** entry below.
 - **Productivity Edge (Plan + activity + PAT + MCP):** Migration `20260427090000_activity_business_plan_api_tokens.sql` + Edge `social-productivity-routes.tsx`; Enterprise **Plan** tab; Settings → Privacy (visibility + PAT); MCP **`integrations/cursor-syncscript-mcp/`** — see **§ Product — social + external IDE bridge** + **§ MCP operating model** below. **Capture inbox (2026-04-27):** `user_capture_inbox` + Edge **`capture-inbox-routes.tsx`** (`GET/POST /capture/inbox`, commit/dismiss); PAT scopes **`capture:read`**, **`capture:write`**, **`capture:commit`** (defaults on **new** PATs — rotate existing PATs to pick them up); dashboard **`CaptureInboxStrip`** under the header for pending server-backed suggestions. **User library (2026-04-26):** Edge **`resources-library-routes.tsx`** — `GET/POST /resources/*`, **`POST /resources/upload-json`** (≤1 MiB for MCP base64); PAT **`library:read`** / **`library:write`** on new tokens. **Ops:** `npm run verify:edge-productivity-http:login` (HTTP+JWT+PAT); **`npm run verify:cursor-syncscript-mcp`** (stdio + **`syncscript_week_snapshot`** + **`syncscript_library_list_files`**). **Flow doc:** `integrations/research/CURSOR_CALENDAR_TASK_CAPTURE_FLOW.md` · parity backlog **`integrations/research/MCP_PARITY_AND_ROADMAP.md`**.
 - **Orchestration:** OpenClaw / Hermes / Engram = runtime tools — not a substitute for repo + MEMORY.
+- **Ascension Loop (eval agent — Cursor + Antigravity):** **`integrations/research/ANTIGRAVITY_ASCENSION_LOOP_PROMPT.md`** — score / verify / repair / raise bar; state **`AGENT_ASCENSION_STATE.md`** (gitignored); Cursor **`@ascension-loop`**, rule **17**; **`npm run doc:ascension-loop`** · **`npm run verify:ascension-loop-setup`**.
+- **Claude proxy (Antigravity):** **Option E (NIM all tiers)** when **`Provider rate limit reached`** — **`npm run heal:claude-proxy-rate-limit`** (verified 3/3 tiers). **Option D** (`:free` Sonnet/Haiku) when quotas cool — **`npm run apply:free-claude-code-option-d-hybrid`**. **Provider API request failed** → **`npm run fix:claude-proxy-antigravity`** (not Gemini Option C). **`GEMINI_CLAUDE_CODE_PROXY.md`**.
+- **Daily model audit:** **`npm run research:daily-claude-model-audit`** · **`npm run install:daily-claude-model-audit-launchd`**.
+- **Antigravity gibberish (thinking + :free mismatch):** **`integrations/research/ANTIGRAVITY_CLAUDE_READABLE_CHAT_FIX.md`** — root cause: client **`max-thinking-tokens`** vs proxy **`ENABLE_MODEL_THINKING=false`**; fix **`npm run apply:antigravity-claude-settings`**, **new chat**, sanity **`scripts/antigravity-sanity-chat.txt`** before Ascension; **`npm run verify:antigravity-claude-compat`**.
+- **PKM crosswalk (Obsidian.md facts ↔ this repo + RH):** **`integrations/research/OBSIDIAN_MD_MEMORY_CROSSWALK.md`** (INDEX row) → **§ Obsidian.md — official site facts ↔ SyncScript memory + Resonance Homeostasis** — vendor pages vs **git + INDEX + MEMORY** + **`RESONANCE_DOCS_CURSOR_BRIDGE.md`**.
+- **Viral “five Claude skills” clips (marketing / stop-slop / UI pack / Remotion / context engineering):** **`integrations/research/CLAUDE_VIDEO_FIVE_SKILLS_CURSOR_MAP.md`** — verified sources (Anthropic engineering + Claude Code skills docs + Remotion docs + named GitHub repos); **always-on** **`.cursor/rules/16-agent-output-discipline-and-context.mdc`** (first-party doctrine, **no Claude Code vs Cursor conflation**, preflight **`integrations/research/AGENT_SKILL_PREFLIGHT_CHECKLIST.md`**); **`@syncscript-context-discipline`** optional once/session — **no blind** `npx skills add`; landing still **03/04/01**.
+- **MiroFish / OASIS-style rehearsal swarms (plan only):** **`integrations/research/MIROFISH_SYNCSCRIPT_FULL_CAPABILITY_PROGRAM.md`** — canonical **capabilities** program (A–H domains, surface binding, **P0–P8** gates, metrics, non-goals, kill signals); **`integrations/research/MIROFISH_SYNCSCRIPT_STRATEGIC_PLAN.md`** — short facts; **INDEX** + **rule 07**; **§ MiroFish-class simulation ↔ SyncScript — capability program** below — **not shipped**; implement **one phase** at a time per exit criteria.
+- **Desktop Nature Companion / Cortana-like avatar direction failed (2026-05-13):** The local ignored **`nature-cortana-platform/`** experiment was removed to reclaim disk. Do **not** revive the Cortana-likeness path or extracted-game-asset workflow; only restart desktop/avatar work with an original, licensed GLB asset contract and a fresh product decision.
 - **Deploy vs repo:** `npm run verify:prod-build` compares **local `git` HEAD** to **`<!-- syncscript-build:sha -->` in live `/` HTML**. If it fails with “no marker,” production is **not** serving a build from current `vite build` (wrong Vercel project/branch, or deploy not run).
 - **UX/UI bar:** **`.cursor/rules/11-ux-ui-excellence.mdc`** (always-on behaviors) + **`integrations/research/UX_UI_REFERENCE_CANON.md`** (Figma Community workflow + world-class links). **Semantic tokens** in **`src/styles/globals.css`** — **`integrations/research/DESIGN_TOKENS_SYNCSCRIPT.md`**. **Antigravity vs Cursor:** **`integrations/research/ANTIGRAVITY_VS_CURSOR.md`**. Kits inspire **tokens and patterns** — code + **03/04** gates remain source of truth.
 - **Design handoff (“design something”):** When the user asks to **design** UI or visuals, follow **`.cursor/rules/13-design-handoff-n8n-figma-cursor.mdc`** and **§ Design handoff pipeline** below — **n8n** orchestrates webhooks/HTTP (Gemini, Imagen, NVIDIA, etc.); **Figma** is visual truth (not magic image→code); **Cursor** implements with **tokens** + **11/03/04**. Not a single unattended end-to-end pipe without human or plugin steps.
@@ -36,7 +45,7 @@
 - **Calendar `/calendar` layout (day grid + right rail):** **`src/components/pages/CalendarEventsPage.tsx`** — **`flex flex-row flex-nowrap`**: timeline **`flex-1 min-w-[14rem]`**, a **`role="separator"`** drag handle (thin teal-tinted line, **`pointer` capture**), then **`aside`** width **`260–480px`** default **320**, persisted **`localStorage`** key **`syncscript_calendar_rail_width_px`**; **double-click** handle resets; **Arrow keys** / **Home** when focused. Wrapper **`overflow-x-auto overscroll-x-contain`** vs **`DashboardLayout`** **`overflow-x-hidden`**. Hooks **`[data-layout="calendar-timeline"]`**, **`[data-layout="calendar-rail"]`**. **Regression:** **`e2e/dashboard-layout-columns.spec.ts`**.
 - **Calendar multi-day infinite strip (2026-05-03 follow-up):** **Symptoms:** floating header / first row showed the **wrong** day (often **`scrollTop` ~ 0**) or the strip felt “stuck.” **Root causes shipped against:** (1) Parent assumed **today = index 7** — in **`SimpleMultiDayCalendar`** index 7 is **`centerDate`**, not always today. (2) **`jumpToTodayInstant`** ran before the scroll container had full **`scrollHeight`**, so **`scrollTop` clamped to 0**. (3) **`centerDate`** was only refreshed on **`location.pathname`**, so staying on **`/dashboard/calendar`** for days or toggling **Single ↔ Multi** could leave **`centerDate`** stale vs real today. **Implementation:** **`jumpToTodayInstant()`** — **`findIndex`** today, recenters if missing, **rAF retry** until **`scrollHeight`** matches expected day stack, clamp **`scrollTop`**, **`syncFloatingHeaderFromScroll`** so the header matches **`onDateChange`**. **`CalendarEventsPage`:** **`setCenterDate(getCurrentDate())`** when **calendar route** and **`currentView` / `isMultiDayMode`** change; tab + **visibility** use **`jumpToTodayInstant`** when available. **Files:** **`SimpleMultiDayCalendar.tsx`**, **`CalendarEventsPage.tsx`**. **Deploy:** commit **`main`** + **`npm run deploy:vercel:prod`** (prebuilt); **`npm run verify:prod-build`** for HTML marker. **Manual check:** signed-in **Day + Multi-Day** — header should match **today** after load, tab return, and **M** toggle. **Still watch:** near-top scroll handler prepends days (pre-existing); if odd jumps persist, profile **`handleScroll`** vs programmatic scroll.
 
-**Last updated:** 2026-05-03 — **Calendar multi-day** quick bullet expanded (layout retry + **`centerDate`** refresh + MEMORY deploy note). Earlier **2026-04-27** — **Product positioning** (AI integration vs replacement + energy spine) under **Product positioning — AI integration vs replacement**; quick-context bullet points to it. **2026-04-19** — **Design handoff pipeline** (n8n / Figma / Cursor) saved — **`.cursor/rules/13-design-handoff-n8n-figma-cursor.mdc`** + **§ Design handoff pipeline** below. **Nexus voice orb:** **`NexusVoiceSpeakingDust`**, smaller **`NexusVoiceMinimalCircle`** + **`NexusVoiceSatelliteOrbit`** when shipped to prod. Earlier **`NexusVoiceMinimalCircle`** **`compact`** prop bound (voice click fix). **2026-04-11 — Nexus E2E ops:** **`npm run secrets:github:nexus-e2e`**, **`npm run deploy:vercel:prod`**, **`gh workflow run "E2E Nexus signed-in (prod)"`**; numbered runbook under **§ Nexus “individual user”**. **2026-04-17** — Dashboard weather **geo deadline** + **`useWeatherRoute` finally**; App AI voice **portal + z-index**; immersive voice **short intro** via **`generateImmersiveVoiceIntro`** (**`src/utils/voice-context-builder.ts`**). **2026-04-11** addendum: Nexus voice **~60s latency** (**`postNexusUserVoiceTurn`**, **`maxDuration`**, tool loop). Earlier: **`emitNexusTrace`** **`toolTraceEntries`** + **`toolRepairNudged`**; **`integrations/research/NEXUS_OBSERVABILITY_AND_QUALITY.md`**; **`api/cron/[job].ts`** **`concierge-playbook-tick`**. ROI ops: **`verify:prod-build`**, Lighthouse, **`gh:labels`**. Example eval: **`integrations/research/skill-evaluations/2026-04-17-playwright-mcp.md`**. **2026-04-16** Nexus: **CSP `frame-src`**, **`/api/map/resolve-map-url`**, **`update_document`** nudges (see **§ Nexus Voice**).
+**Last updated:** 2026-05-13 — **Desktop Nature Companion / Cortana-like avatar direction marked failed**; ignored **`nature-cortana-platform/`** removed locally for disk, and stale desktop-shell reload rule removed. **2026-05-09** — **§ MiroFish / OASIS capability program** in **MEMORY** + quick bullet (**`MIROFISH_SYNCSCRIPT_FULL_CAPABILITY_PROGRAM.md`** canonical). Earlier same day — **Doctrine implementation:** **rule 16** … **`integrations/research/OBSIDIAN_MD_MEMORY_CROSSWALK.md`** + **INDEX** row (Obsidian ↔ MEMORY + RH); **§ Obsidian.md** pointers updated. Same day — **§ Antigravity + Claude Code + free proxy** — runbook **definition-of-done**, IDE env JSON, upstream **#168** link, **`cc_lane_help`** + cross-links (**`SESSION_START`**, **`TOOLS`**, **`INDEX`**, rule **12**); **M1 Pro / 16GB** scan; **cloud-first L2**; OpenRouter catalog snapshot + **revoke-keys-if-leaked**. **2026-05-08** — **§ Cursor — Claw Code, resonance, Composio MCP** + Composio For You migration checklist. **2026-05-03** — **Calendar multi-day** quick bullet expanded (layout retry + **`centerDate`** refresh + MEMORY deploy note). Earlier **2026-04-27** — **Product positioning** (AI integration vs replacement + energy spine) under **Product positioning — AI integration vs replacement**; quick-context bullet points to it. **2026-04-19** — **Design handoff pipeline** (n8n / Figma / Cursor) saved — **`.cursor/rules/13-design-handoff-n8n-figma-cursor.mdc`** + **§ Design handoff pipeline** below. **Nexus voice orb:** **`NexusVoiceSpeakingDust`**, smaller **`NexusVoiceMinimalCircle`** + **`NexusVoiceSatelliteOrbit`** when shipped to prod. Earlier **`NexusVoiceMinimalCircle`** **`compact`** prop bound (voice click fix). **2026-04-11 — Nexus E2E ops:** **`npm run secrets:github:nexus-e2e`**, **`npm run deploy:vercel:prod`**, **`gh workflow run "E2E Nexus signed-in (prod)"`**; numbered runbook under **§ Nexus “individual user”**. **2026-04-17** — Dashboard weather **geo deadline** + **`useWeatherRoute` finally**; App AI voice **portal + z-index**; immersive voice **short intro** via **`generateImmersiveVoiceIntro`** (**`src/utils/voice-context-builder.ts`**). **2026-04-11** addendum: Nexus voice **~60s latency** (**`postNexusUserVoiceTurn`**, **`maxDuration`**, tool loop). Earlier: **`emitNexusTrace`** **`toolTraceEntries`** + **`toolRepairNudged`**; **`integrations/research/NEXUS_OBSERVABILITY_AND_QUALITY.md`**; **`api/cron/[job].ts`** **`concierge-playbook-tick`**. ROI ops: **`verify:prod-build`**, Lighthouse, **`gh:labels`**. Example eval: **`integrations/research/skill-evaluations/2026-04-17-playwright-mcp.md`**. **2026-04-16** Nexus: **CSP `frame-src`**, **`/api/map/resolve-map-url`**, **`update_document`** nudges (see **§ Nexus Voice**).
 
 **2026-05-03 — Calendar multi-day deploy + MEMORY:** Calendar code: **`297d5b7`** ( **`centerDate`** refresh on calendar + view/mode, layout-aware **`jumpToTodayInstant`**, **`syncFloatingHeaderFromScroll`**, visibility → **`jumpToTodayInstant`** when available). Docs-only follow-ups on **`main`** after that; **`HEAD`** for **`verify:prod-build`** tracks the latest deploy. **Ship:** **`git push origin main`** (prepush: **`npm test`** + **`verify:console-errors`**) + **`npm run deploy:vercel:prod`** so **`www.syncscript.app`** matches **`git rev-parse HEAD`**. Lazy chunk: **`/assets/CalendarEventsPage-*.js`** (content hash). If the UI looks stale, **hard refresh** or clear site data (immutable **`/assets/*`**).
 
@@ -118,7 +127,7 @@
 
 **Spec:** `integrations/research/SYNCSCRIPT_ACTIVITY_AND_SOCIAL_SPINE.md` (catalog row in `integrations/research/INDEX.md`). **Roadmap (phases + architecture):** `integrations/research/CURSOR_SYNCSCRIPT_SOCIAL_PRODUCTIVITY_ROADMAP.md`.
 
-- **Enterprise → Plan tab:** structured business plan in-app; **Copy markdown** for `BUSINESS_PLAN.md` + Cursor rule **`.cursor/rules/14-enterprise-business-plan-cursor.mdc`**.
+- **Enterprise business plan:** Canonical git doc **`BUSINESS_PLAN.md`** (2026-05-18, fact-based: problem/solution/market/traction/team/financials/asks) · research **`integrations/research/SYNCSCRIPT_BUSINESS_PLAN_CANON.md`** · in-app **Enterprise → Plan** tab (save + Copy markdown) · rule **14**.
 - **Activity spine:** Postgres `user_activity_events` (+ task completion writes from Edge `email-task-routes` via `activity-record.ts`). **Profile heatmap** (`IndividualProfileView`) reads **`GET …/activity/summary`** (Edge `social-productivity-routes.tsx`). **`POST …/activity/events`** is **rate-limited** (~60/min per user, HTTP 429) in `social-productivity-routes.tsx`.
 - **Goals → activity:** marking a goal complete in the dashboard calls **`postActivityEvent`** (`goal_progress`, private metadata) from `src/hooks/useGoals.ts` via `src/utils/edge-productivity-client.ts` (best-effort).
 - **Tasks:** dashboard path remains **`taskRepository`** / `SupabaseTaskRepository` → Edge. Legacy **`TaskService`** in `src/services/data-service.ts` **delegates** to `taskRepository` (same routes as MCP); not the primary app path.
@@ -137,6 +146,8 @@
 
 ## Work completion — finish what we start
 When we take on a feature, integration, or production fix, **drive it to completion in one coherent effort** (same session / same PR-sized slice when possible): code + **migrations** if needed + **Supabase Edge deploy** when Edge changes + **Vercel** when `api/*` or env changes + **contract / smoke / verify scripts** that prove the path + **this `MEMORY.md`** (and a daily note if useful). **Avoid** landing half-wired routes, stale dashboard URLs, or “we’ll set env later” for **production-critical** flows unless the user explicitly cuts scope.
+
+**Build it out entirely (standing user rule — do not make them repeat this):** For **any** new operator path, IDE integration, proxy lane, or agent workflow, ship the **full vertical slice** in one pass: scripts + npm commands + verify gate + runbook/INDEX/MEMORY pointer + failure modes documented + **end-to-end verify on the machine** (not “paste this later”). Definition of done = another agent or the user can run **one documented command** (e.g. `npm run verify:claude-proxy-full`) and trust the stack without returning to “finish building.”
 
 If **blocked** (missing secret, third-party dashboard, hardware), **stop with a written unblocker**: exact env name, exact URL to click, exact command — and add it to **`MEMORY.md`** or **`memory/YYYY-MM-DD.md`** so nobody rebuilds the same half-finished work from scratch.
 
@@ -234,6 +245,150 @@ You cannot guarantee **infinite** local space; you can make exhaustion **unlikel
 
 **Bottom line:** Treat **disk as expensive** and **knowledge as exported** into small files and git. Use **external/cold** archives for bulk; **trim IDE snapshots and caches** for space; **index** what matters so nothing important depends on “it’s still somewhere on the laptop.”
 
+## Obsidian.md — official site facts ↔ SyncScript memory + Resonance Homeostasis (2026-05-09)
+
+**Catalog entry:** **`integrations/research/INDEX.md`** — row **Obsidian.md ↔ MEMORY + Resonance Homeostasis**. Short spine (links only, no duplicate tables): **`integrations/research/OBSIDIAN_MD_MEMORY_CROSSWALK.md`**.
+
+**Why this section exists:** [Obsidian](https://obsidian.md/) is a widely copied reference for **local PKM** (personal knowledge management). This repo already encodes similar **habits** in `MEMORY.md`, **`integrations/research/INDEX.md`**, rules, and git — plus **Resonance Homeostasis (RH)** themes in **`integrations/research/RESONANCE_DOCS_CURSOR_BRIDGE.md`**. Below is a **fact-based crosswalk** from Obsidian’s **own marketing/product pages** (not third-party tutorials), so agents know what we **do** and **do not** mirror.
+
+**Sources (vendor, read 2026-05-09):** [obsidian.md](https://obsidian.md/) (home), [obsidian.md/sync](https://obsidian.md/sync), [obsidian.md/plugins](https://obsidian.md/plugins), [obsidian.md/publish](https://obsidian.md/publish), [obsidian.md/canvas](https://obsidian.md/canvas), [obsidian.md/help](https://obsidian.md/help/).
+
+### A. What Obsidian claims on-site (condensed; verify before purchase)
+
+| Theme | On-site claim (paraphrase) | Notes for operators |
+|--------|----------------------------|----------------------|
+| **Privacy / local-first** | Notes live on your device; quick access **offline**; “no one else can read them, not even us.” | SyncScript **repo memory** is **git + markdown** in this workspace — not Obsidian’s vault format. Secrets stay in **env / vault / PAT**, never in committed MEMORY prose. |
+| **Open formats / longevity** | “Open file formats” so you are **not locked in**; you own data long-term. | We use **Markdown + JSON (+ code)** in git; **lock-in risk** is mostly **Vercel/Supabase/dashboards** — mitigated by **exports**, **OpenAPI**, **`verify:prod-build`**, and curated **MEMORY** when vendors move. |
+| **Links** | “Create connections between your notes” — link ideas, people, places, books; “invent your own personal Wikipedia.” | **`MEMORY.md`** cross-refs **`SESSION_START.md`**, **`AGENTS.md`**, **`integrations/research/*`**, rule **`07`** index — **explicit pointers**, not a `.obsidian` graph UI. |
+| **Graph** | Visualize relationships; “find hidden patterns.” | We do **not** ship a force-directed note graph in-repo. Closest: **`INDEX.md`** rows + headings + grep; product has other graphs (e.g. activity heatmap) — different job. |
+| **Canvas** | Infinite canvas to research, brainstorm, diagram. | Parallels: **Figma / n8n handoff** (**§ Design handoff pipeline**), optional **Workstream** canvas in-app (**client-first** today per MCP parity doc). |
+| **Plugins / API** | Thousands of plugins; “open API” to tailor workflow. | **Cursor rules + MCP + skills + Composio** = our **extensibility plane**; **`integrations/cursor-syncscript-mcp/`** = structured tools to **live** app state (PAT-scoped). |
+| **Sync (paid product)** | Background sync; **E2EE** (site mentions **AES-256**); **version history**; cross-platform; **offline, merge when online**; **selective** sync (media toggles); **shared vaults** for teams; **file recovery**. | **Git + remotes** = our free “sync”; **Time Machine / backups** = device-level recovery; **Supabase/Vercel** = product data plane (different threat model — see **Trust** / Edge deploy runbooks). **Pricing table on `/sync` (fetched 2026-05-09):** **Sync Standard** lists **1 month** version history; **Sync Plus** lists **12 months** and higher caps — the **homepage** blurbs also mention version history in friendly terms; **reconcile copy vs pricing** before relying on a number for compliance storytelling. |
+| **Publish (paid)** | Turn notes into wiki / docs / “digital garden”; themes, custom domain, password option; fast, mobile-friendly, **SEO** claims. | SyncScript’s public surface is the **product** (`syncscript.app`), not a second brain export — we still borrow the **discipline**: **`/trust`**, **`changelog.json`**, **`openapi.json`**, landing **04-perf-seo** gate. |
+
+### B. What we already do that matches “elite PKM” *engineering* (not the Obsidian app)
+
+1. **Single curated index + evergreen ops** — **`integrations/research/INDEX.md`** + **`MEMORY.md`** hygiene note at top of this file (quarter + walk stale dated sections).
+2. **Conclusions over hoarding** — **§ Knowledge vs disk**; raw logs in **`memory/YYYY-MM-DD.md`** (local) vs curated **MEMORY**.
+3. **Links as contracts** — **`AGENTS.md`** reading order; **`.cursor/rules/07-syncscript-app-knowledge.mdc`** topic → section routing.
+4. **Version history** — **`git log`**, **`npm run verify:prod-build`** (HTML fingerprint vs `HEAD`), CI — **intentional** “what shipped” truth, not note-level CRDT.
+5. **Separation: editor vs executor** — **RH bridge table** in **`RESONANCE_DOCS_CURSOR_BRIDGE.md`**: Cursor = hot path files/git; **Hermes / OpenClaw** = long loops (**`09-multi-agent-orchestration.mdc`**).
+
+### C. Resonance Homeostasis (RH) mapped to Obsidian-class primitives
+
+RH (see bridge doc abstract) stresses **monotonic improvement**, **bounded degradation** from bad events, and **convergent self-repair** with **checkpoints** and **validation**. Without pasting the copyrighted Doc body, the **repo habits** that implement the same *shape* are:
+
+| RH theme | Obsidian-adjacent primitive | SyncScript implementation |
+|----------|------------------------------|---------------------------|
+| **Checkpoint / restore** | Version history + local files | **Git revert/reset**, redeploy previous Vercel/Edge revision when needed; **MEMORY** records the **exact** rollback/unblock step. |
+| **Validation / “immune” layer** | Community plugins + user discipline | **`npm test`**, **`verify:*`**, hooks, **`02-protected-files-never-touch.mdc`** — reject bad merges *before* prod. |
+| **Monotonic quality of truth** | Linked notes + sync | **Do not** let **`MEMORY.md`** quick bullets drift; **same-day** updates when deploy paths change; **INDEX** row per serious study. |
+| **Bounded blast radius** | Selective sync / vault scopes | **Small diffs** on auth/billing/Nexus protected surfaces; **PAT scopes** least-privilege for MCP. |
+| **Self-repair narrative** | File recovery | **`memory/YYYY-MM-DD.md`** captures incident timeline; **MEMORY** gets the **distilled** fix so the next agent does not repeat the failure mode. |
+| **Coherence over time** | Graph / backlinks | **Cross-links** between **§** sections + research paths — humans/agents **traverse** intentionally; we skip pretty graph viz in favor of **searchable** canon. |
+
+### D. Gaps (honest) — not pretending the repo is Obsidian
+
+- **No PKM graph UI** in this repo for `MEMORY.md` (optional future: generated link map under **`integrations/research/`** — only if it pays rent).
+- **No E2EE markdown vault** product — encryption story is **app/auth/Supabase**, not Obsidian Sync.
+- **“Digital garden”** is not a goal for internal MEMORY — **customer-facing** docs live in **trust/changelog/openapi** and research INDEX.
+
+### E. Action habits to keep (steal the *process*, not the stack)
+
+- **One inbox for captures, one canon for truth:** dashboard **capture inbox** + Edge routes for *suggestions*; **MEMORY** for *decisions* (already partially there — **§ Product — social**).
+- **Prefer links over paste:** cite **`integrations/research/...`** and **commit SHAs** instead of duplicating long logs in **MEMORY**.
+- **When vendor pages disagree** (e.g. generic “version history” vs `/sync` tier table), **believe pricing/spec tables** and **date your cite** in MEMORY.
+
+## MiroFish-class simulation ↔ SyncScript — capability program (2026-05-09)
+
+**Status:** **Plan + capabilities only** — no product implementation committed in this MEMORY entry; execution picks **one phase** at a time from the canonical doc.
+
+**Canonical source (do not duplicate here):** **`integrations/research/MIROFISH_SYNCSCRIPT_FULL_CAPABILITY_PROGRAM.md`** — full-stack analysis frame, **capability domains A–H** (numbered IDs), **dashboard/feature-catalog binding**, **P0–P8** phased program with **exit criteria** and **kill signals**, **success metrics catalog**, **explicit non-goals**, appendix repo pointers. **Short fact anchor:** **`integrations/research/MIROFISH_SYNCSCRIPT_STRATEGIC_PLAN.md`** (MiroFish README + OASIS link, AGPL/cost warnings). **Discovery:** **`integrations/research/INDEX.md`** catalog rows; **`.cursor/rules/07-syncscript-app-knowledge.mdc`** MEMORY routing table.
+
+### What it is (fact-grounded)
+
+- **MiroFish** ([666ghj/MiroFish](https://github.com/666ghj/MiroFish)): seed → **GraphRAG** → personas → **[OASIS](https://github.com/camel-ai/oasis)** simulation → **ReportAgent** + deep interaction; **LLM** (OpenAI-compatible) + **Zep**; high **token** cost; README warns **small round counts** first.
+- **Unverified in README review:** viral **agent count ceilings**, “**Voices**” as separate product, **10-day** / **course** claims — **not** requirements until sourced.
+
+### North star (defensible “revolutionary” thesis)
+
+**Rehearsal + calibration + governance on the work spine:** counterfactual **simulation runs** are always **labeled** (assumptions, seed hash, models, budget), **sidecar-isolated** (license + blast radius), **quota’d**, and **compared over time** to **real tenant outcomes** (tasks, calendar, activity spine) where privacy allows — not **magic prediction** or unbounded swarm spend.
+
+### Capability domains (summary — detail in canonical doc)
+
+| Domain | Focus |
+|--------|--------|
+| **A — Work spine** | Bind runs to **tasks, calendar, capture, library, Enterprise Plan, MCP week snapshot** — no shadow task system. |
+| **B — Simulation runtime** | Versioned **run_id**, worlds/ticks, **replay/diff**, interventions, **stochastic branches**, **hard stops** (time/tokens). |
+| **C — Graph + memory** | Seed ingestion, **GraphRAG-style** graph, **grounding** (cite graph edges), TTL / legal hold. |
+| **D — Human + audit** | Approval gates before external effects, **SOC2-friendly lineage** export, red-team packs. |
+| **E — Product surfaces** | Per-route binding (see **`SYNCSCRIPT_FULL_FEATURE_CATALOG.md`**) — Dashboard, Tasks, Calendar, Energy/Resonance, AI/Nexus (explain-only + budget UI), Enterprise, Analytics, Capture, Library, Settings, MCP tools. |
+| **F — Commercial** | Entitlements, **token accounting**, tenant isolation, optional **simulation credits** billing, SLA class. |
+| **G — Trust / ethics** | Synthetic watermarks, **real-person firewall**, AGPL/OSS review, **no silent** outbound from sim agents, **incident playbooks**. |
+| **H — Observability + research** | Run telemetry, **calibration KPIs**, **INDEX + MEMORY** updates per methodology change, dogfood loop. |
+
+### Phased program (order — full gates in canonical doc)
+
+| Phase | One-line scope |
+|-------|----------------|
+| **P0** | License + **$/run** evidence + ADR |
+| **P1** | Frozen **sidecar API** + mock + contract tests |
+| **P2** | Tenant **run registry** + RLS stories |
+| **P3** | Sidecar **alpha** — replay + abort + cost cap |
+| **P4** | **Enterprise-only** product alpha + governance |
+| **P5** | Nexus **explain** + enqueue (no bypass of budget UI) |
+| **P6** | **Calibration beta** vs `user_activity_events` / metrics |
+| **P7** | **MCP + tasks** binding (`verify:cursor-syncscript-mcp` extension) |
+| **P8** | **GA** load test + SLO + rollback drill |
+
+**Kill signals (pause program):** economics fail, misinformation incident, regulatory letter, critical sidecar CVE, pilot **&lt; actionable value** per agreed rubric — see canonical §14.
+
+### Explicit non-goals (canonical §16)
+
+No replacing **weather/calendar physics** with fiction; no **verified** election/market **prediction** claims without licensed data + stats governance; no **AGPL** in **`build/`** without legal completion; no **default** training on customer seeds; no **silent** email/social from synthetic personas.
+
+## Cursor — Claw Code, resonance, Composio MCP (2026-05-08)
+
+### What we implemented (Claw → Cursor wave)
+
+**Principle:** **Claw Code** (`ultraworkers/claw-code`, Rust harness, `PHILOSOPHY.md` OmX / clawhip / OmO) is **not** a Cursor plugin. What transfers is **process**: keep noise out of context, plan → execute → verify, multi-surface split, least privilege — expressed as Cursor **rules + MEMORY + hooks/tests mindset**, not vendoring the Rust tree.
+
+| Layer | What shipped (repo paths) |
+|-------|---------------------------|
+| **Always-on rule (A+B+C)** | **`.cursor/rules/15-claw-resonance-cursor-workflow.mdc`** — (A) repo truth / small diffs / protected files; (B) Cursor vs OpenClaw·Hermes·Engram vs **ClawHub skills** vs **Cursor MCP**; (C) optional **β(t)** scheduling hint tied to **`src/utils/resonance-calculus.ts`** (`getCircadianCurve`, `calculateResonanceScore`), explicit **not medical**, no silent product automation from resonance. |
+| **Bootstrap** | **`.cursor/rules/00-session-bootstrap.mdc`** — agents skim rule **15** after rule **07**. |
+| **Routing** | **`.cursor/rules/07-syncscript-app-knowledge.mdc`** — table row → rule **15** + resonance bridge. |
+| **OpenClaw doc set** | **`.cursor/rules/12-openclaw-clawhub-cursor-local.mdc`** — “read first” bullets for rule **15**, **`RESONANCE_DOCS_CURSOR_BRIDGE.md`**, **`CURSOR_MCP_COMPOSIO_GOOGLE_SETUP.md`**, Rube deprecation. |
+| **Research** | **`integrations/research/RESONANCE_DOCS_CURSOR_BRIDGE.md`** — links to **Resonance calculus / algebra** + **Resonance Homeostasis** Google Docs; maps themes to IDE + **`resonance-calculus.ts`**; **verified MCP read** subsection (doc id `1jMqn2EAFuhfQqW9A-UohxsWKLP7Cs_9OnsPWqu5JfkE`, ~39.6k-char plaintext via Composio; outline + paraphrased abstract only in git, not full copyrighted body). |
+| **Composio + Cursor clicks** | **`integrations/research/CURSOR_MCP_COMPOSIO_GOOGLE_SETUP.md`** — `cursor://settings` → MCP; **`https://app.composio.dev`** → Integrations → Google; OAuth; verified subsection. |
+| **IDE excellence** | **`integrations/research/CURSOR_IDE_EXCELLENCE_SYNCSCRIPT.md`** — MCP + Composio Google + rule **15** pointer. |
+| **Catalog** | **`integrations/research/INDEX.md`** — rows for resonance bridge + Composio Google setup + **Obsidian.md ↔ MEMORY + RH** (**`OBSIDIAN_MD_MEMORY_CROSSWALK.md`**) |
+| **Session handoff** | **`SESSION_START.md`** — IDE discipline bullets (A+B+C, resonance heuristic, Composio setup, last-session bullets). |
+
+**Google Docs access today:** Cursor **user-rube** (Composio-backed) with toolkit **`googledocs`** **ACTIVE**; tools such as **`GOOGLEDOCS_GET_DOCUMENT_PLAINTEXT`** succeeded on **Resonance Homeostasis**. **Risk:** Rube-branded meta layer is **deprecated** — API responses reference **`https://rube.app/deprecation`** and **EOL 2026-05-15**.
+
+### Migration plan — Composio For You MCP (do before Rube EOL)
+
+**Why:** Keep **Google Docs** (and other Composio toolkits) working after **2026-05-15** without depending on deprecated **Rube** meta-tooling.
+
+**Config done on this Mac (2026-05-08):** **`~/.cursor/mcp.json`** includes **`mcpServers.composio`** with **`url`:** **`https://connect.composio.dev/mcp`** and **`headers`:** **`{}`** (Composio’s Cursor pattern: **no** API key in the file for this server — you finish auth with Cursor’s **Connect** + browser OAuth). **Still required from you:** **fully quit and restart Cursor** → **Settings → MCP** → select **composio** → **Connect** → sign in if prompted → then run a **Google Docs read** test from an agent chat. Keep **`rube`** until that test passes; then you can turn **`rube`** off to avoid duplicate tool routers.
+
+**Official URLs (from Composio’s own Cursor setup page, 2026-05-08):**
+
+| Step | Action |
+|------|--------|
+| **1** | Read **Cursor → Settings → MCP** (or **`cursor://settings`**) and list what you use today (e.g. **rube** / **user-rube**, tool slugs you rely on). |
+| **2** | **DONE (file):** **`composio`** server added per **https://composio.dev/cursor** — HTTP URL **`https://connect.composio.dev/mcp`**, empty headers. **YOU:** open that page if you want the live instructions; complete **Connect** in Cursor after restart. |
+| **3** | **Restart Cursor**; complete OAuth for the new server. |
+| **4** | In Composio **https://dashboard.composio.dev** or **`https://app.composio.dev`**, confirm **Google / Google Docs** integrations stay **ACTIVE** (same account you used for Rube). |
+| **5** | **Validate:** In agent chat, confirm a **Docs read** (e.g. same Homeostasis `document_id`) using whatever tool names the **For You** MCP exposes — **discover slugs in-session**; do not assume they match legacy `RUBE_*` names. |
+| **6** | **Cutover:** When validated, **disable** legacy **user-rube** in MCP settings to avoid split-brain; update this **MEMORY** section with the active server label and any slug renames you confirm. |
+| **7** | **Optional CLI:** If you adopt Composio **CLI** for scripts, document the binary path in **`TOOLS.md`**; keep secrets out of git. |
+
+**Support:** Composio docs **`https://docs.composio.dev`**; community **`https://discord.gg/composio`** (linked from their Cursor page).
+
+**Not required for migration:** No extra git commits beyond this **MEMORY** update unless you later want research markdown refreshed — operator truth lives here until you change tooling again.
+
 ## OpenClaw + Cursor — how to work effectively
 **In SyncScript (the app):** **OpenClaw** is the **autonomous agent harness / gateway** (default **`openclaw gateway`** on **`:18789`** loopback; EC2 in prod). The product reaches it through **Supabase Edge** **`openclaw-bridge`** and the dashboard — not by “Cursor magic.” Facts and wiring: **`integrations/ENGRAM_OPENCLAW.md`**, **`supabase/functions/make-server-57781ad9/openclaw-bridge.tsx`**, **`OPENCLAW_BASE_URL`** / EC2 **`3.148.233.23:18789`** in this file below.
 
@@ -244,6 +399,78 @@ You cannot guarantee **infinite** local space; you can make exhaustion **unlikel
 
 **Hermes / Engram (this repo’s split-brain stack):** follow **`.cursor/commands/verify-hermes-engram.md`** and **`integrations/agent-playbooks/`** — not a generic `hermes` shell command. **Cursor ↔ Hermes orchestration + multi-AI boundaries:** **`.cursor/rules/09-multi-agent-orchestration.mdc`** (always on in this workspace). **Global Cursor “one brain” (all folders):** paste **`~/.cursor/RULES_FOR_AI_GLOBAL_PASTE.txt`** into **Cursor → Settings → Rules for AI**; optional symlink **`~/.cursor/rules-global/00-universal-cursor-brain.mdc`** per repo via **`scripts/link-global-cursor-brain.sh`** (gitignored symlink). **IDEs (Antigravity, etc.):** listed in **`TOOLS.md`** — not CLIs; separate configs from SyncScript.
 
+## Antigravity + Claude Code + free proxy (2026-05-09)
+
+### “Provider API request failed” (Antigravity Claude panel)
+
+**Symptom:** IDE shows `Provider API request failed. (request_id=…)` on normal agent chat.
+
+**Cause (verified):** **Option C** routes Sonnet/Opus to **Gemini on OpenRouter**; Claude Code **always sends `tools`** in Antigravity agent mode → upstream fails; proxy embeds that string in the SSE stream. **Not** the same as **`Provider rate limit reached`** (`:free` quota).
+
+**Fix “Provider API request failed”:** **`npm run fix:claude-proxy-antigravity`** (Option D + verify + Antigravity restart).
+
+**Fix “Provider rate limit reached”:** **`npm run heal:claude-proxy-rate-limit`** — **Option E** (all tiers on **NIM**, no OpenRouter `:free`). Then **new chat** → **`Reply with exactly: OK`**. When `:free` quotas cool, optional **`npm run apply:free-claude-code-option-d-hybrid`**.
+
+**Automated gate:** **`npm run verify:antigravity-sanity-chat`** · full: **`npm run verify:claude-proxy-full`**.
+
+**Hard truth:** There is **no** legal, stable way to get **unlimited frontier Claude Code** at **zero** marginal cost forever. “Completely free” in practice means **(a)** vendor-included quota (Antigravity / `claude.ai` limits, hourly caps), **(b)** **$0-ish compute** you already own (**Ollama** on your GPU — slow/quality-capped), or **(c)** **someone else’s free tier** (**NVIDIA NIM** promos, tiny **OpenRouter** credits) until it ends. **Bypassing** Antigravity’s quota = **stop sending those requests to Anthropic’s included endpoint** — you are **not** “stretching” the same free pool; you are **switching lanes**.
+
+### Best operator strategy (maximize included quota + minimize spend)
+
+| Lane | When to use | Env / routing (concept) | Goal |
+|------|-------------|---------------------------|------|
+| **L1 — Included** | Short planning, hard bugs, security-sensitive diffs, final review | **Default Antigravity** session: **no** `ANTHROPIC_BASE_URL` override (or whatever the IDE injects for “real” Claude Code) | Burn **only** high-leverage turns on Anthropic’s **included** quota |
+| **L2 — Proxy + cheap cloud** | Bulk implement, refactors, tests, scaffolding | Local **`free-claude-code`**-style proxy (e.g. **`Alishahryar1/free-claude-code`**) → **OpenRouter** (e.g. DeepSeek Flash) or **NIM**; **`ANTHROPIC_BASE_URL=http://127.0.0.1:<port>`** per upstream README (**path rules matter**; do **not** guess `/v1` suffix) | **Sidestep** hourly / included limits; pay **fractions of a cent** per 1M tokens vs native Opus |
+| **L3 — Local** | Offline or zero API cash | **Ollama** (same proxy pattern) | **$0 API**; pay in **latency** + **hardware** + **quality** |
+
+**Discipline (same “elite bar” as Cursor rule 15, portable to any IDE):** (1) **5-line handoff** before big runs — goal, constraints, “read **MEMORY** § / **SESSION_START**”, **done = green CI command**. (2) **Fresh Claude Code sessions** on long chases (~50k-token reset pattern from community guides — reduces context rot). (3) **One automated gate** per repo (`npm test`, `cargo test`, `ruff`, etc.) before you trust a cheap model’s output. (4) **Turn off** Claude Code **experimental toggles** (e.g. “fast mode”) when the proxy backend errors — many proxies don’t support every Anthropic-only knob.
+
+**Repo runbook + shell helpers (2026-05-09) — implementation complete in git:** **`integrations/research/CLAUDE_CODE_FREE_PROXY_OPERATOR_RUNBOOK.md`** — **Definition of done**, **Option B**, **SyncScript vs Antigravity separation**, **rate-limit recovery**, **`npm run apply:free-claude-code-option-b`**, **`npm run audit:claude-ide-separation`**, preflight (**`cc_lane_verify`** / **`npm run verify:claude-code-proxy-lane`**), **`FREE_MODEL_AB_HARNESS.md`**, **`scripts/templates/free-claude-code-option-b.env.fragment`**, **`scripts/claude-code-lanes.sh`** (**`cc_lane_rate_limit_tip`**, **`cc_lane_apply_option_b`**, **`cc_lane_audit_separation`**, …), **no keys** in git. **Operator-only:** restart proxy after apply; **Cmd+Q** Antigravity; optional **second OpenRouter key** for proxy vs Vercel prod.
+
+### Implementation checklist (repeatable)
+
+1. **Clone + run** **`Alishahryar1/free-claude-code`** **outside** this app repo (per runbook); **Quick start**; confirm **proxy logs** on **`127.0.0.1:<port>`** on every “hello” test.
+2. **Two shell profiles** (or two terminal tabs): `source scripts/claude-code-lanes.sh` from repo root, then:
+   - **`cc_lane_native`** — **unset** `ANTHROPIC_BASE_URL` (use Antigravity / Anthropic included path) for **L1**.
+   - **`cc_lane_proxy`** — sets **`ANTHROPIC_BASE_URL`** + **`ANTHROPIC_AUTH_TOKEN`** per **`FCC_ANTHROPIC_AUTH_TOKEN`** (default `freecc`) for **L2**; must match proxy `.env`.
+   - **`cc_lane_verify`** (or **`npm run verify:claude-code-proxy-lane`**) — **before** blaming a **`claude`** hang: confirms HTTP answers on the proxy URL (exit **1** if nothing listens).
+3. **Secrets + Option B:** OpenRouter / NIM keys in **Keychain / env**, **never** committed `.env` in public repos. Merge **`scripts/templates/free-claude-code-option-b.env.fragment`** into **`~/src/free-claude-code/.env`** for default **NIM + `open_router/...:free`** tiering; run **`npm run research:openrouter-free-models`** before locking `:free` slugs; **`integrations/research/FREE_MODEL_AB_HARNESS.md`** for 3-task A/B. If proxy **startup validation** fails with empty keys, set all four **`MODEL*=`** to **`ollama/qwen2.5-coder:1.5b`** until keys exist (see **`~/src/free-claude-code/.env`** header comment).
+4. **Verify after every Claude Code or Antigravity update:** proxy access can break (upstream issue discussion re **`ANTHROPIC_BASE_URL`** / CLI behavior — e.g. **`free-claude-code` issue #168** class of regressions). Proof = **proxy access log** + **OpenRouter/NIM usage dashboard**, not “the UI still says Opus.”
+5. **Measure one number** per week: **$/merged PR** or **tokens per green CI** — without a metric, cost routing is guesswork.
+
+### Policy / risk (non-optional)
+
+Re-read **Terms** for **Antigravity**, **Claude Code**, **Anthropic**, **OpenRouter**, **NIM**, and the **proxy repo** before relying on this for paid client work. Routing Anthropic-shaped traffic to **non-Anthropic** backends may be **disallowed or unstable** as products change — **operator risk**, not app code.
+
+### This Mac — facts (2026-05-09 agent scan, no secrets)
+
+- **CPU / RAM:** Apple **M1 Pro**, **16.0 GiB** — fine for a **thin local proxy**; **poor default choice** for heavy **Ollama** inference while doing other work (thermals + unified memory pressure).
+- **CLIs present:** **`ollama`**, **`docker`**, **Node v24**, **Python 3.14** — you *can* run L3 locally, but **prefer L2 in the cloud** to keep the machine cool and responsive.
+
+### L2 routing — “least on this machine” (default: cloud-first)
+
+| Priority | Backend | Role | Local load |
+|----------|---------|------|------------|
+| **1** | **NVIDIA NIM** (HTTP to `integrate.api.nvidia.com` / model cards on **build.nvidia.com**) | Primary bulk **Lane L2** when your NIM account has access — **no** local model weights; only **proxy + TLS** on the Mac. | **Very low** |
+| **2** | **OpenRouter** | Fallback / A-B tests / when NIM rate-limits or proxy compatibility prefers OpenAI-compat routing you already know. | **Very low** |
+| **3** | **Ollama** | Optional **Lane L3** only when offline or zero paid API; **not** the default on M1 Pro 16GB if you care about fan noise + IDE responsiveness. | **High** when active |
+
+**NIM models to try first (coding + agentic, public NVIDIA docs / cards — verify your tenant):** **Z.ai GLM‑4.7** (`z-ai/glm4_7` family on NIM) and **DeepSeek** NIM endpoints (e.g. **DeepSeek V4 Flash** class listings on **build.nvidia.com**) — strong community fit for “cheap brain behind Claude Code UI.” Exact slugs change; use NVIDIA’s **model card → API id** when wiring **`free-claude-code`** `.env`.
+
+### OpenRouter — model IDs from public `GET /api/v1/models` (2026-05-09 snapshot)
+
+Pricing is **per-token strings** on OpenRouter; treat numbers below as **“check live before relying”** — promos change.
+
+- **Paid-cheap, strong coding volume (primary OpenRouter pick):** **`deepseek/deepseek-v4-flash`** — very low $/token in catalog; good match to video workflow (tool-ish agent runs).
+- **Paid-cheap alternates:** **`deepseek/deepseek-v4-pro`**, **`z-ai/glm-4.7`**, **`z-ai/glm-4.7-flash`**, **`qwen/qwen3-coder-next`**, **`minimax/minimax-m2.7`** — compare live pricing + latency in OpenRouter dashboard.
+- **`:free` tier (good for experiments, expect rate limits / variability):** examples seen in catalog include **`minimax/minimax-m2.5:free`**, **`qwen/qwen3-coder:free`**, **`z-ai/glm-4.5-air:free`**, **`google/gemma-4-31b-it:free`**, **`google/gemma-4-26b-a4b-it:free`**, **`nvidia/nemotron-3-nano-30b-a3b:free`**, **`openai/gpt-oss-20b:free`** — rotate among them if one is overloaded; **do not** assume “free” equals “production quality.”
+
+**External ranking / eval sites (pick models, not vibes):** **Artificial Analysis** coding / LiveCodeBench pages (**`artificialanalysis.ai`**), **LMSYS Chatbot Arena** (qualitative), **LiveCodeBench** leaderboards — use them to **shortlist**, then **A/B** on *your* proxy + Claude Code with a fixed task suite (50-line refactor, test repair, etc.).
+
+### Operator rule — API keys
+
+**Never** paste **OpenRouter / NIM** keys into **chat**, **`MEMORY.md`**, or **git**. Store in **macOS Keychain**, **1Password env inject**, or shell **only on your machine**. If a key ever appeared in chat, **revoke + rotate** in the provider UI before shipping anything serious.
+
 ## Tools on this machine — agents use the repo’s map first
 1. **Read repo `TOOLS.md`** (workspace root) — **curated paths + MCP / slash-command wiring** for this Mac (`openclaw`, `claude`, `gemini`, `aider`, `cursor-agent`, Hermes/Engram playbooks). **Keep it current** when installs move. Rule: **`.cursor/rules/08-local-agent-cli-paths.mdc`**.
 2. **Verify** with **`command -v`** / **`which`** after reading `TOOLS.md`; respect **`$PATH`**.
@@ -253,8 +480,8 @@ You cannot guarantee **infinite** local space; you can make exhaustion **unlikel
 ## Apple platforms — test hardware and Xcode (SyncScript unified stack)
 - **Physical Apple Watch:** Series 3 is **legacy** (capped at old watchOS); **do not** use it as the primary device for App Store–style builds. Use **Apple Watch Simulator** (deployment target aligned with Xcode) and/or a **Series 6+ / SE (2nd gen)** for on-wrist verification.
 - **Checklist docs:** [`src/native/IOS_WATCH_SHIPPING.md`](src/native/IOS_WATCH_SHIPPING.md), [`src/native/WATCH_OS_PLATFORM.md`](src/native/WATCH_OS_PLATFORM.md), [`integrations/research/VERIFY_UNIFIED_PLATFORM.md`](integrations/research/VERIFY_UNIFIED_PLATFORM.md).
-- **Desktop Companion protocol policy:** [`integrations/research/studies/2026-04-11-companion-protocol-policy.md`](integrations/research/studies/2026-04-11-companion-protocol-policy.md) — path guard smoke: `npm run verify:protocol-guard` inside `nature-cortana-platform/desktop-shell`.
-- **Cross-stack script (repo root):** `npm run verify:unified-platform` — Companion path guard + library + push-route contract tests. **`npm run verify:platform:full`** adds Playwright landing capabilities. **`npm run verify:ios:build`** builds the Capacitor iOS app (App Intents Swift). **AASA** in `public/.well-known/apple-app-site-association` uses **`K85GR7XGDP.com.syncscript.app`** (matches Xcode `DEVELOPMENT_TEAM` + bundle id).
+- **Desktop Companion protocol policy:** retired with the failed local avatar experiment on **2026-05-13**; historical notes remain at [`integrations/research/studies/2026-04-11-companion-protocol-policy.md`](integrations/research/studies/2026-04-11-companion-protocol-policy.md), but the local desktop shell was removed and should not be treated as an active verify gate.
+- **Cross-stack script (repo root):** `npm run verify:unified-platform` — library + push-route contract tests. **`npm run verify:platform:full`** adds Playwright landing capabilities. **`npm run verify:ios:build`** builds the Capacitor iOS app (App Intents Swift). **AASA** in `public/.well-known/apple-app-site-association` uses **`K85GR7XGDP.com.syncscript.app`** (matches Xcode `DEVELOPMENT_TEAM` + bundle id).
 - **Edge deploy:** `npm run deploy:edge:make-server` deploys `make-server-57781ad9` (includes `/push/register`, library search, etc.).
 
 ## Nexus LLM OpenAI-compat + optional executor bridge (2026-04-26)
@@ -615,7 +842,7 @@ Solved the ephemeral-URL problem **without** requiring a Cloudflare account auth
 | Claude Code idea | What we already have | Strongest upgrade path |
 |------------------|----------------------|-------------------------|
 | Project memory file (`CLAUDE.md`) | **`MEMORY.md`**, **`AGENTS.md`**, **`USER.md`**, **`SOUL.md`**, `memory/YYYY-MM-DD.md` | Keep **one curated** `MEMORY.md`; daily files = raw, this file = decisions + ops |
-| Cursor-style **rules** | **`.cursor/rules/*.mdc`** (SSR, protected files, perf/SEO, desktop-shell reload) | Add rules only when a mistake **repeats**; avoid duplicate prose across rules vs MEMORY |
+| Cursor-style **rules** | **`.cursor/rules/*.mdc`** (SSR, protected files, perf/SEO) | Add rules only when a mistake **repeats**; avoid duplicate prose across rules vs MEMORY |
 | **Skills** (`SKILL.md` trees) | Cursor **skills** (global `~/.cursor/skills-cursor/`, Codex `~/.codex/skills`) | Put **repeatable procedures** (OpenAI docs, Canvas, etc.) in skills; link from AGENTS.md |
 | **Slash command** playbooks | **`integrations/agent-playbooks/`** + `deploy/kokoro-tts-ec2/*`, `integrations/HERMES*.md` | Extend with more one-pagers as needed — same spirit as `.claude/commands` |
 | **PreToolUse** hooks | **`npm run release:gate`**, **`guard:*`**, **`verify:*`**, **`.github/workflows/*.yml`** | Treat CI + release gates as **non-bypassable** hooks; extend **contract tests** when adding bridges (Hermes/Engram pattern) |

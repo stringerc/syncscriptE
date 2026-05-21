@@ -48,7 +48,7 @@ import {
 } from '../../config/public-links';
 
 // Default avatar URL
-const DEFAULT_AVATAR = 'https://images.unsplash.com/photo-1576558656222-ba66febe3dec?w=400&h=400&fit=crop&crop=face';
+const DEFAULT_AVATAR = '';
 
 // ── Persistent settings helper ──────────────────────────────────────────────
 const SETTINGS_KEY = 'syncscript_settings';

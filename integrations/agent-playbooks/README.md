@@ -12,6 +12,7 @@ Bounded workflows for humans and coding agents. Inspired by [Claude Code](https:
 | [03-hermes-engram-contract-verify.md](./03-hermes-engram-contract-verify.md) | Contract + live smoke |
 | [04-release-gate.md](./04-release-gate.md) | Local release gate |
 | [05-guardrails-vs-claude-hooks.md](./05-guardrails-vs-claude-hooks.md) | Hooks → npm/CI mapping |
+| [06-ascension-loop.md](./06-ascension-loop.md) | Eval-driven score / verify / repair / raise bar (Cursor + Antigravity) |
 
 See also: `CLAUDE_CODE_PYTHON_AUDIT.md`, `CLAUDE_CODE_NONPYTHON_INVENTORY.md`, `MEMORY.md`, **[research index](../research/INDEX.md)** (knowledge vs disk, study catalog).
 

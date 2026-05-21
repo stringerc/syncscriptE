@@ -763,10 +763,10 @@ export function NewGoalDialog({ open, onOpenChange, onSubmit }: NewGoalDialogPro
               </p>
               <div className="grid grid-cols-2 gap-2">
                 {[
-                  { name: 'Sarah Chen', image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100', fallback: 'SC', animationType: 'pulse' },
-                  { name: 'Marcus Johnson', image: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100', fallback: 'MJ', animationType: 'heartbeat' },
-                  { name: 'David Kim', image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100', fallback: 'DK', animationType: 'bounce' },
-                  { name: 'Elena Rodriguez', image: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100', fallback: 'ER', animationType: 'wiggle' },
+                  { name: 'Sarah Chen', image: '', fallback: 'SC', animationType: 'pulse' },
+                  { name: 'Marcus Johnson', image: '', fallback: 'MJ', animationType: 'heartbeat' },
+                  { name: 'David Kim', image: '', fallback: 'DK', animationType: 'bounce' },
+                  { name: 'Elena Rodriguez', image: '', fallback: 'ER', animationType: 'wiggle' },
                 ].map((member) => {
                   const isSelected = collaborators.some(c => c.name === member.name);
                   return (

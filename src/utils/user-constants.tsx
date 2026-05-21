@@ -25,8 +25,8 @@ export const CURRENT_USER = {
   
   // Avatar - MUST MATCH UserProfileContext
   // This is the SINGLE avatar URL used across the entire application
-  avatar: 'https://images.unsplash.com/photo-1576558656222-ba66febe3dec?w=400&h=400&fit=crop&crop=face',
-  image: 'https://images.unsplash.com/photo-1576558656222-ba66febe3dec?w=400&h=400&fit=crop&crop=face', // Alias for compatibility
+  avatar: '',
+  image: '', // Alias for compatibility
   
   // Gamification Stats
   level: 1,

@@ -34,51 +34,16 @@ export const BREAKPOINTS = {
 // =============================================================================
 
 /**
- * Features that are marked as "Coming Soon"
- * These will show the coming soon overlay when accessed
+ * Features on the roadmap that are not yet fully available.
+ * Only list features that are genuinely not shipped — remove entries
+ * as soon as the feature is live in production.
  */
 export const COMING_SOON_FEATURES = {
-  // AI Insights rail (right side panel)
-  aiInsightsRail: {
-    title: 'AI Insights Panel',
-    description: 'Get real-time AI-powered insights and recommendations as you work. Per-tab contextual insights launching soon.',
-    expectedDate: 'Q1 2025',
+  // Nexus voice/video calls inside Team Chat
+  teamChatCalls: {
+    title: 'Team Voice & Video',
+    description: 'Real-time voice and video calls inside team conversations.',
   },
-  
-  // Specific features that are coming soon
-  voiceInput: {
-    title: 'Voice Input',
-    description: 'Create tasks and notes using voice commands.',
-    expectedDate: 'Q1 2025',
-  },
-  
-  smartEventCreation: {
-    title: 'Smart Event Creation',
-    description: 'AI-powered event scheduling with automatic conflict detection.',
-    expectedDate: 'Q1 2025',
-  },
-  
-  teamChat: {
-    title: 'Team Chat',
-    description: 'Real-time collaboration and messaging with your team.',
-    expectedDate: 'Q2 2025',
-  },
-  
-  advancedAnalytics: {
-    title: 'Advanced Analytics',
-    description: 'Deep insights into your productivity patterns and trends.',
-    expectedDate: 'Q1 2025',
-  },
-  
-  // Enterprise Tools
-  enterprise: {
-    title: 'Enterprise Tools & Admin Console',
-    description: 'Powerful organization-wide management and analytics designed for team leaders and admins. Monitor team productivity, manage user permissions, track adoption metrics, and ensure compliance.',
-    expectedDate: 'Q2 2025',
-  },
-  
-  // Scripts & Templates — now live (removed from coming-soon 2026-05-20)
-
 } as const;
 
 export type ComingSoonFeatureKey = keyof typeof COMING_SOON_FEATURES;

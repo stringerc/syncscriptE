@@ -196,8 +196,8 @@ export function WeatherRouteConflictModal({ isOpen, onClose, type }: WeatherRout
       endTime: new Date(new Date().setHours(16, 0, 0)),
       location: '450 Market St, Downtown',
       attendees: [
-        { name: 'Sarah Chen', image: 'https://images.unsplash.com/photo-1581065178047-8ee15951ede6?w=100' },
-        { name: 'Mike Rodriguez', image: 'https://images.unsplash.com/photo-1598268012815-ae21095df31b?w=100' },
+        { name: 'Sarah Chen', image: '' },
+        { name: 'Mike Rodriguez', image: '' },
       ],
       weatherImpact: {
         condition: 'heavy-rain',
@@ -216,9 +216,9 @@ export function WeatherRouteConflictModal({ isOpen, onClose, type }: WeatherRout
       endTime: new Date(new Date().setHours(18, 0, 0)),
       location: 'Waterfront Park',
       attendees: [
-        { name: 'Emma Wilson', image: 'https://images.unsplash.com/photo-1745434159123-4908d0b9df94?w=100' },
-        { name: 'John Park', image: 'https://images.unsplash.com/photo-1758599543154-76ec1c4257df?w=100' },
-        { name: 'Lisa Kumar', image: 'https://images.unsplash.com/photo-1581065178047-8ee15951ede6?w=100' },
+        { name: 'Emma Wilson', image: '' },
+        { name: 'John Park', image: '' },
+        { name: 'Lisa Kumar', image: '' },
       ],
       weatherImpact: {
         condition: 'severe',
@@ -244,9 +244,9 @@ export function WeatherRouteConflictModal({ isOpen, onClose, type }: WeatherRout
       location: 'Tech Park Building 3, North Campus',
       distance: '12.4 miles',
       attendees: [
-        { name: 'David Kim', image: 'https://images.unsplash.com/photo-1598268012815-ae21095df31b?w=100' },
-        { name: 'Rachel Foster', image: 'https://images.unsplash.com/photo-1745434159123-4908d0b9df94?w=100' },
-        { name: 'Tom Anderson', image: 'https://images.unsplash.com/photo-1758599543154-76ec1c4257df?w=100' },
+        { name: 'David Kim', image: '' },
+        { name: 'Rachel Foster', image: '' },
+        { name: 'Tom Anderson', image: '' },
       ],
       routeImpact: {
         normalTime: '22 min',
@@ -268,7 +268,7 @@ export function WeatherRouteConflictModal({ isOpen, onClose, type }: WeatherRout
       location: 'The District, Downtown',
       distance: '8.2 miles',
       attendees: [
-        { name: 'Alex Turner', image: 'https://images.unsplash.com/photo-1581065178047-8ee15951ede6?w=100' },
+        { name: 'Alex Turner', image: '' },
       ],
       routeImpact: {
         normalTime: '15 min',

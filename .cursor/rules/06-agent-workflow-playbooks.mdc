@@ -5,7 +5,7 @@ alwaysApply: false
 ---
 
 AGENT WORKFLOWS
-- For git/PR, Edge deploy, Kokoro recovery, Hermes/Engram verify, and release gates: follow **`integrations/agent-playbooks/`** (start at `README.md`).
+- For git/PR, Edge deploy, Kokoro recovery, Hermes/Engram verify, release gates, and **Ascension Loop** eval mode: follow **`integrations/agent-playbooks/`** (start at `README.md`; ascension: `06-ascension-loop.md`).
 - Do not copy upstream Claude Code workflows or copyrighted JSON settings files; patterns are summarized in **`integrations/CLAUDE_CODE_NONPYTHON_INVENTORY.md`**.
 
 SUPABASE FUNCTIONS (BROWSER)

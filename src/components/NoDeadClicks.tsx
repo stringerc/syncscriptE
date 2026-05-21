@@ -8,7 +8,7 @@
  * <NoDeadClicks
  *   onClick={handleClick}
  *   comingSoon
- *   comingSoonMessage="Voice input coming in Q1 2025"
+ *   comingSoonMessage="Voice input coming soon"
  * >
  *   <Button>Voice Input</Button>
  * </NoDeadClicks>

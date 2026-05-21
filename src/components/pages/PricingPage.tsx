@@ -397,7 +397,7 @@ export function PricingPage() {
               </thead>
               <tbody>
                 {[
-                  { feature: 'Tasks', values: ['10/day', '50/month', 'Unlimited', 'Unlimited'] },
+                  { feature: 'Tasks', values: ['5/day', '50/month', 'Unlimited', 'Unlimited'] },
                   { feature: 'Calendar integrations', values: ['1', 'Basic', 'Advanced', 'Custom'] },
                   { feature: 'Energy tracking', values: ['Basic', 'Full', 'Full', 'Full'] },
                   { feature: 'AI assistant', values: ['Limited', 'Standard', 'Advanced', 'Advanced'] },

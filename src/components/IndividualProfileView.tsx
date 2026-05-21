@@ -918,7 +918,7 @@ export function IndividualProfileView() {
                     variant="outline"
                     size="sm"
                     className="absolute bottom-0 left-1/2 transform -translate-x-1/2 translate-y-1/2 text-xs"
-                    onClick={() => toast.info('Avatar upload coming soon')}
+                    onClick={() => toast.info('Avatar upload', { description: 'Photo upload is on the roadmap.' })}
                   >
                     Change
                   </Button>

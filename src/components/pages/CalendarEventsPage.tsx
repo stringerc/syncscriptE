@@ -3109,7 +3109,7 @@ function getLegacyEventsForDate(date: Date) {
         location: dayOfWeek === 0 ? 'The Garden Cafe' : 'Home',
         energyLevel: 'low',
         attendees: [
-          { name: 'Sarah Johnson', image: 'https://images.unsplash.com/photo-1581065178047-8ee15951ede6?w=100', progress: 95, animation: 'spin' as const },
+          { name: 'Sarah Johnson', image: '', progress: 95, animation: 'spin' as const },
         ],
         color: 'green',
         icon: MapPin,
@@ -3143,8 +3143,8 @@ function getLegacyEventsForDate(date: Date) {
       location: 'Virtual',
       energyLevel: 'medium',
       attendees: [
-        { name: 'Alex Chen', image: 'https://images.unsplash.com/photo-1598268012815-ae21095df31b?w=100', progress: 85, animation: 'pulse' as const },
-        { name: 'Maria Garcia', image: 'https://images.unsplash.com/photo-1745434159123-4908d0b9df94?w=100', progress: 92, animation: 'glow' as const },
+        { name: 'Alex Chen', image: '', progress: 85, animation: 'pulse' as const },
+        { name: 'Maria Garcia', image: '', progress: 92, animation: 'glow' as const },
       ],
       color: 'blue',
       icon: Video,
@@ -3162,9 +3162,9 @@ function getLegacyEventsForDate(date: Date) {
       location: seed % 4 === 0 ? 'Conference Room A' : 'Virtual',
       energyLevel: 'high',
       attendees: [
-        { name: 'John Smith', image: 'https://images.unsplash.com/photo-1758599543154-76ec1c4257df?w=100', progress: 78, animation: 'heartbeat' as const },
-        { name: 'Emily Davis', image: 'https://images.unsplash.com/photo-1745434159123-4908d0b9df94?w=100', progress: 95, animation: 'glow' as const },
-        { name: 'Mike Wilson', image: 'https://images.unsplash.com/photo-1598268012815-ae21095df31b?w=100', progress: 88, animation: 'wiggle' as const },
+        { name: 'John Smith', image: '', progress: 78, animation: 'heartbeat' as const },
+        { name: 'Emily Davis', image: '', progress: 95, animation: 'glow' as const },
+        { name: 'Mike Wilson', image: '', progress: 88, animation: 'wiggle' as const },
       ],
       weather: { type: 'sunny', temp: '72°F' },
       color: 'purple',
@@ -3183,7 +3183,7 @@ function getLegacyEventsForDate(date: Date) {
       location: 'Cafe Blue, Downtown',
       energyLevel: 'low',
       attendees: [
-        { name: 'Sarah Johnson', image: 'https://images.unsplash.com/photo-1581065178047-8ee15951ede6?w=100', progress: 95, animation: 'spin' as const },
+        { name: 'Sarah Johnson', image: '', progress: 95, animation: 'spin' as const },
       ],
       weather: { type: 'rain', temp: '68°F', alert: 'Light rain expected' },
       color: 'green',
@@ -3233,7 +3233,7 @@ function getLegacyEventsForDate(date: Date) {
       location: 'Virtual',
       energyLevel: 'medium',
       attendees: [
-        { name: 'Alex Chen', image: 'https://images.unsplash.com/photo-1598268012815-ae21095df31b?w=100', progress: 85, animation: 'pulse' as const },
+        { name: 'Alex Chen', image: '', progress: 85, animation: 'pulse' as const },
       ],
       color: 'blue',
       icon: Video,

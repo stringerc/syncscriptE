@@ -1,0 +1,58 @@
+---
+description: Context as a budget (Anthropic-style), anti-slop prose, safe third-party Agent Skills — pairs with integrations/research/CLAUDE_VIDEO_FIVE_SKILLS_CURSOR_MAP.md
+alwaysApply: true
+---
+
+# Agent output discipline + context engineering (SyncScript workspace)
+
+## Workspace doctrine (implemented — read once per onboarding)
+
+1. **First-party engineering doctrine lives in-repo** — Curated **`MEMORY.md`**, **`SESSION_START.md`**, **`integrations/research/INDEX.md`**, and **`.cursor/rules/`** (especially **00**, **07**, **12**, **15**, **this file**) are the default **source of truth** for how agents work here. Prefer extending those over importing opaque prompt packs.
+2. **Third-party Agent Skills / `npx skills add` packs are optional and inspection-gated** — Run **`integrations/research/AGENT_SKILL_PREFLIGHT_CHECKLIST.md`** before adding anything to **`.cursor/skills/`** or team workflows.
+3. **Do not conflate Claude Code with Cursor** — Different hosts, paths, and loaders:
+
+| Surface | Typical paths / docs | Role here |
+|--------|----------------------|-----------|
+| **Claude Code** | `~/.claude/skills/`, project `.claude/skills/`, [Claude Code skills](https://docs.anthropic.com/en/docs/claude-code/skills) | Terminal / Antigravity agent; **`npx skills add`** targets this ecosystem. |
+| **Cursor** | **`.cursor/rules/*.mdc`** (always-on or globs), **`.cursor/skills/<name>/SKILL.md`** | IDE agent; **rules** load per workspace policy; **project skills** load when the product invokes them or you **@mention** (see below). |
+
+**`@syncscript-context-discipline`:** **Not required every message.** This file (**rule 16**) is **`alwaysApply: true`** — every Cursor agent turn in this workspace already gets the same doctrine. **@mention the project skill once per session** only if you explicitly want the **SKILL.md** body attached in addition to rules (e.g. older Cursor builds or team habit); otherwise skip the @ and rely on **rule 16**.
+
+**Companion research (sources + video map):** **`integrations/research/CLAUDE_VIDEO_FIVE_SKILLS_CURSOR_MAP.md`**.
+
+## Context engineering (first-party framing)
+
+Context is **finite**; more tokens ≠ monotonically better quality. Prefer **progressive disclosure**:
+
+1. **`SESSION_START.md`** → **`MEMORY.md`** (quick context first) → **open only files** needed for the task (**read_file** / **grep**), not whole-repo dumps into chat.
+2. **Cite paths and line ranges** instead of pasting large file bodies when the recipient can open the repo.
+3. After a long fix, put **durable** facts in **`MEMORY.md`** / **`integrations/research/INDEX.md`** — chat alone is not retention.
+
+**Anthropic (engineering):** [Effective context engineering for AI agents](https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents).
+
+**Claude Code (skills load on demand):** [Extend Claude with skills](https://docs.anthropic.com/en/docs/claude-code/skills) — long always-on instructions cost more than **skills** invoked when relevant; **Agent Skills** standard: [agentskills.io](https://agentskills.io/).
+
+## Anti-slop prose (internal + user-facing outside strict 03-only files)
+
+For **marketing / landing** copy, **`LandingPageElite.tsx`** still obeys **`.cursor/rules/03-landing-conversion-guardrails.mdc`** and **04** — this section does **not** relax those.
+
+Elsewhere (docs, comments, research markdown, in-app strings not under **03** globs):
+
+- **Avoid** throat-clearing openers and filler: e.g. “Here’s the thing,” “Let that sink in,” “The uncomfortable truth is,” “It’s important to note that,” “In today’s world,” “Let’s dive in.”
+- **Avoid** faux-profound binaries (“X is dead; Y is the future”) without data.
+- **Em dash (—):** use **sparingly**; prefer periods or parentheses for clarity. Do not use typographic em dashes as a **rhythm crutch** every paragraph.
+- **Tone:** direct, evidence-backed, **no engagement bait** (no “comment skills,” “follow for part 2,” “you’re not ready for this”) in product or repo docs.
+
+**Inspiration (optional external skill; do not commit its full text):** MIT-licensed “stop slop” style packs exist on GitHub (e.g. **`hardikpandya/stop-slop`**); **read LICENSE + SKILL.md** before any install.
+
+## Third-party “Claude / Agent Skills” packs (marketing, UI DB, Remotion, …)
+
+- **Inspect before install** — same discipline as **`.cursor/rules/12-openclaw-clawhub-cursor-local.mdc`**: follow **`integrations/research/AGENT_SKILL_PREFLIGHT_CHECKLIST.md`** (read **`SKILL.md`**, LICENSE, scripts; no bulk `npx skills add` on autopilot).
+- **SyncScript product UI:** follow **11** + **`integrations/research/UX_UI_REFERENCE_CANON.md`** + **`integrations/research/DESIGN_TOKENS_SYNCSCRIPT.md`** — do not replace with a generic “50 styles” pack without token alignment.
+- **Remotion:** official docs [Remotion — Agent Skills](https://remotion.dev/docs/ai/skills) — use in a **separate video repo**, not as a silent dependency of this app unless explicitly approved.
+
+## Cursor-native project skill (optional @mention)
+
+- **Path:** **`.cursor/skills/syncscript-context-discipline/SKILL.md`**
+- **Default:** **Do not require @ every chat** — **this rule file** already applies globally.
+- **When to @mention:** Once per session if you want the skill file summarized or explicitly pinned in a thread that might not load all rules; redundant with **rule 16** for policy content.

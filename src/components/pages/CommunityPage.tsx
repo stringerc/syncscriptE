@@ -3,22 +3,19 @@ import {
   ArrowLeft,
   MessageCircle,
   Github,
-  Twitter,
   FileText,
   Bug,
   Lightbulb,
   Code2,
   Users,
   Calendar,
-  Star,
 } from 'lucide-react';
 import { useNavigate } from 'react-router';
 
 const channels = [
   { icon: MessageCircle, title: 'Discord', desc: 'Chat, support, and announcements', href: 'https://discord.gg/2rq38UJrDJ' },
-  { icon: Github, title: 'GitHub Discussions', desc: 'Q&A and feature ideas', href: '#' },
-  { icon: Twitter, title: 'Twitter / X', desc: 'Updates and tips', href: '#' },
-  { icon: FileText, title: 'Blog', desc: 'Product and engineering posts', href: '#' },
+  { icon: Github, title: 'GitHub', desc: 'Source code and issues', href: 'https://github.com/syncscript' },
+  { icon: FileText, title: 'Blog', desc: 'Product and engineering posts', href: '/blog' },
 ];
 
 const contributions = [
@@ -28,9 +25,7 @@ const contributions = [
 ];
 
 const spotlight = [
-  { name: 'Alex R.', role: 'Power user', quote: 'SyncScript changed how I plan my week.' },
-  { name: 'Jordan K.', role: 'Team lead', quote: 'We use it for team scheduling and love it.' },
-  { name: 'Sam T.', role: 'Developer', quote: 'The API made our internal tools much easier.' },
+  { name: 'Be the first', role: 'Share your story', quote: 'We\'d love to feature community members here. Join our Discord and say hello.' },
 ];
 
 export function CommunityPage() {

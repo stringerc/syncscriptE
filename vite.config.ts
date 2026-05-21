@@ -469,6 +469,8 @@ export default defineConfig({
     },
     apiProxyPlugin(),
     VitePWA({
+      /** Manual registration in `src/pwa/register-sw.ts` — avoid duplicate inject + reload storms. */
+      injectRegister: false,
       registerType: 'autoUpdate',
       includeAssets: [
         'favicon-16x16.png',

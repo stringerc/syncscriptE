@@ -172,7 +172,7 @@ export function ProfileMenuExample() {
                     userEmail="alex.j@syncscript.ai"
                     energyLevel={62}
                     dailyStreak={5}
-                    avatarSrc="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400"
+                    avatarSrc=""
                   />
                   <div>
                     <p className="text-white text-sm">Alex Johnson</p>
@@ -189,7 +189,7 @@ export function ProfileMenuExample() {
                     userEmail="sam.t@syncscript.ai"
                     energyLevel={95}
                     dailyStreak={20}
-                    avatarSrc="https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400"
+                    avatarSrc=""
                   />
                   <div>
                     <p className="text-white text-sm">Sam Taylor</p>
@@ -233,7 +233,7 @@ export function ProfileMenuExample() {
                 userEmail="alex.j@syncscript.ai"
                 energyLevel={62}
                 dailyStreak={5}
-                avatarSrc="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400"
+                avatarSrc=""
               />
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-1">

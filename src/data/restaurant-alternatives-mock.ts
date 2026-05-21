@@ -21,7 +21,7 @@ export const restaurantAlternatives: RestaurantAlternative[] = [
     vibeMatch: 88,
     matchReason: 'Upscale-casual Italian with authentic regional dishes and intimate ambiance',
     budgetSavings: 50,
-    imageUrl: 'https://images.unsplash.com/photo-1514933651103-005eec06c04b?w=800&q=80',
+    imageUrl: '',
     whySuggested: 'Fits your $60 budget perfectly while maintaining the upscale Italian experience you\'re looking for. Chef Andrew Carmellini\'s renowned seasonal menu delivers exceptional quality.',
     highlights: [
       'Authentic Italian cuisine',
@@ -51,7 +51,7 @@ export const restaurantAlternatives: RestaurantAlternative[] = [
     vibeMatch: 85,
     matchReason: 'Northern Italian specialties in a warm, convivial atmosphere with excellent value',
     budgetSavings: 57,
-    imageUrl: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&q=80',
+    imageUrl: '',
     whySuggested: 'Exceptional value at $48 per person, well within your $60 budget. Specializes in Emilia-Romagna cuisine with handmade pastas and house-cured salumi.',
     highlights: [
       'Handmade pastas',
@@ -81,7 +81,7 @@ export const restaurantAlternatives: RestaurantAlternative[] = [
     vibeMatch: 90,
     matchReason: 'Modern Italian with sophisticated ambiance and creative seasonal menu',
     budgetSavings: 47,
-    imageUrl: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=800&q=80',
+    imageUrl: '',
     whySuggested: 'Maximum quality within your $60 budget. Modern take on Italian classics with exceptional wine program and elegant but relaxed atmosphere perfect for special occasions.',
     highlights: [
       'Creative seasonal menu',
@@ -111,7 +111,7 @@ export const restaurantAlternatives: RestaurantAlternative[] = [
     vibeMatch: 75,
     matchReason: 'Different cuisine but similar upscale-casual vibe with seasonal American menu',
     budgetSavings: 45,
-    imageUrl: 'https://images.unsplash.com/photo-1544148103-0773bf10d330?w=800&q=80',
+    imageUrl: '',
     whySuggested: 'Right at your $60 budget with world-class seasonal American cuisine. While not Italian, it offers the same celebratory atmosphere and exceptional quality.',
     highlights: [
       'Michelin-recognized',
@@ -141,7 +141,7 @@ export const restaurantAlternatives: RestaurantAlternative[] = [
     vibeMatch: 80,
     matchReason: 'Rustic Italian with charming village atmosphere and exceptional value',
     budgetSavings: 63,
-    imageUrl: 'https://images.unsplash.com/photo-1559339352-11d035aa65de?w=800&q=80',
+    imageUrl: '',
     whySuggested: 'Great value at $42 per person, leaving room in your budget. Beloved West Village gem with rustic Italian charm and consistently excellent food.',
     highlights: [
       'Charming village atmosphere',

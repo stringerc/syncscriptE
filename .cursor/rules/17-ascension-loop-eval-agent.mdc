@@ -1,0 +1,18 @@
+---
+description: Ascension Loop — eval-driven Plan/Verify/Score/Repair mode; use when user invokes @ascension-loop, ascension mode, or compounding tail
+alwaysApply: false
+---
+
+# Ascension Loop (eval-driven agent mode)
+
+When the user invokes **ascension**, **ascension loop**, **`@ascension-loop`**, pastes **`ASCENSION COMPOUND`**, or asks for **score-and-repair until bar raises**:
+
+1. **Read** `integrations/research/ANTIGRAVITY_ASCENSION_LOOP_PROMPT.md` (master prompt + SyncScript gates).
+2. **State:** Use `AGENT_ASCENSION_STATE.md` at repo root; create from `AGENT_ASCENSION_STATE.template.md` if missing. Update every iteration.
+3. **Protocol:** Charter → Plan → Critic → Act → Verify → Score → Decision (REPAIR | RAISE BAR | PLATEAU | BLOCKED) → Compounding. **Never skip Verify or Score.**
+4. **Correctness:** Objective gates only (commands, tests). Per-criterion PASS/FAIL/UNVERIFIED with evidence — not self-awarded 10/10.
+5. **SyncScript:** Respect **`02-protected-files-never-touch.mdc`**. Prefer gates in research doc (`npm test`, `CI=true npm run build`, `verify:*`, `guard:*`).
+6. **Stop:** 3 repairs same root cause → BLOCKED; no secrets in chat; no destructive git without explicit ask.
+7. **Follow-ups:** If user sends only new work, prepend compounding behavior from `scripts/ascension-compound-tail.txt` and continue from last Decision.
+
+Playbook: `integrations/agent-playbooks/06-ascension-loop.md`.

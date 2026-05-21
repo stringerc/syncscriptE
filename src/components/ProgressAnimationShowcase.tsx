@@ -57,7 +57,7 @@ export function ProgressAnimationShowcase() {
                 {/* Different progress levels */}
                 <div className="text-center space-y-3">
                   <AnimatedAvatar
-                    src="https://images.unsplash.com/photo-1576558656222-ba66febe3dec?w=400"
+                    src=""
                     fallback="JS"
                     progress={95}
                     animationType="glow"
@@ -72,7 +72,7 @@ export function ProgressAnimationShowcase() {
 
                 <div className="text-center space-y-3">
                   <AnimatedAvatar
-                    src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400"
+                    src=""
                     fallback="AJ"
                     progress={72}
                     animationType="glow"
@@ -87,7 +87,7 @@ export function ProgressAnimationShowcase() {
 
                 <div className="text-center space-y-3">
                   <AnimatedAvatar
-                    src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400"
+                    src=""
                     fallback="ST"
                     progress={48}
                     animationType="pulse"
@@ -102,7 +102,7 @@ export function ProgressAnimationShowcase() {
 
                 <div className="text-center space-y-3">
                   <AnimatedAvatar
-                    src="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=400"
+                    src=""
                     fallback="MK"
                     progress={22}
                     animationType="pulse"
@@ -441,10 +441,10 @@ export function ProgressAnimationShowcase() {
               <h2 className="text-white text-xl mb-4">Team Energy Levels</h2>
               <div className="space-y-4">
                 {[
-                  { name: 'Jordan Smith', role: 'Team Lead', energy: 85, avatar: 'https://images.unsplash.com/photo-1576558656222-ba66febe3dec?w=400' },
-                  { name: 'Alex Johnson', role: 'Developer', energy: 72, avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400' },
-                  { name: 'Sam Taylor', role: 'Designer', energy: 95, avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400' },
-                  { name: 'Morgan Kim', role: 'Product Manager', energy: 58, avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=400' },
+                  { name: 'Jordan Smith', role: 'Team Lead', energy: 85, avatar: '' },
+                  { name: 'Alex Johnson', role: 'Developer', energy: 72, avatar: '' },
+                  { name: 'Sam Taylor', role: 'Designer', energy: 95, avatar: '' },
+                  { name: 'Morgan Kim', role: 'Product Manager', energy: 58, avatar: '' },
                 ].map((member, index) => (
                   <motion.div
                     key={member.name}
@@ -493,7 +493,7 @@ export function ProgressAnimationShowcase() {
                     className="flex items-center gap-3 p-3 bg-[#2a2d35] rounded-lg"
                   >
                     <AnimatedAvatar
-                      src={`https://images.unsplash.com/photo-${index === 0 ? '1576558656222-ba66febe3dec' : index === 1 ? '1507003211169-0a1dd7228f2d' : '1494790108377-be9c29b29330'}?w=400`}
+          src=""
                       fallback={activity.user.split(' ').map(n => n[0]).join('')}
                       progress={activity.energy}
                       animationType="glow"

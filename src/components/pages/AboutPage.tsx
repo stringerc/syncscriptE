@@ -21,10 +21,10 @@ const values = [
 ];
 
 const team = [
-  { role: 'CEO', name: 'Founding team' },
-  { role: 'CTO', name: 'Founding team' },
-  { role: 'Head of Design', name: 'Founding team' },
-  { role: 'Head of AI', name: 'Founding team' },
+  { role: 'Founder & CEO', focus: 'Product strategy & vision' },
+  { role: 'Engineering', focus: 'Architecture, AI, & platform' },
+  { role: 'Design', focus: 'UX research & interface' },
+  { role: 'Growth', focus: 'Community & partnerships' },
 ];
 
 const stats = [
@@ -155,9 +155,9 @@ export function AboutPage() {
               >
                 <div className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center mx-auto mb-3">
                   <Users className="w-6 h-6 text-white/70" />
+              <h3 className="font-semibold text-white">{t.role}</h3>
+              <p className="text-sm text-white/60">{t.focus}</p>
                 </div>
-                <h3 className="font-semibold text-white">{t.role}</h3>
-                <p className="text-sm text-white/60">{t.name}</p>
               </motion.div>
             ))}
           </div>

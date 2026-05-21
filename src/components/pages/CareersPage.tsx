@@ -23,11 +23,7 @@ const benefits = [
 ];
 
 const jobs = [
-  { title: 'Senior Frontend Engineer', dept: 'Engineering', location: 'Remote', type: 'Full-time', desc: 'Build beautiful, performant React experiences that users love.' },
-  { title: 'Backend Engineer', dept: 'Engineering', location: 'Remote', type: 'Full-time', desc: 'Design and scale APIs and data pipelines that power SyncScript.' },
-  { title: 'AI/ML Engineer', dept: 'Engineering', location: 'Remote', type: 'Full-time', desc: 'Ship models and features that make productivity feel intelligent.' },
-  { title: 'Product Designer', dept: 'Design', location: 'Remote', type: 'Full-time', desc: 'Own UX from concept to ship with a focus on clarity and delight.' },
-  { title: 'Developer Advocate', dept: 'Growth', location: 'Remote', type: 'Full-time', desc: 'Connect with developers and help them succeed with SyncScript.' },
+  { title: 'No open positions right now', dept: '', location: '', type: '', desc: 'We\'re a small team focused on building. When we\'re ready to grow, openings will appear here first.' },
 ];
 
 export function CareersPage() {
@@ -122,36 +118,19 @@ export function CareersPage() {
         >
           <h2 className="text-2xl font-semibold mb-8 text-white">Open Positions</h2>
           <div className="space-y-4">
-            {jobs.map((job, i) => (
-              <motion.div
-                key={job.title}
-                className="rounded-xl border border-white/10 bg-white/5 backdrop-blur-sm p-6 hover:bg-white/10 transition-colors"
-                initial={{ opacity: 0, y: 16 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.4, delay: i * 0.06 }}
-              >
-                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-                  <div>
-                    <h3 className="font-semibold text-white text-lg">{job.title}</h3>
-                    <div className="flex flex-wrap gap-2 mt-1 text-sm text-white/60">
-                      <span>{job.dept}</span>
-                      <span>·</span>
-                      <span>{job.location}</span>
-                      <span>·</span>
-                      <span>{job.type}</span>
-                    </div>
-                    <p className="text-white/70 mt-2">{job.desc}</p>
-                  </div>
-                  <a
-                    href={`mailto:${careersEmail}?subject=Application: ${encodeURIComponent(job.title)}`}
-                    className="shrink-0 inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-500 hover:bg-indigo-600 text-white text-sm font-medium transition-colors"
-                  >
-                    Apply <Mail className="w-4 h-4" />
-                  </a>
-                </div>
-              </motion.div>
-            ))}
+        {jobs.map((job, i) => (
+          <motion.div
+            key={job.title}
+            className="rounded-xl border border-white/10 bg-white/5 backdrop-blur-sm p-6"
+            initial={{ opacity: 0, y: 16 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.4, delay: i * 0.06 }}
+          >
+            <h3 className="font-semibold text-white text-lg">{job.title}</h3>
+            <p className="text-white/70 mt-2">{job.desc}</p>
+          </motion.div>
+        ))}
           </div>
         </motion.section>
 

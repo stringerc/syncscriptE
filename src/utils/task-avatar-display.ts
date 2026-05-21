@@ -56,7 +56,7 @@ function isOwnerRow(
 }
 
 const STOCK_AVATAR =
-  'https://images.unsplash.com/photo-1656313826909-1f89d1702a81?w=100&h=100&fit=crop';
+  '';
 
 function norm(s: string | undefined): string {
   return String(s || '').trim().toLowerCase();

@@ -529,13 +529,13 @@ export function AIFocusSection() {
               // Sample attendees for weather conflicts (matches modal data)
               const attendees = alert.affectedEvents?.[0]?.includes('Client Site Visit')
                 ? [
-                    { name: 'Sarah Chen', image: 'https://images.unsplash.com/photo-1581065178047-8ee15951ede6?w=100' },
-                    { name: 'Mike Rodriguez', image: 'https://images.unsplash.com/photo-1598268012815-ae21095df31b?w=100' },
+                    { name: 'Sarah Chen', image: '' },
+                    { name: 'Mike Rodriguez', image: '' },
                   ]
                 : [
-                    { name: 'Emma Wilson', image: 'https://images.unsplash.com/photo-1745434159123-4908d0b9df94?w=100' },
-                    { name: 'John Park', image: 'https://images.unsplash.com/photo-1758599543154-76ec1c4257df?w=100' },
-                    { name: 'Lisa Kumar', image: 'https://images.unsplash.com/photo-1581065178047-8ee15951ede6?w=100' },
+                    { name: 'Emma Wilson', image: '' },
+                    { name: 'John Park', image: '' },
+                    { name: 'Lisa Kumar', image: '' },
                   ];
               
               return (
@@ -634,13 +634,13 @@ export function AIFocusSection() {
               // Sample attendees for route conflicts (matches modal data)
               const attendees = alert.affectedEvents?.[0]?.includes('Quarterly Board Meeting')
                 ? [
-                    { name: 'David Kim', image: 'https://images.unsplash.com/photo-1598268012815-ae21095df31b?w=100' },
-                    { name: 'Rachel Foster', image: 'https://images.unsplash.com/photo-1745434159123-4908d0b9df94?w=100' },
-                    { name: 'Tom Anderson', image: 'https://images.unsplash.com/photo-1758599543154-76ec1c4257df?w=100' },
+                    { name: 'David Kim', image: '' },
+                    { name: 'Rachel Foster', image: '' },
+                    { name: 'Tom Anderson', image: '' },
                   ]
                 : [
-                    { name: 'Alex Rivera', image: 'https://images.unsplash.com/photo-1581065178047-8ee15951ede6?w=100' },
-                    { name: 'Nina Patel', image: 'https://images.unsplash.com/photo-1598268012815-ae21095df31b?w=100' },
+                    { name: 'Alex Rivera', image: '' },
+                    { name: 'Nina Patel', image: '' },
                   ];
               
               return (

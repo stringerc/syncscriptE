@@ -393,7 +393,7 @@ export const conferenceScript: Script = {
 
 export const archivedEvent: Event = {
   id: 'event-archived-example',
-  title: 'Q3 2025 Planning (ARCHIVED)',
+  title: 'Quarterly Planning (ARCHIVED)',
   description: 'This event has been completed and archived',
   startTime: new Date('2025-09-15T10:00:00'),
   endTime: new Date('2025-09-15T12:00:00'),

@@ -150,7 +150,7 @@ export function GuildDashboard({ className }: { className?: string }) {
     {
       id: 'member_1',
       name: 'Sarah Chen',
-      avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop',
+      avatar: '',
       role: 'leader',
       level: 35,
       xpContributed: 12500,
@@ -162,7 +162,7 @@ export function GuildDashboard({ className }: { className?: string }) {
     {
       id: 'member_2',
       name: 'Marcus Johnson',
-      avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop',
+      avatar: '',
       role: 'officer',
       level: 32,
       xpContributed: 9800,
@@ -174,7 +174,7 @@ export function GuildDashboard({ className }: { className?: string }) {
     {
       id: 'member_3',
       name: profile.displayName,
-      avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop',
+      avatar: '',
       role: 'member',
       level: profile.level,
       xpContributed: 7350,

@@ -471,58 +471,58 @@ export function TasksGoalsPage() {
         { id: 'r3', type: 'file', name: 'Department_Requests.pdf', url: '#', fileName: 'Department_Requests.pdf', fileSize: '3.2 MB', addedBy: 'Marcus Johnson', addedAt: 'Jan 4' },
       ],
       collaborators: [
-        { name: 'Sample User', image: 'https://images.unsplash.com/photo-1576558656222-ba66febe3dec?w=100', fallback: 'JS', progress: 85, animationType: 'glow', status: 'online', role: 'creator' },
-        { name: 'Sarah Chen', image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100', fallback: 'SC', progress: 72, animationType: 'pulse', status: 'online', role: 'admin' },
-        { name: 'Marcus Johnson', image: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100', fallback: 'MJ', progress: 68, animationType: 'heartbeat', status: 'online', role: 'collaborator' },
-        { name: 'Elena Rodriguez', image: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100', fallback: 'ER', progress: 78, animationType: 'wiggle', status: 'away', role: 'collaborator' },
+        { name: 'Sample User', image: '', fallback: 'JS', progress: 85, animationType: 'glow', status: 'online', role: 'creator' },
+        { name: 'Sarah Chen', image: '', fallback: 'SC', progress: 72, animationType: 'pulse', status: 'online', role: 'admin' },
+        { name: 'Marcus Johnson', image: '', fallback: 'MJ', progress: 68, animationType: 'heartbeat', status: 'online', role: 'collaborator' },
+        { name: 'Elena Rodriguez', image: '', fallback: 'ER', progress: 78, animationType: 'wiggle', status: 'away', role: 'collaborator' },
       ],
       subtasks: [
-        { id: 's1', title: 'Gather Q3 spending data', completed: true, completedBy: 'Sarah Chen', completedAt: '2 hours ago', assignedTo: [{ name: 'Sarah Chen', image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100', fallback: 'SC' }], steps: [
-          { id: 'step1', title: 'Identify all data sources', completed: true, assignedTo: { name: 'Sarah Chen', image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100', fallback: 'SC' } },
-          { id: 'step2', title: 'Export financial reports', completed: true, assignedTo: { name: 'Sarah Chen', image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100', fallback: 'SC' } },
-          { id: 'step3', title: 'Verify data accuracy', completed: true, assignedTo: { name: 'Sarah Chen', image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100', fallback: 'SC' } },
+        { id: 's1', title: 'Gather Q3 spending data', completed: true, completedBy: 'Sarah Chen', completedAt: '2 hours ago', assignedTo: [{ name: 'Sarah Chen', image: '', fallback: 'SC' }], steps: [
+          { id: 'step1', title: 'Identify all data sources', completed: true, assignedTo: { name: 'Sarah Chen', image: '', fallback: 'SC' } },
+          { id: 'step2', title: 'Export financial reports', completed: true, assignedTo: { name: 'Sarah Chen', image: '', fallback: 'SC' } },
+          { id: 'step3', title: 'Verify data accuracy', completed: true, assignedTo: { name: 'Sarah Chen', image: '', fallback: 'SC' } },
         ] },
-        { id: 's2', title: 'Review department requests', completed: true, completedBy: 'Marcus Johnson', completedAt: '1 hour ago', assignedTo: [{ name: 'Marcus Johnson', image: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100', fallback: 'MJ' }], steps: [
-          { id: 'step1', title: 'Collect all department submissions', completed: true, assignedTo: { name: 'Marcus Johnson', image: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100', fallback: 'MJ' } },
-          { id: 'step2', title: 'Categorize by priority', completed: true, assignedTo: { name: 'Marcus Johnson', image: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100', fallback: 'MJ' } },
+        { id: 's2', title: 'Review department requests', completed: true, completedBy: 'Marcus Johnson', completedAt: '1 hour ago', assignedTo: [{ name: 'Marcus Johnson', image: '', fallback: 'MJ' }], steps: [
+          { id: 'step1', title: 'Collect all department submissions', completed: true, assignedTo: { name: 'Marcus Johnson', image: '', fallback: 'MJ' } },
+          { id: 'step2', title: 'Categorize by priority', completed: true, assignedTo: { name: 'Marcus Johnson', image: '', fallback: 'MJ' } },
         ] },
         { id: 's3', title: 'Create allocation spreadsheet', completed: false, completedBy: null, completedAt: null, assignedTo: [
-          { name: 'Sarah Chen', image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100', fallback: 'SC' },
-          { name: 'Marcus Johnson', image: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100', fallback: 'MJ' }
+          { name: 'Sarah Chen', image: '', fallback: 'SC' },
+          { name: 'Marcus Johnson', image: '', fallback: 'MJ' }
         ], 
         resources: [
           { id: 'r1', type: 'link', name: 'Budget Template', url: 'https://example.com/template', addedBy: 'Sarah Chen', addedAt: 'Jan 5' }
         ],
         steps: [
-          { id: 'step1', title: 'Set up spreadsheet template', completed: true, assignedTo: { name: 'Sarah Chen', image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100', fallback: 'SC' } },
-          { id: 'step2', title: 'Input Q3 spending data', completed: true, assignedTo: { name: 'Sarah Chen', image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100', fallback: 'SC' }, resources: [
+          { id: 'step1', title: 'Set up spreadsheet template', completed: true, assignedTo: { name: 'Sarah Chen', image: '', fallback: 'SC' } },
+          { id: 'step2', title: 'Input Q3 spending data', completed: true, assignedTo: { name: 'Sarah Chen', image: '', fallback: 'SC' }, resources: [
             { id: 'r2', type: 'file', name: 'Q3_Data.xlsx', url: '#', fileName: 'Q3_Data.xlsx', fileSize: '2.4 MB', addedBy: 'Sarah Chen', addedAt: 'Jan 5' }
           ] },
-          { id: 'step3', title: 'Add department requests', completed: false, assignedTo: { name: 'Marcus Johnson', image: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100', fallback: 'MJ' } },
-          { id: 'step4', title: 'Calculate totals and variances', completed: false, assignedTo: { name: 'Marcus Johnson', image: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100', fallback: 'MJ' } },
+          { id: 'step3', title: 'Add department requests', completed: false, assignedTo: { name: 'Marcus Johnson', image: '', fallback: 'MJ' } },
+          { id: 'step4', title: 'Calculate totals and variances', completed: false, assignedTo: { name: 'Marcus Johnson', image: '', fallback: 'MJ' } },
         ] },
-        { id: 's4', title: 'Calculate variance analysis', completed: false, completedBy: null, completedAt: null, assignedTo: [{ name: 'Marcus Johnson', image: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100', fallback: 'MJ' }], steps: [
-          { id: 'step1', title: 'Compare Q3 vs Q2 spending', completed: false, assignedTo: { name: 'Marcus Johnson', image: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100', fallback: 'MJ' } },
-          { id: 'step2', title: 'Identify significant variances', completed: false, assignedTo: { name: 'Marcus Johnson', image: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100', fallback: 'MJ' } },
-          { id: 'step3', title: 'Document reasons for variances', completed: false, assignedTo: { name: 'Marcus Johnson', image: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100', fallback: 'MJ' } },
+        { id: 's4', title: 'Calculate variance analysis', completed: false, completedBy: null, completedAt: null, assignedTo: [{ name: 'Marcus Johnson', image: '', fallback: 'MJ' }], steps: [
+          { id: 'step1', title: 'Compare Q3 vs Q2 spending', completed: false, assignedTo: { name: 'Marcus Johnson', image: '', fallback: 'MJ' } },
+          { id: 'step2', title: 'Identify significant variances', completed: false, assignedTo: { name: 'Marcus Johnson', image: '', fallback: 'MJ' } },
+          { id: 'step3', title: 'Document reasons for variances', completed: false, assignedTo: { name: 'Marcus Johnson', image: '', fallback: 'MJ' } },
         ] },
         { id: 's5', title: 'Draft recommendations document', completed: false, completedBy: null, completedAt: null, assignedTo: [
-          { name: 'Elena Rodriguez', image: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100', fallback: 'ER' },
-          { name: 'Sarah Chen', image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100', fallback: 'SC' }
+          { name: 'Elena Rodriguez', image: '', fallback: 'ER' },
+          { name: 'Sarah Chen', image: '', fallback: 'SC' }
         ], 
         resources: [
           { id: 'r3', type: 'link', name: 'Writing Guidelines', url: 'https://example.com/guidelines', addedBy: 'Elena Rodriguez', addedAt: 'Jan 4' }
         ],
         steps: [
-          { id: 'step1', title: 'Outline key recommendations', completed: false, assignedTo: { name: 'Elena Rodriguez', image: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100', fallback: 'ER' } },
-          { id: 'step2', title: 'Write executive summary', completed: false, assignedTo: { name: 'Sarah Chen', image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100', fallback: 'SC' } },
-          { id: 'step3', title: 'Detail budget allocation plan', completed: false, assignedTo: { name: 'Elena Rodriguez', image: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100', fallback: 'ER' } },
-          { id: 'step4', title: 'Review and finalize', completed: false, assignedTo: { name: 'Sarah Chen', image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100', fallback: 'SC' } },
+          { id: 'step1', title: 'Outline key recommendations', completed: false, assignedTo: { name: 'Elena Rodriguez', image: '', fallback: 'ER' } },
+          { id: 'step2', title: 'Write executive summary', completed: false, assignedTo: { name: 'Sarah Chen', image: '', fallback: 'SC' } },
+          { id: 'step3', title: 'Detail budget allocation plan', completed: false, assignedTo: { name: 'Elena Rodriguez', image: '', fallback: 'ER' } },
+          { id: 'step4', title: 'Review and finalize', completed: false, assignedTo: { name: 'Sarah Chen', image: '', fallback: 'SC' } },
         ] },
-        { id: 's6', title: 'Get stakeholder approval', completed: false, completedBy: null, completedAt: null, assignedTo: [{ name: 'Sarah Chen', image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100', fallback: 'SC' }], steps: [
-          { id: 'step1', title: 'Schedule approval meeting', completed: false, assignedTo: { name: 'Sarah Chen', image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100', fallback: 'SC' } },
-          { id: 'step2', title: 'Present to stakeholders', completed: false, assignedTo: { name: 'Sarah Chen', image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100', fallback: 'SC' } },
-          { id: 'step3', title: 'Collect feedback and revise', completed: false, assignedTo: { name: 'Sarah Chen', image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100', fallback: 'SC' } },
+        { id: 's6', title: 'Get stakeholder approval', completed: false, completedBy: null, completedAt: null, assignedTo: [{ name: 'Sarah Chen', image: '', fallback: 'SC' }], steps: [
+          { id: 'step1', title: 'Schedule approval meeting', completed: false, assignedTo: { name: 'Sarah Chen', image: '', fallback: 'SC' } },
+          { id: 'step2', title: 'Present to stakeholders', completed: false, assignedTo: { name: 'Sarah Chen', image: '', fallback: 'SC' } },
+          { id: 'step3', title: 'Collect feedback and revise', completed: false, assignedTo: { name: 'Sarah Chen', image: '', fallback: 'SC' } },
         ] },
       ],
       activity: [
@@ -547,30 +547,30 @@ export function TasksGoalsPage() {
       currentUserRole: 'collaborator', // Sample User is a regular collaborator
       isPrivate: true,
       collaborators: [
-        { name: 'David Kim', image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100', fallback: 'DK', progress: 80, animationType: 'bounce', status: 'online', role: 'creator' },
-        { name: 'Elena Rodriguez', image: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100', fallback: 'ER', progress: 78, animationType: 'wiggle', status: 'away', role: 'admin' },
-        { name: 'Sample User', image: 'https://images.unsplash.com/photo-1576558656222-ba66febe3dec?w=100', fallback: 'JS', progress: 85, animationType: 'glow', status: 'online', role: 'collaborator' },
+        { name: 'David Kim', image: '', fallback: 'DK', progress: 80, animationType: 'bounce', status: 'online', role: 'creator' },
+        { name: 'Elena Rodriguez', image: '', fallback: 'ER', progress: 78, animationType: 'wiggle', status: 'away', role: 'admin' },
+        { name: 'Sample User', image: '', fallback: 'JS', progress: 85, animationType: 'glow', status: 'online', role: 'collaborator' },
       ],
       subtasks: [
-        { id: 's1', title: 'Read executive summary', completed: true, completedBy: 'David Kim', completedAt: '1 day ago', assignedTo: [{ name: 'David Kim', image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100', fallback: 'DK' }], steps: [
-          { id: 'step1', title: 'Review key objectives', completed: true, assignedTo: { name: 'David Kim', image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100', fallback: 'DK' } },
-          { id: 'step2', title: 'Note questions', completed: true, assignedTo: { name: 'David Kim', image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100', fallback: 'DK' } },
+        { id: 's1', title: 'Read executive summary', completed: true, completedBy: 'David Kim', completedAt: '1 day ago', assignedTo: [{ name: 'David Kim', image: '', fallback: 'DK' }], steps: [
+          { id: 'step1', title: 'Review key objectives', completed: true, assignedTo: { name: 'David Kim', image: '', fallback: 'DK' } },
+          { id: 'step2', title: 'Note questions', completed: true, assignedTo: { name: 'David Kim', image: '', fallback: 'DK' } },
         ] },
-        { id: 's2', title: 'Review timeline and milestones', completed: true, completedBy: 'Elena Rodriguez', completedAt: '5 hours ago', assignedTo: [{ name: 'Elena Rodriguez', image: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100', fallback: 'ER' }], steps: [
-          { id: 'step1', title: 'Check phase dates', completed: true, assignedTo: { name: 'Elena Rodriguez', image: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100', fallback: 'ER' } },
-          { id: 'step2', title: 'Verify dependencies', completed: true, assignedTo: { name: 'Elena Rodriguez', image: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100', fallback: 'ER' } },
+        { id: 's2', title: 'Review timeline and milestones', completed: true, completedBy: 'Elena Rodriguez', completedAt: '5 hours ago', assignedTo: [{ name: 'Elena Rodriguez', image: '', fallback: 'ER' }], steps: [
+          { id: 'step1', title: 'Check phase dates', completed: true, assignedTo: { name: 'Elena Rodriguez', image: '', fallback: 'ER' } },
+          { id: 'step2', title: 'Verify dependencies', completed: true, assignedTo: { name: 'Elena Rodriguez', image: '', fallback: 'ER' } },
         ] },
-        { id: 's3', title: 'Check budget calculations', completed: false, completedBy: null, completedAt: null, assignedTo: [{ name: 'David Kim', image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100', fallback: 'DK' }], steps: [
-          { id: 'step1', title: 'Review cost breakdown', completed: false, assignedTo: { name: 'David Kim', image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100', fallback: 'DK' } },
-          { id: 'step2', title: 'Validate formulas', completed: false, assignedTo: { name: 'David Kim', image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100', fallback: 'DK' } },
+        { id: 's3', title: 'Check budget calculations', completed: false, completedBy: null, completedAt: null, assignedTo: [{ name: 'David Kim', image: '', fallback: 'DK' }], steps: [
+          { id: 'step1', title: 'Review cost breakdown', completed: false, assignedTo: { name: 'David Kim', image: '', fallback: 'DK' } },
+          { id: 'step2', title: 'Validate formulas', completed: false, assignedTo: { name: 'David Kim', image: '', fallback: 'DK' } },
         ] },
-        { id: 's4', title: 'Verify resource requirements', completed: false, completedBy: null, completedAt: null, assignedTo: [{ name: 'Elena Rodriguez', image: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100', fallback: 'ER' }], steps: [
-          { id: 'step1', title: 'Check team capacity', completed: false, assignedTo: { name: 'Elena Rodriguez', image: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100', fallback: 'ER' } },
-          { id: 'step2', title: 'Assess skill requirements', completed: false, assignedTo: { name: 'Elena Rodriguez', image: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100', fallback: 'ER' } },
+        { id: 's4', title: 'Verify resource requirements', completed: false, completedBy: null, completedAt: null, assignedTo: [{ name: 'Elena Rodriguez', image: '', fallback: 'ER' }], steps: [
+          { id: 'step1', title: 'Check team capacity', completed: false, assignedTo: { name: 'Elena Rodriguez', image: '', fallback: 'ER' } },
+          { id: 'step2', title: 'Assess skill requirements', completed: false, assignedTo: { name: 'Elena Rodriguez', image: '', fallback: 'ER' } },
         ] },
-        { id: 's5', title: 'Provide feedback and comments', completed: false, completedBy: null, completedAt: null, assignedTo: [{ name: 'David Kim', image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100', fallback: 'DK' }], steps: [
-          { id: 'step1', title: 'Draft initial feedback', completed: false, assignedTo: { name: 'David Kim', image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100', fallback: 'DK' } },
-          { id: 'step2', title: 'Submit comments', completed: false, assignedTo: { name: 'David Kim', image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100', fallback: 'DK' } },
+        { id: 's5', title: 'Provide feedback and comments', completed: false, completedBy: null, completedAt: null, assignedTo: [{ name: 'David Kim', image: '', fallback: 'DK' }], steps: [
+          { id: 'step1', title: 'Draft initial feedback', completed: false, assignedTo: { name: 'David Kim', image: '', fallback: 'DK' } },
+          { id: 'step2', title: 'Submit comments', completed: false, assignedTo: { name: 'David Kim', image: '', fallback: 'DK' } },
         ] },
       ],
       activity: [
@@ -593,27 +593,27 @@ export function TasksGoalsPage() {
       currentUserRole: 'admin', // Sample User is an admin
       isPrivate: false,
       collaborators: [
-        { name: 'Marcus Johnson', image: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100', fallback: 'MJ', progress: 68, animationType: 'heartbeat', status: 'online', role: 'creator' },
-        { name: 'Sample User', image: 'https://images.unsplash.com/photo-1576558656222-ba66febe3dec?w=100', fallback: 'JS', progress: 85, animationType: 'glow', status: 'online', role: 'admin' },
-        { name: 'David Kim', image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100', fallback: 'DK', progress: 80, animationType: 'bounce', status: 'online', role: 'collaborator' },
-        { name: 'Sarah Chen', image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100', fallback: 'SC', progress: 72, animationType: 'pulse', status: 'online', role: 'collaborator' },
+        { name: 'Marcus Johnson', image: '', fallback: 'MJ', progress: 68, animationType: 'heartbeat', status: 'online', role: 'creator' },
+        { name: 'Sample User', image: '', fallback: 'JS', progress: 85, animationType: 'glow', status: 'online', role: 'admin' },
+        { name: 'David Kim', image: '', fallback: 'DK', progress: 80, animationType: 'bounce', status: 'online', role: 'collaborator' },
+        { name: 'Sarah Chen', image: '', fallback: 'SC', progress: 72, animationType: 'pulse', status: 'online', role: 'collaborator' },
       ],
       subtasks: [
-        { id: 's1', title: 'Create meeting agenda', completed: false, completedBy: null, completedAt: null, assignedTo: [{ name: 'Marcus Johnson', image: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100', fallback: 'MJ' }], steps: [
-          { id: 'step1', title: 'List discussion topics', completed: false, assignedTo: { name: 'Marcus Johnson', image: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100', fallback: 'MJ' } },
-          { id: 'step2', title: 'Allocate time slots', completed: false, assignedTo: { name: 'Marcus Johnson', image: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100', fallback: 'MJ' } },
+        { id: 's1', title: 'Create meeting agenda', completed: false, completedBy: null, completedAt: null, assignedTo: [{ name: 'Marcus Johnson', image: '', fallback: 'MJ' }], steps: [
+          { id: 'step1', title: 'List discussion topics', completed: false, assignedTo: { name: 'Marcus Johnson', image: '', fallback: 'MJ' } },
+          { id: 'step2', title: 'Allocate time slots', completed: false, assignedTo: { name: 'Marcus Johnson', image: '', fallback: 'MJ' } },
         ] },
-        { id: 's2', title: 'Collect team updates', completed: false, completedBy: null, completedAt: null, assignedTo: [{ name: 'Sarah Chen', image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100', fallback: 'SC' }], steps: [
-          { id: 'step1', title: 'Email team for updates', completed: false, assignedTo: { name: 'Sarah Chen', image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100', fallback: 'SC' } },
-          { id: 'step2', title: 'Compile responses', completed: false, assignedTo: { name: 'Sarah Chen', image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100', fallback: 'SC' } },
+        { id: 's2', title: 'Collect team updates', completed: false, completedBy: null, completedAt: null, assignedTo: [{ name: 'Sarah Chen', image: '', fallback: 'SC' }], steps: [
+          { id: 'step1', title: 'Email team for updates', completed: false, assignedTo: { name: 'Sarah Chen', image: '', fallback: 'SC' } },
+          { id: 'step2', title: 'Compile responses', completed: false, assignedTo: { name: 'Sarah Chen', image: '', fallback: 'SC' } },
         ] },
-        { id: 's3', title: 'Review action items from last meeting', completed: false, completedBy: null, completedAt: null, assignedTo: [{ name: 'David Kim', image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100', fallback: 'DK' }], steps: [
-          { id: 'step1', title: 'Check action item status', completed: false, assignedTo: { name: 'David Kim', image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100', fallback: 'DK' } },
-          { id: 'step2', title: 'Flag incomplete items', completed: false, assignedTo: { name: 'David Kim', image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100', fallback: 'DK' } },
+        { id: 's3', title: 'Review action items from last meeting', completed: false, completedBy: null, completedAt: null, assignedTo: [{ name: 'David Kim', image: '', fallback: 'DK' }], steps: [
+          { id: 'step1', title: 'Check action item status', completed: false, assignedTo: { name: 'David Kim', image: '', fallback: 'DK' } },
+          { id: 'step2', title: 'Flag incomplete items', completed: false, assignedTo: { name: 'David Kim', image: '', fallback: 'DK' } },
         ] },
-        { id: 's4', title: 'Prepare presentation slides', completed: false, completedBy: null, completedAt: null, assignedTo: [{ name: 'Marcus Johnson', image: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100', fallback: 'MJ' }], steps: [
-          { id: 'step1', title: 'Create slide deck', completed: false, assignedTo: { name: 'Marcus Johnson', image: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100', fallback: 'MJ' } },
-          { id: 'step2', title: 'Add charts and data', completed: false, assignedTo: { name: 'Marcus Johnson', image: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100', fallback: 'MJ' } },
+        { id: 's4', title: 'Prepare presentation slides', completed: false, completedBy: null, completedAt: null, assignedTo: [{ name: 'Marcus Johnson', image: '', fallback: 'MJ' }], steps: [
+          { id: 'step1', title: 'Create slide deck', completed: false, assignedTo: { name: 'Marcus Johnson', image: '', fallback: 'MJ' } },
+          { id: 'step2', title: 'Add charts and data', completed: false, assignedTo: { name: 'Marcus Johnson', image: '', fallback: 'MJ' } },
         ] },
       ],
       activity: [
@@ -633,17 +633,17 @@ export function TasksGoalsPage() {
       completed: true,
       collaborators: [],
       subtasks: [
-        { id: 's1', title: 'Reply to Acme Corp pricing question', completed: true, completedBy: 'You', completedAt: '2 hours ago', assignedTo: [{ name: 'You', image: 'https://images.unsplash.com/photo-1576558656222-ba66febe3dec?w=100', fallback: 'JM' }], steps: [
-          { id: 'step1', title: 'Review pricing tiers', completed: true, assignedTo: { name: 'You', image: 'https://images.unsplash.com/photo-1576558656222-ba66febe3dec?w=100', fallback: 'JM' } },
-          { id: 'step2', title: 'Draft response email', completed: true, assignedTo: { name: 'You', image: 'https://images.unsplash.com/photo-1576558656222-ba66febe3dec?w=100', fallback: 'JM' } },
+        { id: 's1', title: 'Reply to Acme Corp pricing question', completed: true, completedBy: 'You', completedAt: '2 hours ago', assignedTo: [{ name: 'You', image: '', fallback: 'JM' }], steps: [
+          { id: 'step1', title: 'Review pricing tiers', completed: true, assignedTo: { name: 'You', image: '', fallback: 'JM' } },
+          { id: 'step2', title: 'Draft response email', completed: true, assignedTo: { name: 'You', image: '', fallback: 'JM' } },
         ] },
-        { id: 's2', title: 'Send demo link to TechStart', completed: true, completedBy: 'You', completedAt: '2 hours ago', assignedTo: [{ name: 'You', image: 'https://images.unsplash.com/photo-1576558656222-ba66febe3dec?w=100', fallback: 'JM' }], steps: [
-          { id: 'step1', title: 'Generate demo link', completed: true, assignedTo: { name: 'You', image: 'https://images.unsplash.com/photo-1576558656222-ba66febe3dec?w=100', fallback: 'JM' } },
-          { id: 'step2', title: 'Send email with instructions', completed: true, assignedTo: { name: 'You', image: 'https://images.unsplash.com/photo-1576558656222-ba66febe3dec?w=100', fallback: 'JM' } },
+        { id: 's2', title: 'Send demo link to TechStart', completed: true, completedBy: 'You', completedAt: '2 hours ago', assignedTo: [{ name: 'You', image: '', fallback: 'JM' }], steps: [
+          { id: 'step1', title: 'Generate demo link', completed: true, assignedTo: { name: 'You', image: '', fallback: 'JM' } },
+          { id: 'step2', title: 'Send email with instructions', completed: true, assignedTo: { name: 'You', image: '', fallback: 'JM' } },
         ] },
-        { id: 's3', title: 'Follow up with GlobalCo', completed: true, completedBy: 'You', completedAt: '1 hour ago', assignedTo: [{ name: 'You', image: 'https://images.unsplash.com/photo-1576558656222-ba66febe3dec?w=100', fallback: 'JM' }], steps: [
-          { id: 'step1', title: 'Review previous conversation', completed: true, assignedTo: { name: 'You', image: 'https://images.unsplash.com/photo-1576558656222-ba66febe3dec?w=100', fallback: 'JM' } },
-          { id: 'step2', title: 'Send follow-up email', completed: true, assignedTo: { name: 'You', image: 'https://images.unsplash.com/photo-1576558656222-ba66febe3dec?w=100', fallback: 'JM' } },
+        { id: 's3', title: 'Follow up with GlobalCo', completed: true, completedBy: 'You', completedAt: '1 hour ago', assignedTo: [{ name: 'You', image: '', fallback: 'JM' }], steps: [
+          { id: 'step1', title: 'Review previous conversation', completed: true, assignedTo: { name: 'You', image: '', fallback: 'JM' } },
+          { id: 'step2', title: 'Send follow-up email', completed: true, assignedTo: { name: 'You', image: '', fallback: 'JM' } },
         ] },
       ],
       activity: [

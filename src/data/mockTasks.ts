@@ -32,7 +32,7 @@ export const MOCK_TASKS: Task[] = [
     collaborators: [
       {
         name: 'Sarah Chen',
-        image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop',
+        image: '',
         fallback: 'SC',
         progress: 65,
         animationType: 'pulse',
@@ -66,14 +66,14 @@ export const MOCK_TASKS: Task[] = [
     collaborators: [
       {
         name: 'Marcus Rodriguez',
-        image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop',
+        image: '',
         fallback: 'MR',
         progress: 80,
         animationType: 'glow',
       },
       {
         name: 'Emma Watson',
-        image: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100&h=100&fit=crop',
+        image: '',
         fallback: 'EW',
         progress: 55,
         animationType: 'bounce',
@@ -199,7 +199,7 @@ export const MOCK_TASKS: Task[] = [
     collaborators: [
       {
         name: 'Alex Turner',
-        image: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop',
+        image: '',
         fallback: 'AT',
         progress: 0,
         animationType: 'pulse',
@@ -273,7 +273,7 @@ export const MOCK_TASKS: Task[] = [
     collaborators: [
       {
         name: 'Lisa Park',
-        image: 'https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?w=100&h=100&fit=crop',
+        image: '',
         fallback: 'LP',
         progress: 0,
         animationType: 'heartbeat',
@@ -431,7 +431,7 @@ export const MOCK_TASKS: Task[] = [
       {
         id: 'user_001',
         name: 'Jordan Smith',
-        image: 'https://images.unsplash.com/photo-1576558656222-ba66febe3dec?w=100',
+        image: '',
         fallback: 'JS',
         progress: 85,
         animationType: 'glow',
@@ -441,7 +441,7 @@ export const MOCK_TASKS: Task[] = [
       {
         id: 'user_002',
         name: 'Sarah Chen',
-        image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100',
+        image: '',
         fallback: 'SC',
         progress: 72,
         animationType: 'pulse',
@@ -451,7 +451,7 @@ export const MOCK_TASKS: Task[] = [
       {
         id: 'user_005',
         name: 'David Kim',
-        image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100',
+        image: '',
         fallback: 'DK',
         progress: 80,
         animationType: 'bounce',
@@ -492,7 +492,7 @@ export const MOCK_TASKS: Task[] = [
       {
         id: 'user_002',
         name: 'Sarah Chen',
-        image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100',
+        image: '',
         fallback: 'SC',
         progress: 72,
         animationType: 'pulse',
@@ -502,7 +502,7 @@ export const MOCK_TASKS: Task[] = [
       {
         id: 'user_001',
         name: 'Jordan Smith',
-        image: 'https://images.unsplash.com/photo-1576558656222-ba66febe3dec?w=100',
+        image: '',
         fallback: 'JS',
         progress: 85,
         animationType: 'glow',
@@ -542,7 +542,7 @@ export const MOCK_TASKS: Task[] = [
       {
         id: 'user_005',
         name: 'David Kim',
-        image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100',
+        image: '',
         fallback: 'DK',
         progress: 80,
         animationType: 'bounce',
@@ -552,7 +552,7 @@ export const MOCK_TASKS: Task[] = [
       {
         id: 'user_001',
         name: 'Jordan Smith',
-        image: 'https://images.unsplash.com/photo-1576558656222-ba66febe3dec?w=100',
+        image: '',
         fallback: 'JS',
         progress: 85,
         animationType: 'glow',
@@ -595,7 +595,7 @@ export const MOCK_TASKS: Task[] = [
       {
         id: 'user_001',
         name: 'Jordan Smith',
-        image: 'https://images.unsplash.com/photo-1576558656222-ba66febe3dec?w=100',
+        image: '',
         fallback: 'JS',
         progress: 85,
         animationType: 'glow',
@@ -605,7 +605,7 @@ export const MOCK_TASKS: Task[] = [
       {
         id: 'user_002',
         name: 'Sarah Chen',
-        image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100',
+        image: '',
         fallback: 'SC',
         progress: 72,
         animationType: 'pulse',
@@ -615,7 +615,7 @@ export const MOCK_TASKS: Task[] = [
       {
         id: 'user_005',
         name: 'David Kim',
-        image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100',
+        image: '',
         fallback: 'DK',
         progress: 80,
         animationType: 'bounce',
@@ -650,7 +650,7 @@ export const MOCK_TASKS: Task[] = [
       {
         id: 'user_001',
         name: 'Jordan Smith',
-        image: 'https://images.unsplash.com/photo-1576558656222-ba66febe3dec?w=100',
+        image: '',
         fallback: 'JS',
         progress: 85,
         animationType: 'glow',
@@ -660,7 +660,7 @@ export const MOCK_TASKS: Task[] = [
       {
         id: 'user_002',
         name: 'Sarah Chen',
-        image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100',
+        image: '',
         fallback: 'SC',
         progress: 72,
         animationType: 'pulse',
@@ -695,7 +695,7 @@ export const MOCK_TASKS: Task[] = [
       {
         id: 'user_002',
         name: 'Sarah Chen',
-        image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100',
+        image: '',
         fallback: 'SC',
         progress: 72,
         animationType: 'pulse',

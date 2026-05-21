@@ -10,3 +10,5 @@ SyncScript / machine research policy (when this repo or topic applies)
 - See repo MEMORY.md (local, not always in git) for “Knowledge vs disk” and disk cleanup policy when on this Mac.
 
 No secrets in chat or rules.
+
+Eval-driven agent mode (Ascension Loop): when doing non-trivial work, use integrations/research/ANTIGRAVITY_ASCENSION_LOOP_PROMPT.md — objective gates (tests/build), score rubric, repair or raise bar, compound in AGENT_ASCENSION_STATE.md (copy from AGENT_ASCENSION_STATE.template.md). Follow-ups: scripts/ascension-compound-tail.txt

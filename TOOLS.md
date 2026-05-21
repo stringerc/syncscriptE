@@ -46,6 +46,7 @@ Update paths here if you move installs (Homebrew, nvm, etc.).
 | **OpenClaw** | `~/.nvm/versions/node/*/bin/openclaw` or `$(which openclaw)` | Node shim |
 | **ClawHub CLI** | `npx --yes clawhub@latest <command>` or `npm i -g clawhub` → `clawhub search "…"` | Registry search/install; **vet** community skills before enabling on gateway — see **`integrations/research/OPENCLAW_CLAWHUB_BROWSER_STACK.md`** |
 | **Claude Code (CLI)** | `~/.local/bin/claude` | Anthropic CLI |
+| **Claude Code lanes (L1/L2) + free-claude-code proxy** | **`scripts/claude-code-lanes.sh`** · **`scripts/apply-free-claude-code-option-b-env.sh`** · **`scripts/audit-claude-ide-separation.sh`** · runbook **`integrations/research/CLAUDE_CODE_FREE_PROXY_OPERATOR_RUNBOOK.md`** | **`npm run apply:free-claude-code-option-b`** · **`npm run audit:claude-ide-separation`** · **`npm run verify:claude-code-proxy-lane`** · `source scripts/claude-code-lanes.sh` → **`cc_lane_rate_limit_tip`**. Proxy lives **outside** SyncScript; **no API keys** in git |
 | **Gemini CLI** | `~/.npm-global/bin/gemini` | |
 | **Aider** | `~/.local/bin/aider` | |
 | **Cursor agent** | `~/.local/bin/cursor-agent` | |

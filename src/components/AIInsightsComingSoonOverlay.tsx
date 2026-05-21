@@ -54,9 +54,7 @@ export function AIInsightsComingSoonOverlay() {
           Per-tab contextual insights launching soon.
         </p>
         
-        {/* Expected Date */}
         <p className="text-xs text-gray-500 text-center mt-4">
-          Expected: Q1 2025
         </p>
       </motion.div>
     </div>

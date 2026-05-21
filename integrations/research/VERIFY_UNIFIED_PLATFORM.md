@@ -1,4 +1,4 @@
-# Verification matrix — unified platform (web + Companion + iOS + Watch)
+# Verification matrix — unified platform (web + iOS + Watch)
 
 Use this as a **release gate** before App Store / production pushes. Automate where noted; otherwise run manually and record pass/fail with build numbers.
 
@@ -6,7 +6,6 @@ Use this as a **release gate** before App Store / production pushes. Automate wh
 
 | Script | Command | Expect |
 |--------|-----------|--------|
-| Companion path guard | `cd nature-cortana-platform/desktop-shell && npm run verify:protocol-guard` | Exit 0 |
 | Library + push Edge contracts | `node --test tests/user-files-library-contract.test.mjs tests/push-device-routes-contract.test.mjs` | Exit 0 |
 | **Full platform verify** | `npm run verify:platform:full` | Runs `verify:unified-platform` + Playwright landing capabilities |
 | iOS Simulator build | `npm run verify:ios:build` | **BUILD SUCCEEDED** (App Intents Swift compiles) |
@@ -20,14 +19,6 @@ Use this as a **release gate** before App Store / production pushes. Automate wh
 2. Open **Library** or upload flow; confirm `resources` API reachable (network tab: `/resources/files` or search).
 3. **Landing:** scroll to **What you can ask inside SyncScript** — six capability cards visible (`[data-testid=nexus-capabilities-landing]`).
 4. External link: open any `https://` help link — opens in default browser / tab.
-
-## Nature Companion (desktop)
-
-1. Install or `npm start` dev build; register `syncscript-companion://`.
-2. From terminal or browser: `syncscript-companion://focus` — overlay focuses.
-3. `syncscript-companion://openweb?path=%2Flibrary` — default browser opens SyncScript path.
-4. `syncscript-companion://openchrome?path=%2Flibrary` — **Chrome** opens same URL (macOS/Windows); check `runtime-reports/events.jsonl` for `companion_chrome_opened` or failure + fallback.
-5. `syncscript-companion://openagents?tab=tasks&workspace=default` — trust path may block without backend; expect audit event or browser open when allowed.
 
 ## iOS (Capacitor)
 

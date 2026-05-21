@@ -35,7 +35,7 @@ const MOCK_ACTIVITIES: ActivityItem[] = [
     type: 'task_completed',
     user: {
       name: 'Sarah Chen',
-      avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100',
+      avatar: '',
     },
     title: 'Completed task: Design homepage mockup',
     description: 'Task marked as complete',
@@ -46,7 +46,7 @@ const MOCK_ACTIVITIES: ActivityItem[] = [
     type: 'member_added',
     user: {
       name: 'Alex Kumar',
-      avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100',
+      avatar: '',
     },
     title: 'Added Mike Johnson to the team',
     timestamp: new Date(Date.now() - 14400000), // 4 hours ago
@@ -56,7 +56,7 @@ const MOCK_ACTIVITIES: ActivityItem[] = [
     type: 'event_created',
     user: {
       name: 'Emily Rodriguez',
-      avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100',
+      avatar: '',
     },
     title: 'Created event: Team Planning Session',
     description: 'Scheduled for Oct 25, 2025 at 2:00 PM',
@@ -67,7 +67,7 @@ const MOCK_ACTIVITIES: ActivityItem[] = [
     type: 'task_created',
     user: {
       name: 'Marcus Johnson',
-      avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100',
+      avatar: '',
     },
     title: 'Created task: Review pull request #124',
     description: 'Assigned to Sarah Chen',
@@ -78,7 +78,7 @@ const MOCK_ACTIVITIES: ActivityItem[] = [
     type: 'goal_achieved',
     user: {
       name: 'Sarah Chen',
-      avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100',
+      avatar: '',
     },
     title: 'Achieved goal: Complete Q4 Design Sprint',
     description: '100% progress reached',
@@ -89,7 +89,7 @@ const MOCK_ACTIVITIES: ActivityItem[] = [
     type: 'comment_added',
     user: {
       name: 'Alex Kumar',
-      avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100',
+      avatar: '',
     },
     title: 'Commented on task: Implement new feature',
     description: 'Looking good! Just a few suggestions...',

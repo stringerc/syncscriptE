@@ -31,14 +31,19 @@ alwaysApply: true
 | **Twilio / phone / TwiML errors** | **§ Nexus phone** |
 | **Billing / crons / Firma / Plaid** | **§ Autonomous billing** |
 | **OpenClaw / Hermes / Engram** | **§ OpenClaw + Cursor**; **`.cursor/rules/09-multi-agent-orchestration.mdc`**; playbooks **`integrations/agent-playbooks/`** |
+| **Claw → Cursor workflow + resonance (Drive ↔ code)** | **`.cursor/rules/15-claw-resonance-cursor-workflow.mdc`** + **`integrations/research/RESONANCE_DOCS_CURSOR_BRIDGE.md`**; app math **`src/utils/resonance-calculus.ts`** |
+| **Obsidian.md (vendor PKM) ↔ repo memory + RH** | **`integrations/research/OBSIDIAN_MD_MEMORY_CROSSWALK.md`** · **`MEMORY.md`** § **Obsidian.md — official site facts ↔ SyncScript memory + Resonance Homeostasis** (quick context); **`integrations/research/RESONANCE_DOCS_CURSOR_BRIDGE.md`** |
+| **Antigravity / Claude Code + free proxy (lanes)** | **`integrations/research/CLAUDE_CODE_FREE_PROXY_OPERATOR_RUNBOOK.md`** (Option B) · **`integrations/research/FREE_MODEL_AB_HARNESS.md`** · **`scripts/claude-code-lanes.sh`** · **`scripts/verify-claude-code-proxy-lane.sh`** · **`npm run research:openrouter-free-models`** · **`MEMORY.md`** § Antigravity + Claude Code |
 | **EC2 / Oracle / tunnels** | **§ AWS EC2**, **§ Oracle Cloud OCI**; **`deploy/kokoro-tts-ec2/`**, **`deploy/oracle/`** |
 | **Deployment map** | **§ Deployment map (what runs where)** |
 | **Guest mode / layout** | **§ Guest mode** |
 | **Disk / Cursor snapshots** | **§ Mac disk space** — operational, not app logic |
 | **Cursor transcripts** | **§ Cursor chat history vs this file** — `~/.cursor/projects/.../agent-transcripts/` is local, not git |
+| **Cursor / Agent Skills (viral lists, context, anti-slop)** | **`integrations/research/CLAUDE_VIDEO_FIVE_SKILLS_CURSOR_MAP.md`** · **`integrations/research/AGENT_SKILL_PREFLIGHT_CHECKLIST.md`** · **`.cursor/rules/16-agent-output-discipline-and-context.mdc`** · **`.cursor/skills/syncscript-context-discipline/SKILL.md`** · **12** (read-first bundle) |
+| **Ascension Loop (eval agent: score / verify / repair / raise bar)** | **`integrations/research/ANTIGRAVITY_ASCENSION_LOOP_PROMPT.md`** · **`AGENT_ASCENSION_STATE.template.md`** · **`.cursor/rules/17-ascension-loop-eval-agent.mdc`** · **`@ascension-loop`** · **`integrations/agent-playbooks/06-ascension-loop.md`** |
 | **UX/UI (Figma kits, a11y, hierarchy)** | **`.cursor/rules/11-ux-ui-excellence.mdc`** + **`integrations/research/UX_UI_REFERENCE_CANON.md`** — still obey **03-landing** / **04-perf-seo** on marketing |
 | **Semantic CSS tokens** | **`integrations/research/DESIGN_TOKENS_SYNCSCRIPT.md`** · `src/styles/globals.css` (`--surface`, `--space-*`, `--elev-*`, `--z-*`) |
-| **Antigravity vs Cursor** | **`integrations/research/ANTIGRAVITY_VS_CURSOR.md`** |
+| **MiroFish / OASIS-style swarm simulation (plan only)** | **`MEMORY.md`** § **MiroFish-class simulation ↔ SyncScript — capability program** · **`integrations/research/MIROFISH_SYNCSCRIPT_FULL_CAPABILITY_PROGRAM.md`** (canonical P0–P8) · **`integrations/research/MIROFISH_SYNCSCRIPT_STRATEGIC_PLAN.md`** (short facts) — not shipped |
 
 ## Commands agents should know (non-exhaustive)
 
@@ -46,6 +51,7 @@ alwaysApply: true
 - **Prod HTML vs local git:** `npm run verify:prod-build`
 - **Dashboard route shell:** `npm run guard:dashboard-route-shell`
 - **Nexus tools live:** `npm run verify:nexus-tools-live` (needs env / JWT per MEMORY)
+- **Ascension Loop doc / verify:** `npm run doc:ascension-loop` · `npm run verify:ascension-loop-setup`
 - **Edge deploy:** `npm run deploy:edge:make-server`
 - **Vercel prod CLI:** `npm run deploy:vercel:prod` (requires CLI auth)
 

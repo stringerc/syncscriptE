@@ -14,6 +14,10 @@ When the user asks about **OpenClaw**, **ClawHub**, **gateway**, **skills**, or 
    - **`TOOLS.md`** — `openclaw`, **`clawhub`** CLI paths (`npm i -g clawhub`), Hermes/Engram playbooks.
    - **Repeatable audit (no installs):** `npm run skill:source-audit` → **`reports/skill-audit/`** (gitignored); faster CI-like subset: `npm run skill:source-audit:ci`.
    - **Policy (no auto-ship into app):** **`integrations/research/WHY_WE_DO_NOT_AUTO_SHIP_SKILLS.md`**. Human triage: **`integrations/research/SKILL_TRIAGE_PLAYBOOK.md`**, issue template **`.github/ISSUE_TEMPLATE/skill_evaluation.md`**.
+   - **Claw → Cursor + resonance (A+B+C):** **`.cursor/rules/15-claw-resonance-cursor-workflow.mdc`** and **`integrations/research/RESONANCE_DOCS_CURSOR_BRIDGE.md`** — complements this file; separates gateway from IDE and ties optional scheduling to in-repo **`resonance-calculus.ts`** (heuristic, not medical).
+   - **Google Drive/Docs in Cursor (Composio):** **`integrations/research/CURSOR_MCP_COMPOSIO_GOOGLE_SETUP.md`** — `cursor://settings` → MCP; Composio **`https://app.composio.dev`** → Google; OAuth in browser only.
+   - **Claude Code + `free-claude-code` proxy (Antigravity / terminal):** **`integrations/research/CLAUDE_CODE_FREE_PROXY_OPERATOR_RUNBOOK.md`** — **`npm run apply:free-claude-code-option-b`**, **`npm run audit:claude-ide-separation`**, **`npm run verify:claude-code-proxy-lane`**, **`scripts/claude-code-lanes.sh`** — Antigravity ≠ Cursor ≠ SyncScript app unless shared OpenRouter key; upstream **outside** repo.
+   - **Viral “five Claude skills” / Agent Skills installers:** **`integrations/research/CLAUDE_VIDEO_FIVE_SKILLS_CURSOR_MAP.md`** + **`integrations/research/AGENT_SKILL_PREFLIGHT_CHECKLIST.md`** + **`.cursor/rules/16-agent-output-discipline-and-context.mdc`** — fact map + preflight + context/anti-slop; **inspect before `npx skills add`** (same tiered caution as ClawHub).
 
 2. **Cursor-specific (this IDE):**
    - **Rules** + **project context** live here (`.cursor/rules/`); **OpenClaw** runs on a **gateway host** — do not assume the IDE *is* the gateway.

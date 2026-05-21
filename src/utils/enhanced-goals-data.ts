@@ -85,7 +85,7 @@ export const enhancedGoalsData = [
         targetValue: 1000, 
         unit: 'users',
         progress: 68,
-        owner: { name: 'Sarah Chen', image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100', fallback: 'SC' },
+        owner: { name: 'Sarah Chen', image: '', fallback: 'SC' },
         dueDate: 'Mar 15',
         confidence: 8
       },
@@ -96,7 +96,7 @@ export const enhancedGoalsData = [
         targetValue: 4.5, 
         unit: 'stars',
         progress: 70,
-        owner: { name: 'David Kim', image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100', fallback: 'DK' },
+        owner: { name: 'David Kim', image: '', fallback: 'DK' },
         dueDate: 'Mar 20',
         confidence: 7
       },
@@ -107,7 +107,7 @@ export const enhancedGoalsData = [
         targetValue: 2.0, 
         unit: 'seconds',
         progress: 40,
-        owner: { name: 'Marcus Johnson', image: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100', fallback: 'MJ' },
+        owner: { name: 'Marcus Johnson', image: '', fallback: 'MJ' },
         dueDate: 'Mar 10',
         confidence: 6
       },
@@ -122,13 +122,13 @@ export const enhancedGoalsData = [
         targetDate: 'Feb 1',
         celebrationNote: 'Great start to the project!',
         assignedTo: [
-          { name: 'Sarah Chen', image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100', fallback: 'SC' },
-          { name: 'David Kim', image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100', fallback: 'DK' }
+          { name: 'Sarah Chen', image: '', fallback: 'SC' },
+          { name: 'David Kim', image: '', fallback: 'DK' }
         ],
         steps: [
-          { id: 's1-1', title: 'Market research and competitor analysis', completed: true, assignedTo: { name: 'Sarah Chen', image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100', fallback: 'SC' } },
-          { id: 's1-2', title: 'Define user personas', completed: true, assignedTo: { name: 'David Kim', image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100', fallback: 'DK' } },
-          { id: 's1-3', title: 'Create product roadmap', completed: true, assignedTo: { name: 'Sarah Chen', image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100', fallback: 'SC' } },
+          { id: 's1-1', title: 'Market research and competitor analysis', completed: true, assignedTo: { name: 'Sarah Chen', image: '', fallback: 'SC' } },
+          { id: 's1-2', title: 'Define user personas', completed: true, assignedTo: { name: 'David Kim', image: '', fallback: 'DK' } },
+          { id: 's1-3', title: 'Create product roadmap', completed: true, assignedTo: { name: 'Sarah Chen', image: '', fallback: 'SC' } },
         ]
       },
       { 
@@ -140,13 +140,13 @@ export const enhancedGoalsData = [
         targetDate: 'Feb 15',
         celebrationNote: 'Beautiful design system created!',
         assignedTo: [
-          { name: 'David Kim', image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100', fallback: 'DK' },
-          { name: 'Sarah Chen', image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100', fallback: 'SC' }
+          { name: 'David Kim', image: '', fallback: 'DK' },
+          { name: 'Sarah Chen', image: '', fallback: 'SC' }
         ],
         steps: [
-          { id: 's2-1', title: 'Design color palette and typography', completed: true, assignedTo: { name: 'David Kim', image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100', fallback: 'DK' } },
-          { id: 's2-2', title: 'Create component library', completed: true, assignedTo: { name: 'David Kim', image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100', fallback: 'DK' } },
-          { id: 's2-3', title: 'Build style guide documentation', completed: true, assignedTo: { name: 'Sarah Chen', image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100', fallback: 'SC' } },
+          { id: 's2-1', title: 'Design color palette and typography', completed: true, assignedTo: { name: 'David Kim', image: '', fallback: 'DK' } },
+          { id: 's2-2', title: 'Create component library', completed: true, assignedTo: { name: 'David Kim', image: '', fallback: 'DK' } },
+          { id: 's2-3', title: 'Build style guide documentation', completed: true, assignedTo: { name: 'Sarah Chen', image: '', fallback: 'SC' } },
         ]
       },
       { 
@@ -156,16 +156,16 @@ export const enhancedGoalsData = [
         current: true,
         targetDate: 'Mar 1',
         assignedTo: [
-          { name: 'Marcus Johnson', image: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100', fallback: 'MJ' },
-          { name: 'David Kim', image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100', fallback: 'DK' },
-          { name: 'Sarah Chen', image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100', fallback: 'SC' }
+          { name: 'Marcus Johnson', image: '', fallback: 'MJ' },
+          { name: 'David Kim', image: '', fallback: 'DK' },
+          { name: 'Sarah Chen', image: '', fallback: 'SC' }
         ],
         steps: [
-          { id: 's3-1', title: 'Set up development environment', completed: true, assignedTo: { name: 'Marcus Johnson', image: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100', fallback: 'MJ' } },
-          { id: 's3-2', title: 'Build core dashboard features', completed: true, assignedTo: { name: 'Marcus Johnson', image: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100', fallback: 'MJ' } },
-          { id: 's3-3', title: 'Implement data visualization charts', completed: false, assignedTo: { name: 'David Kim', image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100', fallback: 'DK' } },
-          { id: 's3-4', title: 'Integrate payment processing', completed: false, assignedTo: { name: 'Sarah Chen', image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100', fallback: 'SC' } },
-          { id: 's3-5', title: 'Add user authentication flow', completed: false, assignedTo: { name: 'Marcus Johnson', image: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100', fallback: 'MJ' } },
+          { id: 's3-1', title: 'Set up development environment', completed: true, assignedTo: { name: 'Marcus Johnson', image: '', fallback: 'MJ' } },
+          { id: 's3-2', title: 'Build core dashboard features', completed: true, assignedTo: { name: 'Marcus Johnson', image: '', fallback: 'MJ' } },
+          { id: 's3-3', title: 'Implement data visualization charts', completed: false, assignedTo: { name: 'David Kim', image: '', fallback: 'DK' } },
+          { id: 's3-4', title: 'Integrate payment processing', completed: false, assignedTo: { name: 'Sarah Chen', image: '', fallback: 'SC' } },
+          { id: 's3-5', title: 'Add user authentication flow', completed: false, assignedTo: { name: 'Marcus Johnson', image: '', fallback: 'MJ' } },
         ]
       },
       { 
@@ -174,22 +174,22 @@ export const enhancedGoalsData = [
         completed: false,
         targetDate: 'Mar 15',
         assignedTo: [
-          { name: 'Sarah Chen', image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100', fallback: 'SC' },
-          { name: 'Marcus Johnson', image: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100', fallback: 'MJ' }
+          { name: 'Sarah Chen', image: '', fallback: 'SC' },
+          { name: 'Marcus Johnson', image: '', fallback: 'MJ' }
         ],
         steps: [
-          { id: 's4-1', title: 'Conduct user acceptance testing', completed: false, assignedTo: { name: 'Sarah Chen', image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100', fallback: 'SC' } },
-          { id: 's4-2', title: 'Fix critical bugs', completed: false, assignedTo: { name: 'Marcus Johnson', image: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100', fallback: 'MJ' } },
-          { id: 's4-3', title: 'Performance optimization', completed: false, assignedTo: { name: 'Marcus Johnson', image: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100', fallback: 'MJ' } },
-          { id: 's4-4', title: 'Deploy to production', completed: false, assignedTo: { name: 'Sarah Chen', image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100', fallback: 'SC' } },
+          { id: 's4-1', title: 'Conduct user acceptance testing', completed: false, assignedTo: { name: 'Sarah Chen', image: '', fallback: 'SC' } },
+          { id: 's4-2', title: 'Fix critical bugs', completed: false, assignedTo: { name: 'Marcus Johnson', image: '', fallback: 'MJ' } },
+          { id: 's4-3', title: 'Performance optimization', completed: false, assignedTo: { name: 'Marcus Johnson', image: '', fallback: 'MJ' } },
+          { id: 's4-4', title: 'Deploy to production', completed: false, assignedTo: { name: 'Sarah Chen', image: '', fallback: 'SC' } },
         ]
       },
     ],
     collaborators: [
-      { name: 'Jordan Smith', image: 'https://images.unsplash.com/photo-1576558656222-ba66febe3dec?w=100', fallback: 'JS', progress: 85, animationType: 'glow', status: 'online', role: 'creator' },
-      { name: 'Sarah Chen', image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100', fallback: 'SC', progress: 72, animationType: 'pulse', status: 'online', role: 'admin' },
-      { name: 'David Kim', image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100', fallback: 'DK', progress: 80, animationType: 'bounce', status: 'online', role: 'admin' },
-      { name: 'Marcus Johnson', image: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100', fallback: 'MJ', progress: 68, animationType: 'heartbeat', status: 'online', role: 'collaborator' },
+      { name: 'Jordan Smith', image: '', fallback: 'JS', progress: 85, animationType: 'glow', status: 'online', role: 'creator' },
+      { name: 'Sarah Chen', image: '', fallback: 'SC', progress: 72, animationType: 'pulse', status: 'online', role: 'admin' },
+      { name: 'David Kim', image: '', fallback: 'DK', progress: 80, animationType: 'bounce', status: 'online', role: 'admin' },
+      { name: 'Marcus Johnson', image: '', fallback: 'MJ', progress: 68, animationType: 'heartbeat', status: 'online', role: 'collaborator' },
     ],
     activity: [
       { user: 'Sarah Chen', action: 'updated Key Result', detail: 'Active users increased from 650 to 680', time: '2 hours ago' },
@@ -241,7 +241,7 @@ export const enhancedGoalsData = [
         targetValue: 24, 
         unit: 'books',
         progress: 46,
-        owner: { name: 'Jordan Smith', image: 'https://images.unsplash.com/photo-1576558656222-ba66febe3dec?w=100', fallback: 'JS' },
+        owner: { name: 'Jordan Smith', image: '', fallback: 'JS' },
         dueDate: 'Dec 31',
         confidence: 9
       },
@@ -252,19 +252,19 @@ export const enhancedGoalsData = [
         targetValue: 30, 
         unit: 'min/day',
         progress: 83,
-        owner: { name: 'Jordan Smith', image: 'https://images.unsplash.com/photo-1576558656222-ba66febe3dec?w=100', fallback: 'JS' },
+        owner: { name: 'Jordan Smith', image: '', fallback: 'JS' },
         dueDate: 'Ongoing',
         confidence: 9
       },
     ],
     milestones: [
-      { id: 'm1', name: '6 Books (Q1)', completed: true, completedBy: 'Jordan Smith', completedAt: '1 month ago', targetDate: 'Mar 31', celebrationNote: 'Great Q1 progress!', assignedTo: [{ name: 'Jordan Smith', image: 'https://images.unsplash.com/photo-1576558656222-ba66febe3dec?w=100', fallback: 'JS' }] },
-      { id: 'm2', name: '12 Books (Q2)', completed: false, current: true, targetDate: 'Jun 30', assignedTo: [{ name: 'Jordan Smith', image: 'https://images.unsplash.com/photo-1576558656222-ba66febe3dec?w=100', fallback: 'JS' }] },
-      { id: 'm3', name: '18 Books (Q3)', completed: false, targetDate: 'Sep 30', assignedTo: [{ name: 'Jordan Smith', image: 'https://images.unsplash.com/photo-1576558656222-ba66febe3dec?w=100', fallback: 'JS' }] },
-      { id: 'm4', name: '24 Books (Q4)', completed: false, targetDate: 'Dec 31', assignedTo: [{ name: 'Jordan Smith', image: 'https://images.unsplash.com/photo-1576558656222-ba66febe3dec?w=100', fallback: 'JS' }] },
+      { id: 'm1', name: '6 Books (Q1)', completed: true, completedBy: 'Jordan Smith', completedAt: '1 month ago', targetDate: 'Mar 31', celebrationNote: 'Great Q1 progress!', assignedTo: [{ name: 'Jordan Smith', image: '', fallback: 'JS' }] },
+      { id: 'm2', name: '12 Books (Q2)', completed: false, current: true, targetDate: 'Jun 30', assignedTo: [{ name: 'Jordan Smith', image: '', fallback: 'JS' }] },
+      { id: 'm3', name: '18 Books (Q3)', completed: false, targetDate: 'Sep 30', assignedTo: [{ name: 'Jordan Smith', image: '', fallback: 'JS' }] },
+      { id: 'm4', name: '24 Books (Q4)', completed: false, targetDate: 'Dec 31', assignedTo: [{ name: 'Jordan Smith', image: '', fallback: 'JS' }] },
     ],
     collaborators: [
-      { name: 'Jordan Smith', image: 'https://images.unsplash.com/photo-1576558656222-ba66febe3dec?w=100', fallback: 'JS', progress: 85, animationType: 'glow', status: 'online', role: 'owner' },
+      { name: 'Jordan Smith', image: '', fallback: 'JS', progress: 85, animationType: 'glow', status: 'online', role: 'owner' },
     ],
     activity: [
       { user: 'Jordan Smith', action: 'completed book', detail: 'Finished "Deep Work" by Cal Newport', time: '3 days ago' },
@@ -338,7 +338,7 @@ export const enhancedGoalsData = [
         targetValue: 1000, 
         unit: 'dollars/week',
         progress: 75, // 75% spent
-        owner: { name: 'Jordan Smith', image: 'https://images.unsplash.com/photo-1576558656222-ba66febe3dec?w=100', fallback: 'JS' },
+        owner: { name: 'Jordan Smith', image: '', fallback: 'JS' },
         dueDate: 'Weekly',
         confidence: 6
       },
@@ -349,7 +349,7 @@ export const enhancedGoalsData = [
         targetValue: 500, 
         unit: 'dollars',
         progress: 105, // Over target
-        owner: { name: 'Jordan Smith', image: 'https://images.unsplash.com/photo-1576558656222-ba66febe3dec?w=100', fallback: 'JS' },
+        owner: { name: 'Jordan Smith', image: '', fallback: 'JS' },
         dueDate: 'Weekly',
         confidence: 5
       },
@@ -360,7 +360,7 @@ export const enhancedGoalsData = [
         targetValue: 300, 
         unit: 'dollars',
         progress: 117, // Over target - at risk
-        owner: { name: 'Jordan Smith', image: 'https://images.unsplash.com/photo-1576558656222-ba66febe3dec?w=100', fallback: 'JS' },
+        owner: { name: 'Jordan Smith', image: '', fallback: 'JS' },
         dueDate: 'Weekly',
         confidence: 4
       },
@@ -371,20 +371,20 @@ export const enhancedGoalsData = [
         targetValue: 200, 
         unit: 'dollars',
         progress: 63, // Under target
-        owner: { name: 'Jordan Smith', image: 'https://images.unsplash.com/photo-1576558656222-ba66febe3dec?w=100', fallback: 'JS' },
+        owner: { name: 'Jordan Smith', image: '', fallback: 'JS' },
         dueDate: 'Weekly',
         confidence: 6
       },
     ],
     milestones: [
-      { id: 'm1', name: '4 Weeks Under Budget', completed: true, completedBy: 'Jordan Smith', completedAt: '2 weeks ago', targetDate: 'Week 4', celebrationNote: 'First month success!', assignedTo: [{ name: 'Jordan Smith', image: 'https://images.unsplash.com/photo-1576558656222-ba66febe3dec?w=100', fallback: 'JS' }] },
-      { id: 'm2', name: '8 Weeks Under Budget', completed: false, current: true, targetDate: 'Week 8', assignedTo: [{ name: 'Jordan Smith', image: 'https://images.unsplash.com/photo-1576558656222-ba66febe3dec?w=100', fallback: 'JS' }] },
-      { id: 'm3', name: '12 Weeks Under Budget', completed: false, targetDate: 'Week 12', assignedTo: [{ name: 'Jordan Smith', image: 'https://images.unsplash.com/photo-1576558656222-ba66febe3dec?w=100', fallback: 'JS' }] },
-      { id: 'm4', name: '6 Months Consistent', completed: false, targetDate: 'Week 24', assignedTo: [{ name: 'Jordan Smith', image: 'https://images.unsplash.com/photo-1576558656222-ba66febe3dec?w=100', fallback: 'JS' }] },
+      { id: 'm1', name: '4 Weeks Under Budget', completed: true, completedBy: 'Jordan Smith', completedAt: '2 weeks ago', targetDate: 'Week 4', celebrationNote: 'First month success!', assignedTo: [{ name: 'Jordan Smith', image: '', fallback: 'JS' }] },
+      { id: 'm2', name: '8 Weeks Under Budget', completed: false, current: true, targetDate: 'Week 8', assignedTo: [{ name: 'Jordan Smith', image: '', fallback: 'JS' }] },
+      { id: 'm3', name: '12 Weeks Under Budget', completed: false, targetDate: 'Week 12', assignedTo: [{ name: 'Jordan Smith', image: '', fallback: 'JS' }] },
+      { id: 'm4', name: '6 Months Consistent', completed: false, targetDate: 'Week 24', assignedTo: [{ name: 'Jordan Smith', image: '', fallback: 'JS' }] },
     ],
     collaborators: [
-      { name: 'Jordan Smith', image: 'https://images.unsplash.com/photo-1576558656222-ba66febe3dec?w=100', fallback: 'JS', progress: 85, animationType: 'glow', status: 'online', role: 'owner' },
-      { name: 'Elena Rodriguez', image: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100', fallback: 'ER', progress: 78, animationType: 'wiggle', status: 'away', role: 'accountability-partner' },
+      { name: 'Jordan Smith', image: '', fallback: 'JS', progress: 85, animationType: 'glow', status: 'online', role: 'owner' },
+      { name: 'Elena Rodriguez', image: '', fallback: 'ER', progress: 78, animationType: 'wiggle', status: 'away', role: 'accountability-partner' },
     ],
     activity: [
       { user: 'Jordan Smith', action: 'logged expense', detail: 'Car repair: $200 (Unexpected)', time: '1 day ago' },
@@ -435,7 +435,7 @@ export const enhancedGoalsData = [
         targetValue: 10000, 
         unit: 'dollars',
         progress: 72,
-        owner: { name: 'Jordan Smith', image: 'https://images.unsplash.com/photo-1576558656222-ba66febe3dec?w=100', fallback: 'JS' },
+        owner: { name: 'Jordan Smith', image: '', fallback: 'JS' },
         dueDate: 'Sep 30',
         confidence: 9
       },
@@ -446,21 +446,21 @@ export const enhancedGoalsData = [
         targetValue: 500, 
         unit: 'dollars/month',
         progress: 100,
-        owner: { name: 'Jordan Smith', image: 'https://images.unsplash.com/photo-1576558656222-ba66febe3dec?w=100', fallback: 'JS' },
+        owner: { name: 'Jordan Smith', image: '', fallback: 'JS' },
         dueDate: 'Ongoing',
         confidence: 10
         },
     ],
     milestones: [
-      { id: 'm1', name: '$2,500 Saved', completed: true, completedBy: 'Jordan Smith', completedAt: '4 months ago', targetDate: 'Jan 31', celebrationNote: 'First milestone achieved!', assignedTo: [{ name: 'Jordan Smith', image: 'https://images.unsplash.com/photo-1576558656222-ba66febe3dec?w=100', fallback: 'JS' }] },
-      { id: 'm2', name: '$5,000 Saved', completed: true, completedBy: 'Jordan Smith', completedAt: '2 months ago', targetDate: 'Apr 30', assignedTo: [{ name: 'Jordan Smith', image: 'https://images.unsplash.com/photo-1576558656222-ba66febe3dec?w=100', fallback: 'JS' }] },
-      { id: 'm3', name: '$7,500 Saved', completed: false, current: true, targetDate: 'Jul 31', assignedTo: [{ name: 'Jordan Smith', image: 'https://images.unsplash.com/photo-1576558656222-ba66febe3dec?w=100', fallback: 'JS' }] },
-      { id: 'm4', name: '$10,000 Saved', completed: false, targetDate: 'Sep 30', assignedTo: [{ name: 'Jordan Smith', image: 'https://images.unsplash.com/photo-1576558656222-ba66febe3dec?w=100', fallback: 'JS' }] },
+      { id: 'm1', name: '$2,500 Saved', completed: true, completedBy: 'Jordan Smith', completedAt: '4 months ago', targetDate: 'Jan 31', celebrationNote: 'First milestone achieved!', assignedTo: [{ name: 'Jordan Smith', image: '', fallback: 'JS' }] },
+      { id: 'm2', name: '$5,000 Saved', completed: true, completedBy: 'Jordan Smith', completedAt: '2 months ago', targetDate: 'Apr 30', assignedTo: [{ name: 'Jordan Smith', image: '', fallback: 'JS' }] },
+      { id: 'm3', name: '$7,500 Saved', completed: false, current: true, targetDate: 'Jul 31', assignedTo: [{ name: 'Jordan Smith', image: '', fallback: 'JS' }] },
+      { id: 'm4', name: '$10,000 Saved', completed: false, targetDate: 'Sep 30', assignedTo: [{ name: 'Jordan Smith', image: '', fallback: 'JS' }] },
     ],
     collaborators: [
-      { name: 'Jordan Smith', image: 'https://images.unsplash.com/photo-1576558656222-ba66febe3dec?w=100', fallback: 'JS', progress: 85, animationType: 'glow', status: 'online', role: 'owner' },
-      { name: 'Marcus Johnson', image: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100', fallback: 'MJ', progress: 68, animationType: 'heartbeat', status: 'online', role: 'contributor' },
-      { name: 'Elena Rodriguez', image: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100', fallback: 'ER', progress: 78, animationType: 'wiggle', status: 'away', role: 'contributor' },
+      { name: 'Jordan Smith', image: '', fallback: 'JS', progress: 85, animationType: 'glow', status: 'online', role: 'owner' },
+      { name: 'Marcus Johnson', image: '', fallback: 'MJ', progress: 68, animationType: 'heartbeat', status: 'online', role: 'contributor' },
+      { name: 'Elena Rodriguez', image: '', fallback: 'ER', progress: 78, animationType: 'wiggle', status: 'away', role: 'contributor' },
     ],
     activity: [
       { user: 'Jordan Smith', action: 'added funds', detail: '$500 deposited to emergency fund', time: '5 days ago' },
@@ -511,7 +511,7 @@ export const enhancedGoalsData = [
         targetValue: 260, 
         unit: 'workouts',
         progress: 56,
-        owner: { name: 'Jordan Smith', image: 'https://images.unsplash.com/photo-1576558656222-ba66febe3dec?w=100', fallback: 'JS' },
+        owner: { name: 'Jordan Smith', image: '', fallback: 'JS' },
         dueDate: 'Dec 31',
         confidence: 8
       },
@@ -522,21 +522,21 @@ export const enhancedGoalsData = [
         targetValue: 30, 
         unit: 'days',
         progress: 77,
-        owner: { name: 'Jordan Smith', image: 'https://images.unsplash.com/photo-1576558656222-ba66febe3dec?w=100', fallback: 'JS' },
+        owner: { name: 'Jordan Smith', image: '', fallback: 'JS' },
         dueDate: 'Ongoing',
         confidence: 8
       },
     ],
     milestones: [
-      { id: 'm1', name: '50 Workouts', completed: true, completedBy: 'Jordan Smith', completedAt: '2 months ago', targetDate: 'Mar 31', celebrationNote: 'Consistency building!', assignedTo: [{ name: 'Jordan Smith', image: 'https://images.unsplash.com/photo-1576558656222-ba66febe3dec?w=100', fallback: 'JS' }] },
-      { id: 'm2', name: '100 Workouts', completed: true, completedBy: 'Jordan Smith', completedAt: '3 weeks ago', targetDate: 'Jun 30', assignedTo: [{ name: 'Jordan Smith', image: 'https://images.unsplash.com/photo-1576558656222-ba66febe3dec?w=100', fallback: 'JS' }] },
-      { id: 'm3', name: '150 Workouts', completed: false, current: true, targetDate: 'Aug 31', assignedTo: [{ name: 'Jordan Smith', image: 'https://images.unsplash.com/photo-1576558656222-ba66febe3dec?w=100', fallback: 'JS' }] },
-      { id: 'm4', name: '260 Workouts', completed: false, targetDate: 'Dec 31', assignedTo: [{ name: 'Jordan Smith', image: 'https://images.unsplash.com/photo-1576558656222-ba66febe3dec?w=100', fallback: 'JS' }] },
+      { id: 'm1', name: '50 Workouts', completed: true, completedBy: 'Jordan Smith', completedAt: '2 months ago', targetDate: 'Mar 31', celebrationNote: 'Consistency building!', assignedTo: [{ name: 'Jordan Smith', image: '', fallback: 'JS' }] },
+      { id: 'm2', name: '100 Workouts', completed: true, completedBy: 'Jordan Smith', completedAt: '3 weeks ago', targetDate: 'Jun 30', assignedTo: [{ name: 'Jordan Smith', image: '', fallback: 'JS' }] },
+      { id: 'm3', name: '150 Workouts', completed: false, current: true, targetDate: 'Aug 31', assignedTo: [{ name: 'Jordan Smith', image: '', fallback: 'JS' }] },
+      { id: 'm4', name: '260 Workouts', completed: false, targetDate: 'Dec 31', assignedTo: [{ name: 'Jordan Smith', image: '', fallback: 'JS' }] },
     ],
     collaborators: [
-      { name: 'Jordan Smith', image: 'https://images.unsplash.com/photo-1576558656222-ba66febe3dec?w=100', fallback: 'JS', progress: 85, animationType: 'glow', status: 'online', role: 'owner' },
-      { name: 'Elena Rodriguez', image: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100', fallback: 'ER', progress: 78, animationType: 'wiggle', status: 'away', role: 'contributor' },
-      { name: 'Sarah Chen', image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100', fallback: 'SC', progress: 72, animationType: 'pulse', status: 'online', role: 'contributor' },
+      { name: 'Jordan Smith', image: '', fallback: 'JS', progress: 85, animationType: 'glow', status: 'online', role: 'owner' },
+      { name: 'Elena Rodriguez', image: '', fallback: 'ER', progress: 78, animationType: 'wiggle', status: 'away', role: 'contributor' },
+      { name: 'Sarah Chen', image: '', fallback: 'SC', progress: 72, animationType: 'pulse', status: 'online', role: 'contributor' },
     ],
     activity: [
       { user: 'Jordan Smith', action: 'completed workout', detail: '45-min strength training session', time: '4 hours ago' },
@@ -584,7 +584,7 @@ export const enhancedGoalsData = [
         targetValue: 28, 
         unit: 'tasks',
         progress: 64,
-        owner: { name: 'Jordan Smith', image: 'https://images.unsplash.com/photo-1576558656222-ba66febe3dec?w=100', fallback: 'JS' },
+        owner: { name: 'Jordan Smith', image: '', fallback: 'JS' },
         dueDate: 'Jan 31',
         confidence: 8
       },
@@ -595,7 +595,7 @@ export const enhancedGoalsData = [
         targetValue: 50, 
         unit: 'users',
         progress: 64,
-        owner: { name: 'Sarah Chen', image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100', fallback: 'SC' },
+        owner: { name: 'Sarah Chen', image: '', fallback: 'SC' },
         dueDate: 'Jan 25',
         confidence: 7
       },
@@ -606,7 +606,7 @@ export const enhancedGoalsData = [
         targetValue: 90, 
         unit: 'percent',
         progress: 87,
-        owner: { name: 'David Kim', image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100', fallback: 'DK' },
+        owner: { name: 'David Kim', image: '', fallback: 'DK' },
         dueDate: 'Jan 28',
         confidence: 9
       },
@@ -621,8 +621,8 @@ export const enhancedGoalsData = [
         targetDate: 'Dec 20',
         celebrationNote: 'Great foundation laid!',
         assignedTo: [
-          { name: 'Sarah Chen', image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100', fallback: 'SC' },
-          { name: 'Jordan Smith', image: 'https://images.unsplash.com/photo-1576558656222-ba66febe3dec?w=100', fallback: 'JS' }
+          { name: 'Sarah Chen', image: '', fallback: 'SC' },
+          { name: 'Jordan Smith', image: '', fallback: 'JS' }
         ],
       },
       { 
@@ -634,8 +634,8 @@ export const enhancedGoalsData = [
         targetDate: 'Jan 10',
         celebrationNote: 'Development on track!',
         assignedTo: [
-          { name: 'David Kim', image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100', fallback: 'DK' },
-          { name: 'Jordan Smith', image: 'https://images.unsplash.com/photo-1576558656222-ba66febe3dec?w=100', fallback: 'JS' }
+          { name: 'David Kim', image: '', fallback: 'DK' },
+          { name: 'Jordan Smith', image: '', fallback: 'JS' }
         ],
       },
       { 
@@ -645,8 +645,8 @@ export const enhancedGoalsData = [
         current: true,
         targetDate: 'Jan 20',
         assignedTo: [
-          { name: 'Sarah Chen', image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100', fallback: 'SC' },
-          { name: 'Jordan Smith', image: 'https://images.unsplash.com/photo-1576558656222-ba66febe3dec?w=100', fallback: 'JS' }
+          { name: 'Sarah Chen', image: '', fallback: 'SC' },
+          { name: 'Jordan Smith', image: '', fallback: 'JS' }
         ],
       },
       { 
@@ -655,16 +655,16 @@ export const enhancedGoalsData = [
         completed: false,
         targetDate: 'Jan 31',
         assignedTo: [
-          { name: 'Jordan Smith', image: 'https://images.unsplash.com/photo-1576558656222-ba66febe3dec?w=100', fallback: 'JS' },
-          { name: 'Sarah Chen', image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100', fallback: 'SC' },
-          { name: 'David Kim', image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100', fallback: 'DK' }
+          { name: 'Jordan Smith', image: '', fallback: 'JS' },
+          { name: 'Sarah Chen', image: '', fallback: 'SC' },
+          { name: 'David Kim', image: '', fallback: 'DK' }
         ],
       },
     ],
     collaborators: [
-      { id: 'user_001', name: 'Jordan Smith', image: 'https://images.unsplash.com/photo-1576558656222-ba66febe3dec?w=100', fallback: 'JS', progress: 85, animationType: 'glow', status: 'online', role: 'creator' },
-      { id: 'user_002', name: 'Sarah Chen', image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100', fallback: 'SC', progress: 72, animationType: 'pulse', status: 'online', role: 'admin' },
-      { id: 'user_005', name: 'David Kim', image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100', fallback: 'DK', progress: 80, animationType: 'bounce', status: 'online', role: 'collaborator' },
+      { id: 'user_001', name: 'Jordan Smith', image: '', fallback: 'JS', progress: 85, animationType: 'glow', status: 'online', role: 'creator' },
+      { id: 'user_002', name: 'Sarah Chen', image: '', fallback: 'SC', progress: 72, animationType: 'pulse', status: 'online', role: 'admin' },
+      { id: 'user_005', name: 'David Kim', image: '', fallback: 'DK', progress: 80, animationType: 'bounce', status: 'online', role: 'collaborator' },
     ],
     activity: [
       { user: 'David Kim', action: 'completed milestone', detail: 'Core Development finished', time: '1 week ago' },
@@ -724,7 +724,7 @@ export const enhancedGoalsData = [
         targetValue: 4.5, 
         unit: 'stars',
         progress: 42,
-        owner: { name: 'Sarah Chen', image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100', fallback: 'SC' },
+        owner: { name: 'Sarah Chen', image: '', fallback: 'SC' },
         dueDate: 'Feb 15',
         confidence: 7
       },
@@ -735,21 +735,21 @@ export const enhancedGoalsData = [
         targetValue: 20, 
         unit: 'percent',
         progress: 43,
-        owner: { name: 'David Kim', image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100', fallback: 'DK' },
+        owner: { name: 'David Kim', image: '', fallback: 'DK' },
         dueDate: 'Feb 10',
         confidence: 6
       },
     ],
     milestones: [
-      { id: 'm1', name: 'UX Research', completed: true, completedBy: 'Sarah Chen', completedAt: '2 weeks ago', targetDate: 'Jan 5', assignedTo: [{ name: 'Sarah Chen', image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100', fallback: 'SC' }] },
-      { id: 'm2', name: 'Performance Optimization', completed: false, current: true, targetDate: 'Jan 25', assignedTo: [{ name: 'David Kim', image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100', fallback: 'DK' }] },
-      { id: 'm3', name: 'Feature Polish', completed: false, targetDate: 'Feb 5', assignedTo: [{ name: 'Jordan Smith', image: 'https://images.unsplash.com/photo-1576558656222-ba66febe3dec?w=100', fallback: 'JS' }, { name: 'Sarah Chen', image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100', fallback: 'SC' }] },
-      { id: 'm4', name: 'Rating Campaign', completed: false, targetDate: 'Feb 15', assignedTo: [{ name: 'Sarah Chen', image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100', fallback: 'SC' }] },
+      { id: 'm1', name: 'UX Research', completed: true, completedBy: 'Sarah Chen', completedAt: '2 weeks ago', targetDate: 'Jan 5', assignedTo: [{ name: 'Sarah Chen', image: '', fallback: 'SC' }] },
+      { id: 'm2', name: 'Performance Optimization', completed: false, current: true, targetDate: 'Jan 25', assignedTo: [{ name: 'David Kim', image: '', fallback: 'DK' }] },
+      { id: 'm3', name: 'Feature Polish', completed: false, targetDate: 'Feb 5', assignedTo: [{ name: 'Jordan Smith', image: '', fallback: 'JS' }, { name: 'Sarah Chen', image: '', fallback: 'SC' }] },
+      { id: 'm4', name: 'Rating Campaign', completed: false, targetDate: 'Feb 15', assignedTo: [{ name: 'Sarah Chen', image: '', fallback: 'SC' }] },
     ],
     collaborators: [
-      { id: 'user_002', name: 'Sarah Chen', image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100', fallback: 'SC', progress: 72, animationType: 'pulse', status: 'online', role: 'creator' },
-      { id: 'user_001', name: 'Jordan Smith', image: 'https://images.unsplash.com/photo-1576558656222-ba66febe3dec?w=100', fallback: 'JS', progress: 85, animationType: 'glow', status: 'online', role: 'admin' },
-      { id: 'user_005', name: 'David Kim', image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100', fallback: 'DK', progress: 80, animationType: 'bounce', status: 'online', role: 'collaborator' },
+      { id: 'user_002', name: 'Sarah Chen', image: '', fallback: 'SC', progress: 72, animationType: 'pulse', status: 'online', role: 'creator' },
+      { id: 'user_001', name: 'Jordan Smith', image: '', fallback: 'JS', progress: 85, animationType: 'glow', status: 'online', role: 'admin' },
+      { id: 'user_005', name: 'David Kim', image: '', fallback: 'DK', progress: 80, animationType: 'bounce', status: 'online', role: 'collaborator' },
     ],
     activity: [
       { user: 'Sarah Chen', action: 'added risk', detail: 'Performance optimization needed', time: '1 week ago' },
@@ -783,14 +783,14 @@ export const subGoalsData = [
         targetValue: 6,
         unit: 'screens',
         progress: 83,
-        owner: { name: 'David Kim', image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100', fallback: 'DK' },
+        owner: { name: 'David Kim', image: '', fallback: 'DK' },
         dueDate: 'Mar 5',
         confidence: 9
       },
     ],
     collaborators: [
-      { name: 'David Kim', image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100', fallback: 'DK', progress: 80, animationType: 'bounce', status: 'online', role: 'owner' },
-      { name: 'Sarah Chen', image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100', fallback: 'SC', progress: 72, animationType: 'pulse', status: 'online', role: 'champion' },
+      { name: 'David Kim', image: '', fallback: 'DK', progress: 80, animationType: 'bounce', status: 'online', role: 'owner' },
+      { name: 'Sarah Chen', image: '', fallback: 'SC', progress: 72, animationType: 'pulse', status: 'online', role: 'champion' },
     ],
   },
   {
@@ -816,14 +816,14 @@ export const subGoalsData = [
         targetValue: 100,
         unit: 'percent',
         progress: 80,
-        owner: { name: 'Marcus Johnson', image: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100', fallback: 'MJ' },
+        owner: { name: 'Marcus Johnson', image: '', fallback: 'MJ' },
         dueDate: 'Mar 8',
         confidence: 7
       },
     ],
     collaborators: [
-      { name: 'Marcus Johnson', image: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100', fallback: 'MJ', progress: 68, animationType: 'heartbeat', status: 'online', role: 'owner' },
-      { name: 'Sarah Chen', image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100', fallback: 'SC', progress: 72, animationType: 'pulse', status: 'online', role: 'champion' },
+      { name: 'Marcus Johnson', image: '', fallback: 'MJ', progress: 68, animationType: 'heartbeat', status: 'online', role: 'owner' },
+      { name: 'Sarah Chen', image: '', fallback: 'SC', progress: 72, animationType: 'pulse', status: 'online', role: 'champion' },
     ],
   },
 ];
