@@ -28,7 +28,7 @@ import {
 } from './ui/tooltip';
 import { useState } from 'react';
 import { AlternativeTimeSlotsView } from './AlternativeTimeSlotsView';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 
 interface ScheduleChangePreviewModalProps {
   isOpen: boolean;

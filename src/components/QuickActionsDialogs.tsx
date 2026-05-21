@@ -21,7 +21,7 @@ import {
 } from './ui/select';
 import { Badge } from './ui/badge';
 import { Calendar, Clock, Target, Zap, Plus, X, Brain, CheckCircle2, Play, ChevronRight, ChevronLeft, Sparkles } from 'lucide-react';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { GOAL_TEMPLATES, TEMPLATE_CATEGORIES, GoalTemplate, getTemplateById } from '../utils/goal-templates';
 import { CURRENT_USER } from '../utils/user-constants';
 import { LocationInput } from './LocationInput';

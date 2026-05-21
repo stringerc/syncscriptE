@@ -8,7 +8,7 @@ import { motion } from 'motion/react';
 import { Mail, Plus, X, Save, Send, Clock, CheckCircle2, AlertCircle, Loader2, Sparkles } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { projectId, publicAnonKey } from '../utils/supabase/info';
 
 interface DigestConfig {

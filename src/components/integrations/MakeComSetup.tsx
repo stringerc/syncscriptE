@@ -14,7 +14,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../ui
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { useMake } from '../../hooks/useMake';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 
 export function MakeComSetup() {
   const { checkStatus, testWebhook, loading } = useMake();

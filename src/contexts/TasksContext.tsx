@@ -17,7 +17,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { Task, CreateTaskInput, UpdateTaskInput, TaskFilters, CreateTeamTaskInput, TaskMilestone, TaskValidationResult, TaskEditHistory } from '../types/task';
 import { taskRepository } from '../services';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { useEnergy } from './EnergyContext';
 import { checklistTracking } from '../components/onboarding/checklist-tracking';
 import { ensureExecutionProjectForTask } from '../utils/work-operating-model';

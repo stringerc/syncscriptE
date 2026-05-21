@@ -32,7 +32,7 @@ import {
   Tag,
 } from 'lucide-react';
 import { Task, Resource, LinkNote, TeamMember, getResourceCount, getLinksNotesCount, getCompletedSubtaskCount } from '../utils/event-task-types';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface TaskModalProps {

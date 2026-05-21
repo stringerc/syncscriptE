@@ -15,7 +15,7 @@ import {
   PlannedEvent 
 } from '../types/budget-types';
 import { formatCurrency, getSeverityStyles } from '../data/financial-conflict-integration';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 
 interface AlternativesComparisonModalProps {

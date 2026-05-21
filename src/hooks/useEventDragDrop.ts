@@ -246,7 +246,7 @@ export function useEventDragDrop({
             });
             
             // Import toast for feedback
-            import('sonner@2.0.3').then(({ toast }) => {
+            import('sonner').then(({ toast }) => {
               const itemType = (eventToUnschedule as any).createdFromGoalId ? 'Goal' : 'Task';
               toast.success(`${itemType} unscheduled`, {
                 description: `${eventToUnschedule.title} moved back to Needs Scheduling`,
@@ -270,7 +270,7 @@ export function useEventDragDrop({
             
           } else {
             console.warn('⚠️ Cannot unschedule - event is not linked to a task or goal');
-            import('sonner@2.0.3').then(({ toast }) => {
+            import('sonner').then(({ toast }) => {
               toast.info('Cannot unschedule', {
                 description: 'Only tasks and goals can be moved back to Needs Scheduling. Regular calendar events stay on the calendar.',
                 duration: 3000,
@@ -301,7 +301,7 @@ export function useEventDragDrop({
         console.log('🔄 Snapping back to original position with helpful toast message');
         
         // Import toast dynamically to avoid circular dependencies
-        import('sonner@2.0.3').then(({ toast }) => {
+        import('sonner').then(({ toast }) => {
           toast.info('Drop outside calendar', {
             description: 'Drag events to calendar days to reschedule them',
             duration: 2000,

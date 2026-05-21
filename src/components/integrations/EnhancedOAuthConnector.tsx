@@ -22,7 +22,7 @@ import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { Progress } from '../ui/progress';
 import { Switch } from '../ui/switch';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { useIntegrations } from '../../hooks/useIntegrations';
 import type { IntegrationProvider } from '../../services/IntegrationProvider';
 

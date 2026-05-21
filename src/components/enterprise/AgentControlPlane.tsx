@@ -6,7 +6,7 @@ import { Label } from '../ui/label';
 import { Textarea } from '../ui/textarea';
 import { AnimatedAvatar } from '../AnimatedAvatar';
 import { MessageSquare, RotateCcw, Save } from 'lucide-react';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { useAgentProgress } from '../../contexts/AgentProgressContext';
 import {
   AGENT_GOVERNANCE_PROFILES,

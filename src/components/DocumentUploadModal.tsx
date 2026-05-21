@@ -36,7 +36,7 @@ import {
   Loader2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { useOpenClaw } from '../contexts/OpenClawContext';
 import { useTasks } from '../hooks/useTasks';
 import type { ExtractedTask } from '../types/openclaw';

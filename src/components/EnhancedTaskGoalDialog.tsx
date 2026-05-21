@@ -21,7 +21,7 @@ import {
 import { Badge } from './ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Calendar, Target, Zap, X, Sparkles, Users, UserPlus } from 'lucide-react';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { AttachmentManager, Attachment } from './AttachmentManager';
 import { VoiceInputButton } from './VoiceInputButton';
 import { MilestoneManager, Milestone } from './MilestoneManager';

@@ -59,7 +59,7 @@ import { cn } from '../ui/utils';
 import { useTeam } from '../../contexts/TeamContext';
 import { useEnergy } from '../../contexts/EnergyContext';
 import { useTasks } from '../../contexts/TasksContext';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { CreateTaskModal } from './CreateTaskModal';
 import { DeleteTaskDialog } from './DeleteTaskDialog';
 import { TaskFilterPanel } from './TaskFilterPanel';

@@ -23,7 +23,7 @@ import {
 } from 'lucide-react';
 import { Event } from '../utils/event-task-types';
 import { analyzeDayCalendar } from '../utils/calendar-intelligence';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { detectConflicts, ConflictGroup } from '../utils/calendar-conflict-detection';
 
 interface CalendarIntelligenceBannerProps {

@@ -3,7 +3,7 @@ import { Paperclip, File, Link as LinkIcon, X, Upload, Plus } from 'lucide-react
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Badge } from './ui/badge';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 
 export interface Attachment {
   id: string;

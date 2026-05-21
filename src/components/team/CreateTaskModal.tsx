@@ -30,7 +30,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { cn } from '../ui/utils';
 import { useTasks } from '../../contexts/TasksContext';
 import { useTeam } from '../../contexts/TeamContext';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { Priority, EnergyLevel, TaskMilestone, CreateTeamTaskInput, RecurringTaskConfig } from '../../types/task';
 
 interface CreateTaskModalProps {

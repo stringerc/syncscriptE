@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'motion/react';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { 
   Sparkles, CheckCircle2, Info, AlertTriangle, XCircle,
   Keyboard, Zap, Target, Brain, Heart

@@ -11,7 +11,7 @@ import { CURRENT_USER } from '../../utils/user-constants';
 import { Button } from '../ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { CheckCircle2, Zap, RefreshCw } from 'lucide-react';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 
 export function AnalyticsTestPanel() {
   const { track, flush, getBufferSize } = useAnalytics();

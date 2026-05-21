@@ -25,7 +25,7 @@ import {
 import { getAdaptiveResetHour } from '../utils/daily-cycle';
 import { useRevenueUpsell, useEnergyRevenue } from '../hooks/useRevenueUpsell';
 import { Task, Priority } from '../types/task';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { checklistTracking } from '../components/onboarding/checklist-tracking';
 
 interface EnergyContextType {

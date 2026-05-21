@@ -82,7 +82,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { ConflictGroup } from '../utils/calendar-conflict-detection';
 import { getDashboardConflictSummary, formatCurrency, getAlternativeComparison } from '../data/financial-conflict-integration';
 import { AlternativesComparisonModal } from './AlternativesComparisonModal';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 
 // ============================================================================
 // TYPE DEFINITIONS

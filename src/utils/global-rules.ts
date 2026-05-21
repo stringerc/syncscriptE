@@ -77,12 +77,8 @@ export const COMING_SOON_FEATURES = {
     expectedDate: 'Q2 2025',
   },
   
-  // Scripts & Templates Marketplace
-  scriptsTemplates: {
-    title: 'Scripts & Templates Marketplace',
-    description: 'Discover and use automation scripts and workflow templates created by the SyncScript community. Save time with pre-built solutions for common tasks.',
-    expectedDate: 'Q1 2025',
-  },
+  // Scripts & Templates — now live (removed from coming-soon 2026-05-20)
+
 } as const;
 
 export type ComingSoonFeatureKey = keyof typeof COMING_SOON_FEATURES;

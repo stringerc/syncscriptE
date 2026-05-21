@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Brain, TrendingUp, Zap, Target, DollarSign, Clock, Calendar, ChevronDown, ChevronUp, Sparkles, RotateCcw, CheckCircle, ArrowRight, Info, Gauge, AlertCircle, Settings, Waves } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { DashboardLayout } from '../layout/DashboardLayout';
 import { Button } from '../ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';

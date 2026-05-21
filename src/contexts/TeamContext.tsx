@@ -11,7 +11,7 @@ import {
   DEFAULT_PERMISSIONS,
 } from '../types/team';
 import { Event } from '../utils/event-task-types';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 
 /**
  * TeamContext

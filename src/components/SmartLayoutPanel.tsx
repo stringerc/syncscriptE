@@ -27,7 +27,7 @@ import {
   resetEventsToDefault,
   setUniformWidth,
 } from '../utils/ai-calendar-layout';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 
 interface SmartLayoutPanelProps {
   selectedEvents: Event[]; // Events user has selected

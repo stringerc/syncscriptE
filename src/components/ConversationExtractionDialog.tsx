@@ -6,7 +6,7 @@ import { Badge } from './ui/badge';
 import { Separator } from './ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { ScrollArea } from './ui/scroll-area';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { 
   Sparkles, Upload, FileText, CheckCircle2, Target, 
   Calendar, Zap, Lightbulb, AlertCircle, Download, Copy, Wand2

@@ -23,7 +23,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Progress } from '../ui/progress';
 import { getPlanDisplayName } from '../../config/pricing';
 import { useStripe, type UsageData } from '../../hooks/useStripe';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 
 interface BillingSettingsProps {
   userId: string;

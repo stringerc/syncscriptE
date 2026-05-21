@@ -43,7 +43,7 @@ import { Checkbox } from '../ui/checkbox';
 import { Label } from '../ui/label';
 import { cn } from '../ui/utils';
 import { TaskWatcher } from '../../types/task';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 
 interface TaskWatchersProps {
   taskId: string;

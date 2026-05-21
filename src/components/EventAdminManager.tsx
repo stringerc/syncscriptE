@@ -20,7 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from './ui/select';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { Event } from '../utils/event-task-types';
 
 export type EventRole = 'admin' | 'editor' | 'viewer';

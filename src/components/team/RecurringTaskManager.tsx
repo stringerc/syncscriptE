@@ -48,7 +48,7 @@ import { cn } from '../ui/utils';
 import { RecurringTaskConfig, RecurrencePattern } from '../../types/task';
 import { calculateNextOccurrence } from '../../utils/taskAutomation';
 import { format } from 'date-fns';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 
 interface RecurringTaskManagerProps {
   teamId: string;

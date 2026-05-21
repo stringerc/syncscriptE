@@ -26,7 +26,7 @@ import {
   type ReactNode,
 } from 'react';
 import { enhancedGoalsData } from '../utils/enhanced-goals-data';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { useAuth } from '../contexts/AuthContext';
 import { checklistTracking } from '../components/onboarding/checklist-tracking';
 import { LocalGoalCommandAdapter } from '../contracts/adapters/local-goal-command-adapter';

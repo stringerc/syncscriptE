@@ -25,7 +25,7 @@ import { EventModal } from './EventModal';
 import { TaskModal } from './TaskModal';
 import { TaskEventCard } from './TaskEventCard';
 import { ResourceManager } from './ResourceManager';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { motion } from 'motion/react';
 
 export function EventTaskSystemDemo() {

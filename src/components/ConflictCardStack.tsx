@@ -99,7 +99,7 @@ import { Badge } from './ui/badge';
 import { UnifiedConflict, ConflictSource, ConflictSeverity } from '../utils/unified-conflict-detection';
 import { AlternativesComparisonModal } from './AlternativesComparisonModal';
 import { getAlternativeComparison } from '../data/financial-conflict-integration';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 
 // ============================================================================
 // COMPONENT PROPS

@@ -9,7 +9,7 @@ import { Badge } from './ui/badge';
 import { useUserProfile } from '../utils/user-profile';
 import { useAuth } from '../contexts/AuthContext';
 import { useStripe } from '../hooks/useStripe';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { PLANS, formatPrice } from '../config/pricing';
 import { projectId, publicAnonKey } from '../utils/supabase/info';
 

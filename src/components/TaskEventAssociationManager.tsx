@@ -23,7 +23,7 @@ import { Alert, AlertDescription } from './ui/alert';
 import { ScrollArea } from './ui/scroll-area';
 import { Separator } from './ui/separator';
 import { Event, Task } from '../utils/event-task-types';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 
 interface TaskEventAssociationManagerProps {
   task: Task;

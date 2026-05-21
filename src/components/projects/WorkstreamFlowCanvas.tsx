@@ -17,7 +17,7 @@ import {
   type Viewport,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { flushSync } from 'react-dom';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';

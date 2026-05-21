@@ -5,7 +5,7 @@ import { Button } from './ui/button';
 import { ExternalLink, Lightbulb, MapPin, Sparkles, Wand2 } from 'lucide-react';
 import type { UnifiedConflict } from '../utils/unified-conflict-detection';
 import { useTasks } from '../hooks/useTasks';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 
 interface ConflictResolutionModalProps {
   open: boolean;

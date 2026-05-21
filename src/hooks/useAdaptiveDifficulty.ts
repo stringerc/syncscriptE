@@ -16,7 +16,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useEnergy } from './useEnergy';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 
 export interface AdaptiveDifficultyConfig {
   enabled: boolean;

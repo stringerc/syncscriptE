@@ -19,7 +19,7 @@ import { SuggestMilestonesDialog } from './SuggestMilestonesDialog';
 import { SuggestStepsDialog } from './SuggestStepsDialog';
 import { TeamBadge } from './TeamBadge';
 import { EnergyBadge } from './EnergyBadge';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { Input } from './ui/input';
 // PHASE 1: Import unified permission system
 import { usePermissions } from '../hooks/usePermissions';

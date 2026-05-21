@@ -50,7 +50,7 @@ import {
   AutomationAction,
 } from '../../types/task';
 import { getTriggerDisplayName, getActionDisplayName } from '../../utils/taskAutomation';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 
 interface AutomationRulesPanelProps {
   teamId: string;

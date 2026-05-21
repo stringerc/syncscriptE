@@ -12,7 +12,7 @@ import {
 import { Input } from './ui/input';
 import { Button } from './ui/button';
 import { useUserProfile, UserStatus, getStatusColor, getStatusLabel } from '../utils/user-profile';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 
 interface StatusOption {
   value: UserStatus;

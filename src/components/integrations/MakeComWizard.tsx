@@ -26,7 +26,7 @@ import { Input } from '../ui/input';
 import { Checkbox } from '../ui/checkbox';
 import { Badge } from '../ui/badge';
 import { Card } from '../ui/card';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { useMake } from '../../hooks/useMake';
 import { copyToClipboard } from '../../utils/clipboard';
 

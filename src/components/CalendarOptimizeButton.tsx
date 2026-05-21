@@ -33,7 +33,7 @@ import {
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from './ui/dialog';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { useOpenClaw } from '../contexts/OpenClawContext';
 import type { CalendarOptimization } from '../types/openclaw';
 

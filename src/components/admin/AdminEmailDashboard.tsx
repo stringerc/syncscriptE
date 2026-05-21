@@ -13,7 +13,7 @@ import {
   CheckSquare, Square, Inbox, Star, StarOff, Plus, Save, Zap,
   ArrowUpDown, ArrowUp, ArrowDown, Copy, ExternalLink, Settings
 } from 'lucide-react';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { projectId, publicAnonKey } from '../../utils/supabase/info';
 import { TestEmailGenerator } from './TestEmailGenerator';
 import { EmailAnalyticsDashboard } from './EmailAnalyticsDashboard';

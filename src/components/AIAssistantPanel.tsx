@@ -30,7 +30,7 @@ import { ScrollArea } from './ui/scroll-area';
 import { Badge } from './ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from './ui/dialog';
 import { useLocation } from 'react-router';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { useAI } from '../contexts/AIContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useOpenClaw } from '../contexts/OpenClawContext';

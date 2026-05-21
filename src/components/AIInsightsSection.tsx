@@ -1,7 +1,7 @@
 import { memo, useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Settings, TrendingUp, Clock, Zap, Target, Brain, RefreshCw, Bell, Eye, Sparkles } from 'lucide-react';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { useLocation } from 'react-router';
 import { getPageContext } from '../utils/ai-context-config';
 import {

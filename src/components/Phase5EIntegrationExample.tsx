@@ -23,7 +23,7 @@ import {
   unlinkTaskFromEvent,
 } from '../utils/task-event-integration';
 import { Event, Task } from '../utils/event-task-types';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 
 // Mock data for demonstration
 const mockEvents: Event[] = [

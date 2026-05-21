@@ -50,7 +50,7 @@ import {
 } from '../ui/dropdown-menu';
 import { cn } from '../ui/utils';
 import { Priority } from '../../types/task';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 
 interface BulkTaskActionsProps {
   selectedTaskIds: Set<string>;

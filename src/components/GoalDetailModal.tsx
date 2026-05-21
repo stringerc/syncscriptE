@@ -23,7 +23,7 @@ import { UserProfileModal } from './UserProfileModal';
 import { calculateSuccessLikelihood, calculateGoalHealth } from '../utils/goal-ai-analytics';
 import { PredictiveAnalyticsDashboard } from './PredictiveAnalyticsDashboard';
 import { GoalHealthBadge } from './GoalHealthBadge';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { EnergyBadge } from './EnergyBadge';
 // PHASE 1: Import unified permission system
 import { usePermissions } from '../hooks/usePermissions';

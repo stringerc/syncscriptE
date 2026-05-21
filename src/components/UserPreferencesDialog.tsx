@@ -8,7 +8,7 @@ import { Switch } from './ui/switch';
 import { Badge } from './ui/badge';
 import { Separator } from './ui/separator';
 import { useUserPreferences } from '../utils/user-preferences';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { 
   Sparkles, Zap, Clock, Settings, Save, RotateCcw,
   Sun, Moon, Sunrise, Sunset

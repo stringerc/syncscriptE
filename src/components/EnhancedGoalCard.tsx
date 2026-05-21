@@ -12,7 +12,7 @@ import { Badge } from './ui/badge';
 import { Progress } from './ui/progress';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from './ui/dropdown-menu';
 import { AnimatedAvatar } from './AnimatedAvatar';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { calculateGoalHealth, generateQuickActions } from '../utils/goal-ai-analytics';
 import { GoalHealthBadge } from './GoalHealthBadge';
 import { GoalQuickActions } from './GoalQuickActions';

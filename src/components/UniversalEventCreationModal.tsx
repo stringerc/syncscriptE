@@ -131,7 +131,7 @@ import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Badge } from './ui/badge';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { AlternativesComparisonModal } from './AlternativesComparisonModal';
 import { useCalendarEvents } from '../hooks/useCalendarEvents';
 import { formatAppDate, getCurrentDate } from '../utils/app-date';

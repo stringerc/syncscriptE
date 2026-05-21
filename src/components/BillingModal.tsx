@@ -8,7 +8,7 @@ import { Check, X, Zap, Users, Building2, Sparkles, Crown } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './ui/dialog';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { PLANS, formatPrice, PLAN_IDS } from '../config/pricing';
 
 const BILLING_ICONS: Record<string, typeof Zap> = {

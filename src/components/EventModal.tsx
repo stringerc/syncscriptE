@@ -47,7 +47,7 @@ import { isEventPast } from '../utils/event-task-types';
 import { AITaskSuggestionDialog } from './AITaskSuggestionDialog';
 import { EventAdminManager, EventMember } from './EventAdminManager';
 import { EventAgendaTab } from './EventAgendaTab';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'motion/react';
 import { detectEventConflicts, formatConflictMessage, type ConflictInfo } from '../utils/calendar-conflicts';
 import { getEventEnergyValue } from '../utils/energy-system'; // PHASE 1.6: Energy system

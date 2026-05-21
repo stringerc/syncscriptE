@@ -40,7 +40,7 @@
 
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { Event } from '../../utils/event-task-types';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 
 export interface AgendaTemplate {
   id: string;

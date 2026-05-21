@@ -13,7 +13,7 @@
 import { useState, useRef } from 'react';
 import { Camera, Image as ImageIcon, Loader2, X } from 'lucide-react';
 import { Button } from './ui/button';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { useOpenClaw } from '../contexts/OpenClawContext';
 import type { ExtractedTask } from '../types/openclaw';
 

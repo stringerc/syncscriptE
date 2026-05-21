@@ -100,7 +100,7 @@ import {
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { ResonanceBadge } from './ResonanceBadge';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { useTasks } from '../hooks/useTasks';
 import { Task } from '../types/task';
 import { getPriorityLeftAccent, getPriorityLabel } from '../utils/priority-colors';

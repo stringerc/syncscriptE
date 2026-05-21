@@ -7,7 +7,7 @@ import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
 import { useUserProfile } from '../utils/user-profile';
 import { StatusSelector } from './StatusSelector';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import {
   Select,
   SelectContent,

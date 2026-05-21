@@ -188,7 +188,7 @@ import { useTasks } from '../hooks/useTasks';
 import { useEnergy } from '../contexts/EnergyContext';
 import { formatAppDate, getCurrentDate } from '../utils/app-date';
 import { motion, AnimatePresence } from 'motion/react';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { useUserProfile } from '../utils/user-profile';
 import { getTaskParticipantFaces } from '../utils/task-avatar-display';
 import { TaskParticipantAvatarStack } from './TaskParticipantAvatarStack';

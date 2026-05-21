@@ -54,7 +54,7 @@
 
 import { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { 
   Zap, Battery, Activity, TrendingUp, Clock, 
   Target, Sparkles, Info, AlertCircle, Award,

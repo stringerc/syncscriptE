@@ -24,7 +24,7 @@ import {
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { useNavigate, useLocation } from 'react-router';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { useAI } from '../contexts/AIContext';
 import { Badge } from './ui/badge';
 import { getPageContext, generateWelcomeMessage, hasContextualInsights } from '../utils/ai-context-config';

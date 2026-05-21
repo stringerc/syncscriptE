@@ -15,7 +15,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from './ui/dialog';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 
 // Integration type definitions
 type IntegrationType = 'push' | 'hybrid' | 'pull';

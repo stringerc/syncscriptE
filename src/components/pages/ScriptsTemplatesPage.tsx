@@ -8,7 +8,7 @@ import {
   Lightbulb, Flame, Heart, Target, Layout, Settings
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { Input } from '../ui/input';
@@ -655,58 +655,6 @@ export function ScriptsTemplatesPage() {
 
   return (
     <DashboardLayout aiInsightsContent={aiInsightsContent}>
-      {/* Coming Soon Overlay */}
-      <div className="absolute inset-0 z-50 bg-[#1a1d24]/95 backdrop-blur-sm flex items-center justify-center">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.5 }}
-          className="max-w-2xl mx-auto px-6 text-center"
-        >
-          <div className="bg-gradient-to-br from-teal-600/20 to-cyan-600/20 border border-teal-500/30 rounded-2xl p-8 shadow-2xl shadow-teal-500/10">
-            <div className="w-20 h-20 bg-gradient-to-br from-teal-500 to-cyan-500 rounded-full flex items-center justify-center mx-auto mb-6">
-              <FileText className="w-10 h-10 text-white" />
-            </div>
-            
-            <h2 className="text-4xl font-bold text-white mb-4">
-              Coming Soon
-            </h2>
-            
-            <div className="space-y-4 text-gray-300">
-              <p className="text-xl">
-                Scripts & Templates Marketplace
-              </p>
-              
-              <p className="text-base leading-relaxed">
-                Browse and customize pre-built automation scripts tailored to your workflow. 
-                The marketplace will feature community-contributed templates for time management, 
-                meetings, email automation, focus sessions, and more—all tuned to your unique 
-                energy patterns and resonance score.
-              </p>
-              
-              <div className="flex flex-wrap gap-2 justify-center mt-6">
-                <Badge variant="secondary" className="bg-teal-600/20 text-teal-300 border-teal-500/30">
-                  <Zap className="w-3 h-3 mr-1" />
-                  Auto-Scheduling
-                </Badge>
-                <Badge variant="secondary" className="bg-cyan-600/20 text-cyan-300 border-cyan-500/30">
-                  <Users className="w-3 h-3 mr-1" />
-                  Community Scripts
-                </Badge>
-                <Badge variant="secondary" className="bg-purple-600/20 text-purple-300 border-purple-500/30">
-                  <Sparkles className="w-3 h-3 mr-1" />
-                  AI Personalization
-                </Badge>
-                <Badge variant="secondary" className="bg-blue-600/20 text-blue-300 border-blue-500/30">
-                  <Code className="w-3 h-3 mr-1" />
-                  Custom Templates
-                </Badge>
-              </div>
-            </div>
-          </div>
-        </motion.div>
-      </div>
-
       <motion.div
         className="space-y-6"
         initial={{ opacity: 0, y: 20 }}

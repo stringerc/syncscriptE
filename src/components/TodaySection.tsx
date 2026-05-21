@@ -13,7 +13,7 @@ import { detectAllConflicts } from '../utils/unified-conflict-detection';
 import { getTopPriorityTasks } from '../utils/intelligent-task-selector';
 import { formatAppDate } from '../utils/app-date';
 import { motion, AnimatePresence } from 'motion/react';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { calculateCollaboratorProgress } from '../utils/progress-calculations';
 import { useUserProfile } from '../utils/user-profile';
 import { resolveDashboardScheduleProjection } from '../utils/dashboard-schedule-demo';

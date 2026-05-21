@@ -20,7 +20,7 @@ import { useEffect, useCallback, useRef } from 'react';
 import { useEnergy } from './useEnergy';
 import { useEnergyPrediction } from './useEnergyPrediction';
 import { useCalendarEvents } from './useCalendarEvents';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 
 export interface NotificationConfig {
   enabled: boolean;

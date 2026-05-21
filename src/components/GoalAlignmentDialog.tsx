@@ -5,7 +5,7 @@ import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Badge } from './ui/badge';
 import { Target, Link as LinkIcon, TrendingUp, CheckCircle2, Circle } from 'lucide-react';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 
 interface GoalAlignmentDialogProps {
   open: boolean;

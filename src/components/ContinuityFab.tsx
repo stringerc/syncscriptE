@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link2, Smartphone, Watch } from 'lucide-react';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { Button } from './ui/button';
 import { useContinuity } from '../contexts/ContinuityContext';
 import { openPhoneRouteWithFallback, toPhoneLaunchLinks } from '../utils/native-link';

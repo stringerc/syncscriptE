@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Button } from './ui/button';
 import { AnimatedAvatar } from './AnimatedAvatar';
 import { UserPlus, X } from 'lucide-react';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 
 interface AddUserToMilestoneDialogProps {
   open: boolean;

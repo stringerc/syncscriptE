@@ -13,7 +13,7 @@ import { Checkbox } from './ui/checkbox';
 import { Sparkles, RefreshCw, Zap, Clock, Target } from 'lucide-react';
 import { Task } from '../utils/event-task-types';
 import { motion, AnimatePresence } from 'motion/react';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 
 interface SuggestedTask {
   id: string;

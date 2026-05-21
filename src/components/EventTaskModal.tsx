@@ -49,7 +49,7 @@ import { Event, Task, Resource, LinkNote, TeamMember, getResourceCount, getLinks
 import { isEventPast } from '../utils/event-task-types';  // PHASE 3: Import auto-completion helper
 import { AITaskSuggestionDialog } from './AITaskSuggestionDialog';
 import { EventAdminManager, EventMember } from './EventAdminManager';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'motion/react';
 import { detectEventConflicts, formatConflictMessage } from '../utils/calendar-conflicts';
 
