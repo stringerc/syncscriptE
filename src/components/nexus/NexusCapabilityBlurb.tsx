@@ -1,6 +1,19 @@
+import { motion } from 'framer-motion';
 import { NEXUS_TOOL_MANIFEST } from '../../config/nexus-tool-manifest';
 
 type Variant = 'elite' | 'marketing';
+
+const CAPABILITY_ICONS: Record<string, string> = {
+  navigate_app: '⚡',
+  open_external_link: '🔗',
+  library_search: '🔍',
+  library_email_self: '📨',
+  library_pin: '📌',
+  companion_focus: '🎯',
+  companion_open_web: '🌐',
+  companion_open_chrome: '⛏️',
+  delegate_desktop_agents: '🤖',
+};
 
 /**
  * Public copy for what Nexus / voice can do — sourced from `nexus-tool-manifest.ts`.
@@ -38,24 +51,66 @@ export function NexusCapabilityBlurb({ variant = 'marketing' }: { variant?: Vari
   return (
     <section
       data-testid="nexus-capabilities-landing"
-      className="py-16 sm:py-20 relative overflow-hidden"
+      className="py-20 sm:py-28 lg:py-32 relative overflow-hidden"
     >
-      <div className="max-w-7xl mx-auto px-4 sm:px-6">
-        <h2 className="text-2xl sm:text-3xl font-semibold text-white mb-3">What you can ask inside SyncScript</h2>
-        <p className="text-white/65 text-sm sm:text-base max-w-3xl mb-8">
-          Your assistant stays inside clear boundaries: it helps you create tasks, schedule calendar holds, search your files, and navigate the app — by voice, chat, or the same tools the web app uses.
-        </p>
-        <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 text-sm">
-          {items.map((c) => (
-            <li
+      {/* Ambient background glow — matches CTA section language */}
+      <div className="absolute inset-0 bg-gradient-to-br from-violet-950/20 via-transparent to-indigo-950/20 pointer-events-none" />
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-indigo-500/[0.03] rounded-full blur-[100px] pointer-events-none" />
+
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 relative z-10">
+        {/* Centered heading — matches FAQ section above */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, amount: 0.3 }}
+          transition={{ duration: 0.7 }}
+          className="text-center mb-12 sm:mb-16"
+        >
+          <h2 className="text-4xl sm:text-5xl font-semibold mb-4 tracking-[-0.02em]">
+            What Nexus Can Do
+          </h2>
+          <p className="text-lg sm:text-xl text-white/60 font-light max-w-2xl mx-auto">
+            Your AI assistant works within clear boundaries — by voice, chat, or the same tools the web app uses.
+          </p>
+        </motion.div>
+
+        {/* Capability cards — glassmorphism + hover lift, matches page design language */}
+        <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 text-sm">
+          {items.map((c, index) => (
+            <motion.li
               key={c.id}
-              className="rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-white/85"
+              initial={{ opacity: 0, y: 15 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, amount: 0.2 }}
+              transition={{ duration: 0.5, delay: index * 0.08 }}
+              className="group relative rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-sm
+                px-5 py-4 transition-all duration-300
+                hover:border-cyan-500/30 hover:bg-white/[0.06] hover:shadow-lg hover:shadow-cyan-500/[0.06]
+                hover:-translate-y-0.5 cursor-default"
             >
-              <span className="font-medium text-white">{c.title}</span>
-              <span className="block mt-1 text-white/55 text-xs leading-relaxed">{c.description}</span>
-            </li>
+              {/* Icon accent */}
+              <span className="text-xl mb-2 block opacity-70 group-hover:opacity-100 transition-opacity duration-300">
+                {CAPABILITY_ICONS[c.id] || '✦'}
+              </span>
+              <span className="font-semibold text-white/90 block mb-1">{c.title}</span>
+              <span className="text-white/50 text-xs leading-relaxed block">{c.description}</span>
+
+              {/* Subtle top-edge shine on hover */}
+              <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-cyan-400/0 to-transparent group-hover:via-cyan-400/30 transition-all duration-500 rounded-t-2xl" />
+            </motion.li>
           ))}
         </ul>
+
+        {/* Trust signal — reinforces boundary clarity */}
+        <motion.p
+          initial={{ opacity: 0 }}
+          whileInView={{ opacity: 1 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.6, delay: 0.4 }}
+          className="mt-10 text-center text-xs text-white/30 tracking-wide"
+        >
+          No unbounded shell access · No raw system commands · You stay in control
+        </motion.p>
       </div>
     </section>
   );
