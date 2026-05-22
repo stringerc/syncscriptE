@@ -7,6 +7,7 @@ import { KeyboardShortcutsOverlay } from './components/KeyboardShortcutsOverlay'
 import { PastDueBanner } from './components/billing/PastDueBanner';
 import { HelpWidget } from './components/HelpWidget';
 import { EnergyProvider } from './contexts/EnergyContext';
+import { SubscriptionProvider } from './contexts/SubscriptionContext';
 import { TasksProvider } from './contexts/TasksContext';
 import { TeamProvider } from './contexts/TeamContext';
 import { AIProvider } from './contexts/AIContext';
@@ -120,6 +121,7 @@ const AppProfilePage = lazy(() => import('./components/app/pages/AppProfilePage'
 
 function DashboardProviders({ children }: { children: ReactNode }) {
   return (
+    <SubscriptionProvider>
     <EnergyProvider>
       <TasksProvider>
         <TeamProvider>
@@ -147,6 +149,7 @@ function DashboardProviders({ children }: { children: ReactNode }) {
         </TeamProvider>
       </TasksProvider>
     </EnergyProvider>
+    </SubscriptionProvider>
   );
 }
 
