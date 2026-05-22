@@ -20,7 +20,7 @@ const COMPANY_SIZES = [
 
 const ENTERPRISE_HIGHLIGHTS = [
   { icon: Shield, label: 'SOC 2 alignment (certification in progress)' },
-  { icon: Lock, label: 'SSO / SAML Authentication' },
+  { icon: Lock, label: 'SSO / SAML Authentication (planned)' },
   { icon: Users, label: 'Unlimited Team Members' },
   { icon: Clock, label: 'Priority Email & Chat Support' },
   { icon: Globe, label: 'Data Residency Options' },
@@ -87,7 +87,6 @@ export function ContactSalesPage() {
       className="relative min-h-screen text-white overflow-x-hidden"
       style={{
         background: 'linear-gradient(to bottom, #0a0e1a, #0f1420, #0a0e1a)',
-        fontFamily: "'Space Grotesk', system-ui, sans-serif",
       }}
     >
       {/* Top nav bar */}

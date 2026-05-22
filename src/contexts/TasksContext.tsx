@@ -29,6 +29,8 @@ import {
   executeAuthorityRoutedCommand,
 } from '../contracts/runtime/backend-authority-routing';
 import { useAuth } from './AuthContext';
+import { useSubscription } from './SubscriptionContext';
+import { LITE_TIER_LIMITS } from '../utils/entitlement-contract';
 import { markDashboardSawRealTasksForUser, userHasDashboardTaskHistory } from '../utils/dashboard-task-history';
 
 function extractPrimaryAgent(assignees: any[], collaborators: any[]): { id?: string; name: string } | null {
@@ -126,6 +128,7 @@ interface TasksProviderProps {
 
 export function TasksProvider({ children }: TasksProviderProps) {
   const { user, loading: authLoading, accessToken } = useAuth();
+  const { access } = useSubscription();
   const TASKS_REFRESH_TIMEOUT_MS = 12000;
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
@@ -235,6 +238,20 @@ export function TasksProvider({ children }: TasksProviderProps) {
   // ==================== CRUD OPERATIONS ====================
   
   const createTask = useCallback(async (input: CreateTaskInput): Promise<Task> => {
+    // Free-tier task cap enforcement (business plan §3.4, Ask 7.3.1)
+    const isFreeTier = access.accessType === 'free' || access.accessType === 'free_lite' || access.accessType === 'none';
+    if (isFreeTier) {
+      const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
+      const tasksCreatedToday = tasks.filter(t => {
+        const created = (t as any)?.createdAt || (t as any)?.created_at;
+        return created && new Date(created) >= todayStart && !(t as any)?._isSample;
+      }).length;
+      const cap = LITE_TIER_LIMITS.tasksPerDay; // 5
+      if (tasksCreatedToday >= cap) {
+        toast.error(`Free plan limit reached`, { description: `You've created ${cap} tasks today. Upgrade for unlimited tasks.` });
+        throw new Error(`free_tier_task_cap_reached:${cap}`);
+      }
+    }
     try {
       const workspaceId = String((input as any)?.projectId || 'workspace-main').trim() || 'workspace-main';
       const commandResult = await executeAuthorityRoutedCommand({
@@ -533,6 +550,11 @@ export function TasksProvider({ children }: TasksProviderProps) {
         
         // Pass resonance if task has it
         awardTaskEnergy(currentTask.id, currentTask.title, energyPriority, currentTask.resonance);
+        // WAS north-star metric: track task completion
+        import('../observability/analytics').then((m) => {
+          m.Events.taskCompleted({ source: 'manual', priority: currentTask.priority });
+        }).catch(() => {});
+
         window.dispatchEvent(
           new CustomEvent('syncscript:task-completed', {
             detail: {

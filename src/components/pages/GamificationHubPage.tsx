@@ -178,7 +178,7 @@ export function GamificationHubPage() {
   
   return (
     <DashboardLayout aiInsightsContent={aiInsightsContent}>
-      {/* Coming Soon Overlay - Full Screen Block */}
+      {/* Roadmap Overlay - Full Screen Block */}
       <div className="absolute inset-0 z-50 bg-[#1a1d24]/95 backdrop-blur-sm flex items-center justify-center">
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
@@ -192,7 +192,7 @@ export function GamificationHubPage() {
             </div>
             
             <h2 className="text-4xl font-bold text-white mb-4">
-              Coming Soon
+              On the Roadmap
             </h2>
             
             <div className="space-y-4 text-gray-300">
@@ -562,7 +562,7 @@ export function GamificationHubPage() {
               <h2 className="text-white text-2xl font-bold mb-6">Global Leaderboard</h2>
               <div className="text-center py-12">
                 <Trophy className="w-20 h-20 text-gray-600 mx-auto mb-4" />
-                <h3 className="text-white text-xl font-bold mb-2">Coming Soon</h3>
+                <h3 className="text-white text-xl font-bold mb-2">On the Roadmap</h3>
                 <p className="text-gray-400">
                   Global leaderboards with friend comparisons and class rankings
                 </p>
@@ -576,7 +576,7 @@ export function GamificationHubPage() {
               <h2 className="text-white text-2xl font-bold mb-6">Rewards Shop</h2>
               <div className="text-center py-12">
                 <Gift className="w-20 h-20 text-gray-600 mx-auto mb-4" />
-                <h3 className="text-white text-xl font-bold mb-2">Coming Soon</h3>
+                <h3 className="text-white text-xl font-bold mb-2">On the Roadmap</h3>
                 <p className="text-gray-400">
                   Spend your points on exclusive cosmetics, boosts, and perks
                 </p>

@@ -28,7 +28,6 @@ export function PressKitPage() {
   return (
     <div
       className="min-h-screen bg-gradient-to-b from-[#0a0e1a] via-[#0f1420] to-[#0a0e1a] text-white"
-      style={{ fontFamily: "'Space Grotesk', system-ui, sans-serif" }}
     >
       <div className="mx-auto max-w-4xl px-4 py-6 sm:px-6 lg:px-8">
         <motion.button

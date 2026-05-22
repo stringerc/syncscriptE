@@ -333,6 +333,33 @@ export async function executeNexusTool(
   };
 
   if (name === 'create_task') {
+    // Free-tier task cap enforcement (business plan §3.4, Ask 7.3.1)
+    const userId = userIdFromActor(actor);
+    try {
+      const sb = supabaseForUserJwt(actor.kind === 'jwt' ? actor.user : { userId, accessToken: '' } as any);
+      const { data: profile } = await sb.from('profiles').select('plan,access_type').eq('id', userId).single();
+      const accessType = (profile as any)?.access_type || (profile as any)?.plan || 'free';
+      const isFreeTier = accessType === 'free' || accessType === 'free_lite' || accessType === 'none';
+      if (isFreeTier) {
+        const todayStart = new Date(); todayStart.setUTCHours(0, 0, 0, 0);
+        const { count } = await sb
+          .from('user_capture_inbox')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', userId)
+          .gte('created_at', todayStart.toISOString());
+        const cap = 5; // LITE_TIER_LIMITS.tasksPerDay
+        if ((count ?? 0) >= cap) {
+          return await finish(
+            { tool: 'create_task', ok: false, error: 'free_tier_task_cap_reached' },
+            `You've reached the free plan limit of ${cap} tasks per day. Upgrade at syncscript.app/pricing for unlimited tasks.`,
+          );
+        }
+      }
+    } catch (e) {
+      // If the cap check fails, let task creation proceed — don't block on infra error
+      console.warn('[nexus-executor] free-tier task cap query failed, allowing creation', e);
+    }
+
     const title = String(args.title || '').trim();
     if (!title) {
       return await finish(

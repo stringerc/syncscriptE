@@ -34,7 +34,6 @@ export function CommunityPage() {
   return (
     <div
       className="min-h-screen bg-gradient-to-b from-[#0a0e1a] via-[#0f1420] to-[#0a0e1a] text-white"
-      style={{ fontFamily: "'Space Grotesk', system-ui, sans-serif" }}
     >
       <div className="max-w-4xl mx-auto px-6 pt-8 pb-20">
         <motion.a

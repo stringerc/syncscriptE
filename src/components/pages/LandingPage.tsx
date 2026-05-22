@@ -241,7 +241,6 @@ export function LandingPage() {
       data-marketing-root
       className="min-h-screen bg-gradient-to-b from-[#101728] via-[#131b2c] to-[#0f1625] text-white overflow-x-hidden"
       style={{
-        fontFamily: "'Space Grotesk', system-ui, sans-serif",
         ['--marketing-top-offset' as any]: '52px',
       }}
     >

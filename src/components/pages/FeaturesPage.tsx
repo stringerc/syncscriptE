@@ -817,7 +817,7 @@ export function FeaturesPage() {
         <div className="relative mt-4">
           <div className="absolute left-0 top-0 bottom-0 w-8 sm:w-16 md:w-24 bg-gradient-to-r from-[#0a0e1a] to-transparent z-10 pointer-events-none" />
           <div className="absolute right-0 top-0 bottom-0 w-8 sm:w-16 md:w-24 bg-gradient-to-l from-[#0a0e1a] to-transparent z-10 pointer-events-none" />
-          <p className="text-center text-xs text-white/30 mb-4 tracking-wide uppercase font-medium">Coming soon</p>
+          <p className="text-center text-xs text-white/30 mb-4 tracking-wide uppercase font-medium">On the roadmap</p>
           <div className="flex gap-10 sm:gap-14 animate-marquee whitespace-nowrap w-max">
             {[...INTEGRATIONS_SOON, ...INTEGRATIONS_SOON].map(({ name, color }, i) => (
               <div key={`${name}-${i}`}

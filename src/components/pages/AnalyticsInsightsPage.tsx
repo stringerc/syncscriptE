@@ -206,7 +206,7 @@ export function AnalyticsInsightsPage() {
 
   return (
     <DashboardLayout aiInsightsContent={aiInsightsContent}>
-      {/* Coming Soon Overlay - Full Screen Block */}
+      {/* Roadmap Overlay - Full Screen Block */}
       <div className="absolute inset-0 z-50 bg-[#1a1d24]/95 backdrop-blur-sm flex items-center justify-center">
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
@@ -220,7 +220,7 @@ export function AnalyticsInsightsPage() {
             </div>
             
             <h2 className="text-4xl font-bold text-white mb-4">
-              Coming Soon
+              On the Roadmap
             </h2>
             
             <div className="space-y-4 text-gray-300">

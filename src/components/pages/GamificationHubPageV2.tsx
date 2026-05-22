@@ -512,7 +512,7 @@ export function GamificationHubPageV2() {
               <h2 className="text-white text-2xl font-bold mb-6">Global Leaderboard</h2>
               <div className="text-center py-12">
                 <Trophy className="w-20 h-20 text-gray-600 mx-auto mb-4" />
-                <h3 className="text-white text-xl font-bold mb-2">Coming Soon</h3>
+                <h3 className="text-white text-xl font-bold mb-2">On the Roadmap</h3>
                 <p className="text-gray-400">
                   Global leaderboards with friend comparisons and class rankings
                 </p>
@@ -526,7 +526,7 @@ export function GamificationHubPageV2() {
               <h2 className="text-white text-2xl font-bold mb-6">Rewards Shop</h2>
               <div className="text-center py-12">
                 <Gift className="w-20 h-20 text-gray-600 mx-auto mb-4" />
-                <h3 className="text-white text-xl font-bold mb-2">Coming Soon</h3>
+                <h3 className="text-white text-xl font-bold mb-2">On the Roadmap</h3>
                 <p className="text-gray-400">
                   Spend your points on exclusive cosmetics, boosts, and perks
                 </p>

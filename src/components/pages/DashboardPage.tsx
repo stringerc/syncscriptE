@@ -71,6 +71,13 @@ export function DashboardPage() {
     }
   }, [isFirstTime, sampleSeenKey, welcomeSeenKey]);
   
+
+  // WAS north-star metric: track dashboard view
+  useEffect(() => {
+    import('../../observability/analytics').then((m) => {
+      m.Events.dashboardViewed();
+    }).catch(() => {});
+  }, []);
   // Handle welcome modal - Quick Start
   function handleWelcomeGetStarted() {
     setShowWelcome(false);

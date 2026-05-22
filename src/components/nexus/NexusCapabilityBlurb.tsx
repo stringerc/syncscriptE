@@ -18,7 +18,7 @@ export function NexusCapabilityBlurb({ variant = 'marketing' }: { variant?: Vari
       >
         <h2 className="text-fluid-3xl font-semibold tracking-tight text-white">What you can ask inside SyncScript</h2>
         <p className="mt-4 max-w-3xl text-sm leading-relaxed text-[#9eb0c4] md:text-base">
-          Your assistant stays inside clear boundaries: it helps you move around the app, open safe links, search files you uploaded, and (when you install the desktop companion) hand off to your browser with your consent.
+          Your assistant stays inside clear boundaries: it helps you create tasks, schedule calendar holds, search your files, and navigate the app — by voice, chat, or the same tools the web app uses.
         </p>
         <ul className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 text-sm text-[#d0dce8]">
           {items.map((c) => (
@@ -43,7 +43,7 @@ export function NexusCapabilityBlurb({ variant = 'marketing' }: { variant?: Vari
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
         <h2 className="text-2xl sm:text-3xl font-semibold text-white mb-3">What you can ask inside SyncScript</h2>
         <p className="text-white/65 text-sm sm:text-base max-w-3xl mb-8">
-          Your assistant stays inside clear boundaries: it helps you move around the app, open safe links, search files you uploaded, and (when you install the desktop companion) hand off to your browser with your consent.
+          Your assistant stays inside clear boundaries: it helps you create tasks, schedule calendar holds, search your files, and navigate the app — by voice, chat, or the same tools the web app uses.
         </p>
         <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 text-sm">
           {items.map((c) => (

@@ -167,7 +167,7 @@ function buildEmailIframeDoc(html: string, zoomPercent: number): string {
     <style>
       html, body { margin: 0; padding: 0; }
       body {
-        font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        font-family: 'Space Grotesk', system-ui, sans-serif;
         color: #111827;
         background: #ffffff;
         line-height: 1.45;

@@ -1064,7 +1064,7 @@ export function SettingsPage() {
                   />
                 </div>
 
-                <Button variant="outline" className="gap-2" onClick={() => toast.info('Coming soon', { description: 'Password management will be available in a future update' })}>
+                <Button variant="outline" className="gap-2" onClick={() => toast.info('On the roadmap', { description: 'Password management is planned for a future update' })}>
                   Update Password
                 </Button>
 
@@ -1075,7 +1075,7 @@ export function SettingsPage() {
                     <Label className="text-white">Two-Factor Authentication</Label>
                     <p className="text-sm text-gray-400">Add an extra layer of security</p>
                   </div>
-                  <Badge variant="outline" className="text-xs text-gray-400 border-gray-600">Coming Soon</Badge>
+                  <Badge variant="outline" className="text-xs text-gray-400 border-gray-600">Roadmap</Badge>
                 </div>
               </div>
             </Card>

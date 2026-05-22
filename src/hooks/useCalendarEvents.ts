@@ -312,6 +312,10 @@ export function useCalendarEvents() {
       linkedTaskIds: Array.isArray(event.tasks) ? event.tasks.map(task => task.id) : [],
     });
     try { checklistTracking.completeItem('event'); } catch {}
+  // WAS north-star metric: track calendar action
+  import('../observability/analytics').then((m) => {
+    m.Events.calendarAction({ action: 'create', source: 'manual' });
+  }).catch(() => {});
   }, [scheduleCommandAdapter]);
   
   /**

@@ -32,7 +32,6 @@ export function ApiPage() {
   return (
     <div
       className="min-h-screen bg-gradient-to-b from-[#0a0e1a] via-[#0f1420] to-[#0a0e1a] text-white"
-      style={{ fontFamily: "'Space Grotesk', system-ui, sans-serif" }}
     >
       <div className="max-w-4xl mx-auto px-6 py-8">
         <motion.a
@@ -121,7 +120,7 @@ export function ApiPage() {
           <h2 className="text-xl font-bold mb-2 flex items-center gap-2">
             <Terminal className="w-5 h-5 text-amber-400" /> SDKs
           </h2>
-          <p className="text-white/70 text-sm mb-2">Official SDKs (coming soon): JavaScript/TypeScript, Python.</p>
+          <p className="text-white/70 text-sm mb-2">Official SDKs (on the roadmap): JavaScript/TypeScript, Python.</p>
           <p className="text-sm text-white/50">Until then, use the REST API with fetch or your preferred HTTP client.</p>
         </motion.section>
 

@@ -112,7 +112,7 @@ const FAQ_DATA: FAQItem[] = [
     category: 'pricing',
     question: 'What plans do you offer?',
     answer:
-      'We offer Free (core features, limited AI), Starter at $19/month (more AI and integrations), Professional at $49/month (advanced scheduling, team features, API), and Enterprise at $99/month (SSO, dedicated support, custom SLAs). All paid plans include a free trial.',
+      'We offer Free (core features, limited AI), Starter at $19/month (more AI and integrations), Professional at $49/month (advanced scheduling, team features, API), and Enterprise at $99/month (SSO planned, dedicated support, custom SLAs). All paid plans include a free trial.',
   },
   {
     id: 'p2',

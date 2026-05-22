@@ -407,7 +407,7 @@ export function PricingPage() {
                   { feature: 'Scripts & templates', values: [false, true, true, true] },
                   { feature: 'API access', values: [false, false, true, true] },
                   { feature: 'Custom workflows', values: [false, false, true, true] },
-                  { feature: 'SSO / SAML', values: [false, false, false, true] },
+                  { feature: 'SSO / SAML (planned)', values: [false, false, false, true] },
                   { feature: 'Priority support', values: [false, false, true, true] },
                   { feature: 'SLA guarantee', values: [false, false, false, true] },
                 ].map((row, i) => (

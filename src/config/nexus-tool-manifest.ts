@@ -59,8 +59,8 @@ export const NEXUS_TOOL_MANIFEST: NexusCapability[] = [
   },
   {
     id: 'companion_focus',
-    title: 'Focus desktop companion',
-    description: 'When Nature Companion is installed, brings the overlay forward (syncscript-companion://focus).',
+    title: 'Focus mode (desktop - roadmap)',
+    description: 'Desktop companion — on the roadmap. Brings SyncScript foreground when installed.',
     tier: 'low',
   },
   {

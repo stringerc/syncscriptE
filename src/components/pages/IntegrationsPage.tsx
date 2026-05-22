@@ -527,11 +527,11 @@ export function IntegrationsPage() {
           </div>
         </div>
 
-        {/* Other Integrations (Coming Soon) */}
+        {/* Other Integrations (On the Roadmap) */}
         <div className="space-y-4">
           <div>
             <h2 className="text-white text-xl font-bold mb-1">More Integrations</h2>
-            <p className="text-gray-400 text-sm">Additional integrations coming soon</p>
+            <p className="text-gray-400 text-sm">Additional integrations on the roadmap</p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -579,7 +579,7 @@ export function IntegrationsPage() {
                     </div>
                   </div>
                   <Badge variant="secondary" className="bg-gray-800 text-gray-400 text-xs">
-                    Coming Soon
+                    Roadmap
                   </Badge>
                 </div>
 
@@ -611,7 +611,7 @@ export function IntegrationsPage() {
                     disabled
                   >
                     <Link2 className="w-3 h-3" />
-                    Coming Soon
+                    Roadmap
                   </Button>
                 </div>
               </motion.div>

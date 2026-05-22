@@ -127,7 +127,7 @@ export function TrustPage() {
           <ul className="space-y-2 text-slate-300">
             <li>Email + password (Supabase Auth) with password complexity gate.</li>
             <li>Google &amp; Microsoft OAuth.</li>
-            <li>SAML SSO + SCIM provisioning available on Enterprise plan (via WorkOS).</li>
+            <li>SAML SSO + SCIM provisioning planned for Enterprise plan (via WorkOS).</li>
             <li>MFA via authenticator app — supported by Supabase Auth; opt-in per account.</li>
           </ul>
         </Section>
