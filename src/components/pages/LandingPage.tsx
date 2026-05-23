@@ -140,7 +140,7 @@ export function LandingPage() {
     if (!nexusVoice.isCallActive) return;
     const lastMsg = nexusVoice.messages[nexusVoice.messages.length - 1];
     if (!lastMsg || lastMsg.role !== 'nexus') return;
-    const signupPhrases = ['sign you up', 'sign up', 'create an account', 'get you set up', 'can set you up', 'join syncscript', 'let\'s get you started', 'set up your account'];
+    const signupPhrases = ['sign you up', 'signing up', 'sign up', 'create an account', 'get you set up', 'can set you up', 'can get you set up', 'i\'ll open', 'join syncscript', 'let\'s get you started', 'set up your account', 'free account right now'];
     const lower = lastMsg.text.toLowerCase();
     if (signupPhrases.some(p => lower.includes(p))) {
       setTimeout(() => setShowSignupModal(true), 1500);
