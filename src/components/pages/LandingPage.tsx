@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router';
-import { Check, X, ChevronDown, Shield, Zap, MessageCircle, Play, ArrowRight, Clock, Lock, Headphones, TrendingUp, Users, Target, Calendar, Bot, Sparkles, PhoneOff, Mic, Gamepad2 } from 'lucide-react';
+import { Check, X, ChevronDown, Shield, Zap, MessageCircle, Play, ArrowRight, Clock, Lock, Headphones, TrendingUp, Users, Target, Calendar, Bot, Sparkles, PhoneOff, Mic, Gamepad2, Send } from 'lucide-react';
 import { useState, useEffect, useRef, useMemo, lazy, Suspense } from 'react';
 import { motion, useInView, AnimatePresence } from 'motion/react';
 
@@ -31,6 +31,7 @@ const AdminLoginModal = lazy(() => import('../admin/AdminLoginModal').then(m => 
 const AdminEmailDashboard = lazy(() => import('../admin/AdminEmailDashboardV2').then(m => ({ default: m.AdminEmailDashboard })));
 import { NexusCapabilityBlurb } from '../nexus/NexusCapabilityBlurb';
 import { NexusGuestChat } from '../nexus/NexusGuestChat';
+import { NexusSignupModal } from '../nexus/NexusSignupModal';
 import { getBetaCount } from '../../utils/betaApi';
 import { PLANS as PRICING_PLANS } from '../../config/pricing';
 import imgDashboardPreview from "figma:asset/10a3b698cc11b04c569092c39ce52acabd7f851f.png";
@@ -60,6 +61,7 @@ export function LandingPage() {
   const [activeHotspot, setActiveHotspot] = useState<number | null>(null);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [showBetaModal, setShowBetaModal] = useState(false);
+  const [showSignupModal, setShowSignupModal] = useState(false);
   const [betaSignups, setBetaSignups] = useState(127); // Default count
   
   const nexusVoice = useNexusVoiceCall();
@@ -132,6 +134,18 @@ export function LandingPage() {
       chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
     }
   }, [nexusVoice.messages, nexusVoice.interimText, nexusVoice.isCallActive]);
+
+  // Detect signup intent in Nexus voice conversation
+  useEffect(() => {
+    if (!nexusVoice.isCallActive) return;
+    const lastMsg = nexusVoice.messages[nexusVoice.messages.length - 1];
+    if (!lastMsg || lastMsg.role !== 'nexus') return;
+    const signupPhrases = ['sign you up', 'sign up', 'create an account', 'get you set up', 'can set you up', 'join syncscript', 'let\'s get you started', 'set up your account'];
+    const lower = lastMsg.text.toLowerCase();
+    if (signupPhrases.some(p => lower.includes(p))) {
+      setTimeout(() => setShowSignupModal(true), 1500);
+    }
+  }, [nexusVoice.messages, nexusVoice.isCallActive]);
   
   // Try Demo state
   
@@ -1079,6 +1093,48 @@ export function LandingPage() {
                       </div>
                     )}
 
+          {/* Signup nudge chip — appears after 3+ assistant turns (Hook Model: Investment → next trigger) */}
+          {nexusVoice.isCallActive && nexusVoice.messages.filter(m => m.role === 'nexus').length >= 3 && !nexusVoice.isProcessing && (
+            <div className="py-1">
+              <button
+                onClick={() => setShowSignupModal(true)}
+                className="text-xs bg-indigo-500/15 hover:bg-indigo-500/25 border border-indigo-500/40 hover:border-indigo-400/60 text-indigo-300 rounded-full px-4 py-1.5 transition-all hover:scale-[1.03] active:scale-95 inline-flex items-center gap-1.5"
+              >
+                <Sparkles className="w-3 h-3" />
+                Sign up free — keep this going
+                <ArrowRight className="w-3 h-3" />
+              </button>
+            </div>
+          )}
+
+          {/* Text input bar — type OR talk */}
+          {nexusVoice.isCallActive && nexusVoice.callStatus === 'active' && !nexusVoice.isProcessing && (
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                const val = (e.target as HTMLFormElement).querySelector('input')?.value?.trim();
+                if (val) {
+                  nexusVoice.sendTextMessage(val);
+                  (e.target as HTMLFormElement).querySelector('input')!.value = '';
+                }
+              }}
+              className="flex items-center gap-2 border-t border-white/[0.06] pt-2"
+            >
+              <input
+                type="text"
+                placeholder="Or type a message..."
+                className="flex-1 bg-white/[0.04] border border-white/[0.08] rounded-lg px-3 py-2 text-xs text-white/90 placeholder-white/30 outline-none focus:border-indigo-500/40 transition-colors"
+                maxLength={300}
+              />
+              <button
+                type="submit"
+                className="w-8 h-8 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/30 flex items-center justify-center transition-all"
+              >
+                <Send className="w-3.5 h-3.5 text-emerald-400" />
+              </button>
+            </form>
+          )}
+
                     {/* Waveform Visualization */}
                     <div className="flex items-center gap-1 justify-center h-10">
                       {nexusVoice.isCallActive ? (
@@ -1567,41 +1623,6 @@ export function LandingPage() {
             </div>
         </div>
       </section>
-      </ScrollSection>
-
-      {/* Ask Nexus — guest chat with smart signup prompt */}
-      <ScrollSection id="ask-nexus" animation={blurToSharp}>
-        <section className="py-20 sm:py-28 lg:py-32 relative overflow-hidden">
-          {/* Ambient glow — warm tones to signal approachability */}
-          <div className="absolute inset-0 bg-gradient-to-br from-indigo-950/20 via-transparent to-purple-950/20 pointer-events-none" />
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] bg-purple-500/[0.03] rounded-full blur-[80px] pointer-events-none" />
-
-          <div className="max-w-4xl mx-auto px-4 sm:px-6 relative z-10">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, amount: 0.3 }}
-              transition={{ duration: 0.7 }}
-              className="text-center mb-10 sm:mb-12"
-            >
-              <h2 className="text-4xl sm:text-5xl font-semibold mb-4 tracking-[-0.02em]">
-                Ask Nexus Anything
-              </h2>
-              <p className="text-lg sm:text-xl text-white/60 font-light max-w-2xl mx-auto">
-                Chat with our AI assistant right here — no account needed.
-              </p>
-            </motion.div>
-
-            <motion.div
-              initial={{ opacity: 0, y: 15 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, amount: 0.2 }}
-              transition={{ duration: 0.6, delay: 0.15 }}
-            >
-              <NexusGuestChat />
-            </motion.div>
-          </div>
-        </section>
       </ScrollSection>
 
       <ScrollSection id="assistant-capabilities" animation={blurToSharp}>
