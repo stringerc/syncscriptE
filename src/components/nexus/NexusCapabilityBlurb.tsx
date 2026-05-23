@@ -15,6 +15,30 @@ const CAPABILITY_ICONS: Record<string, string> = {
   delegate_desktop_agents: '🤖',
 };
 
+const CAPABILITY_ACCENTS: Record<string, string> = {
+  navigate_app: 'from-cyan-400 to-blue-400',
+  open_external_link: 'from-blue-400 to-indigo-400',
+  library_search: 'from-cyan-400 to-teal-400',
+  library_email_self: 'from-purple-400 to-pink-400',
+  library_pin: 'from-emerald-400 to-teal-400',
+  companion_focus: 'from-amber-400 to-orange-400',
+  companion_open_web: 'from-indigo-400 to-violet-400',
+  companion_open_chrome: 'from-violet-400 to-purple-400',
+  delegate_desktop_agents: 'from-rose-400 to-pink-400',
+};
+
+const CAPABILITY_GLOWS: Record<string, string> = {
+  navigate_app: 'shadow-cyan-500/10',
+  open_external_link: 'shadow-blue-500/10',
+  library_search: 'shadow-teal-500/10',
+  library_email_self: 'shadow-purple-500/10',
+  library_pin: 'shadow-emerald-500/10',
+  companion_focus: 'shadow-amber-500/10',
+  companion_open_web: 'shadow-indigo-500/10',
+  companion_open_chrome: 'shadow-violet-500/10',
+  delegate_desktop_agents: 'shadow-rose-500/10',
+};
+
 /**
  * Public copy for what Nexus / voice can do — sourced from `nexus-tool-manifest.ts`.
  * Used on marketing surfaces (not protected dashboard routes).
@@ -83,20 +107,22 @@ export function NexusCapabilityBlurb({ variant = 'marketing' }: { variant?: Vari
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, amount: 0.2 }}
               transition={{ duration: 0.5, delay: index * 0.08 }}
-              className="group relative rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-sm
+              className={`group relative rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-sm
                 px-5 py-4 transition-all duration-300
-                hover:border-cyan-500/30 hover:bg-white/[0.06] hover:shadow-lg hover:shadow-cyan-500/[0.06]
-                hover:-translate-y-0.5 cursor-default"
+                hover:border-white/20 hover:bg-white/[0.06] hover:shadow-lg hover:${CAPABILITY_GLOWS[c.id] || 'shadow-cyan-500/10'}
+                hover:-translate-y-0.5 cursor-default`}
             >
-              {/* Icon accent */}
-              <span className="text-xl mb-2 block opacity-70 group-hover:opacity-100 transition-opacity duration-300">
-                {CAPABILITY_ICONS[c.id] || '✦'}
+              {/* Gradient icon accent — each capability has its own color identity */}
+              <span className={`text-xl mb-2 block bg-gradient-to-br ${CAPABILITY_ACCENTS[c.id] || 'from-cyan-400 to-teal-400'} bg-clip-text transition-opacity duration-300`}>
+                <span className="opacity-70 group-hover:opacity-100 transition-opacity duration-300">
+                  {CAPABILITY_ICONS[c.id] || '✦'}
+                </span>
               </span>
               <span className="font-semibold text-white/90 block mb-1">{c.title}</span>
               <span className="text-white/50 text-xs leading-relaxed block">{c.description}</span>
 
-              {/* Subtle top-edge shine on hover */}
-              <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-cyan-400/0 to-transparent group-hover:via-cyan-400/30 transition-all duration-500 rounded-t-2xl" />
+              {/* Per-card gradient top-edge shine on hover */}
+              <div className={`absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-current to-transparent opacity-0 group-hover:opacity-30 transition-all duration-500 rounded-t-2xl ${CAPABILITY_ACCENTS[c.id] ? `text-cyan-400` : 'text-cyan-400'}`} />
             </motion.li>
           ))}
         </ul>
