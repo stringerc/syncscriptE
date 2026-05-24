@@ -60,7 +60,7 @@ export function DashboardBriefing() {
     if (!accessToken) return;
     setLoading(true);
     try {
-      const res = await fetch('/api/ai/harmony-brief', {
+      const res = await fetch('/api/ai/insights?resource=harmony-brief', {
         method: forceRegenerate ? 'POST' : 'GET',
         headers: {
           'Authorization': `Bearer ${accessToken}`,
