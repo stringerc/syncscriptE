@@ -631,6 +631,8 @@ export async function executeNexusTool(
       taxAmount,
       total,
       notes: notes || undefined,
+      paymentUrl: undefined as string | undefined,
+      trackingPixelUrl: undefined as string | undefined,
     };
 
     let paymentUrl: string | undefined;

@@ -101,6 +101,7 @@ Provide a JSON object with:
 
 // ── Harmony Brief Handler ───────────────────────────────────────────
 async function handleHarmonyBrief(req: VercelRequest, res: VercelResponse) {
+  const cadence = typeof req.query.cadence === 'string' ? req.query.cadence : 'morning';
   const user = await getAuthenticatedSupabaseUser(req);
   if (!user) {
     return res.status(401).json({ success: false, error: 'Unauthorized session' });

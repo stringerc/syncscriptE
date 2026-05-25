@@ -304,7 +304,7 @@ export async function callAgentChat(
 
   const messagesSanitized = sanitizeChatMessagesForModel(
     cfg.model,
-    args.messages as ReadonlyArray<Record<string, unknown>>,
+    args.messages as unknown as ReadonlyArray<Record<string, unknown>>,
   );
 
   const draft: Record<string, unknown> = {

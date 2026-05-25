@@ -320,7 +320,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
 async function handleLucidDream(req: VercelRequest, res: VercelResponse) {
   try {
-    const { executeLucidDreamCycle } = await import('../_lib/lucid-sandbox');
+    const { executeLucidDreamCycle } = await import('../_lib/lucid-sandbox.js');
     const userId = (req.query.userId as string) || 'user_001';
     const result = await executeLucidDreamCycle(userId);
     return res.status(200).json(result);
@@ -333,7 +333,7 @@ async function handleLucidDream(req: VercelRequest, res: VercelResponse) {
 
 async function handleAstralProject(req: VercelRequest, res: VercelResponse) {
   try {
-    const { executeAstralProjections } = await import('../_lib/astral-gateways');
+    const { executeAstralProjections } = await import('../_lib/astral-gateways.js');
     const userId = (req.query.userId as string) || 'user_001';
     const result = await executeAstralProjections(userId);
     return res.status(200).json(result);
