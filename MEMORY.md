@@ -22,9 +22,14 @@
 - **Nexus `/api/ai/nexus-user` 500:** **`POST /api/ai/nexus-user`** returns **`500`** when **`isAIConfigured()`** is false (no platform LLM keys on Vercel for any provider in the **`ai-service`** chain — see **`api/_lib/ai-service.ts`** `PROVIDERS`) or when the LLM/tool loop **throws** (provider outage, bad response). **Agent Mode (no BYOK):** **`api/_lib/agent-llm-adapter.ts`** accepts **any** of the same family of env keys in **`PLATFORM_LLM_FALLBACK_ORDER`** — NVIDIA alone is **not** the only valid platform path. **Response JSON** now includes **`errorCode`** (`ai_unconfigured` | `llm_failed`) and often **`detail`** (safe substring of the server error) + **`requestId`**. **Client:** **`nexus-voice-user-client`** merges **`detail`** into **`error`**; **`VoiceConversationEngine`** no longer **throws** on 4xx/5xx — shows **toast** + offline fallback TTS. **Smoke (no JWT):** **`npm run verify:prod:nexus-user-smoke`**. **Signed-in probe:** `NEXUS_SMOKE_BEARER=<jwt> node scripts/smoke-nexus-user-prod.mjs`.
 - **Nexus signed-in E2E (prod):** Bootstrap **`npm run bootstrap:nexus-verify-user`** → push secrets **`npm run secrets:github:nexus-e2e`** → Playwright **`npm run test:e2e:nexus-signed-in-smoke`** / **`test:e2e:nexus-app-ai-parity-deep`** / **`npm run test:e2e:nexus-task`** (chat **`create_task`**) / **`npm run test:e2e:nexus-voice-classic-task`** (**Call Nexus** classic → text input → same **`postNexusUserVoiceTurn`** / **`create_task`**) / **voice shell UI** **`npm run test:e2e:nexus-voice-immersive-prod`** → Actions **“E2E Nexus signed-in (prod)”** + **“E2E Nexus voice immersive (prod)”**. Full steps — **§ Nexus “individual user” verify profile**.
 - **Nexus voice — task/calendar modals:** **`create_task`** / **`add_note`** → **`TaskDetailModal`**. **`propose_calendar_hold`** (voice): **`addEvent`** + **`postCalendarHold`** (Edge **`POST /calendar/hold`**) when signed in → **`sync_group_id`** + provider instances on success; **`EventModal`** + **`LinkedCalendarEventModal`** (**`onManageLinkedCalendars`**, **`stackAboveVoiceShell`**). If no Google/Outlook is connected, **`POST /calendar/hold`** returns **200 `local_only`** and persists the slot in Edge KV; **`useCalendarEvents`** hydrates **`GET /calendar/local-events`** into the calendar tab (same path as Cursor/MCP holds). **Phone:** task-shaped hold unchanged. **Nexus product rule:** users should be able to do **anything the web app allows** via Nexus on **voice**, **in-app chat**, or **phone** where technically feasible; gaps = backlog + this MEMORY.
+- **Nexus Daily Rhythm (Cloud-Native):** 7 AM Morning Brief, 12 PM Check-in, 9 PM Debrief calls powered by Twilio + Vercel Edge. Twilio **TwiML** handles stateful routing (`api/phone/_route-twiml.ts`). "Ask me later" deferrals in the morning are pushed to KV (`nexus_deferred_questions:{userId}`). Debriefs capture wins/reflections at 9 PM and push to `nexus_voice_debrief:{userId}:{date}` via an LLM extraction at the end of the call (`handleRespond` / `handleStatusCallback`). Dashboard `DailyOpsModal` auto-hydrates this debrief using `api/ai/insights?resource=voice-debrief`. Email triage (`api/_lib/nexus-gmail-reader.ts`) fetches credentials from KV (`nexus_email_creds:{userId}`). IDE integration via `scripts/nexus-mcp-server.js`.
 - **Nexus voice latency / 504:** Voice uses **`postNexusUserVoiceTurn`** → single **`fetch`**; STT can show text while the UI waits for **full** JSON. **`vercel.json`** sets **`api/**/*.ts`** **`maxDuration: 300`** (was 60) so **`nexus-user`** multi-round **`runNexusToolLoop`** + cold start is less likely to hit **504 Gateway Timeout** (requires **Vercel Pro**-tier max duration; Hobby caps lower — check dashboard). **`runNexusToolLoop`** still allows several LLM rounds + tools + nudges. **Profile:** `localStorage.setItem('SYNCSCRIPT_VOICE_LATENCY','1')` reload → **`voice-latency-debug.ts`** + **`voiceLatencyLogNexusCorrelation`**. **Immersive orb:** **“Nexus is thinking…”** while **`isProcessingAI`**; **`clearInterimTranscript`** on turn start. **UI:** **`VoiceConversationEngine`** treats **502/503/504** with offline fallback + toast (not a thrown error). Dated detail: **2026-04-11** entry below.
 - **Productivity Edge (Plan + activity + PAT + MCP):** Migration `20260427090000_activity_business_plan_api_tokens.sql` + Edge `social-productivity-routes.tsx`; Enterprise **Plan** tab; Settings → Privacy (visibility + PAT); MCP **`integrations/cursor-syncscript-mcp/`** — see **§ Product — social + external IDE bridge** + **§ MCP operating model** below. **Capture inbox (2026-04-27):** `user_capture_inbox` + Edge **`capture-inbox-routes.tsx`** (`GET/POST /capture/inbox`, commit/dismiss); PAT scopes **`capture:read`**, **`capture:write`**, **`capture:commit`** (defaults on **new** PATs — rotate existing PATs to pick them up); dashboard **`CaptureInboxStrip`** under the header for pending server-backed suggestions. **User library (2026-04-26):** Edge **`resources-library-routes.tsx`** — `GET/POST /resources/*`, **`POST /resources/upload-json`** (≤1 MiB for MCP base64); PAT **`library:read`** / **`library:write`** on new tokens. **Ops:** `npm run verify:edge-productivity-http:login` (HTTP+JWT+PAT); **`npm run verify:cursor-syncscript-mcp`** (stdio + **`syncscript_week_snapshot`** + **`syncscript_library_list_files`**). **Flow doc:** `integrations/research/CURSOR_CALENDAR_TASK_CAPTURE_FLOW.md` · parity backlog **`integrations/research/MCP_PARITY_AND_ROADMAP.md`**.
 - **Orchestration:** OpenClaw / Hermes / Engram = runtime tools — not a substitute for repo + MEMORY.
+- **Universal Agent Rules (cross-IDE):** `~/.claude/CLAUDE.md` — the single source of truth loaded by ALL IDEs (Claude Code, Cursor, Antigravity, Windsurf). Contains: pre-flight IQS gate, "Done" definition (6-point checklist), anti-hallucination contract ("if you cannot verify it, do not claim it"), Agent Ascension Protocol. Source repo: `~/universal-agent-rules/` — edit there, run `./install.sh` to propagate symlinks. Every IDE now reads identical enforcement rules.
+- **Agent Ascension Protocol (operational, not just template):** `AGENT_ASCENSION_STATE.template.md` defines the checklists. The actual protocol is: (1) Create `AGENT_ASCENSION_STATE.md` from template before coding, (2) Plan -> Act -> Verify -> Score -> Decision loop, (3) Verify = run `npm test` + `npm run build` + read-back any KV saves, (4) Score = OQS rubric with evidence per criterion, (5) Never skip Verify or Score. The durable lesson goes to `AGENT_HARMONY_LEDGER.md`. This is now baked into `~/.claude/CLAUDE.md` Section 3 so every IDE enforces it.
+- **Verified-mock audit (2026-05-25):** Full codebase audit found Gemini/Antigravity implementations are predominantly mock data: Lucid sandbox (hardcoded rubrics), Astral gateways (static arrays), Gistly app (AI summarization is sentence-splitting, IAP server verification is a stub returning 501, default demo gists hardcoded), Get Out Of Jail Free app (camera recording is fake — `setInterval` timers not `expo-camera`, `chunk://` URIs are invented strings not real files, audio recording never imported, three critical services written but never wired in). SyncScript Nexus Daily Rhythm: Morning + Noon compilers are REAL (`callAI` calls), Debrief compiler was MOCK (hardcoded string) — NOW FIXED to use `callAI`. All mock stubs tagged `MOCK DATA STUB — NOT FUNCTIONAL` in file headers.
+- **Cross-IDE universal rules:** `~/universal-agent-rules/` git repo → symlinks to `~/.claude/CLAUDE.md`, `~/.windsurfrules`, `~/.codeium/windsurf/memories/global_rules.md`, `~/.cursor/rules-global/00-universal-cursor-brain.mdc`. One source of truth, one `./install.sh` to propagate. Includes Obsidian vault at `vault/`. Push to GitHub for cross-machine access: `git clone && ./install.sh`. Rules include: English-only, no mock data, anti-hallucination contract, IQS pre-flight gate, done-definition checklist.
 - **Ascension Loop (eval agent — Cursor + Antigravity):** **`integrations/research/ANTIGRAVITY_ASCENSION_LOOP_PROMPT.md`** — score / verify / repair / raise bar; state **`AGENT_ASCENSION_STATE.md`** (gitignored); Cursor **`@ascension-loop`**, rule **17**; **`npm run doc:ascension-loop`** · **`npm run verify:ascension-loop-setup`**.
 - **Claude proxy (Antigravity):** **Option E (NIM all tiers)** when **`Provider rate limit reached`** — **`npm run heal:claude-proxy-rate-limit`** (verified 3/3 tiers). **Option D** (`:free` Sonnet/Haiku) when quotas cool — **`npm run apply:free-claude-code-option-d-hybrid`**. **Provider API request failed** → **`npm run fix:claude-proxy-antigravity`** (not Gemini Option C). **`GEMINI_CLAUDE_CODE_PROXY.md`**.
 - **Daily model audit:** **`npm run research:daily-claude-model-audit`** · **`npm run install:daily-claude-model-audit-launchd`**.
@@ -91,6 +96,8 @@
 
 ## Durable Brain of SyncScript: Claude Dreaming & Quantum Orch OR Memory Homeostasis (2026-05-24)
 
+> **VERIFIED STATUS: PLAN ONLY — not implemented in code.** The quantum modules (resonance compaction, resonance routing, coherence grid, Hopfield memory, SQA search) exist as Python files in the proxy but only `decoherence_shield` is wired into a service. The Dream cron, Lucid sandbox, and Astral gateways are either mock data or dead code. See `integrations/research/` for the research papers. Do NOT treat this section as describing working features.
+
 - **The Conceptual Synthesis:** 
   - **Claude's "Dreaming" Process**: Synthesizes background memory consolidation to prevent context drift and rate-limit exhaustion. In an active development session, the agent generates high-frequency logs, transient error trials, and redundant thoughts. Dreaming acts as REM sleep for the AI, reviewing past session transcripts, pruning contradictory or stale instructions, merging overlapping notes, and surfacing recurring coding patterns or engineering friction points.
   - **Penrose-Hameroff Quantum Orch OR (Orchestrated Objective Reduction)**: We model the raw, uncollapsed daily wake events (git logs, terminal outputs, local logs, edit trials) as a quantum superposition state ($|\Psi\rangle = \sum c_i |e_i\rangle$) of potential repository rules. The background REM dream process runs a simulated quantum annealing pass over these event vectors to trigger a self-collapse (Objective Reduction) once a threshold of gravity/resonance is crossed. This collapses noise into high-resonance, highly stable "evergreen rules," preserving coding fidelity while discarding transient noise.
@@ -105,6 +112,8 @@
   - **Phase 4: Autonomous Repository Self-Healing**: Permit authorized self-updates to project memory and custom `.cursor/rules/` configs upon successful local build checks, maintaining an eternal high-quality loop.
 
 ## Astral Projection & Lucid Dreaming in SyncScript (2026-05-24)
+
+> **VERIFIED STATUS: MOCK DATA — NOT FUNCTIONAL.** `api/_lib/lucid-sandbox.ts` returns hardcoded rubrics and fake code patches. `api/_lib/astral-gateways.ts` returns static dependency arrays with no real API calls. Neither is scheduled in `vercel.json` cron. The "Wake and Merge" button in the Lucid Dashboard (`/dashboard/lucid`) is a 2.2s `setTimeout` that does nothing. Files are tagged `MOCK DATA STUB — NOT FUNCTIONAL`. These need real implementations before they can be treated as features.
 
 - **The Conceptual Evolution:**
   - **Lucid Dreaming (Speculative Sandboxing)**: While standard "Dreaming" is a passive post-hoc consolidation of logs, Lucid Dreaming is the state of **active awareness and intervention during the dream cycle**. In this state, the agent is granted permission to actively spin up isolated workspace sandboxes (e.g., lightweight Git worktrees or ephemeral Docker nodes) to speculatively execute code, run unit tests, and compile features. It is a proactive, off-hours execution engine that attempts to solve open tasks and repair bugs before the developer wakes up, rendering finished solution candidates for approval.
@@ -132,12 +141,29 @@
   - **Phase 3: The Astral-Lucid Consolidated Panel**: Design the premium frontend tab on the SyncScript dashboard (`/dashboard/lucid`) to present proposed diffs and telemetry logs with clean HSL interactive elements.
   - **Phase 4: Multi-Agent Swarm Sync**: Wire peer-to-peer heuristic exchange, allowing agents working on separate workspaces to cross-pollinate debugging solutions.
 
+## Nexus Daily Rhythm — Automated Voice Briefing & Debrief System (2026-05-24)
+
+- **Architecture:** We successfully implemented the **Nexus Daily Rhythm** system, which automates 7 AM, noon, and 9 PM phone calls to the user, bridging the gap between local system knowledge (MEMORY.md, emails) and the user's phone, while hydrating the DailyOpsModal with voice-captured debrief data.
+- **The Rhythm Engine:**
+  - **Cron Orchestrator (`api/cron/[job].ts`)**: The `nexus-daily-rhythm` handler runs hourly via Vercel cron (`0 * * * *`). It determines the current EST hour and dispatches the appropriate call type (morning, noon, debrief) idempotently to prevent double-dispatch.
+  - **Phone Queue Dispatch (`api/phone/_helpers.ts`)**: Twilio outbound calls are scheduled and picked up. We extended this to handle new `nexus-rhythm-*` call types.
+- **The Briefing Compiler (`api/_lib/nexus-briefing-compiler.ts`)**:
+  - Compiles rich JSON objects with `spokenText` (or `spokenIntro`) and structured data.
+  - Generates Morning Briefs (MEMORY analysis + emails + priorities), Noon Check-ins (deferred questions + progress check), and Debrief Prompts (wins, reflections, tomorrow's goals).
+  - All compiled briefs are stored in KV at `nexus_rhythm_brief:<cadence>:<userId>:<date>`.
+- **Gmail API Integration (`api/_lib/nexus-gmail-reader.ts`)**:
+  - Uses Google OAuth (requires `GMAIL_CLIENT_ID`, `GMAIL_CLIENT_SECRET`, `GMAIL_REFRESH_TOKEN` in Vercel env).
+  - Fetches important/unread emails from the last 24h, parsing out sender, subject, and snippet for LLM analysis.
+  - Gracefully degrades to an empty response if credentials are not configured.
+- **Debrief Voice Capture (`api/phone/_route-twiml.ts`)**:
+  - The respond handler was modified to include a `callDebriefTracker` which tracks responses to the 9 PM debrief questions.
+  - Upon call termination (`hang up` / `bye`), the tracked responses are persisted to KV via `persistVoiceDebrief()`.
+- **DailyOpsModal Hydration (`src/components/DailyOpsModal.tsx`)**:
+  - The UI now mounts and queries `/api/ai/insights?resource=voice-debrief`.
+  - If a voice debrief was captured by Nexus during the 9 PM call, it hydrates the fields and shows a subtle indicator ("Nexus captured your debrief at 9:12 PM").
+
 ## Harmony Daily Briefing System (2026-05-24)
 
-- **Architecture:** We successfully implemented and fully integrated the **Harmony Daily Briefing System**—unifying your local workspace (tasks, calendar holds, circadian energy) with Twilio outbound dispatches and the client dashboard.
-- **The Briefing Compiler (`api/ai/harmony-brief.ts`):** 
-  - A serverless REST API that retrieves your live tasks, dockets, calendar events directly via Edge endpoints (e.g. `/tasks`, `/calendar/local-events`).
-  - Integrates and parses Clawdbot rapid submission opportunities from `/Users/Apple/clawdbot/revenue_engine_send_now_queue.md` on your local host (with robust JSON and empty fallbacks).
   - Employs the `callAI` multi-provider LLM stack to synthesize an outcome-focused daily brief containing **Resonance & Peak Energy Flow**, **Orchestration Agenda** (highlighting critical court blocks/milestones marked with `🔒`), and **Actionable Execution Targets**.
   - Caches the synthesized briefing under `harmony_brief:${userId}` in Key-Value store.
 - **Dashboard UI Panel (`src/components/DashboardBriefing.tsx`):**
@@ -1181,3 +1207,72 @@ TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_PHONE_NUMBER, PHONE_API_SECRET, VI
 
 ## Detailed History
 See `memory/2026-02-16-full-session-history.md` for comprehensive session extract.
+
+## Agent Ascension State (I/O Coherence Template)
+
+> [!IMPORTANT]
+> **Pre-flight Circuit Breaker**: Before writing any code or modifying files, the agent must evaluate the clarity, completeness, and context of your request to calculate the **Input Quality Score (IQS)**.
+> **If IQS < 7.0/10, the agent must halt immediately and request explicit clarification on the missing parameters.**
+
+| Field | Value |
+|-------|--------|
+| **task** | [Single sentence description] |
+| **started** | YYYY-MM-DD |
+| **iteration** | 0 |
+| **bar_version** | v1 |
+| **best_score** | — |
+| **blockers** | [Active blocker list or None] |
+
+---
+
+### 🧭 Pre-flight Input Quality Score (IQS Rubric)
+
+Before execution, evaluate the request across these 4 dimensions:
+1. **Clarity (30%)**: Free of conflicting goals or ambiguous instructions.
+2. **Context Completeness (30%)**: All relevant file paths, variables, and boundaries are specified.
+3. **Verification Criteria (20%)**: Testable definitions of success are clear (not vague).
+4. **Edge Case Coverage (20%)**: Specifications exist for timeouts, network/DB failures, or errors.
+
+**IQS Pre-flight Score**: `[X.X] / 10`  
+*State: PASS (IQS >= 7.0) / HALT (IQS < 7.0)*
+
+---
+
+### 🎯 Acceptance Criteria (bar v1)
+
+1. [Criterion 1 with testable check]
+2. [Criterion 2 with testable check]
+3. [Criterion 3 with testable check]
+
+### 🛡️ Regression Guards (Must Stay Green)
+
+- `npm test` passes cleanly.
+- `npm run build` compiles with zero warnings.
+- All new features verified in local or contract test suites.
+
+---
+
+### 📊 Coherence & Score History
+
+On every iteration, calculate the **Input Quality Score (IQS)**, the **Output Quality Score (OQS)** via the 7-dimension weighted rubric, and the **Fidelity Delta (Δ)**:
+$$\text{Fidelity Delta } (\Delta) = \text{OQS} - \text{IQS}$$
+
+* $\Delta \approx 0$: Perfect transmission.
+* $\Delta > 0$: Creative recovery (handled ambiguous inputs with codebase research).
+* $\Delta < 0$: **System Failure Alert** (agent failed to execute clear instructions; stop and inspect).
+
+| iter | bar | IQS (Input) | OQS (Output) | Fidelity Delta (Δ) | Correctness (30%) | Complete (20%) | Robust (15%) | Clarity (10%) | Perf/Sec (10%) | Elegance (5%) | Compound (10%) | **Weighted Total** | Decision |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 0 | v1 | | | | | | | | | | | | |
+
+---
+
+### 📝 Iteration Log
+
+#### Iteration 0 @ bar v1
+- **Input Score (IQS) Analysis**: [Explain reasons for the IQS score]
+- **Output Score (OQS) Analysis**: [Explain reasons for the OQS score]
+- **Verification Command & Output**: [Brief test commands executed and results]
+- **Decision**: [REPAIR (if weighted < 8.5) / PASS / RAISE BAR]
+- **Durable Lesson**: [Durable engineering rule to log to the global AGENT_HARMONY_LEDGER.md]
+- **Files Touched**: [Files list with relative paths]

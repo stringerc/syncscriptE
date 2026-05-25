@@ -109,7 +109,7 @@ async function handleWakeUp(req: VercelRequest, res: VercelResponse) {
 }
 
 async function handleGuestCleanup(req: VercelRequest, res: VercelResponse) {
-  const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
+  const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || 'https://kwhnrlzibgfedtxpkbgb.supabase.co';
   if (!supabaseUrl) {
     console.error('[GuestCleanup] SUPABASE_URL not configured');
     return res.status(500).json({ error: 'SUPABASE_URL not set' });
@@ -141,8 +141,8 @@ async function handleGuestCleanup(req: VercelRequest, res: VercelResponse) {
 }
 
 async function handleProcessEmails(req: VercelRequest, res: VercelResponse) {
-  const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
-  const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
+  const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || 'https://kwhnrlzibgfedtxpkbgb.supabase.co';
+  const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
 
   if (!supabaseUrl || !supabaseKey) {
     console.error('[EmailCron] Supabase credentials not configured');
@@ -205,9 +205,9 @@ async function handlePhoneDispatch(req: VercelRequest, res: VercelResponse) {
 }
 
 async function handleMarketBenchmark(_req: VercelRequest, res: VercelResponse) {
-  const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '';
+  const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || 'https://kwhnrlzibgfedtxpkbgb.supabase.co';
   const secret = process.env.NEXUS_PHONE_EDGE_SECRET;
-  if (!secret || !supabaseUrl) {
+  if (!secret) {
     return res.status(200).json({ skipped: true, reason: 'missing_env' });
   }
   try {
@@ -347,14 +347,11 @@ async function handleAstralProject(req: VercelRequest, res: VercelResponse) {
 }
 
 async function handleInvoiceOverdue(_req: VercelRequest, res: VercelResponse) {
-  const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '';
+  const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || 'https://kwhnrlzibgfedtxpkbgb.supabase.co';
   const secret = process.env.NEXUS_PHONE_EDGE_SECRET;
 
   if (!secret) {
     return res.status(200).json({ skipped: true, reason: 'NEXUS_PHONE_EDGE_SECRET not set' });
-  }
-  if (!supabaseUrl) {
-    return res.status(200).json({ skipped: true, reason: 'SUPABASE_URL not set' });
   }
 
   try {

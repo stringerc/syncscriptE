@@ -1,10 +1,15 @@
 /**
  * SyncScript Lucid Sandbox Controller
  *
- * Implements speculative workspace isolation and dry-run code refactoring.
- * During periods of inactivity (deep cron cycles), this engine identifies pending
- * developer tasks, simulates code edits in-memory, executes syntax/compilation validation,
- * and saves visually stunning git patch proposals under the user's KV state.
+ * ⚠️ MOCK DATA — NOT FUNCTIONAL ⚠️
+ * This module returns hardcoded mock data. executeLucidDreamCycle() does NOT perform
+ * real speculative analysis — it picks from MOCK_DEVELOPER_TASKS and returns fixed
+ * rubric scores (not computed from actual tests). The "Wake and Merge" button in
+ * LucidDashboardPage is a no-op (setTimeout only). Do NOT treat this as a working
+ * feature. It is a UI demo scaffold awaiting real implementation.
+ *
+ * Originally claimed as "speculative Lucid Dreaming sandboxes" but never wired to
+ * real LLM calls, real compilation checks, or real git operations.
  */
 
 import { kvGet, kvSet } from '../phone/_helpers';

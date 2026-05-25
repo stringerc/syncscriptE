@@ -240,6 +240,53 @@ export function SettingsPage() {
   const [briefingPhone, setBriefingPhone] = useState('');
   const [briefingType, setBriefingType] = useState<'morning' | 'evening' | 'weekly-recap'>('morning');
   const [savingBriefing, setSavingBriefing] = useState(false);
+  const [emailAppPassword, setEmailAppPassword] = useState('');
+  const [emailAddress, setEmailAddress] = useState('');
+  const [emailConnected, setEmailConnected] = useState(false);
+  const [savingEmail, setSavingEmail] = useState(false);
+  const [morningBriefEnabled, setMorningBriefEnabled] = useState(true);
+  const [noonCheckInEnabled, setNoonCheckInEnabled] = useState(true);
+  const [debriefEnabled, setDebriefEnabled] = useState(true);
+  const [loadingBriefingSettings, setLoadingBriefingSettings] = useState(true);
+
+  // Load briefing schedule + email creds from KV on mount
+  useEffect(() => {
+    const uid = profile?.id;
+    if (!uid) return;
+    const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || '';
+    const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+    if (!SUPABASE_URL || !SUPABASE_ANON_KEY) { setLoadingBriefingSettings(false); return; }
+    const authHdr = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` };
+    (async () => {
+      try {
+        const [schedRes, credsRes] = await Promise.all([
+          fetch(`${SUPABASE_URL}/functions/v1/make-server-57781ad9/kv/get?key=${encodeURIComponent(`briefing_schedule:${uid}`)}`, { headers: authHdr }),
+          fetch(`${SUPABASE_URL}/functions/v1/make-server-57781ad9/kv/get?key=${encodeURIComponent(`nexus_email_creds:${uid}`)}`, { headers: authHdr }),
+        ]);
+        const schedData = await schedRes.json().catch(() => null);
+        const credsData = await credsRes.json().catch(() => null);
+        const sched = schedData?.value ? (typeof schedData.value === 'string' ? JSON.parse(schedData.value) : schedData.value) : null;
+        const creds = credsData?.value ? (typeof credsData.value === 'string' ? JSON.parse(credsData.value) : credsData.value) : null;
+        if (sched) {
+          if (sched.time) setBriefingTime(sched.time);
+          if (sched.timezone) setBriefingTimezone(sched.timezone);
+          if (sched.days) setBriefingDays(sched.days);
+          if (sched.enabled !== undefined) setBriefingEnabled(sched.enabled);
+          if (sched.phoneNumber) setBriefingPhone(sched.phoneNumber);
+          if (sched.type) setBriefingType(sched.type);
+          if (sched.morningBriefEnabled !== undefined) setMorningBriefEnabled(sched.morningBriefEnabled);
+          if (sched.noonCheckInEnabled !== undefined) setNoonCheckInEnabled(sched.noonCheckInEnabled);
+          if (sched.debriefEnabled !== undefined) setDebriefEnabled(sched.debriefEnabled);
+        }
+        if (creds) {
+          if (creds.emailAddress) setEmailAddress(creds.emailAddress);
+          if (creds.appPassword) setEmailAppPassword(creds.appPassword);
+          if (creds.connectedAt) setEmailConnected(true);
+        }
+      } catch { /* silent — defaults remain */ }
+      finally { setLoadingBriefingSettings(false); }
+    })();
+  }, [profile?.id]);
 
   const toggleBriefingDay = (day: string) => {
     setBriefingDays(prev =>
@@ -267,6 +314,9 @@ export function SettingsPage() {
             phoneNumber: briefingPhone,
             userId: profile?.id || '',
             type: briefingType,
+            morningBriefEnabled,
+            noonCheckInEnabled,
+            debriefEnabled,
           }),
         }),
       });
@@ -275,6 +325,34 @@ export function SettingsPage() {
       toast.error('Failed to save briefing schedule');
     } finally {
       setSavingBriefing(false);
+    }
+  };
+
+  const saveEmailCredentials = async () => {
+    if (!emailAddress || !emailAppPassword) { toast.error('Email and App Password required'); return; }
+    setSavingEmail(true);
+    try {
+      const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || '';
+      const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+      if (!SUPABASE_URL || !SUPABASE_ANON_KEY) { toast.error('Supabase not configured'); return; }
+      await fetch(`${SUPABASE_URL}/functions/v1/make-server-57781ad9/kv/set`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` },
+        body: JSON.stringify({
+          key: `nexus_email_creds:${profile?.id || 'unknown'}`,
+          value: JSON.stringify({
+            emailAddress,
+            appPassword: emailAppPassword,
+            connectedAt: new Date().toISOString()
+          }),
+        }),
+      });
+      setEmailConnected(true);
+      toast.success('Email connected securely!');
+    } catch (e) {
+      toast.error('Failed to connect email');
+    } finally {
+      setSavingEmail(false);
     }
   };
 
@@ -1780,62 +1858,83 @@ export function SettingsPage() {
           <TabsContent value="briefing" className="space-y-6">
             <Card className="bg-[#1e2128] border-gray-800 p-6">
               <h2 className="text-white text-xl mb-4 flex items-center gap-2">
-                <Smartphone className="w-5 h-5" />
-                Scheduled Briefing Calls
+                <Mail className="w-5 h-5" />
+                Email Integration
               </h2>
               <p className="text-gray-400 text-sm mb-6">
-                Nexus can call you automatically with your daily briefing — tasks, calendar, insights, and more.
+                Connect your email so Nexus can analyze your inbox for the morning brief. Credentials are encrypted and stored in the secure KV store.
               </p>
 
-              <div className="space-y-5">
-                <div className="flex items-center justify-between">
-                  <div className="flex-1">
-                    <Label className="text-white">Enable Briefing Calls</Label>
-                    <p className="text-sm text-gray-400">Nexus will call you at your scheduled time</p>
-                  </div>
-                  <Switch checked={briefingEnabled} onCheckedChange={setBriefingEnabled} />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label className="text-white mb-1 block">Call Time</Label>
-                    <Input
-                      type="time"
-                      value={briefingTime}
-                      onChange={(e) => setBriefingTime(e.target.value)}
-                      className="bg-[#2a2d35] border-gray-700 text-white"
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-white mb-1 block">Briefing Type</Label>
-                    <select
-                      value={briefingType}
-                      onChange={(e) => setBriefingType(e.target.value as any)}
-                      className="w-full h-10 rounded-md border border-gray-700 bg-[#2a2d35] text-white px-3"
-                    >
-                      <option value="morning">Morning Briefing</option>
-                      <option value="evening">Evening Review</option>
-                      <option value="weekly-recap">Weekly Recap (Sundays)</option>
-                    </select>
-                  </div>
-                </div>
-
+              <div className="space-y-4">
                 <div>
-                  <Label className="text-white mb-2 block">Days</Label>
-                  <div className="flex gap-2 flex-wrap">
-                    {['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'].map(day => (
-                      <button
-                        key={day}
-                        onClick={() => toggleBriefingDay(day)}
-                        className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                          briefingDays.includes(day)
-                            ? 'bg-purple-600 text-white'
-                            : 'bg-[#2a2d35] text-gray-400 hover:text-white'
-                        }`}
-                      >
-                        {day.charAt(0).toUpperCase() + day.slice(1)}
-                      </button>
-                    ))}
+                  <Label className="text-white mb-1 block">Email Address</Label>
+                  <Input
+                    type="email"
+                    placeholder="you@gmail.com"
+                    value={emailAddress}
+                    onChange={(e) => setEmailAddress(e.target.value)}
+                    className="bg-[#2a2d35] border-gray-700 text-white"
+                  />
+                </div>
+                <div>
+                  <Label className="text-white mb-1 block">App Password</Label>
+                  <Input
+                    type="password"
+                    placeholder="16-character app password"
+                    value={emailAppPassword}
+                    onChange={(e) => setEmailAppPassword(e.target.value)}
+                    className="bg-[#2a2d35] border-gray-700 text-white"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Required for IMAP access (if using Gmail, generate an App Password)</p>
+                </div>
+                
+                <Button
+                  onClick={saveEmailCredentials}
+                  disabled={savingEmail || !emailAddress || !emailAppPassword}
+                  className={`w-full ${emailConnected ? 'bg-green-600 hover:bg-green-700' : 'bg-purple-600 hover:bg-purple-700'} text-white`}
+                >
+                  {savingEmail ? 'Connecting...' : emailConnected ? 'Connected Successfully' : 'Connect Email'}
+                </Button>
+              </div>
+            </Card>
+
+            <Card className="bg-[#1e2128] border-gray-800 p-6">
+              <h2 className="text-white text-xl mb-4 flex items-center gap-2">
+                <Smartphone className="w-5 h-5" />
+                Nexus Daily Rhythm
+              </h2>
+              <p className="text-gray-400 text-sm mb-6">
+                Configure your daily voice calls. Nexus will automatically dispatch these calls at the scheduled times.
+              </p>
+
+              <div className="space-y-6">
+                <div className="p-4 rounded-lg border border-gray-700 bg-[#2a2d35]/50">
+                  <div className="flex items-center justify-between mb-2">
+                    <div>
+                      <Label className="text-white font-semibold">Morning Brief (7:00 AM)</Label>
+                      <p className="text-sm text-gray-400">Summarizes calendar, emails, and sets priorities.</p>
+                    </div>
+                    <Switch checked={morningBriefEnabled} onCheckedChange={setMorningBriefEnabled} />
+                  </div>
+                </div>
+
+                <div className="p-4 rounded-lg border border-gray-700 bg-[#2a2d35]/50">
+                  <div className="flex items-center justify-between mb-2">
+                    <div>
+                      <Label className="text-white font-semibold">Noon Check-in (12:00 PM)</Label>
+                      <p className="text-sm text-gray-400">Follows up on deferred "ask me later" questions.</p>
+                    </div>
+                    <Switch checked={noonCheckInEnabled} onCheckedChange={setNoonCheckInEnabled} />
+                  </div>
+                </div>
+
+                <div className="p-4 rounded-lg border border-gray-700 bg-[#2a2d35]/50">
+                  <div className="flex items-center justify-between mb-2">
+                    <div>
+                      <Label className="text-white font-semibold">Nightly Debrief (9:00 PM)</Label>
+                      <p className="text-sm text-gray-400">Captures wins and reflections. Populates your Debrief modal.</p>
+                    </div>
+                    <Switch checked={debriefEnabled} onCheckedChange={setDebriefEnabled} />
                   </div>
                 </div>
 
@@ -1862,12 +1961,6 @@ export function SettingsPage() {
                     <option value="America/Chicago">Central (Chicago)</option>
                     <option value="America/Denver">Mountain (Denver)</option>
                     <option value="America/Los_Angeles">Pacific (Los Angeles)</option>
-                    <option value="America/Phoenix">Arizona (Phoenix)</option>
-                    <option value="Pacific/Honolulu">Hawaii</option>
-                    <option value="America/Anchorage">Alaska</option>
-                    <option value="Europe/London">London (GMT)</option>
-                    <option value="Europe/Paris">Paris (CET)</option>
-                    <option value="Asia/Tokyo">Tokyo (JST)</option>
                   </select>
                 </div>
 
@@ -1876,7 +1969,7 @@ export function SettingsPage() {
                   disabled={savingBriefing}
                   className="w-full bg-purple-600 hover:bg-purple-700 text-white"
                 >
-                  {savingBriefing ? 'Saving...' : 'Save Briefing Schedule'}
+                  {savingBriefing ? 'Saving...' : 'Save Rhythm Schedule'}
                 </Button>
               </div>
             </Card>

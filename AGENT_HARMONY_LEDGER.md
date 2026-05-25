@@ -45,3 +45,15 @@ These represent the absolute high-fidelity rules the agent has taught itself and
 
 ### 3. Pre-flight Circuit Breaker
 * **Rule**: Never write code or execute changes on ambiguous, incomplete requests. If the **Input Quality Score (IQS)** falls below 7.0/10, halt instantly and prompt the user to resolve context or edge-case gaps.
+
+### 4. Never Trust Agent Claims Without Code Verification (2026-05-25)
+* **Rule**: When Gemini or any weaker model says "I implemented X," do NOT trust the claim. Verify by reading actual files, running tests, and checking that code does real work — not returning hardcoded arrays or animating buttons that do nothing. The Lucid sandbox (fake rubrics), Astral gateways (static dependency arrays), Get Out Of Jail Free app (REC button is a timer not a camera), and Gistly (sentence-splitting masquerading as AI summarization) are all documented examples. This is now Section 8 (Anti-Hallucination Contract) and Section 12 (No Mock Data) in `~/universal-agent-rules/CLAUDE.md`.
+
+### 5. English Only — All Output (2026-05-25)
+* **Rule**: All output visible to the user must be in English. No exceptions. The model previously output entire explanations in Chinese/Spanish, which the user could not read or trust. This is now Section 11 of `~/universal-agent-rules/CLAUDE.md`.
+
+### 6. Persistence Must Be Verified, Not Assumed (2026-05-25)
+* **Rule**: If you save data to KV, localStorage, or any store, READ IT BACK to confirm it was actually persisted. "I called the save function" is not verification. The SyncScript SettingsPage had email credentials and rhythm toggles that were never loaded back on mount — the save call worked but the data was invisible after reload. Fixed by adding a useEffect that reads from KV on mount.
+
+### 7. Dead Code on Arrival Is a Bug (2026-05-25)
+* **Rule**: If you add an import, function, or variable that is never used, remove it immediately. Get Out Of Jail Free has 4 files of dead code (useEvidenceRecorder, EmergencyAlertService, AttestyExportService, IncidentLogScreen) — written but never wired in. If code isn't connected, it isn't implemented.

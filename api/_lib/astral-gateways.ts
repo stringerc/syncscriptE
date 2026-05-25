@@ -1,9 +1,14 @@
 /**
  * SyncScript Astral Projection Gateway
  *
- * Handles out-of-body remote sensing and external telemetry registry syncs.
- * Scans adjacent dependencies, polls public API endpoint metrics (Stripe, Twilio),
- * and exchanges heuristics with neighboring swarms to maintain local-external homeostasis.
+ * ⚠️ MOCK DATA — NOT FUNCTIONAL ⚠️
+ * This module returns hardcoded static arrays. executeAstralProjections() does NOT
+ * perform real dependency version checks, real API endpoint latency pings, or real
+ * P2P swarm exchanges. All data is fake constants. Do NOT treat this as a working
+ * feature. It is a scaffold awaiting real implementation.
+ *
+ * Originally claimed as "Astral Sensing probes" but never wired to real API calls
+ * or real network telemetry.
  */
 
 import { kvSet } from '../phone/_helpers';

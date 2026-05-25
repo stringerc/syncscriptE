@@ -85,13 +85,28 @@ export async function compileMorningBrief(userId: string): Promise<MorningBriefR
   const t0 = Date.now();
 
   // 1. Fetch email insights (parallel with other data)
-  const [emailResult, cachedHarmony, userProfile] = await Promise.all([
-    getEmailBriefingBlock(),
+  const isConfigured = await isGmailConfigured(userId);
+  let emails: any[] = [];
+  if (isConfigured) {
+    const { fetchImportantEmails, extractEmailSummaries } = await import('./nexus-gmail-reader.js');
+    const rawEmails = await fetchImportantEmails(userId);
+    emails = extractEmailSummaries(rawEmails);
+  }
+
+  const [cachedHarmony, userProfile] = await Promise.all([
     kvGet(`harmony_brief:${userId}`),
     kvGet(`user_profile:${userId}`),
   ]);
 
   const userName = userProfile?.name || 'Boss';
+
+  const emailResult = {
+    configured: isConfigured,
+    count: emails.length,
+    block: emails.length > 0 
+      ? `EMAILS (${emails.length} unread):\n${emails.map((e: any) => `- From: ${e.sender} | Subject: ${e.subject}`).join('\n')}`
+      : 'No critical emails.'
+  };
 
   // 2. Build the LLM prompt with all context
   const calendarContext = cachedHarmony?.text
@@ -257,22 +272,84 @@ Return ONLY valid JSON:
 // ── Debrief Prompt Compiler ────────────────────────────────────────
 
 export async function compileDebriefPrompt(userId: string): Promise<DebriefPromptResult> {
+  const t0 = Date.now();
   const userName = (await kvGet(`user_profile:${userId}`))?.name || 'Boss';
 
-  const result: DebriefPromptResult = {
-    spokenIntro: `Good evening, ${userName}. Time for your nightly debrief — let's close out the day clean. I'm going to ask you three things, and everything you tell me will show up in your debrief modal on SyncScript when you're ready to review it. First question: What did you accomplish today? What are your wins?`,
-    questions: [
-      'What did you accomplish today? What are your wins?',
-      'How did the day go overall? Any reflections — what worked, what didn\'t, how are you feeling?',
-      'What do you want to accomplish tomorrow? What\'s the one thing that would make tomorrow a win?',
-    ],
-    generatedAt: new Date().toISOString(),
-  };
+  // Fetch morning brief and noon check-in for context-aware debrief
+  const dayKey = new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+  const morningBrief = await kvGet(rhythmBriefKey('morning', userId)) as MorningBriefResult | null;
+  const noonCheckIn = await kvGet(rhythmBriefKey('noon', userId)) as NoonCheckInResult | null;
 
-  await kvSet(rhythmBriefKey('debrief', userId), result);
-  console.log(`[BriefingCompiler] Debrief prompt compiled for ${userId}`);
+  const morningContext = morningBrief?.spokenText
+    ? `Morning briefing summary: ${morningBrief.spokenText.slice(0, 300)}`
+    : 'No morning briefing was compiled today.';
+  const noonContext = noonCheckIn?.spokenText
+    ? `Noon check-in summary: ${noonCheckIn.spokenText.slice(0, 300)}`
+    : 'No noon check-in was compiled today.';
 
-  return result;
+  const prompt = `You are Nexus, an AI daily debrief companion for ${userName}. It's 9 PM — time for the nightly debrief.
+
+Context from earlier today:
+${morningContext}
+${noonContext}
+
+Generate a personalized debrief opening and 3 reflective questions. Rules:
+1. Reference what was planned this morning if available — ask about progress on those priorities.
+2. If there were deferred questions from the noon check-in, incorporate them.
+3. The spoken intro should be warm but purposeful — close out the day, not start a new one.
+4. Questions should cover: wins, reflections, and tomorrow's intention.
+5. Keep the intro under 60 seconds when spoken (~150 words).
+6. Tone: warm, grounding, end-of-day energy. Not high-energy like the morning.
+
+Return ONLY valid JSON:
+{
+  "spokenIntro": "Personalized opening that references today's specific context",
+  "questions": ["Question 1 about wins", "Question 2 about reflections", "Question 3 about tomorrow"]
+}`;
+
+  try {
+    const aiResult = await callAI([
+      { role: 'system', content: 'You are an elite daily debrief system. Return only valid JSON.' },
+      { role: 'user', content: prompt },
+    ], { maxTokens: 768, temperature: 0.4 });
+
+    let parsed: any;
+    try {
+      const jsonMatch = aiResult.content.match(/\{[\s\S]*\}/);
+      parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : null;
+    } catch {
+      parsed = null;
+    }
+
+    const result: DebriefPromptResult = {
+      spokenIntro: parsed?.spokenIntro || `Good evening, ${userName}. Time for your nightly debrief — let's close out the day clean.`,
+      questions: Array.isArray(parsed?.questions) && parsed.questions.length === 3
+        ? parsed.questions
+        : [
+            'What did you accomplish today? What are your wins?',
+            'How did the day go overall? Any reflections — what worked, what didn\'t, how are you feeling?',
+            'What do you want to accomplish tomorrow? What\'s the one thing that would make tomorrow a win?',
+          ],
+      generatedAt: new Date().toISOString(),
+    };
+
+    await kvSet(rhythmBriefKey('debrief', userId), result);
+    console.log(`[BriefingCompiler] Debrief prompt compiled in ${Date.now() - t0}ms for ${userId}`);
+    return result;
+  } catch (error) {
+    console.error('[BriefingCompiler] Debrief prompt compilation failed:', error);
+    const fallback: DebriefPromptResult = {
+      spokenIntro: `Good evening, ${userName}. Time for your nightly debrief — let's close out the day clean. I'm going to ask you three things, and everything you tell me will show up in your debrief modal when you're ready to review it.`,
+      questions: [
+        'What did you accomplish today? What are your wins?',
+        'How did the day go overall? Any reflections?',
+        'What do you want to accomplish tomorrow?',
+      ],
+      generatedAt: new Date().toISOString(),
+    };
+    await kvSet(rhythmBriefKey('debrief', userId), fallback);
+    return fallback;
+  }
 }
 
 // ── Debrief Persistence ────────────────────────────────────────────
