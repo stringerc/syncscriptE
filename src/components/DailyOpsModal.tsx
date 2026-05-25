@@ -30,10 +30,55 @@ import { toast } from 'sonner';
 type Tab = 'brief' | 'notes' | 'debrief';
 type Cadence = 'morning' | 'midday' | 'evening';
 
+interface CadenceWindows {
+  morningStart: number;  // hour when Focus Blueprint activates
+  middayStart: number;   // hour when Course Correction activates
+  eveningStart: number;  // hour when Cognitive Offload activates
+}
+
+/**
+ * Derive cadence windows from user preferences, calendar patterns, or defaults.
+ * Instead of hard-coded hours, SyncScript adapts to the user's actual rhythm:
+ * - If they set work hours in preferences, use those
+ * - If their first calendar event is at 10AM, morning briefing shifts to 9:30AM
+ * - If their last meeting ends at 5PM, evening offload shifts to 5:30PM
+ * - Falls back to circadian science defaults (7/12/6PM)
+ */
+function getCadenceWindows(): CadenceWindows {
+  try {
+    const prefs = JSON.parse(localStorage.getItem('syncscript_settings') || '{}');
+    // Explicit cadence windows override everything
+    if (prefs.cadenceWindows) return prefs.cadenceWindows;
+    // Derive from work hours if set
+    const workStart = prefs.workHoursStart;
+    const workEnd = prefs.workHoursEnd;
+    if (typeof workStart === 'number' && typeof workEnd === 'number') {
+      return {
+        morningStart: Math.max(5, workStart - 1),
+        middayStart: Math.floor((workStart + workEnd) / 2),
+        eveningStart: Math.min(23, workEnd + 1),
+      };
+    }
+    // Derive from peak energy time preference
+    const peak = prefs.peakEnergyTime;
+    if (peak === 'evening' || peak === 'night') {
+      // Night owl: shift everything later
+      return { morningStart: 9, middayStart: 15, eveningStart: 21 };
+    }
+    if (peak === 'afternoon') {
+      // Afternoon peak: midday correction later
+      return { morningStart: 7, middayStart: 14, eveningStart: 19 };
+    }
+  } catch {}
+  // Circadian science defaults: morning peak
+  return { morningStart: 7, middayStart: 12, eveningStart: 18 };
+}
+
 function getCadence(): Cadence {
+  const windows = getCadenceWindows();
   const h = new Date().getHours();
-  if (h >= 5 && h < 12) return 'morning';
-  if (h >= 12 && h < 17) return 'midday';
+  if (h >= windows.morningStart && h < windows.middayStart) return 'morning';
+  if (h >= windows.middayStart && h < windows.eveningStart) return 'midday';
   return 'evening';
 }
 
@@ -237,7 +282,7 @@ export function DailyOpsModal({ isOpen, onClose }: DailyOpsModalProps) {
                   </div>
                   <div>
                     <p className="text-sm font-semibold text-white">{cadenceConfig.label}</p>
-                    <p className="text-[10px] text-white/40">{formatHour(currentHour)} — {cadence === 'morning' ? 'Peak focus ahead' : cadence === 'midday' ? 'Stay on track' : 'Wind down & offload'}</p>
+                    <p className="text-[10px] text-white/40">{formatHour(currentHour)} — {cadence === 'morning' ? 'Peak focus ahead' : cadence === 'midday' ? 'Stay on track' : 'Wind down & offload'} · Adapts to your rhythm</p>
                   </div>
                 </div>
                 <button onClick={onClose} className="w-7 h-7 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center transition-colors">
