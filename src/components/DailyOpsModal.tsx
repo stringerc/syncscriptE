@@ -17,7 +17,8 @@
  * - Hooked (Eyal): Variable reward + investment = retention
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   X, Sun, Sunset, Moon, Brain, NotepadText, CheckCircle2,
@@ -101,6 +102,12 @@ interface DailyOpsModalProps {
 
 export function DailyOpsModal({ isOpen, onClose }: DailyOpsModalProps) {
   const { accessToken } = useAuth();
+  const [mounted, setMounted] = useState(false);
+  const fetchStarted = useRef(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
   const [activeTab, setActiveTab] = useState<Tab>(getDefaultTab());
   const [briefing, setBriefing] = useState<any>(null);
   const [briefLoading, setBriefLoading] = useState(false);
@@ -186,9 +193,19 @@ export function DailyOpsModal({ isOpen, onClose }: DailyOpsModalProps) {
     }
   }, [accessToken, cadence]);
 
+  // Background preloading as soon as user session is ready
   useEffect(() => {
-    if (isOpen && activeTab === 'brief' && !briefing) fetchBriefing();
-  }, [isOpen, activeTab, briefing, fetchBriefing]);
+    if (accessToken && !briefing && !fetchStarted.current) {
+      fetchStarted.current = true;
+      fetchBriefing();
+    }
+  }, [accessToken, briefing, fetchBriefing]);
+
+  useEffect(() => {
+    if (isOpen && activeTab === 'brief' && !briefing && !briefLoading) {
+      fetchBriefing();
+    }
+  }, [isOpen, activeTab, briefing, briefLoading, fetchBriefing]);
 
   const handleAddNote = () => {
     if (!noteInput.trim()) return;
@@ -263,7 +280,9 @@ export function DailyOpsModal({ isOpen, onClose }: DailyOpsModalProps) {
     return `${display}${period}`;
   };
 
-  return (
+  if (!mounted) return null;
+
+  return createPortal(
     <AnimatePresence>
       {isOpen && (
         <>
@@ -606,6 +625,7 @@ export function DailyOpsModal({ isOpen, onClose }: DailyOpsModalProps) {
           </motion.div>
         </>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body
   );
 }
