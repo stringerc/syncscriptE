@@ -34,8 +34,9 @@ const resolvedPuppeteerExecutablePath =
 const shouldEnablePrerender = (() => {
   if (process.env.ENABLE_PRERENDER === 'false') return false;
   if (process.env.ENABLE_PRERENDER === 'true') return true;
-  return !process.env.VERCEL && process.env.CI !== 'true';
+  return process.env.VERCEL === 'true' || process.env.CI === 'true';
 })();
+
 
   /**
    * Vite dev-server middleware that proxies Vercel-style API routes
@@ -560,7 +561,13 @@ export default defineConfig({
               skipThirdPartyRequests: true,
               inject: { prerender: true },
               executablePath: resolvedPuppeteerExecutablePath,
-              args: ['--no-sandbox', '--disable-setuid-sandbox'],
+              timeout: 30000,
+              args: [
+                '--no-sandbox',
+                '--disable-setuid-sandbox',
+                '--disable-gpu',
+                '--disable-software-rasterizer',
+              ],
             }),
           }),
         ]

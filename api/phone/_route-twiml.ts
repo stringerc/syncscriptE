@@ -41,6 +41,7 @@ import {
   appendPendingNexusCallLines,
   formatNexusToolResultsForUi,
   truncateForTwilioSay,
+  kvGet,
 } from './_helpers';
 import type { LiveContext, CallMemory, MoodState } from './_helpers';
 
@@ -77,14 +78,27 @@ function handleInvoiceCollection(req: VercelRequest, res: VercelResponse) {
   return res.status(200).send(xml);
 }
 
-function handleConversation(req: VercelRequest, res: VercelResponse) {
+async function handleConversation(req: VercelRequest, res: VercelResponse) {
   const config = getTwilioConfig();
   const callType = (req.query.type as string) || 'general';
   const voiceId = resolveVoice(req.query.voice as string);
   const convUserId = (req.query.userId as string) || '';
   const convEmail = (req.query.email as string) || '';
 
-  const greeting = getGreeting(callType);
+  let greeting = getGreeting(callType);
+
+  if (convUserId && ['morning-briefing', 'morning-briefing-auto', 'evening-review', 'outbound-briefing'].includes(callType)) {
+    try {
+      const cached = await kvGet(`harmony_brief:${convUserId}`);
+      if (cached && cached.text) {
+        greeting = cached.text;
+        console.log(`[TwilioTwiML] Speaking compiled Harmony brief for user ${convUserId}`);
+      }
+    } catch (e) {
+      console.warn('[TwilioTwiML] Failed to load cached harmony brief for greeting:', e);
+    }
+  }
+
   const respondUrl =
     `${config.appUrl}/api/phone/twiml?handler=respond&voice=${encodeURIComponent(voiceId)}` +
     (convEmail ? `&email=${encodeURIComponent(convEmail)}` : '') +
@@ -474,7 +488,7 @@ export async function routePhoneTwiml(req: VercelRequest, res: VercelResponse) {
 
     switch (handlerType) {
       case 'conversation':
-        return handleConversation(req, res);
+        return await handleConversation(req, res);
       case 'invoice-collection':
         return handleInvoiceCollection(req, res);
       case 'respond':

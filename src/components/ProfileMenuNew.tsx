@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { User, LogOut, CreditCard, HelpCircle, Zap, Award, Sparkles, Lock, Check } from 'lucide-react';
+import { User, LogOut, CreditCard, HelpCircle, Zap, Award, Sparkles, Lock, Check , Bell } from 'lucide-react';
 import { AnimatedAvatar } from './AnimatedAvatar';
 import {
   DropdownMenu,
@@ -105,6 +105,8 @@ export function ProfileMenu({
               <div className="absolute -bottom-1 -right-1">
                 <UserStatus status={profile.status} size="sm" showDot />
               </div>
+          {/* Notification Badge */}
+          <span className="absolute -top-0.5 -right-0.5 w-3 h-3 bg-red-500 rounded-full border-2 border-[#141619] z-10" />
             </div>
           </button>
         </DropdownMenuTrigger>
@@ -312,6 +314,19 @@ export function ProfileMenu({
               <User className="mr-2 h-4 w-4 text-gray-400" />
               <span>My Profile</span>
             </DropdownMenuItem>
+
+    <DropdownMenuItem
+      className="focus:bg-gray-700 focus:text-white cursor-pointer"
+      onClick={() => {
+        setOpen(false);
+        window.dispatchEvent(new CustomEvent('syncscript:open-notifications'));
+      }}
+      data-nav="profile-menu-notifications"
+    >
+      <Bell className="mr-2 h-4 w-4 text-gray-400" />
+      <span>Notifications</span>
+      <span className="ml-auto w-2 h-2 bg-red-500 rounded-full" />
+    </DropdownMenuItem>
             
             <DropdownMenuItem 
               className="focus:bg-gray-700 focus:text-white cursor-pointer"

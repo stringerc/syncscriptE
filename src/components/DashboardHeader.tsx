@@ -1,7 +1,8 @@
-import { Bell, Search, Lock, Brain, Calendar as CalendarIcon, Target, CheckCircle2, TrendingUp, Plus, Edit, Settings, Users, Plug, Award, FileText, BarChart3, Activity } from 'lucide-react';
+import { Bell, Search, Lock, Brain, Calendar as CalendarIcon, Target, CheckCircle2, TrendingUp, Plus, Edit, Settings, Users, Plug, Award, FileText, BarChart3, Activity, Sparkles } from 'lucide-react';
 import { ProfileMenu } from './ProfileMenuNew';
 import { WeatherWidget } from './WeatherWidget';
 import { NotificationsSheet } from './NotificationsSheet';
+import { DailyOpsModal } from './DailyOpsModal';
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router';
 import imgImageSyncScript from "figma:asset/32f9c29c68f7ed10b9efd8ff6ac4135b7a2a4290.png";
@@ -259,6 +260,14 @@ export function DashboardHeader({ isAIInsightsOpen, onToggleAIInsights }: Dashbo
   const aiMobileToolbar = useAiPageChromeMobileToolbar();
   const [lowEnergyMode, setLowEnergyMode] = useState(true);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [dailyOpsOpen, setDailyOpsOpen] = useState(false);
+
+  // Listen for notification open events from profile menu
+  useEffect(() => {
+    const handler = () => setNotificationsOpen(true);
+    window.addEventListener('syncscript:open-notifications', handler);
+    return () => window.removeEventListener('syncscript:open-notifications', handler);
+  }, []);
   const [conversationExtractionOpen, setConversationExtractionOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [contentResults, setContentResults] = useState<Array<{ id: string; title: string; type: string; route: string }>>([]);
@@ -644,23 +653,22 @@ export function DashboardHeader({ isAIInsightsOpen, onToggleAIInsights }: Dashbo
         <div className="hidden sm:flex items-center">
           <WeatherWidget />
         </div>
+      {/* Daily Ops (replaces notification bell) */}
+      <button
+        onClick={() => setDailyOpsOpen(true)}
+        className="relative p-2 hover:bg-gray-700 rounded-lg transition-colors group"
+        data-nav="daily-ops"
+        aria-label="Daily Briefing"
+      >
+        <Activity className="w-5 h-5 text-emerald-400/70 group-hover:text-emerald-400 transition-colors" />
+        <span className="absolute top-1 right-1 w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
+      </button>
 
-        {/* Notifications */}
-        <button 
-          onClick={() => setNotificationsOpen(true)}
-          className="relative p-2 hover:bg-gray-700 rounded-lg transition-colors"
-          data-nav="notifications"
-          aria-label="Notifications"
-        >
-          <Bell className="w-5 h-5 text-gray-400 hover:text-white transition-colors" />
-          <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
-        </button>
-
-        {/* Notifications Sheet */}
-        <NotificationsSheet 
-          open={notificationsOpen}
-          onOpenChange={setNotificationsOpen}
-        />
+      {/* Daily Ops Modal */}
+      <DailyOpsModal
+        isOpen={dailyOpsOpen}
+        onClose={() => setDailyOpsOpen(false)}
+      />
 
         {/* User Profile Menu (includes Low energy mode on mobile / all sizes) */}
         <ProfileMenu 

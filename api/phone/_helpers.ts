@@ -2307,7 +2307,7 @@ function getSupabaseConfig() {
   };
 }
 
-async function kvGet(key: string): Promise<any> {
+export async function kvGet(key: string): Promise<any> {
   const { url, key: anonKey } = getSupabaseConfig();
   if (!url || !anonKey) return null;
   try {
@@ -2320,7 +2320,7 @@ async function kvGet(key: string): Promise<any> {
   } catch { return null; }
 }
 
-async function kvSet(key: string, value: any): Promise<void> {
+export async function kvSet(key: string, value: any): Promise<void> {
   const { url, key: anonKey } = getSupabaseConfig();
   if (!url || !anonKey) return;
   try {
@@ -2973,18 +2973,23 @@ export async function generateViralStats(userId: string): Promise<ViralStat[]> {
 // ============================================================================
 
 export async function buildBriefingContext(userId: string): Promise<string> {
-  const [profile, insights, relationships, recap, viralStats, weather] = await Promise.all([
+  const [profile, insights, relationships, recap, viralStats, weather, cachedHarmony] = await Promise.all([
     loadUserProfile(userId),
     generateProactiveInsights(userId),
     getRelationshipReminders(userId),
     buildWeeklyRecap(userId),
     generateViralStats(userId),
     fetchWeatherForCall(),
+    kvGet(`harmony_brief:${userId}`),
   ]);
 
   const parts: string[] = [];
 
   if (profile?.name) parts.push(`USER'S NAME: ${profile.name}. Use it naturally.`);
+
+  if (cachedHarmony && cachedHarmony.text) {
+    parts.push(`HARMONY_DAILY_BRIEF (This is your core daily brief. Speak this clearly and naturally to the user as their synthesized agenda): ${cachedHarmony.text}`);
+  }
 
   if (weather) {
     parts.push(`WEATHER: ${weather.temp}°F, ${weather.description}.${weather.alerts.length ? ' ALERT: ' + weather.alerts.join(', ') : ''}`);
@@ -3045,7 +3050,16 @@ export interface BriefingSchedule {
 }
 
 export async function getBriefingSchedule(userId: string): Promise<BriefingSchedule | null> {
-  return kvGet(`briefing_schedule:${userId}`);
+  const sched = await kvGet(`briefing_schedule:${userId}`);
+  if (sched) return sched;
+
+  const morning = await kvGet(`briefing_schedule:${userId}:morning`);
+  if (morning) return morning;
+
+  const evening = await kvGet(`briefing_schedule:${userId}:evening`);
+  if (evening) return evening;
+
+  return null;
 }
 
 export async function setBriefingSchedule(userId: string, schedule: Partial<BriefingSchedule>): Promise<void> {

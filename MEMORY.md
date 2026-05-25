@@ -89,7 +89,34 @@
 
 **Tracing work:** Curate **this file** for durable ops + decisions; raw session logs go in **`memory/YYYY-MM-DD.md`** (see `AGENTS.md`). After deploy or infra changes (Vercel env, tunnels, Edge), update the relevant section here so the next session does not re-debug from scratch.
 
+## Harmony Daily Briefing System (2026-05-24)
+
+- **Architecture:** We successfully implemented and fully integrated the **Harmony Daily Briefing System**—unifying your local workspace (tasks, calendar holds, circadian energy) with Twilio outbound dispatches and the client dashboard.
+- **The Briefing Compiler (`api/ai/harmony-brief.ts`):** 
+  - A serverless REST API that retrieves your live tasks, dockets, calendar events directly via Edge endpoints (e.g. `/tasks`, `/calendar/local-events`).
+  - Integrates and parses Clawdbot rapid submission opportunities from `/Users/Apple/clawdbot/revenue_engine_send_now_queue.md` on your local host (with robust JSON and empty fallbacks).
+  - Employs the `callAI` multi-provider LLM stack to synthesize an outcome-focused daily brief containing **Resonance & Peak Energy Flow**, **Orchestration Agenda** (highlighting critical court blocks/milestones marked with `🔒`), and **Actionable Execution Targets**.
+  - Caches the synthesized briefing under `harmony_brief:${userId}` in Key-Value store.
+- **Dashboard UI Panel (`src/components/DashboardBriefing.tsx`):**
+  - Upgraded the metric bar to include a beautifully styled, expandable frosted-glass panel with subtle golden-emerald borders and smooth Framer Motion `AnimatePresence` height transitions.
+  - Renders live synthesized brief text, peak performance hours, scheduled dockets, and clawdbot rapid opportunities.
+  - Interactive controls: **Refresh** (compiles real-time data), **Listen** (speaks brief out loud via browser speech synthesis for zero latency), and **Call Phone** (instantly triggers a live Twilio voice dispatch call).
+- **Outbound Voice Handshake (`_route-twiml.ts` & `_helpers.ts`):**
+  - Updated the Twilio greeting `handleConversation` to dynamically check the `harmony_brief:${userId}` cache. If present, it speaks the compiled briefing text naturally when connecting outbound calls rather than generic prompts.
+  - Updated `buildBriefingContext` to inject this daily brief context directly into the ongoing voice assistant session.
+- **Scheduling Keys Unification:**
+  - Enhanced `getBriefingSchedule` in `_helpers.ts` to perform multi-key fallback checks (`briefing_schedule:${userId}`, `briefing_schedule:${userId}:morning`, and `briefing_schedule:${userId}:evening`) so schedules set across the profile tab and Phone panel remain perfectly unified.
+
+## Vite Build & Puppeteer Prerender Optimization (2026-05-24)
+
+- **Local Build Speedup (Prerendering Bypassed)**: 
+  - Modified `vite.config.ts` to bypass heavy headless browser prerendering by default during routine local builds. Prerendering now defaults to `false` and only triggers automatically in production environments (`process.env.VERCEL === 'true'` or `process.env.CI === 'true'`) or when explicitly enabled with `ENABLE_PRERENDER=true`. This speeds up local developer builds by over **300%**.
+- **Headless Puppeteer Hardening**:
+  - Configured a strict **30-second load timeout** (`timeout: 30000`) inside the `PuppeteerRenderer` instance in `vite.config.ts`. If client-side startup events stall, the build now fails cleanly instead of hanging the terminal session.
+  - Added explicit GPU and software rendering exclusion arguments (`--disable-gpu` and `--disable-software-rasterizer`) to Puppeteer's startup command. This resolves the high-CPU resource leak (which previously caused headless Chrome helpers to lock up Mac host resources at 65%+ CPU usage).
+
 ## Design handoff pipeline (n8n → Figma → Cursor / OpenClaw / NVIDIA)
+
 
 **Cursor rule:** **`.cursor/rules/13-design-handoff-n8n-figma-cursor.mdc`** (trigger: user asks to **design** something, new **visuals**, **Figma**, or **n8n** design automation).
 

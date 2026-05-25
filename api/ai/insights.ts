@@ -19,6 +19,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method === 'OPTIONS') return res.status(204).end();
 
   const resource = typeof req.query.resource === 'string' ? req.query.resource : undefined;
+  const cadence = typeof req.query.cadence === 'string' ? req.query.cadence : 'morning';
 
   // ── Phase 2B shadow projection mirror ──────────────────────────────
   if (resource === 'contract-runtime-projection') {
@@ -203,7 +204,15 @@ async function handleHarmonyBrief(req: VercelRequest, res: VercelResponse) {
       return `${hourStr}: ${eventsStr}${slot.taskRecommendation ? ' → ' + slot.taskRecommendation : ''}`;
     }).join('\n');
 
-    const prompt = `You are Harmony, the elite daily briefing engine for SyncScript. Synthesize a Fortune 500 C-suite quality daily intelligence brief.
+    const cadenceInstruction = cadence === 'midday'
+      ? "This is a MIDDAY Course Correction. The morning plan has met reality. Be reductive: what should be dropped or rescheduled? Acknowledge what's done, reprioritize what remains, and remind the user that the 2-4PM circadian valley is approaching — push heavy tasks to tomorrow, use this window for relationships and admin."
+      : cadence === 'evening'
+      ? "This is an EVENING Cognitive Offload. The purpose is to drain working memory so the user can sleep clean. Celebrate wins, acknowledge completed items, and help them mentally close the day. No new assignments — only closure and peace."
+      : "This is a MORNING Focus Blueprint. Be reductive: identify THE ONE critical objective that makes today a win. Shield peak energy hours (9AM-1PM) from meetings. Call out the single highest-value action to capture early.";
+
+  const prompt = `You are Harmony, the elite daily briefing engine for SyncScript.
+
+CADENCE MODE: ${cadenceInstruction}
 
 USER: ${userName} | Streak: ${streakCount} days
 
