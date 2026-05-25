@@ -31,9 +31,76 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
   }
 
+  // ── Voice Debrief (populated by 9 PM Nexus rhythm call) ──────────
+  if (resource === 'voice-debrief') {
+    const user = await getAuthenticatedSupabaseUser(req);
+    if (!user) {
+      return res.status(401).json({ success: false, error: 'Unauthorized session' });
+    }
+    try {
+      const dateKey = new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+      const debriefData = await kvGet(`nexus_voice_debrief:${user.userId}:${dateKey}`);
+      if (debriefData) {
+        return res.status(200).json({ success: true, debrief: debriefData, found: true });
+      }
+      return res.status(200).json({ success: true, debrief: null, found: false });
+    } catch (e) {
+      console.warn('[VoiceDebrief] Fetch failed:', e);
+      return res.status(200).json({ success: true, debrief: null, found: false });
+    }
+  }
+
+  // ── Nexus Rhythm Status ──────────────────────────────────────────
+  if (resource === 'nexus-rhythm-status') {
+    const user = await getAuthenticatedSupabaseUser(req);
+    if (!user) {
+      return res.status(401).json({ success: false, error: 'Unauthorized session' });
+    }
+    try {
+      const dateKey = new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+      const [morning, noon, debrief] = await Promise.all([
+        kvGet(`nexus_rhythm_dispatched:${dateKey}:morning`),
+        kvGet(`nexus_rhythm_dispatched:${dateKey}:noon`),
+        kvGet(`nexus_rhythm_dispatched:${dateKey}:debrief`),
+      ]);
+      return res.status(200).json({
+        success: true,
+        date: dateKey,
+        morning: morning ? { dispatched: true, at: morning.at } : { dispatched: false },
+        noon: noon ? { dispatched: true, at: noon.at } : { dispatched: false },
+        debrief: debrief ? { dispatched: true, at: debrief.at } : { dispatched: false },
+      });
+    } catch (e) {
+      console.warn('[RhythmStatus] Fetch failed:', e);
+      return res.status(200).json({ success: true, morning: { dispatched: false }, noon: { dispatched: false }, debrief: { dispatched: false } });
+    }
+  }
+
   // ── Harmony Daily Briefing ────────────────────────────────────────
   if (resource === 'harmony-brief') {
     return handleHarmonyBrief(req, res);
+  }
+
+  // ── Context Capture (thought bubble + debrief saves) ──────────────
+  if (resource === 'context-capture') {
+    if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+    const isAuthed = await validateAuth(req, res);
+    if (!isAuthed) return;
+    try {
+      const { type, notes, wins, reflection, tomorrow, date } = req.body || {};
+      // Store in KV for Nexus context retrieval
+      const key = `context_capture:${isAuthed.userId}:${date || new Date().toISOString().split('T')[0]}`;
+      const existing = await kvGet(key).catch(() => ({})) || {};
+      if (type === 'thought_bubble') {
+        await kvSet(key, { ...existing, thoughtBubble: notes, updatedAt: new Date().toISOString() });
+      } else if (type === 'debrief') {
+        await kvSet(key, { ...existing, debrief: { wins, reflection, tomorrow }, updatedAt: new Date().toISOString() });
+      }
+      return res.status(200).json({ success: true });
+    } catch (e) {
+      console.error('[ContextCapture] Error:', e);
+      return res.status(200).json({ success: true }); // Silent success — don't block user flow
+    }
   }
 
   // ── Default: Productivity Insights (DeepSeek) ─────────────────────

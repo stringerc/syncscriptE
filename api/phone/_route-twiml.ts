@@ -99,6 +99,22 @@ async function handleConversation(req: VercelRequest, res: VercelResponse) {
     }
   }
 
+  // Nexus Daily Rhythm calls — load pre-compiled briefing from the rhythm compiler
+  if (convUserId && callType.startsWith('nexus-rhythm-')) {
+    try {
+      const cadence = callType.replace('nexus-rhythm-', ''); // 'morning' | 'noon' | 'debrief'
+      const dateKey = new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+      const rhythmKey = `nexus_rhythm_brief:${cadence}:${convUserId}:${dateKey}`;
+      const cached = await kvGet(rhythmKey);
+      if (cached) {
+        greeting = cached.spokenText || cached.spokenIntro || greeting;
+        console.log(`[TwilioTwiML] Speaking Nexus rhythm ${cadence} brief for ${convUserId}`);
+      }
+    } catch (e) {
+      console.warn('[TwilioTwiML] Failed to load nexus rhythm brief:', e);
+    }
+  }
+
   const respondUrl =
     `${config.appUrl}/api/phone/twiml?handler=respond&voice=${encodeURIComponent(voiceId)}` +
     (convEmail ? `&email=${encodeURIComponent(convEmail)}` : '') +
@@ -127,8 +143,11 @@ const callUserIdMap = new Map<string, string>();
 const callMoodCache = new Map<string, { mood: MoodState; negativeTurns: number }>();
 const callEnrichedContextCache = new Map<string, string>();
 const callGroundingCache = new Map<string, string>();
+/** Tracks debrief question index and captured responses for nexus-rhythm-debrief calls. */
+const callDebriefTracker = new Map<string, { questionIndex: number; wins: string[]; reflection: string; tomorrow: string }>();
 const MAX_TURNS = 20;
 const MAX_HISTORY = 2000;
+
 
 async function handleRespond(req: VercelRequest, res: VercelResponse) {
   const config = getTwilioConfig();
@@ -180,6 +199,23 @@ async function handleRespond(req: VercelRequest, res: VercelResponse) {
       saveCallMemory(uid, hist).catch(() => {});
       updateUserProfile(uid, hist.join('\n')).catch(() => {});
     }
+
+    // Persist voice debrief data if this was a nexus-rhythm-debrief call
+    const debriefData = callDebriefTracker.get(callSid);
+    if (uid && debriefData) {
+      try {
+        const { persistVoiceDebrief } = await import('../_lib/nexus-briefing-compiler.js');
+        await persistVoiceDebrief(uid, {
+          wins: debriefData.wins,
+          reflection: debriefData.reflection,
+          tomorrow: debriefData.tomorrow,
+        });
+        console.log(`[TwilioTwiML] Voice debrief persisted for ${uid}`);
+      } catch (e) {
+        console.warn('[TwilioTwiML] Failed to persist voice debrief:', e);
+      }
+    }
+
     conversations.delete(callSid);
     callLiveContextCache.delete(callSid);
     callMemoryCache.delete(callSid);
@@ -187,6 +223,7 @@ async function handleRespond(req: VercelRequest, res: VercelResponse) {
     callMoodCache.delete(callSid);
     callEnrichedContextCache.delete(callSid);
     callGroundingCache.delete(callSid);
+    callDebriefTracker.delete(callSid);
 
     const xml = twiml(
       twimlSay("Great talking with you! Remember, I'm always here in the app if you need anything. Have an awesome day!", voiceId) +

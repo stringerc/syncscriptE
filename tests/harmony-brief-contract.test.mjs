@@ -11,8 +11,8 @@ import { dirname, join } from 'node:path';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 
-test('Harmony Brief Compiler api/ai/harmony-brief.ts handler syntax and fallback contract', () => {
-  const src = readFileSync(join(root, 'api/ai/harmony-brief.ts'), 'utf8');
+test('Harmony Brief Compiler api/ai/insights.ts handler syntax and fallback contract', () => {
+  const src = readFileSync(join(root, 'api/ai/insights.ts'), 'utf8');
   assert.match(src, /export default async function handler/, 'must export default handler function');
   assert.match(src, /getAuthenticatedSupabaseUser\(req\)/, 'must authenticate user session');
   assert.match(src, /kvGet\(`harmony_brief:\$\{userId\}`\)/, 'must fetch cached briefing from KV via harmony_brief key');

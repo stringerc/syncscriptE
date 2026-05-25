@@ -120,6 +120,10 @@
     {
       "path": "/api/cron/market-benchmarks",
       "schedule": "15 14 * * 0"
+    },
+    {
+      "path": "/api/cron/nexus-daily-rhythm",
+      "schedule": "0 * * * *"
     }
   ]
 }

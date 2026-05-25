@@ -313,6 +313,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return handleLucidDream(req, res);
     case 'astral-project':
       return handleAstralProject(req, res);
+    case 'nexus-daily-rhythm':
+      return handleNexusDailyRhythm(req, res);
     default:
       return res.status(404).json({ error: `Unknown cron job: ${job}` });
   }
@@ -372,5 +374,118 @@ async function handleInvoiceOverdue(_req: VercelRequest, res: VercelResponse) {
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : 'unknown error';
     return res.status(200).json({ error: msg });
+  }
+}
+
+/**
+ * Nexus Daily Rhythm — Hourly cron that dispatches voice calls at:
+ *   7 AM EST  → Morning briefing (MEMORY analysis + email triage)
+ *   12 PM EST → Noon check-in (deferred questions + progress)
+ *   9 PM EST  → Debrief (captures wins/reflections/tomorrow → DailyOpsModal)
+ *
+ * Idempotent: checks KV to ensure each cadence fires at most once per day.
+ */
+async function handleNexusDailyRhythm(req: VercelRequest, res: VercelResponse) {
+  try {
+    const {
+      compileMorningBrief,
+      compileNoonCheckIn,
+      compileDebriefPrompt,
+      rhythmDispatchedKey,
+    } = await import('../_lib/nexus-briefing-compiler.js');
+    const { kvGet, kvSet, enqueueScheduledPhoneCall } = await import('../phone/_helpers.js');
+
+    // Determine current EST hour
+    const now = new Date();
+    const estHour = Number(
+      now.toLocaleString('en-US', { timeZone: 'America/New_York', hour: 'numeric', hour12: false }),
+    );
+    const dateKey = now.toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+
+    // Target user config
+    const phoneNumber = process.env.WAKE_UP_PHONE_NUMBER;
+    const userId = process.env.NEXUS_RHYTHM_USER_ID || 'user_001';
+    const userEmail = process.env.NEXUS_RHYTHM_USER_EMAIL || 'stringer.c.a@gmail.com';
+
+    if (!phoneNumber) {
+      return res.status(200).json({ skipped: true, reason: 'WAKE_UP_PHONE_NUMBER not set' });
+    }
+
+    // Determine which cadence (if any) is due this hour
+    type Cadence = 'morning' | 'noon' | 'debrief';
+    let cadence: Cadence | null = null;
+
+    if (estHour === 7) cadence = 'morning';
+    else if (estHour === 12) cadence = 'noon';
+    else if (estHour === 21) cadence = 'debrief';
+
+    if (!cadence) {
+      return res.status(200).json({
+        ok: true,
+        skipped: true,
+        estHour,
+        reason: 'No call due this hour',
+      });
+    }
+
+    // Idempotency check
+    const dispatchKey = rhythmDispatchedKey(cadence);
+    const alreadyDispatched = await kvGet(dispatchKey);
+    if (alreadyDispatched) {
+      return res.status(200).json({
+        ok: true,
+        skipped: true,
+        cadence,
+        reason: `Already dispatched ${cadence} for ${dateKey}`,
+      });
+    }
+
+    // Compile the briefing content
+    console.log(`[NexusDailyRhythm] Compiling ${cadence} briefing for ${userId}...`);
+    let compiledText = '';
+
+    if (cadence === 'morning') {
+      const brief = await compileMorningBrief(userId);
+      compiledText = brief.spokenText;
+    } else if (cadence === 'noon') {
+      const checkIn = await compileNoonCheckIn(userId);
+      compiledText = checkIn.spokenText;
+    } else if (cadence === 'debrief') {
+      const debrief = await compileDebriefPrompt(userId);
+      compiledText = debrief.spokenIntro;
+    }
+
+    // Enqueue the Twilio call
+    const callId = `nexus-rhythm-${cadence}-${dateKey}-${Date.now()}`;
+    await enqueueScheduledPhoneCall({
+      id: callId,
+      phoneNumber,
+      scheduledAt: now.toISOString(),
+      briefingType: `nexus-rhythm-${cadence}`,
+      userId,
+      userEmail,
+    });
+
+    // Mark as dispatched for idempotency
+    await kvSet(dispatchKey, { dispatched: true, callId, at: now.toISOString() });
+
+    // Also dispatch it immediately (don't wait for phone-dispatch cron)
+    const { dispatchDueScheduledPhoneCalls } = await import('../phone/_helpers.js');
+    const dispatchResult = await dispatchDueScheduledPhoneCalls();
+
+    console.log(`[NexusDailyRhythm] ${cadence} call dispatched: ${callId}`);
+
+    return res.status(200).json({
+      ok: true,
+      cadence,
+      callId,
+      compiledTextLength: compiledText.length,
+      dispatch: dispatchResult,
+      triggeredAt: now.toISOString(),
+    });
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : 'Nexus daily rhythm failed';
+    console.error('[nexus-daily-rhythm]', e);
+    return res.status(500).json({ error: msg });
   }
 }

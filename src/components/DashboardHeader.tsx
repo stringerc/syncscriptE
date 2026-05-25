@@ -670,6 +670,12 @@ export function DashboardHeader({ isAIInsightsOpen, onToggleAIInsights }: Dashbo
         onClose={() => setDailyOpsOpen(false)}
       />
 
+      {/* Notifications Sheet — triggered from profile menu */}
+      <NotificationsSheet
+        open={notificationsOpen}
+        onOpenChange={setNotificationsOpen}
+      />
+
         {/* User Profile Menu (includes Low energy mode on mobile / all sizes) */}
         <ProfileMenu 
           energyLevel={energyPercentage}

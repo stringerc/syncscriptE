@@ -146,6 +146,37 @@ export function DailyOpsModal({ isOpen, onClose }: DailyOpsModalProps) {
     } catch {}
   }, [isOpen]);
 
+  // Hydrate debrief from Nexus voice capture (9 PM call populates KV)
+  const [voiceDebriefLoaded, setVoiceDebriefLoaded] = useState(false);
+  const [voiceDebriefTime, setVoiceDebriefTime] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!accessToken || voiceDebriefLoaded) return;
+    const today = new Date().toISOString().split('T')[0];
+    const localDebrief = localStorage.getItem(`syncscript_debrief_${today}`);
+    // Only hydrate from voice if no local debrief exists yet
+    if (localDebrief) return;
+
+    fetch('/api/ai/insights?resource=voice-debrief', {
+      headers: { 'Authorization': `Bearer ${accessToken}` },
+    })
+      .then(r => r.json())
+      .then(data => {
+        if (data.success && data.found && data.debrief) {
+          const d = data.debrief;
+          if (d.wins?.length > 0) setDebriefWins(d.wins);
+          if (d.reflection) setDebriefReflection(d.reflection);
+          if (d.tomorrow) setDebriefTomorrow(d.tomorrow);
+          if (d.capturedAt) {
+            const time = new Date(d.capturedAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+            setVoiceDebriefTime(time);
+          }
+          setVoiceDebriefLoaded(true);
+        }
+      })
+      .catch(() => {});
+  }, [accessToken, voiceDebriefLoaded]);
+
   // Save notes
   const saveNotes = useCallback((updated: string[]) => {
     const today = new Date().toISOString().split('T')[0];
@@ -613,6 +644,13 @@ export function DailyOpsModal({ isOpen, onClose }: DailyOpsModalProps) {
                           </button>
                         )}
                       </motion.div>
+
+                      {voiceDebriefTime && (
+                        <p className="text-[10px] text-emerald-400/70 text-center flex items-center justify-center gap-1">
+                          <Sparkles className="w-3 h-3" />
+                          Nexus captured your debrief at {voiceDebriefTime} — review and save when ready
+                        </p>
+                      )}
 
                       <p className="text-[10px] text-slate-500 text-center">
                         Everything is captured. Sleep clean — Nexus has it all.

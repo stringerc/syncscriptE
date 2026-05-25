@@ -30,7 +30,6 @@ const InteractiveComparison = lazy(() => import('../InteractiveComparison').then
 const AdminLoginModal = lazy(() => import('../admin/AdminLoginModal').then(m => ({ default: m.AdminLoginModal })));
 const AdminEmailDashboard = lazy(() => import('../admin/AdminEmailDashboardV2').then(m => ({ default: m.AdminEmailDashboard })));
 import { NexusCapabilityBlurb } from '../nexus/NexusCapabilityBlurb';
-import { NexusGuestChat } from '../nexus/NexusGuestChat';
 import { NexusSignupModal } from '../nexus/NexusSignupModal';
 import { getBetaCount } from '../../utils/betaApi';
 import { PLANS as PRICING_PLANS } from '../../config/pricing';
@@ -2162,6 +2161,12 @@ export function LandingPage() {
       <BetaSignupModal 
         isOpen={showBetaModal}
         onClose={() => setShowBetaModal(false)}
+      />
+
+      {/* Nexus Signup Modal — triggered by voice intent or nudge chip */}
+      <NexusSignupModal
+        isOpen={showSignupModal}
+        onClose={() => setShowSignupModal(false)}
       />
 
       {/* Admin Login Modal - Hidden feature */}

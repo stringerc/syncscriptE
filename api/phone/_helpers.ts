@@ -2495,6 +2495,16 @@ export async function dispatchDueScheduledPhoneCalls(): Promise<{
       if (job.amountDisplay) p.set('amount', job.amountDisplay);
       if (job.userId) p.set('merchantUserId', job.userId);
       twimlUrl = `${config.appUrl}/api/phone/twiml?${p.toString()}`;
+    } else if (job.briefingType?.startsWith('nexus-rhythm-')) {
+      // Nexus Daily Rhythm calls: morning / noon / debrief
+      const rhythmType = job.briefingType; // 'nexus-rhythm-morning' | 'nexus-rhythm-noon' | 'nexus-rhythm-debrief'
+      const convParams = new URLSearchParams({
+        handler: 'conversation',
+        type: rhythmType,
+      });
+      if (job.userId) convParams.set('userId', job.userId);
+      if (job.userEmail) convParams.set('email', job.userEmail);
+      twimlUrl = `${config.appUrl}/api/phone/twiml?${convParams.toString()}`;
     } else {
       const twimlType =
         job.briefingType === 'morning' ? 'morning-briefing' :
