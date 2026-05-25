@@ -30,11 +30,11 @@ const explicitPuppeteerPath = process.env.PUPPETEER_EXECUTABLE_PATH;
 const useLocalChromePath = process.platform === 'darwin' && !process.env.CI;
 const resolvedPuppeteerExecutablePath =
   explicitPuppeteerPath || (useLocalChromePath ? localChromePath : undefined);
-/** Local builds default to prerender unless CI=1; opt out with ENABLE_PRERENDER=false. */
 const shouldEnablePrerender = (() => {
   if (process.env.ENABLE_PRERENDER === 'false') return false;
   if (process.env.ENABLE_PRERENDER === 'true') return true;
-  return process.env.VERCEL === 'true' || process.env.CI === 'true';
+  // Prerender only in true Vercel or GitHub Actions builds; opt-out locally.
+  return process.env.VERCEL === 'true' || process.env.GITHUB_ACTIONS === 'true';
 })();
 
 
@@ -714,7 +714,7 @@ export default defineConfig({
       },
     },
     server: {
-      port: 3000,
+      port: process.env.PORT ? parseInt(process.env.PORT) : 3000,
       open: true,
     },
   });
