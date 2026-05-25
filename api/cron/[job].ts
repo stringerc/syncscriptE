@@ -309,8 +309,38 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return handleTtsSlo(req, res);
     case 'concierge-playbook-tick':
       return handleConciergePlaybookTickHttp(req, res);
+    case 'lucid-dream':
+      return handleLucidDream(req, res);
+    case 'astral-project':
+      return handleAstralProject(req, res);
     default:
       return res.status(404).json({ error: `Unknown cron job: ${job}` });
+  }
+}
+
+async function handleLucidDream(req: VercelRequest, res: VercelResponse) {
+  try {
+    const { executeLucidDreamCycle } = await import('../_lib/lucid-sandbox');
+    const userId = (req.query.userId as string) || 'user_001';
+    const result = await executeLucidDreamCycle(userId);
+    return res.status(200).json(result);
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : 'Lucid dream cycle failed';
+    console.error('[lucid-dream]', e);
+    return res.status(500).json({ error: msg });
+  }
+}
+
+async function handleAstralProject(req: VercelRequest, res: VercelResponse) {
+  try {
+    const { executeAstralProjections } = await import('../_lib/astral-gateways');
+    const userId = (req.query.userId as string) || 'user_001';
+    const result = await executeAstralProjections(userId);
+    return res.status(200).json(result);
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : 'Astral projection failed';
+    console.error('[astral-project]', e);
+    return res.status(500).json({ error: msg });
   }
 }
 

@@ -84,6 +84,7 @@ const ProgressAnimationShowcase = lazy(() => import('./components/ProgressAnimat
 const ProfileMenuExample = lazy(() => import('./components/ProfileMenuExample').then(m => ({ default: m.ProfileMenuExample })));
 const EventTaskSystemDemo = lazy(() => import('./components/EventTaskSystemDemo').then(m => ({ default: m.EventTaskSystemDemo })));
 const PermissionTestingDashboard = lazy(() => import('./components/PermissionTestingDashboard').then(m => ({ default: m.PermissionTestingDashboard })));
+const LucidDashboardPage = lazy(() => import('./components/pages/LucidDashboardPage').then(m => ({ default: m.LucidDashboardPage })));
 const AboutPage = lazy(() => import('./components/pages/AboutPage').then(m => ({ default: m.AboutPage })));
 const CareersPage = lazy(() => import('./components/pages/CareersPage').then(m => ({ default: m.CareersPage })));
 const BlogPage = lazy(() => import('./components/pages/BlogPage').then(m => ({ default: m.BlogPage })));
@@ -303,7 +304,8 @@ function AppContent() {
                   <Route path="app/profile" element={<AppLayout><AppProfilePage /></AppLayout>} />
                   <Route path="app/google-calendar" element={<AppLayout><AppCalendarPage /></AppLayout>} />
 
-                  {/* Legacy /dashboard/* URLs (header search, bookmarks, old DashboardApp) → canonical routes */}
+                  <Route path="dashboard/lucid" element={<ProtectedRoute><LucidDashboardPage /></ProtectedRoute>} />
+                  <Route path="dashboard/brain" element={<Navigate to="/dashboard/lucid" replace />} />
                   <Route path="dashboard/tasks" element={<Navigate to="/tasks" replace />} />
                   <Route path="dashboard/calendar" element={<Navigate to="/calendar" replace />} />
                   <Route path="dashboard/analytics" element={<Navigate to="/analytics" replace />} />
