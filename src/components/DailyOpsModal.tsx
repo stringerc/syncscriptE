@@ -271,7 +271,7 @@ export function DailyOpsModal({ isOpen, onClose }: DailyOpsModalProps) {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/85 backdrop-blur-3xl z-[10000]"
+            className="fixed inset-0 bg-black/75 backdrop-blur-md z-[10000]"
             onClick={onClose}
           />
           <motion.div
@@ -282,7 +282,7 @@ export function DailyOpsModal({ isOpen, onClose }: DailyOpsModalProps) {
             className="fixed inset-0 z-[10001] flex items-center justify-center p-4"
             onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
           >
-            <div className="w-full max-w-2xl max-h-[85vh] rounded-2xl border border-white/10 bg-gradient-to-b from-[#0f1620]/75 to-[#0a0e18]/75 backdrop-blur-3xl shadow-2xl flex flex-col overflow-hidden">
+            <div className="w-full max-w-2xl max-h-[85vh] rounded-2xl border border-white/10 bg-gradient-to-b from-[#0f1620]/60 to-[#0a0e18]/60 backdrop-blur-xl shadow-2xl flex flex-col overflow-hidden">
 
               {/* Header */}
               <div className="flex items-center justify-between px-5 py-4 border-b border-white/[0.06]">

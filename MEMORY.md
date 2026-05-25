@@ -1168,8 +1168,8 @@ TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_PHONE_NUMBER, PHONE_API_SECRET, VI
 
 ## DailyOpsModal Premium Glassmorphism & UI Stacking (2026-05-24)
 - **Modal Layering & Deep Blurs:**
-  - Upgraded backdrop overlay to `bg-black/85 backdrop-blur-3xl z-[10000]` in [DailyOpsModal.tsx](file:///Users/Apple/syncscript/src/components/DailyOpsModal.tsx) to ensure perfect page coverage and fully obscure dashboard background text (resolving the highly visible "Energy Adaptive Agent" legibility spill).
-  - Designed premium frosted glassmorphism for the modal container using `bg-gradient-to-b from-[#0f1620]/75 to-[#0a0e18]/75 backdrop-blur-3xl z-[10001] shadow-2xl`, achieving magnificent visual separation and premium dark-mode aesthetics.
+  - Upgraded backdrop overlay to `bg-black/75 backdrop-blur-md z-[10000]` in [DailyOpsModal.tsx](file:///Users/Apple/syncscript/src/components/DailyOpsModal.tsx) to ensure perfect page coverage and fully obscure dashboard background text (resolving the highly visible "Energy Adaptive Agent" legibility spill).
+  - Designed premium frosted glassmorphism for the modal container using `bg-gradient-to-b from-[#0f1620]/60 to-[#0a0e18]/60 backdrop-blur-xl z-[10001] shadow-2xl`, achieving magnificent visual separation and premium dark-mode aesthetics.
 - **Debrief Cognitive Offload Flow:**
   - Added dynamic `isSaving` loading feedback with a 1-second syncing spinner ("Clearing and Syncing Mind...").
   - Form inputs and win checklists smoothly fade and disable when saved (`debriefSaved` toggling `opacity-40 cursor-not-allowed select-none transition-all duration-300`).
