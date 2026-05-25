@@ -111,6 +111,8 @@ export function DailyOpsModal({ isOpen, onClose }: DailyOpsModalProps) {
   const [debriefTomorrow, setDebriefTomorrow] = useState('');
   const [winInput, setWinInput] = useState('');
   const [speaking, setSpeaking] = useState(false);
+  const [debriefSaved, setDebriefSaved] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   const cadence = getCadence();
   const cadenceConfig = CADENCE_CONFIG[cadence];
@@ -128,6 +130,11 @@ export function DailyOpsModal({ isOpen, onClose }: DailyOpsModalProps) {
         setDebriefWins(d.wins || []);
         setDebriefReflection(d.reflection || '');
         setDebriefTomorrow(d.tomorrow || '');
+        if (d.wins?.length > 0 || d.reflection || d.tomorrow) {
+          setDebriefSaved(true);
+        }
+      } else {
+        setDebriefSaved(false);
       }
     } catch {}
   }, [isOpen]);
@@ -234,8 +241,13 @@ export function DailyOpsModal({ isOpen, onClose }: DailyOpsModalProps) {
   };
 
   const handleSaveOffload = () => {
-    saveDebrief(debriefWins, debriefReflection, debriefTomorrow);
-    toast.success('Offload saved — sleep clean tonight.');
+    setIsSaving(true);
+    setTimeout(() => {
+      saveDebrief(debriefWins, debriefReflection, debriefTomorrow);
+      setDebriefSaved(true);
+      setIsSaving(false);
+      toast.success('Offload saved — sleep clean tonight.');
+    }, 1000);
   };
 
   const tabs: { key: Tab; label: string; icon: typeof Brain }[] = [
@@ -259,7 +271,7 @@ export function DailyOpsModal({ isOpen, onClose }: DailyOpsModalProps) {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50"
+            className="fixed inset-0 bg-black/85 backdrop-blur-3xl z-[10000]"
             onClick={onClose}
           />
           <motion.div
@@ -267,10 +279,10 @@ export function DailyOpsModal({ isOpen, onClose }: DailyOpsModalProps) {
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
             transition={{ duration: 0.3, ease: [0.25, 0.1, 0.25, 1] }}
-            className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            className="fixed inset-0 z-[10001] flex items-center justify-center p-4"
             onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
           >
-            <div className="w-full max-w-2xl max-h-[85vh] rounded-2xl border border-white/10 bg-gradient-to-b from-[#0f1620] to-[#0a0e18] shadow-2xl flex flex-col overflow-hidden">
+            <div className="w-full max-w-2xl max-h-[85vh] rounded-2xl border border-white/10 bg-gradient-to-b from-[#0f1620]/75 to-[#0a0e18]/75 backdrop-blur-3xl shadow-2xl flex flex-col overflow-hidden">
 
               {/* Header */}
               <div className="flex items-center justify-between px-5 py-4 border-b border-white/[0.06]">
@@ -448,7 +460,7 @@ export function DailyOpsModal({ isOpen, onClose }: DailyOpsModalProps) {
 
                       {notes.length > 0 && (
                         <p className="text-[10px] text-slate-500 text-center">
-                          {notes.length} thought{notes.length !== 1 ? 's' : ''} captured today — Nexus can reference these
+                          {notes.length} thought{notes.length !== 1 ? 's' : ''} captured today — Nexus can reference them.
                         </p>
                       )}
                     </motion.div>
@@ -456,28 +468,53 @@ export function DailyOpsModal({ isOpen, onClose }: DailyOpsModalProps) {
 
                   {/* ── Debrief Tab ─────────────────────────── */}
                   {activeTab === 'debrief' && (
-                    <motion.div key="debrief" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }} className="space-y-5">
+                    <motion.div 
+                      key="debrief" 
+                      initial={{ opacity: 0, x: -10 }} 
+                      animate={{ opacity: 1, x: 0 }} 
+                      exit={{ opacity: 0, x: 10 }} 
+                      className="space-y-5"
+                    >
                       {/* Wins */}
                       <div className="space-y-2">
                         <p className="text-xs font-medium text-slate-300 flex items-center gap-2">
                           <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
                           What I accomplished today
                         </p>
-                        <div className="flex gap-2">
+                        <div className={`flex gap-2 transition-all duration-300 ${debriefSaved || isSaving ? 'opacity-40 pointer-events-none' : ''}`}>
                           <input
                             value={winInput}
                             onChange={(e) => setWinInput(e.target.value)}
                             onKeyDown={(e) => e.key === 'Enter' && handleAddWin()}
                             placeholder="Add a win..."
+                            disabled={debriefSaved || isSaving}
                             className="flex-1 bg-white/[0.04] border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-white/25 outline-none focus:border-emerald-500/40 transition-colors"
                           />
-                          <button onClick={handleAddWin} className="px-3 py-2 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-xs text-white font-medium transition-colors">+</button>
+                          <button 
+                            disabled={debriefSaved || isSaving} 
+                            onClick={handleAddWin} 
+                            className="px-3 py-2 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-xs text-white font-medium transition-colors"
+                          >
+                            +
+                          </button>
                         </div>
                         {debriefWins.map((win, idx) => (
-                          <div key={idx} className="flex items-center gap-2 p-2 rounded-lg bg-emerald-500/5 border border-emerald-500/10 group">
+                          <div 
+                            key={idx} 
+                            className={`flex items-center gap-2 p-2 rounded-lg bg-emerald-500/5 border border-emerald-500/10 group transition-all duration-300 ${
+                              debriefSaved ? 'opacity-50 select-none' : ''
+                            }`}
+                          >
                             <CheckCircle2 className="w-3 h-3 text-emerald-400 flex-shrink-0" />
                             <p className="text-xs text-emerald-300 flex-1">{win}</p>
-                            <button onClick={() => handleRemoveWin(idx)} className="opacity-0 group-hover:opacity-100 text-slate-500 hover:text-red-400 transition-all text-[10px]">remove</button>
+                            {!debriefSaved && !isSaving && (
+                              <button 
+                                onClick={() => handleRemoveWin(idx)} 
+                                className="opacity-0 group-hover:opacity-100 text-slate-500 hover:text-red-400 transition-all text-[10px]"
+                              >
+                                remove
+                              </button>
+                            )}
                           </div>
                         ))}
                       </div>
@@ -491,9 +528,12 @@ export function DailyOpsModal({ isOpen, onClose }: DailyOpsModalProps) {
                         <textarea
                           value={debriefReflection}
                           onChange={(e) => handleDebriefChange('reflection', e.target.value)}
+                          disabled={debriefSaved || isSaving}
                           placeholder="What worked? What didn't? How are you feeling?"
                           rows={3}
-                          className="w-full bg-white/[0.04] border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-white/25 outline-none focus:border-violet-500/40 transition-colors resize-none"
+                          className={`w-full bg-white/[0.04] border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-white/25 outline-none focus:border-violet-500/40 transition-all duration-300 resize-none ${
+                            debriefSaved ? 'opacity-40 cursor-not-allowed select-none bg-white/[0.02] border-white/5' : ''
+                          }`}
                         />
                       </div>
 
@@ -506,19 +546,54 @@ export function DailyOpsModal({ isOpen, onClose }: DailyOpsModalProps) {
                         <textarea
                           value={debriefTomorrow}
                           onChange={(e) => handleDebriefChange('tomorrow', e.target.value)}
+                          disabled={debriefSaved || isSaving}
                           placeholder="The One Thing that makes tomorrow a win. Plus anything else on your mind for tomorrow."
                           rows={3}
-                          className="w-full bg-white/[0.04] border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-white/25 outline-none focus:border-amber-500/40 transition-colors resize-none"
+                          className={`w-full bg-white/[0.04] border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-white/25 outline-none focus:border-amber-500/40 transition-all duration-300 resize-none ${
+                            debriefSaved ? 'opacity-40 cursor-not-allowed select-none bg-white/[0.02] border-white/5' : ''
+                          }`}
                         />
                       </div>
 
-                      {/* Save */}
-                      <button
-                        onClick={handleSaveOffload}
-                        className="w-full py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 rounded-xl text-sm font-medium text-white transition-all shadow-lg shadow-indigo-500/20"
+                      {/* Save / Edit Trigger */}
+                      <motion.div
+                        layout
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.3 }}
                       >
-                        Save & Clear My Mind
-                      </button>
+                        {debriefSaved ? (
+                          <div className="flex gap-3">
+                            <div className="flex-1 py-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-sm font-medium text-emerald-400 flex items-center justify-center gap-2 transition-all">
+                              <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                              Debrief Saved
+                            </div>
+                            <button
+                              onClick={() => setDebriefSaved(false)}
+                              className="px-6 py-3 bg-indigo-600 hover:bg-indigo-500 rounded-xl text-sm font-medium text-white transition-all shadow-lg hover:shadow-indigo-500/20 active:scale-95 font-semibold"
+                            >
+                              Edit
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={handleSaveOffload}
+                            disabled={isSaving}
+                            className={`w-full py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 rounded-xl text-sm font-medium text-white transition-all shadow-lg shadow-indigo-500/20 active:scale-95 flex items-center justify-center gap-2 ${
+                              isSaving ? 'opacity-75 cursor-not-allowed' : ''
+                            }`}
+                          >
+                            {isSaving ? (
+                              <>
+                                <RefreshCw className="w-4 h-4 animate-spin text-white" />
+                                Clearing and Syncing Mind...
+                              </>
+                            ) : (
+                              'Save & Clear My Mind'
+                            )}
+                          </button>
+                        )}
+                      </motion.div>
 
                       <p className="text-[10px] text-slate-500 text-center">
                         Everything is captured. Sleep clean — Nexus has it all.

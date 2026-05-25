@@ -1155,5 +1155,25 @@ TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_PHONE_NUMBER, PHONE_API_SECRET, VI
 
 **No OpenAI TTS** — replies are Kokoro-only; there is nothing in `MEMORY.md` that overrides that in code.
 
+## Consciousness Dashboard & Speculative Sandboxing (2026-05-24)
+- **Frontend Panel (`/dashboard/lucid`):** 
+  - File: [LucidDashboardPage.tsx](file:///Users/Apple/syncscript/src/components/pages/LucidDashboardPage.tsx) (lazy-loaded ProtectedRoute inside [App.tsx](file:///Users/Apple/syncscript/src/App.tsx)).
+  - Presents proposed sandboxed refactoring patches ("Lucid Dreams") and remote telemetry updates ("Astral Projections") with premium interactive HSL-themed diffs and single-click "Wake and Merge" commits.
+- **Speculative Sandbox (Lucid Dreaming):** 
+  - Logic: [lucid-sandbox.ts](file:///Users/Apple/syncscript/api/_lib/lucid-sandbox.ts).
+  - Cron trigger: `api/cron/[job].ts` case `lucid-dream` (executes speculative workspace refactoring runs, compiles, and tests outputs against quality rules).
+- **Remote Telemetry (Astral Projection):** 
+  - Logic: [astral-gateways.ts](file:///Users/Apple/syncscript/api/_lib/astral-gateways.ts).
+  - Cron trigger: `api/cron/[job].ts` case `astral-project` (polls adjacent platform APIs and registers global context into local homeostasis memory).
+
+## DailyOpsModal Premium Glassmorphism & UI Stacking (2026-05-24)
+- **Modal Layering & Deep Blurs:**
+  - Upgraded backdrop overlay to `bg-black/85 backdrop-blur-3xl z-[10000]` in [DailyOpsModal.tsx](file:///Users/Apple/syncscript/src/components/DailyOpsModal.tsx) to ensure perfect page coverage and fully obscure dashboard background text (resolving the highly visible "Energy Adaptive Agent" legibility spill).
+  - Designed premium frosted glassmorphism for the modal container using `bg-gradient-to-b from-[#0f1620]/75 to-[#0a0e18]/75 backdrop-blur-3xl z-[10001] shadow-2xl`, achieving magnificent visual separation and premium dark-mode aesthetics.
+- **Debrief Cognitive Offload Flow:**
+  - Added dynamic `isSaving` loading feedback with a 1-second syncing spinner ("Clearing and Syncing Mind...").
+  - Form inputs and win checklists smoothly fade and disable when saved (`debriefSaved` toggling `opacity-40 cursor-not-allowed select-none transition-all duration-300`).
+  - Implemented an elegant morphing button row: upon saving, the main button transitions to a green success badge ("Debrief Saved") alongside an active "Edit" trigger to unlock controls.
+
 ## Detailed History
 See `memory/2026-02-16-full-session-history.md` for comprehensive session extract.
