@@ -49,6 +49,8 @@ import { useLocation, useNavigate } from 'react-router';
 import { TeamBadge } from '../TeamBadge';
 import { ArchiveToggle } from '../ArchiveToggle'; // PHASE 5D: Archive toggle component
 import { EnergyBadge } from '../EnergyBadge'; // PHASE 1.4: Energy reward badges
+import ContributionHeatMap from '../gamification/ContributionHeatMap';
+import { calculateLevel, levelTitle } from '../../lib/gamification';
 import { useEnergy } from '../../hooks/useEnergy'; // PHASE 1.5: Energy system integration
 // REMOVED: getTaskEnergyValue import - no longer needed, handled by toggleTaskCompletion()
 import type { Priority } from '../../types/task'; // PHASE 1.7: Task types
@@ -209,7 +211,8 @@ const getDateStatus = (dueDate: string): 'overdue' | 'due-soon' | 'upcoming' | '
 // REMOVED: mapPriorityToEnergy helper - no longer needed
 // toggleTaskCompletion() in TasksContext handles priority mapping internally
 
-export function TasksGoalsPage() {
+export function ProjectsPage() {
+/// renamed from TasksGoalsPage
   const location = useLocation();
   const navigate = useNavigate();
   const { profile } = useUserProfile(); // Get current user from context
@@ -2353,9 +2356,13 @@ function TaskManagementSection({
             Automation
           </TabsTrigger>
           <TabsTrigger value="recurring" className="gap-2 data-[state=active]:text-white">
-            <Repeat className="w-4 h-4" />
-            Recurring
-          </TabsTrigger>
+                        <Repeat className="w-4 h-4" />
+                        Recurring
+                      </TabsTrigger>
+                      <TabsTrigger value="activity" className="gap-2 data-[state=active]:text-white">
+                        <Activity className="w-4 h-4" />
+                        Activity
+                      </TabsTrigger>
         </TabsList>
         
         {/* TAB 1: Task List - Primary view (80% usage) */}
@@ -3491,6 +3498,41 @@ function TaskManagementSection({
             />
           </Suspense>
         </TabsContent>
+      
+      {/* Activity Tab: Contribution Heat Map + Gamification */}
+      <TabsContent value="activity" className="space-y-6">
+        <div className="bg-gray-900/50 border border-white/10 rounded-xl p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h3 className="text-xl text-white font-semibold">Activity</h3>
+              <p className="text-sm text-gray-400">Your contribution history and progress</p>
+            </div>
+          </div>
+          <ContributionHeatMap
+            activities={[]}
+            totalPoints={0}
+            currentStreak={0}
+            longestStreak={0}
+          />
+          <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="bg-gray-800/40 rounded-lg p-4 border border-white/5">
+              <div className="text-2xl font-bold text-emerald-400">0</div>
+              <div className="text-sm text-gray-400">Total Points</div>
+              <div className="text-xs text-gray-500 mt-1">Initiate (Level 1)</div>
+            </div>
+            <div className="bg-gray-800/40 rounded-lg p-4 border border-white/5">
+              <div className="text-2xl font-bold text-amber-400">0</div>
+              <div className="text-sm text-gray-400">Day Streak</div>
+              <div className="text-xs text-gray-500 mt-1">Complete a task daily to build streaks</div>
+            </div>
+            <div className="bg-gray-800/40 rounded-lg p-4 border border-white/5">
+              <div className="text-2xl font-bold text-purple-400">0</div>
+              <div className="text-sm text-gray-400">Tasks Completed</div>
+              <div className="text-xs text-gray-500 mt-1">Verify tasks for 50 bonus points</div>
+            </div>
+          </div>
+        </div>
+      </TabsContent>
       </Tabs>
     </div>
   );
@@ -4041,6 +4083,41 @@ function GoalManagementSection({ onCreateGoal, setIsVoiceToGoalOpen, setIsAIGoal
             />
           </Suspense>
         </TabsContent>
+      
+      {/* Activity Tab: Contribution Heat Map + Gamification */}
+      <TabsContent value="activity" className="space-y-6">
+        <div className="bg-gray-900/50 border border-white/10 rounded-xl p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h3 className="text-xl text-white font-semibold">Activity</h3>
+              <p className="text-sm text-gray-400">Your contribution history and progress</p>
+            </div>
+          </div>
+          <ContributionHeatMap
+            activities={[]}
+            totalPoints={0}
+            currentStreak={0}
+            longestStreak={0}
+          />
+          <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="bg-gray-800/40 rounded-lg p-4 border border-white/5">
+              <div className="text-2xl font-bold text-emerald-400">0</div>
+              <div className="text-sm text-gray-400">Total Points</div>
+              <div className="text-xs text-gray-500 mt-1">Initiate (Level 1)</div>
+            </div>
+            <div className="bg-gray-800/40 rounded-lg p-4 border border-white/5">
+              <div className="text-2xl font-bold text-amber-400">0</div>
+              <div className="text-sm text-gray-400">Day Streak</div>
+              <div className="text-xs text-gray-500 mt-1">Complete a task daily to build streaks</div>
+            </div>
+            <div className="bg-gray-800/40 rounded-lg p-4 border border-white/5">
+              <div className="text-2xl font-bold text-purple-400">0</div>
+              <div className="text-sm text-gray-400">Tasks Completed</div>
+              <div className="text-xs text-gray-500 mt-1">Verify tasks for 50 bonus points</div>
+            </div>
+          </div>
+        </div>
+      </TabsContent>
       </Tabs>
     </div>
   );
