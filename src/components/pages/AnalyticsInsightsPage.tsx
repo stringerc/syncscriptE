@@ -21,7 +21,6 @@ import {
 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
-import { DashboardLayout } from '../layout/DashboardLayout';
 import { AIInsightsContent } from '../AIInsightsSection';
 import { CompletionAnalyticsDashboard } from '../analytics/CompletionAnalyticsDashboard';
 import { AnalyticsTestPanel } from '../analytics/AnalyticsTestPanel';
@@ -205,7 +204,6 @@ export function AnalyticsInsightsPage() {
   };
 
   return (
-    <DashboardLayout aiInsightsContent={aiInsightsContent}>
       {/* Roadmap Overlay - Full Screen Block */}
       <div className="absolute inset-0 z-50 bg-[#1a1d24]/95 backdrop-blur-sm flex items-center justify-center">
         <motion.div
@@ -748,6 +746,5 @@ export function AnalyticsInsightsPage() {
           </TabsContent>
         </Tabs>
       </div>
-    </DashboardLayout>
   );
 }

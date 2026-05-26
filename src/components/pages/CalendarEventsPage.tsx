@@ -67,7 +67,6 @@ import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
-import { DashboardLayout } from '../layout/DashboardLayout';
 import { getPageInsights } from '../../utils/insights-config';
 import { AnimatedAvatar } from '../AnimatedAvatar';
 import { Event, Task, Script } from '../../utils/event-task-types';
@@ -2324,7 +2323,6 @@ export function CalendarEventsPage() {
   };
 
   return (
-    <DashboardLayout aiInsightsContent={aiInsightsContent}>
       <motion.div 
         className="flex min-w-0 flex-col gap-6"
         initial={{ opacity: 0, y: 20 }}
@@ -3063,8 +3061,6 @@ export function CalendarEventsPage() {
           }}
         />
       )} */}
-      
-    </DashboardLayout>
   );
 }
 

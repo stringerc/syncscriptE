@@ -9,7 +9,6 @@ import {
   AlertTriangle, TrendingDown, CheckCircle2, Clock,
   Target, Flame, Brain, RefreshCw, Eye, EyeOff
 } from 'lucide-react';
-import { DashboardLayout } from '../layout/DashboardLayout';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { Input } from '../ui/input';
@@ -186,7 +185,6 @@ export function TeamPage() {
   const aiInsightsContent = PAGE_INSIGHTS_CONFIG.team;
 
   return (
-    <DashboardLayout aiInsightsContent={aiInsightsContent}>
       <div className="flex-1 overflow-auto hide-scrollbar p-6 space-y-6">
         {activeTeam ? (
           // Team Detail View
@@ -820,6 +818,5 @@ export function TeamPage() {
           onClose={() => setIsCreateDialogOpen(false)}
         />
       </div>
-    </DashboardLayout>
   );
 }

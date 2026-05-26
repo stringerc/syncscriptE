@@ -11,7 +11,6 @@ import { Badge } from '../ui/badge';
 import { Progress } from '../ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
-import { DashboardLayout } from '../layout/DashboardLayout';
 import { AIInsightsContent } from '../AIInsightsSectionOriginal';
 import {
   StreakHistory,
@@ -148,7 +147,6 @@ export function GamificationHubPageV2() {
   // Show message if gamification is disabled
   if (!gamificationEnabled) {
     return (
-      <DashboardLayout aiInsightsContent={aiInsightsContent}>
         <div className="flex-1 overflow-auto hide-scrollbar p-6">
           <div className="flex items-center justify-center min-h-[60vh]">
             <div className="text-center max-w-md">
@@ -169,12 +167,10 @@ export function GamificationHubPageV2() {
             </div>
           </div>
         </div>
-      </DashboardLayout>
     );
   }
   
   return (
-    <DashboardLayout aiInsightsContent={aiInsightsContent}>
       <div className="flex-1 overflow-auto hide-scrollbar p-6 space-y-6">
         {/* Celebration Animations */}
         <AnimatePresence>
@@ -535,6 +531,5 @@ export function GamificationHubPageV2() {
           </TabsContent>
         </Tabs>
       </div>
-    </DashboardLayout>
   );
 }

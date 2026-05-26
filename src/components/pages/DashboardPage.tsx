@@ -4,7 +4,6 @@ import { motion } from 'motion/react';
 import { AIFocusSection } from '../AIFocusSection';
 import { TodaySection } from '../TodaySection';
 import { ResourceHubSection } from '../ResourceHubSection';
-import { DashboardLayout } from '../layout/DashboardLayout';
 import { DashboardBriefing } from '../DashboardBriefing';
 import { WelcomeModal } from '../WelcomeModal';
 import { InteractiveHotspot, ONBOARDING_HOTSPOTS } from '../InteractiveHotspot';
@@ -116,7 +115,6 @@ export function DashboardPage() {
   }
 
   return (
-    <DashboardLayout>
       {/* 🎉 WELCOME MODAL - First-time users only */}
       <WelcomeModal
         show={showWelcome}
@@ -205,6 +203,5 @@ export function DashboardPage() {
           </div>
         </div>
       </motion.div>
-    </DashboardLayout>
   );
 }

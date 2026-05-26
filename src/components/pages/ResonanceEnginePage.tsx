@@ -2,7 +2,6 @@ import React, { useState, useMemo } from 'react';
 import { Brain, TrendingUp, Zap, Target, DollarSign, Clock, Calendar, ChevronDown, ChevronUp, Sparkles, RotateCcw, CheckCircle, ArrowRight, Info, Gauge, AlertCircle, Settings, Waves } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { toast } from 'sonner';
-import { DashboardLayout } from '../layout/DashboardLayout';
 import { Button } from '../ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
@@ -708,12 +707,6 @@ export function ResonanceEnginePage({ onNavigateToCalendar }: ResonanceEnginePag
   const alignmentPercentage = Math.round((inSyncCount / waveTimelineData.length) * 100);
 
   return (
-    <DashboardLayout
-      aiInsightsContent={{
-        mode: 'custom',
-        customContent: <ResonanceAIInsights />,
-      }}
-    >
       <motion.div
         className="space-y-6 pb-6"
         initial={{ opacity: 0, y: 20 }}
@@ -1215,6 +1208,5 @@ export function ResonanceEnginePage({ onNavigateToCalendar }: ResonanceEnginePag
           dateDisplay={rescheduledTask.date}
         />
       )}
-    </DashboardLayout>
   );
 }

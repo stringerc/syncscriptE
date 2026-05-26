@@ -37,7 +37,6 @@ import { EnhancedGoalCard } from '../EnhancedGoalCard';
 import { SuccessMetricsDashboard } from '../SuccessMetricsDashboard';
 import { useResonance } from '../../hooks/useResonance';
 import { ErrorBoundary } from '../ErrorBoundary';
-import { DashboardLayout } from '../layout/DashboardLayout';
 import { useTasks } from '../../hooks/useTasks';
 // PHASE 1: Unified system imports
 import { useGoals } from '../../hooks/useGoals';
@@ -1013,7 +1012,6 @@ export function TasksGoalsPage() {
   }, [activeView]);
 
   return (
-    <DashboardLayout>
       <motion.div 
         className={`flex-1 min-w-0 overflow-x-hidden hide-scrollbar ${activeView === 'workstream' ? 'flex h-full min-h-0 flex-col overflow-hidden p-2' : 'overflow-y-auto space-y-6'}`}
         initial={{ opacity: 0 }}
@@ -1926,7 +1924,6 @@ export function TasksGoalsPage() {
           </DialogContent>
         </Dialog>
       </motion.div>
-    </DashboardLayout>
   );
 }
 
