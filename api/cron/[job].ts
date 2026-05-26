@@ -18,7 +18,7 @@ function requireCronAuth(req: VercelRequest, res: VercelResponse): boolean {
 }
 
 async function handleWakeUp(req: VercelRequest, res: VercelResponse) {
-  const phoneNumber = process.env.WAKE_UP_PHONE_NUMBER;
+  let phoneNumber = process.env.WAKE_UP_PHONE_NUMBER || '';  if (!phoneNumber) { try { const scheduleRaw = await kvGet(`briefing_schedule:${userId}`); const schedule = scheduleRaw ? (typeof scheduleRaw === 'string' ? JSON.parse(scheduleRaw) : scheduleRaw) : null; if (schedule?.phoneNumber) phoneNumber = schedule.phoneNumber; } catch (e) { console.warn('[NexusDailyRhythm] Could not read phone from KV:', e); } }
   if (!phoneNumber) {
     console.error('[WakeUp] WAKE_UP_PHONE_NUMBER not configured');
     return res.status(500).json({ error: 'WAKE_UP_PHONE_NUMBER not set' });
@@ -400,12 +400,21 @@ async function handleNexusDailyRhythm(req: VercelRequest, res: VercelResponse) {
     const dateKey = now.toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
 
     // Target user config
-    const phoneNumber = process.env.WAKE_UP_PHONE_NUMBER;
-    const userId = process.env.NEXUS_RHYTHM_USER_ID || 'user_001';
-    const userEmail = process.env.NEXUS_RHYTHM_USER_EMAIL || 'stringer.c.a@gmail.com';
+  const userId = process.env.NEXUS_RHYTHM_USER_ID || 'user_001';
+  const userEmail = process.env.NEXUS_RHYTHM_USER_EMAIL || 'stringer.c.a@gmail.com';
+
+  // Read phone: KV-first (per-user settings), env var fallback
+  let phoneNumber = process.env.WAKE_UP_PHONE_NUMBER || '';
+  if (!phoneNumber) {
+    try {
+      const schedRaw = await kvGet(`briefing_schedule:${userId}`);
+      const sched = schedRaw ? (typeof schedRaw === 'string' ? JSON.parse(schedRaw) : schedRaw) : null;
+      if (sched?.phoneNumber) phoneNumber = sched.phoneNumber;
+    } catch (e) { console.warn('[NexusDailyRhythm] KV phone read failed:', e); }
+  }
 
     if (!phoneNumber) {
-      return res.status(200).json({ skipped: true, reason: 'WAKE_UP_PHONE_NUMBER not set' });
+      return res.status(200).json({ skipped: true, reason: 'No phone configured — set WAKE_UP_PHONE_NUMBER or save phone in Settings > Briefing Calls' });
     }
 
     // Determine which cadence (if any) is due this hour
