@@ -9,6 +9,7 @@ import { EnterpriseOfficeSimulation } from '../enterprise/EnterpriseOfficeSimula
 import { EnterpriseTeamModal } from '../enterprise/EnterpriseTeamModal';
 import { EnterpriseBusinessPlanTab } from '../enterprise/EnterpriseBusinessPlanTab';
 import { WeeklyMetricsDashboard } from '../admin/WeeklyMetricsDashboard';
+import { DashboardLayout } from '../layout/DashboardLayout';
 import { getEnterpriseFeatureFlags } from '../../utils/enterprise-feature-flags';
 
 type EnterpriseTab = 'mission' | 'agents' | 'office' | 'memory' | 'plan' | 'metrics';
@@ -101,6 +102,7 @@ export function EnterpriseToolsPage() {
   };
 
   return (
+    <DashboardLayout>
       <div className="mx-auto max-w-6xl space-y-5 text-white">
       <section className="space-y-5">
         <header className="rounded-2xl border border-white/10 bg-[#171a21] p-6">
@@ -328,5 +330,6 @@ export function EnterpriseToolsPage() {
         }}
       />
       </div>
+    </DashboardLayout>
   );
 }

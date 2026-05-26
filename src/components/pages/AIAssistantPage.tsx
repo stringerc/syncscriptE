@@ -17,6 +17,7 @@ import { Label } from '../ui/label';
 import { Switch } from '../ui/switch';
 import { Slider } from '../ui/slider';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
+import { DashboardLayout } from '../layout/DashboardLayout';
 import { AIInsightsContent } from '../AIInsightsSection';
 import { useAI } from '../../contexts/AIContext';
 import { useOpenClaw } from '../../contexts/OpenClawContext';
@@ -144,6 +145,7 @@ export function AIAssistantPage() {
   }), []);
 
   return (
+    <DashboardLayout aiInsightsContent={aiInsightsContent}>
       <motion.div 
         className="w-full h-full overflow-auto hide-scrollbar space-y-6"
         initial={{ opacity: 0, y: 20 }}
@@ -447,6 +449,7 @@ export function AIAssistantPage() {
           </motion.div>
         )}
       </AnimatePresence>
+    </DashboardLayout>
   );
 }
 

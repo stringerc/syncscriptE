@@ -22,6 +22,7 @@ import { Textarea } from '../ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Separator } from '../ui/separator';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
+import { DashboardLayout } from '../layout/DashboardLayout';
 import { AIInsightsContent } from '../AIInsightsSection';
 import { ResonanceBadge } from '../ResonanceBadge';
 import {
@@ -627,6 +628,7 @@ export function ScriptsTemplatesPage() {
   };
 
   return (
+    <DashboardLayout aiInsightsContent={aiInsightsContent}>
       <motion.div
         className="space-y-6"
         initial={{ opacity: 0, y: 20 }}
@@ -1371,5 +1373,6 @@ export function ScriptsTemplatesPage() {
         open={isPreferencesDialogOpen}
         onOpenChange={setIsPreferencesDialogOpen}
       />
+    </DashboardLayout>
   );
 }

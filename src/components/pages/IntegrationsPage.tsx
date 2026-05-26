@@ -12,6 +12,7 @@ import { Badge } from '../ui/badge';
 import { Progress } from '../ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { Switch } from '../ui/switch';
+import { DashboardLayout } from '../layout/DashboardLayout';
 import { AIInsightsContent } from '../AIInsightsSectionOriginal';
 import { toast } from 'sonner';
 import { OAuthConnector, OAUTH_PROVIDERS } from '../integrations/OAuthConnector';
@@ -323,6 +324,7 @@ export function IntegrationsPage() {
   };
 
   return (
+    <DashboardLayout aiInsightsContent={aiInsightsContent}>
       <div className="flex-1 overflow-auto hide-scrollbar p-6 space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
@@ -741,5 +743,6 @@ export function IntegrationsPage() {
         )}
 
       </div>
+    </DashboardLayout>
   );
 }

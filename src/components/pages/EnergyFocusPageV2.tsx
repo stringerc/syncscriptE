@@ -66,6 +66,7 @@ import {
 } from '../ui/tooltip';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
+import { DashboardLayout } from '../layout/DashboardLayout';
 import { StartFocusDialog } from '../QuickActionsDialogs';
 import { PAGE_INSIGHTS_CONFIG } from '../../utils/insights-config';
 import { useEnergy } from '../../contexts/EnergyContext';
@@ -308,6 +309,7 @@ export function EnergyFocusPage() {
   }, []);
 
   return (
+    <DashboardLayout aiInsightsContent={aiInsightsContent}>
       <div className="flex-1 overflow-auto hide-scrollbar p-6 space-y-8">
         
         {/* ═════════════════════════════════════════════════════════════════════
@@ -2124,5 +2126,6 @@ export function EnergyFocusPage() {
         open={isFocusDialogOpen}
         onOpenChange={setIsFocusDialogOpen}
       />
+    </DashboardLayout>
   );
 }

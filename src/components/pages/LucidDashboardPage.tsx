@@ -14,6 +14,7 @@ import {
   Network,
   Info
 } from 'lucide-react';
+import { DashboardLayout } from '../layout/DashboardLayout';
 
 interface SpeculativePatch {
   targetFile: string;
@@ -239,6 +240,7 @@ export function LucidDashboardPage() {
   });
 
   return (
+    <DashboardLayout>
       <div className="relative min-h-screen text-gray-100 pb-12">
         {/* Subtle cyan-gold visual glow effects */}
         <div className="pointer-events-none absolute top-0 left-1/4 w-96 h-96 bg-[radial-gradient(circle_at_center,rgba(45,212,191,0.06),transparent_60%)] rounded-full blur-3xl" />
@@ -519,5 +521,6 @@ export function LucidDashboardPage() {
         </div>
 
       </div>
+    </DashboardLayout>
   );
 }

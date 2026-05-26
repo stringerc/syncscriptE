@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Mail, RefreshCw, Inbox, Send, Settings2, CheckCircle2, Sparkles, ListTodo, Flame, Clock3, BrainCircuit, ArrowUpRight, Wand2, SendHorizontal, Users, PauseCircle, PlayCircle } from 'lucide-react';
 import { useNavigate } from 'react-router';
+import { DashboardLayout } from '../layout/DashboardLayout';
 import { Button } from '../ui/button';
 import { Tabs, TabsList, TabsTrigger } from '../ui/tabs';
 import { Badge } from '../ui/badge';
@@ -646,6 +647,7 @@ export function EmailHubPage() {
   };
 
   return (
+    <DashboardLayout>
       <div className="space-y-6">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
@@ -1085,5 +1087,6 @@ export function EmailHubPage() {
           </div>
         </div>
       </div>
+    </DashboardLayout>
   );
 }

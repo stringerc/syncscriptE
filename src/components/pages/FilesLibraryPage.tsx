@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { FolderOpen, FileText, Trash2, ExternalLink, RefreshCw } from 'lucide-react';
 import { Button } from '../ui/button';
+import { DashboardLayout } from '../layout/DashboardLayout';
 import { useUserFiles, type UserFileRow } from '../../hooks/useUserFiles';
 import { toast } from 'sonner';
 
@@ -47,6 +48,7 @@ export function FilesLibraryPage() {
   };
 
   return (
+    <DashboardLayout>
     <div className="min-h-screen bg-[#0a0f14] text-[#e6edf4] p-6 md:p-10">
       <div className="max-w-4xl mx-auto">
         <div className="flex items-start justify-between gap-4 mb-8">
@@ -142,5 +144,6 @@ export function FilesLibraryPage() {
         )}
       </div>
     </div>
+    </DashboardLayout>
   );
 }

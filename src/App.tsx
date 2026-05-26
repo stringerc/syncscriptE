@@ -162,9 +162,7 @@ function DashboardProviders({ children }: { children: ReactNode }) {
 function DashboardShell() {
   return (
     <DashboardProviders>
-      <DashboardLayout>
-        <Outlet />
-      </DashboardLayout>
+      <Outlet />
     </DashboardProviders>
   );
 }

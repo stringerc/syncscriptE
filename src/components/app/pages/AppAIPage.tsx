@@ -4,6 +4,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Button } from '@/components/ui/button'
 import { AnimatePresence, motion } from 'motion/react'
 import logoImage from 'figma:asset/914d5787f554946c037cbfbb2cf65fcc0de06278.png'
+import { DashboardLayout } from '../../../components/layout/DashboardLayout'
 import {} from '@/components/ui/collapsible'
 import { api } from '@/lib/railway-api'
 import { useToast } from '@/hooks/use-app-toast'
@@ -715,6 +716,7 @@ export function AppAIPage() {
   }, [setMobileToolbar, mobileChatsTopBar])
 
   return (
+    <DashboardLayout>
     <div
       className="relative flex min-h-0 flex-1 flex-col gap-0 lg:h-full lg:flex-row lg:items-stretch"
       data-testid="appai-page-root"
@@ -1411,5 +1413,7 @@ export function AppAIPage() {
         </div>
       </div>
     )}
+
+    </DashboardLayout>
   )
 }
