@@ -1,11 +1,12 @@
 import type { NavigateFunction } from 'react-router';
 
 /**
- * Projects OS (`/tasks`) loads a very large chunk graph. Client-side navigation away from it can fail
- * in production (stale PWA precache, router edge cases) with no console error — users stay on /tasks.
+ * Navigate with a timeout fallback to hard load if SPA navigation stalls.
  *
- * When leaving the tasks surface for another top-level route, use a full page load so navigation
- * cannot silently no-op. Other routes keep SPA navigation + timeout fallback.
+ * Previously had a special case for /tasks that forced a full page reload
+ * on every exit. This was removed — SPA navigation is now always attempted
+ * first, with a 320ms fallback to `window.location.assign` if the URL
+ * hasn't changed (indicating the router failed to navigate).
  */
 export function navigateWithHardFallback(navigate: NavigateFunction, to: string): void {
   let want: URL;
@@ -20,15 +21,6 @@ export function navigateWithHardFallback(navigate: NavigateFunction, to: string)
   const before = `${window.location.pathname}${window.location.search}`;
 
   if (before === desired) {
-    return;
-  }
-
-  const fromTasksSurface = window.location.pathname === '/tasks' || window.location.pathname.startsWith('/tasks/');
-  const stillOnTasksSurface =
-    want.pathname === '/tasks' || want.pathname.startsWith('/tasks/');
-
-  if (fromTasksSurface && !stillOnTasksSurface) {
-    window.location.assign(desired);
     return;
   }
 

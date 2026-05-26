@@ -238,6 +238,21 @@ export function SettingsPage() {
   const [briefingDays, setBriefingDays] = useState(['mon', 'tue', 'wed', 'thu', 'fri']);
   const [briefingEnabled, setBriefingEnabled] = useState(false);
   const [briefingPhone, setBriefingPhone] = useState('');
+
+  // Auto-format phone as user types: +1 (XXX) XXX-XXXX
+  const formatPhoneInput = (raw: string): string => {
+    const digits = raw.replace(/\D/g, '').slice(0, 11); // max 11 digits (1 + 10)
+    if (digits.length === 0) return '';
+    if (digits.length <= 1) return `+${digits}`;
+    if (digits.length <= 4) return `+${digits[0]} (${digits.slice(1)}`;
+    if (digits.length <= 7) return `+${digits[0]} (${digits.slice(1, 4)}) ${digits.slice(4)}`;
+    return `+${digits[0]} (${digits.slice(1, 4)}) ${digits.slice(4, 7)}-${digits.slice(7)}`;
+  };
+
+  const stripPhoneFormat = (formatted: string): string => {
+    const digits = formatted.replace(/\D/g, '');
+    return digits.length > 0 ? `+${digits}` : '';
+  };
   const [briefingType, setBriefingType] = useState<'morning' | 'evening' | 'weekly-recap'>('morning');
   const [savingBriefing, setSavingBriefing] = useState(false);
   const [emailAppPassword, setEmailAppPassword] = useState('');
@@ -298,9 +313,8 @@ export function SettingsPage() {
     if (!briefingPhone) { toast.error('Phone number is required'); return; }
     setSavingBriefing(true);
     try {
-      const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || '';
-      const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
-      if (!SUPABASE_URL || !SUPABASE_ANON_KEY) { toast.error('Supabase not configured'); return; }
+      const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://kwhnrlzibgfedtxpkbgb.supabase.co';
+      const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt3aG5ybHppYmdmZWR0eHBrYmdiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjEwNzk3OTMsImV4cCI6MjA3NjY1NTc5M30.vvV5Ksaq70soeLzwDr7AuXiUFPhwcRV4m78PD4qtFu8';
       await fetch(`${SUPABASE_URL}/functions/v1/make-server-57781ad9/kv/set`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` },
@@ -311,7 +325,7 @@ export function SettingsPage() {
             timezone: briefingTimezone,
             days: briefingDays,
             enabled: briefingEnabled,
-            phoneNumber: briefingPhone,
+            phoneNumber: stripPhoneFormat(briefingPhone),
             userId: profile?.id || '',
             type: briefingType,
             morningBriefEnabled,
@@ -332,9 +346,8 @@ export function SettingsPage() {
     if (!emailAddress || !emailAppPassword) { toast.error('Email and App Password required'); return; }
     setSavingEmail(true);
     try {
-      const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || '';
-      const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
-      if (!SUPABASE_URL || !SUPABASE_ANON_KEY) { toast.error('Supabase not configured'); return; }
+      const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://kwhnrlzibgfedtxpkbgb.supabase.co';
+      const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt3aG5ybHppYmdmZWR0eHBrYmdiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjEwNzk3OTMsImV4cCI6MjA3NjY1NTc5M30.vvV5Ksaq70soeLzwDr7AuXiUFPhwcRV4m78PD4qtFu8';
       await fetch(`${SUPABASE_URL}/functions/v1/make-server-57781ad9/kv/set`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` },
@@ -1873,7 +1886,7 @@ export function SettingsPage() {
                     placeholder="you@gmail.com"
                     value={emailAddress}
                     onChange={(e) => setEmailAddress(e.target.value)}
-                    className="bg-[#2a2d35] border-gray-700 text-white"
+                    className="bg-[#2a2d35] border-gray-700 text-white font-mono text-lg tracking-wide"
                   />
                 </div>
                 <div>
@@ -1943,8 +1956,8 @@ export function SettingsPage() {
                   <Input
                     type="tel"
                     placeholder="+1 (555) 123-4567"
-                    value={briefingPhone}
-                    onChange={(e) => setBriefingPhone(e.target.value)}
+                    value={formatPhoneInput(briefingPhone)}
+                    onChange={(e) => setBriefingPhone(stripPhoneFormat(e.target.value))}
                     className="bg-[#2a2d35] border-gray-700 text-white"
                   />
                   <p className="text-xs text-gray-500 mt-1">Include country code (e.g. +1 for US)</p>

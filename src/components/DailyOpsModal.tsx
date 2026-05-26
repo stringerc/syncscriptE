@@ -412,7 +412,7 @@ export function DailyOpsModal({ isOpen, onClose }: DailyOpsModalProps) {
                                 return (
                                   <div key={i} className={`flex items-center gap-3 px-2 py-1.5 rounded-lg ${isNow ? 'bg-emerald-500/10' : ''}`}>
                                     <span className={`w-10 text-[11px] font-mono text-right ${isNow ? 'text-emerald-400 font-semibold' : 'text-slate-500'}`}>
-                                      {slot.hour === 0 ? '12a' : slot.hour <= 12 ? `${slot.hour}a` : `${slot.hour-12}p`}
+                                      {typeof slot.hour === 'number' && !isNaN(slot.hour) ? (slot.hour === 0 ? '12a' : slot.hour <= 12 ? `${slot.hour}a` : `${slot.hour-12}p`) : `${slot.hour || ''}`}
                                     </span>
                                     <div className={`w-1 h-5 rounded-full ${isPeak ? 'bg-cyan-500/40' : 'bg-slate-700/50'}`} />
                                     <span className="text-xs text-slate-300 flex-1">

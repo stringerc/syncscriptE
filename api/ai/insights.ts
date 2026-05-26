@@ -328,6 +328,17 @@ INSTRUCTIONS:
     if (!briefData.highlights) briefData.highlights = ["Review today's active items"];
     if (!briefData.conflicts) briefData.conflicts = conflicts;
     if (!briefData.hourlyPlan) briefData.hourlyPlan = hourlyTimeline.filter(s => s.events.length > 0 || s.taskRecommendation);
+  // Normalize LLM-returned hour values to integers (LLM often returns "9:00 AM" instead of 9)
+  if (briefData.hourlyPlan) {
+    briefData.hourlyPlan = briefData.hourlyPlan.map((slot: any) => {
+      let hour = slot.hour;
+      if (typeof hour === 'string') {
+        const parsed = parseInt(hour, 10);
+        hour = isNaN(parsed) ? 0 : parsed;
+      }
+      return { ...slot, hour: typeof hour === 'number' && !isNaN(hour) ? hour : 0 };
+    }).filter((slot: any) => slot.hour >= 0 && slot.hour <= 23);
+  }
     briefData.tasksCount = 0;
     briefData.dataFreshness = new Date().toISOString();
     briefData.sources = { calendar: calResp?.ok ? 'live' : 'unavailable' };

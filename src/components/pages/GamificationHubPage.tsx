@@ -177,67 +177,8 @@ export function GamificationHubPage() {
   }
   
   return (
+            
     <DashboardLayout aiInsightsContent={aiInsightsContent}>
-      {/* Roadmap Overlay - Full Screen Block */}
-      <div className="absolute inset-0 z-50 bg-[#1a1d24]/95 backdrop-blur-sm flex items-center justify-center">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.5 }}
-          className="max-w-2xl mx-auto px-6 text-center"
-        >
-          <div className="bg-gradient-to-br from-purple-600/20 to-pink-600/20 border border-purple-500/30 rounded-2xl p-8 shadow-2xl shadow-purple-500/10">
-            <div className="w-20 h-20 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center mx-auto mb-6">
-              <Gamepad2 className="w-10 h-10 text-white" />
-            </div>
-            
-            <h2 className="text-4xl font-bold text-white mb-4">
-              On the Roadmap
-            </h2>
-            
-            <div className="space-y-4 text-gray-300">
-              <p className="text-xl">
-                Gamification Hub
-              </p>
-              
-              <p className="text-base leading-relaxed">
-                Level up your productivity through play and competition. The gamification system 
-                will feature RPG-style progression, daily quests, competitive leagues, achievement 
-                badges, pet companions, and seasonal events—all designed to make productivity 
-                engaging and fun while maintaining your flow.
-              </p>
-              
-              <div className="flex flex-wrap gap-2 justify-center mt-6">
-                <Badge variant="secondary" className="bg-purple-600/20 text-purple-300 border-purple-500/30">
-                  <Trophy className="w-3 h-3 mr-1" />
-                  XP & Leveling
-                </Badge>
-                <Badge variant="secondary" className="bg-pink-600/20 text-pink-300 border-pink-500/30">
-                  <Scroll className="w-3 h-3 mr-1" />
-                  Daily Quests
-                </Badge>
-                <Badge variant="secondary" className="bg-blue-600/20 text-blue-300 border-blue-500/30">
-                  <Medal className="w-3 h-3 mr-1" />
-                  Leagues & Rankings
-                </Badge>
-                <Badge variant="secondary" className="bg-cyan-600/20 text-cyan-300 border-cyan-500/30">
-                  <Heart className="w-3 h-3 mr-1" />
-                  Pet Collection
-                </Badge>
-                <Badge variant="secondary" className="bg-amber-600/20 text-amber-300 border-amber-500/30">
-                  <Sparkles className="w-3 h-3 mr-1" />
-                  Season Pass
-                </Badge>
-                <Badge variant="secondary" className="bg-green-600/20 text-green-300 border-green-500/30">
-                  <Users className="w-3 h-3 mr-1" />
-                  Guilds & Teams
-                </Badge>
-              </div>
-            </div>
-          </div>
-        </motion.div>
-      </div>
-
       <div className="flex-1 overflow-auto hide-scrollbar p-6 space-y-6">
         {/* Celebration Animations */}
         <AnimatePresence>
