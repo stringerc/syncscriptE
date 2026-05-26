@@ -19,6 +19,7 @@ function requireCronAuth(req: VercelRequest, res: VercelResponse): boolean {
 
 async function handleWakeUp(req: VercelRequest, res: VercelResponse) {
   const phoneNumber = process.env.WAKE_UP_PHONE_NUMBER;
+  if (!phoneNumber) {
     console.error('[WakeUp] WAKE_UP_PHONE_NUMBER not configured');
     return res.status(500).json({ error: 'WAKE_UP_PHONE_NUMBER not set' });
   }
