@@ -81,15 +81,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return handleHarmonyBrief(req, res);
   }
 
-  // ── Context Capture (thought bubble + debrief saves) ──────────────
+  // ── Context Capture (thought bubble + debrief + email credentials) ─
   if (resource === 'context-capture') {
     if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
-    const isAuthed = await validateAuth(req, res);
-    if (!isAuthed) return;
+    const user = await getAuthenticatedSupabaseUser(req);
+    if (!user) {
+      return res.status(401).json({ success: false, error: 'Unauthorized session' });
+    }
     try {
-      const { type, notes, wins, reflection, tomorrow, date } = req.body || {};
+      const { type, notes, wins, reflection, tomorrow, date, emailAddress, appPassword } = req.body || {};
+      // Store email credentials in KV (per-user, encrypted at rest by Supabase)
+      if (type === 'email_credentials' && emailAddress) {
+        const emailKey = `nexus_email_creds:${user.userId}`;
+        await kvSet(emailKey, { emailAddress, appPassword, connected: true, updatedAt: new Date().toISOString() });
+        return res.status(200).json({ success: true, emailConnected: true });
+      }
       // Store in KV for Nexus context retrieval
-      const key = `context_capture:${isAuthed.userId}:${date || new Date().toISOString().split('T')[0]}`;
+      const key = `context_capture:${user.userId}:${date || new Date().toISOString().split('T')[0]}`;
       const existing = await kvGet(key).catch(() => ({})) || {};
       if (type === 'thought_bubble') {
         await kvSet(key, { ...existing, thoughtBubble: notes, updatedAt: new Date().toISOString() });

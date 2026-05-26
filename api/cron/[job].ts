@@ -18,8 +18,7 @@ function requireCronAuth(req: VercelRequest, res: VercelResponse): boolean {
 }
 
 async function handleWakeUp(req: VercelRequest, res: VercelResponse) {
-  let phoneNumber = process.env.WAKE_UP_PHONE_NUMBER || '';  if (!phoneNumber) { try { const scheduleRaw = await kvGet(`briefing_schedule:${userId}`); const schedule = scheduleRaw ? (typeof scheduleRaw === 'string' ? JSON.parse(scheduleRaw) : scheduleRaw) : null; if (schedule?.phoneNumber) phoneNumber = schedule.phoneNumber; } catch (e) { console.warn('[NexusDailyRhythm] Could not read phone from KV:', e); } }
-  if (!phoneNumber) {
+  const phoneNumber = process.env.WAKE_UP_PHONE_NUMBER;
     console.error('[WakeUp] WAKE_UP_PHONE_NUMBER not configured');
     return res.status(500).json({ error: 'WAKE_UP_PHONE_NUMBER not set' });
   }
@@ -417,78 +416,59 @@ async function handleNexusDailyRhythm(req: VercelRequest, res: VercelResponse) {
       return res.status(200).json({ skipped: true, reason: 'No phone configured — set WAKE_UP_PHONE_NUMBER or save phone in Settings > Briefing Calls' });
     }
 
-    // Determine which cadence (if any) is due this hour
-    type Cadence = 'morning' | 'noon' | 'debrief';
-    let cadence: Cadence | null = null;
+  // Hobby-tier cron fires once daily (~7 AM EST).
+  // Compile ALL 3 briefings and enqueue calls at the right times.
+  type Cadence = 'morning' | 'noon' | 'debrief';
+  const cadences: Array<{ type: Cadence; targetHour: number; label: string }> = [
+    { type: 'morning', targetHour: 7, label: 'Morning Brief' },
+    { type: 'noon', targetHour: 12, label: 'Noon Check-in' },
+    { type: 'debrief', targetHour: 21, label: 'Nightly Debrief' },
+  ];
 
-    if (estHour === 7) cadence = 'morning';
-    else if (estHour === 12) cadence = 'noon';
-    else if (estHour === 21) cadence = 'debrief';
+  const { dispatchDueScheduledPhoneCalls } = await import('../phone/_helpers.js');
+  const results: Array<{ cadence: string; status: string; callId?: string; reason?: string }> = [];
 
-    if (!cadence) {
-      return res.status(200).json({
-        ok: true,
-        skipped: true,
-        estHour,
-        reason: 'No call due this hour',
-      });
-    }
-
-    // Idempotency check
+  for (const { type: cadence, targetHour, label } of cadences) {
     const dispatchKey = rhythmDispatchedKey(cadence);
     const alreadyDispatched = await kvGet(dispatchKey);
     if (alreadyDispatched) {
-      return res.status(200).json({
-        ok: true,
-        skipped: true,
-        cadence,
-        reason: `Already dispatched ${cadence} for ${dateKey}`,
-      });
+      results.push({ cadence, status: 'skipped', reason: `Already dispatched for ${dateKey}` });
+      continue;
     }
 
-    // Compile the briefing content
-    console.log(`[NexusDailyRhythm] Compiling ${cadence} briefing for ${userId}...`);
-    let compiledText = '';
-
+    console.log(`[NexusDailyRhythm] Compiling ${cadence} briefing...`);
     if (cadence === 'morning') {
       const brief = await compileMorningBrief(userId);
-      compiledText = brief.spokenText;
     } else if (cadence === 'noon') {
       const checkIn = await compileNoonCheckIn(userId);
-      compiledText = checkIn.spokenText;
     } else if (cadence === 'debrief') {
       const debrief = await compileDebriefPrompt(userId);
-      compiledText = debrief.spokenIntro;
     }
 
-    // Enqueue the Twilio call
+    const hoursOffset = targetHour - estHour;
+    const scheduledAt = new Date(now.getTime() + Math.max(0, hoursOffset) * 3600000);
+
     const callId = `nexus-rhythm-${cadence}-${dateKey}-${Date.now()}`;
     await enqueueScheduledPhoneCall({
       id: callId,
       phoneNumber,
-      scheduledAt: now.toISOString(),
+      scheduledAt: scheduledAt.toISOString(),
       briefingType: `nexus-rhythm-${cadence}`,
       userId,
       userEmail,
     });
-
-    // Mark as dispatched for idempotency
     await kvSet(dispatchKey, { dispatched: true, callId, at: now.toISOString() });
 
-    // Also dispatch it immediately (don't wait for phone-dispatch cron)
-    const { dispatchDueScheduledPhoneCalls } = await import('../phone/_helpers.js');
-    const dispatchResult = await dispatchDueScheduledPhoneCalls();
+    if (hoursOffset <= 1) {
+      await dispatchDueScheduledPhoneCalls();
+      console.log(`[NexusDailyRhythm] ${label} dispatched NOW: ${callId}`);
+    } else {
+      console.log(`[NexusDailyRhythm] ${label} enqueued for ${targetHour}:00 EST: ${callId}`);
+    }
+    results.push({ cadence, status: hoursOffset <= 1 ? 'dispatched' : 'enqueued', callId });
+  }
 
-    console.log(`[NexusDailyRhythm] ${cadence} call dispatched: ${callId}`);
-
-    return res.status(200).json({
-      ok: true,
-      cadence,
-      callId,
-      compiledTextLength: compiledText.length,
-      dispatch: dispatchResult,
-      triggeredAt: now.toISOString(),
-    });
+  return res.status(200).json({ ok: true, estHour, dateKey, results, triggeredAt: now.toISOString() });
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : 'Nexus daily rhythm failed';
     console.error('[nexus-daily-rhythm]', e);

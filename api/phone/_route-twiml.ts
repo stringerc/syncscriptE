@@ -117,6 +117,7 @@ async function handleConversation(req: VercelRequest, res: VercelResponse) {
 
   const respondUrl =
     `${config.appUrl}/api/phone/twiml?handler=respond&voice=${encodeURIComponent(voiceId)}` +
+    (callType ? `&type=${encodeURIComponent(callType)}` : '') +
     (convEmail ? `&email=${encodeURIComponent(convEmail)}` : '') +
     (convUserId ? `&userId=${encodeURIComponent(convUserId)}` : '');
 
@@ -171,6 +172,7 @@ async function handleRespond(req: VercelRequest, res: VercelResponse) {
   const respondUrl =
     `${config.appUrl}/api/phone/twiml?handler=respond&voice=${encodeURIComponent(voiceId)}` +
     (callContext ? `&context=${encodeURIComponent(callContext)}` : '') +
+    (req.query.type ? `&type=${encodeURIComponent(req.query.type as string)}` : '') +
     (userEmail ? `&email=${encodeURIComponent(userEmail)}` : '') +
     (binding.userIdForTwiml ? `&userId=${encodeURIComponent(binding.userIdForTwiml)}` : '');
 
@@ -191,6 +193,26 @@ async function handleRespond(req: VercelRequest, res: VercelResponse) {
   }
 
   const lower = speechResult.toLowerCase().trim();
+
+  // Defer handling for 7 AM morning brief
+  const callType = (req.query.type as string) || '';
+  const deferPhrases = ['ask me later', 'remind me later', 'defer this', 'talk about this later'];
+  if (callType === 'nexus-rhythm-morning' && deferPhrases.some((p) => lower.includes(p))) {
+    const hist = conversations.get(callSid) || [];
+    const lastQuestion = hist.length > 0 ? hist[hist.length - 1].replace(/^AI:\s*/, '') : 'deferred topic';
+    const uid = callUserIdMap.get(callSid) || userId;
+    if (uid) {
+      import('../phone/_helpers.js').then(({ kvGet, kvSet }) => {
+        kvGet(`nexus_deferred_questions:${uid}`).then((existing: any) => {
+          const arr = Array.isArray(existing) ? existing : [];
+          arr.push({ question: lastQuestion, deferredAt: new Date().toISOString() });
+          kvSet(`nexus_deferred_questions:${uid}`, arr);
+          console.log(`[TwilioTwiML] Deferred question for ${uid}`);
+        });
+      });
+    }
+  }
+
   const endPhrases = ['goodbye', 'bye', 'hang up', 'end call', "that's all", "i'm done", 'thanks bye'];
   if (endPhrases.some((p) => lower.includes(p))) {
     const uid = callUserIdMap.get(callSid) || userId;
@@ -201,16 +223,23 @@ async function handleRespond(req: VercelRequest, res: VercelResponse) {
     }
 
     // Persist voice debrief data if this was a nexus-rhythm-debrief call
-    const debriefData = callDebriefTracker.get(callSid);
-    if (uid && debriefData) {
+    if (uid && callType === 'nexus-rhythm-debrief') {
       try {
-        const { persistVoiceDebrief } = await import('../_lib/nexus-briefing-compiler.js');
-        await persistVoiceDebrief(uid, {
-          wins: debriefData.wins,
-          reflection: debriefData.reflection,
-          tomorrow: debriefData.tomorrow,
-        });
-        console.log(`[TwilioTwiML] Voice debrief persisted for ${uid}`);
+        const { callAI } = await import('../_lib/ai-service.js');
+        const transcript = hist.join('\n');
+        const aiPrompt = `Extract debrief data from this transcript:\n\n${transcript}\n\nReturn ONLY JSON:\n{\n  "wins": ["win 1"],\n  "reflection": "thoughts",\n  "tomorrow": "focus for tomorrow"\n}`;
+        const aiRes = await callAI([{ role: 'user', content: aiPrompt }], { maxTokens: 512, temperature: 0.1 });
+        const jsonMatch = aiRes.content.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          const debriefData = JSON.parse(jsonMatch[0]);
+          const { persistVoiceDebrief } = await import('../_lib/nexus-briefing-compiler.js');
+          await persistVoiceDebrief(uid, {
+            wins: debriefData.wins || [],
+            reflection: debriefData.reflection || '',
+            tomorrow: debriefData.tomorrow || '',
+          });
+          console.log(`[TwilioTwiML] Voice debrief persisted for ${uid}`);
+        }
       } catch (e) {
         console.warn('[TwilioTwiML] Failed to persist voice debrief:', e);
       }
@@ -403,6 +432,30 @@ async function handleStatusCallback(req: VercelRequest, res: VercelResponse) {
       updateUserProfile(uid, history.join('\n')).catch((e) =>
         console.error(`[PhoneCallback] Failed to update user profile:`, e)
       );
+    }
+    
+    // We don't have callType here cleanly unless we mapped it, but we can detect debriefs
+    // by checking if history contains "reflection" or "wins" and it's 9 PM, or just rely on 
+    // callDebriefTracker or the fact that they hung up via goodbye (which is the happy path).
+    // Let's add extraction here for safety if we see "debrief" in the AI's first greeting.
+    if (uid && history && history[0] && history[0].toLowerCase().includes('debrief')) {
+      import('../_lib/ai-service.js').then(({ callAI }) => {
+        const transcript = history.join('\n');
+        const aiPrompt = `Extract debrief data from this transcript:\n\n${transcript}\n\nReturn ONLY JSON:\n{\n  "wins": ["win 1"],\n  "reflection": "thoughts",\n  "tomorrow": "focus for tomorrow"\n}`;
+        callAI([{ role: 'user', content: aiPrompt }], { maxTokens: 512, temperature: 0.1 }).then(aiRes => {
+          const jsonMatch = aiRes.content.match(/\{[\s\S]*\}/);
+          if (jsonMatch) {
+            const debriefData = JSON.parse(jsonMatch[0]);
+            import('../_lib/nexus-briefing-compiler.js').then(({ persistVoiceDebrief }) => {
+              persistVoiceDebrief(uid, {
+                wins: debriefData.wins || [],
+                reflection: debriefData.reflection || '',
+                tomorrow: debriefData.tomorrow || '',
+              }).then(() => console.log(`[TwilioTwiML] Voice debrief persisted for ${uid} on hangup`));
+            });
+          }
+        }).catch(e => console.warn('[TwilioTwiML] Background debrief extraction failed:', e));
+      });
     }
 
     conversations.delete(callSid);
