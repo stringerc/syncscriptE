@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { 
   Brain, Send, Mic, Sparkles, TrendingUp, Zap, Target,
@@ -17,8 +17,6 @@ import { Label } from '../ui/label';
 import { Switch } from '../ui/switch';
 import { Slider } from '../ui/slider';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
-import { DashboardLayout } from '../layout/DashboardLayout';
-import { AIInsightsContent } from '../AIInsightsSection';
 import { useAI } from '../../contexts/AIContext';
 import { useOpenClaw } from '../../contexts/OpenClawContext';
 import { useSearchParams } from 'react-router';
@@ -64,89 +62,9 @@ export function AIAssistantPage() {
     detailLevel: 60,
   });
 
-  // AI Insights specific to AI Assistant page - Research-backed metrics only
-  // Using useMemo to prevent re-creation on every render (which caused glitching when typing)
-  const aiInsightsContent: AIInsightsContent = useMemo(() => ({
-    title: 'AI Assistant Metrics',
-    mode: 'full',
-    insights: [],
-    visualizations: [
-      // 1. Assistant Usage Frequency
-      {
-        type: 'assistantUsageFrequency' as const,
-        data: {
-          totalQueries: 177,
-          trend: 15,
-          weekOverWeekChange: 23,
-        },
-        label: '📈 Assistant Usage Frequency',
-      },
-      // 2. Average Response Time
-      {
-        type: 'averageResponseTime' as const,
-        data: {
-          weekly: [
-            { week: 'Week 1', avgTime: 1.5 },
-            { week: 'Week 2', avgTime: 1.2 },
-            { week: 'Week 3', avgTime: 0.9 },
-            { week: 'Week 4', avgTime: 0.8 },
-          ],
-          currentAvg: 0.8,
-          target: 1.5,
-          improvement: 0.7,
-        },
-        label: '⚡ Average Response Time',
-      },
-      // 3. Resolution/Success Rate
-      {
-        type: 'resolutionSuccessRate' as const,
-        data: {
-          successRate: 87,
-          totalRequests: 177,
-          successful: 154,
-          needsImprovement: 23,
-        },
-        label: '🎯 Resolution/Success Rate',
-      },
-      // 4. Fallback/Confusion Incidents
-      {
-        type: 'fallbackConfusionIncidents' as const,
-        data: {
-          weekly: [
-            { week: 'Week 1', incidents: 12 },
-            { week: 'Week 2', incidents: 9 },
-            { week: 'Week 3', incidents: 7 },
-            { week: 'Week 4', incidents: 5 },
-          ],
-          total: 33,
-          trend: -15,
-          topReasons: [
-            { reason: 'Unclear context', count: 12 },
-            { reason: 'Complex query', count: 9 },
-            { reason: 'Missing data', count: 7 },
-            { reason: 'Ambiguous request', count: 5 },
-          ],
-        },
-        label: '⚠️ Fallback/Confusion Incidents',
-      },
-      // 5. Top Query Categories
-      {
-        type: 'topQueryCategories' as const,
-        data: [
-          { category: 'Scheduling', count: 53, percentage: 30, color: '#06b6d4' },
-          { category: 'Task Prioritization', count: 44, percentage: 25, color: '#a855f7' },
-          { category: 'Energy Optimization', count: 35, percentage: 20, color: '#10b981' },
-          { category: 'Knowledge Lookup', count: 27, percentage: 15, color: '#f59e0b' },
-          { category: 'Goal Analysis', count: 18, percentage: 10, color: '#ec4899' },
-        ],
-        label: '📊 Top Query Categories',
-      },
-    ],
-  }), []);
-
   return (
-    <DashboardLayout aiInsightsContent={aiInsightsContent}>
-      <motion.div 
+<>
+    <motion.div 
         className="w-full h-full overflow-auto hide-scrollbar space-y-6"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -449,8 +367,8 @@ export function AIAssistantPage() {
           </motion.div>
         )}
       </AnimatePresence>
-    </DashboardLayout>
-  );
+  </>
+      );
 }
 
 function ConversationalInterface({ message, setMessage, aiSettings }: { 

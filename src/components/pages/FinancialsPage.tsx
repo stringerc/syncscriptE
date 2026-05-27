@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react';
 import { AlertTriangle, BrainCircuit, DollarSign, FileText, ShieldCheck, Sparkles, TrendingUp, Users, Wallet } from 'lucide-react';
 import { toast } from 'sonner';
-import { DashboardLayout } from '../layout/DashboardLayout';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { useOpenClaw } from '../../contexts/OpenClawContext';
@@ -196,8 +195,8 @@ Upgrade probability: ${upgradeProbability}%`,
   };
 
   return (
-    <DashboardLayout>
-      <div className="space-y-6">
+  <>
+    <div className="space-y-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h1 className="text-2xl font-semibold text-white flex items-center gap-2">
@@ -561,6 +560,6 @@ Upgrade probability: ${upgradeProbability}%`,
           onSaved={() => setInvoiceRefreshKey((k) => k + 1)}
         />
       )}
-    </DashboardLayout>
+  </>
   );
 }

@@ -2,7 +2,6 @@ import { useNavigate, useLocation } from 'react-router';
 import { LayoutDashboard, Target, Calendar, Bot, Zap, Waves, Users, TrendingUp, Gamepad2, Building2, FileText, Menu, Settings, Mail, DollarSign, FolderOpen } from 'lucide-react';
 import logoImage from 'figma:asset/914d5787f554946c037cbfbb2cf65fcc0de06278.png';
 import { navigationLinks } from '../utils/navigation';
-import { navigateWithHardFallback } from '../utils/navigateWithHardFallback';
 import { useCalendarNavigation } from '../contexts/CalendarNavigationContext';
 
 export function Sidebar() {
@@ -35,7 +34,7 @@ export function Sidebar() {
       {/* Logo — w-full + justify-center so the mark stays centered in the rail */}
       <div
         className="mb-5 flex w-full justify-center transition-transform hover:scale-110 cursor-pointer flex-shrink-0"
-        onClick={() => navigateWithHardFallback(navigate, '/')}
+        onClick={() => navigate('/')}
         data-nav="logo"
         title="SyncScript - Go to Landing Page"
       >
@@ -61,7 +60,7 @@ export function Sidebar() {
                     triggerJumpToToday();
                     return;
                   }
-                  navigateWithHardFallback(navigate, item.path);
+                  navigate(item.path);
                 }}
                 className={`inline-flex w-max max-w-full mx-auto flex-col items-center gap-1 cursor-pointer group transition-all relative border-0 bg-transparent p-0 text-inherit ${
                   isActive ? 'text-white' : 'text-gray-400 hover:text-white'
@@ -97,7 +96,7 @@ export function Sidebar() {
       <button
         type="button"
         data-nav="sidebar-settings"
-        onClick={() => navigateWithHardFallback(navigate, navigationLinks.sidebar.settings)}
+        onClick={() => navigate(navigationLinks.sidebar.settings)}
         className={`inline-flex w-max max-w-full mx-auto flex-col items-center gap-1 cursor-pointer group transition-all mt-6 flex-shrink-0 border-0 bg-transparent p-0 text-inherit ${
           location.pathname === navigationLinks.sidebar.settings ? 'text-white' : 'text-gray-400 hover:text-white'
         }`}

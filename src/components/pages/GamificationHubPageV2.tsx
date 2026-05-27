@@ -11,8 +11,6 @@ import { Badge } from '../ui/badge';
 import { Progress } from '../ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
-import { DashboardLayout } from '../layout/DashboardLayout';
-import { AIInsightsContent } from '../AIInsightsSectionOriginal';
 import {
   StreakHistory,
   XPProgression,
@@ -58,98 +56,10 @@ export function GamificationHubPageV2() {
     'gifts' | 'events' | 'leaderboard' | 'rewards'
   >('overview');
   
-  // AI Insights with gamification visualizations
-  const aiInsightsContent: AIInsightsContent = {
-    title: 'Gamification Stats',
-    mode: 'custom',
-    customContent: (
-      <div className="space-y-6">
-        {/* 1. Current Streak & History */}
-        <div>
-          <h3 className="text-sm text-gray-300 mb-3 flex items-center gap-2">
-            <Flame className="w-4 h-4 text-orange-400" />
-            Streak & History
-          </h3>
-          <StreakHistory
-            currentStreak={profile.stats.currentStreak}
-            longestStreak={profile.stats.longestStreak}
-            dailyHistory={[
-              { week: 1, days: [true, true, true, true, true, true, false] },
-              { week: 2, days: [false, true, true, true, true, true, true] },
-              { week: 3, days: [true, true, true, true, true, false, false] },
-              { week: 4, days: [true, true, true, true, true, true, true] },
-              { week: 5, days: [true, true, true, true, true, true, false] },
-              { week: 6, days: [true, true, true, true, true, true, true] },
-              { week: 7, days: [true, true, true, true, true, true, true] },
-              { week: 8, days: [true, true, true, true, true, true, true] },
-            ]}
-          />
-        </div>
-
-        {/* 2. XP Progression */}
-        <div>
-          <h3 className="text-sm text-gray-300 mb-3 flex items-center gap-2">
-            <Star className="w-4 h-4 text-purple-400" />
-            XP Progression
-          </h3>
-          <XPProgression
-            weeklyData={[
-              { week: 'W1', xp: 850 },
-              { week: 'W2', xp: 920 },
-              { week: 'W3', xp: 1150, isDoubleXP: true },
-              { week: 'W4', xp: 980 },
-              { week: 'W5', xp: 1050 },
-              { week: 'W6', xp: 1280, isDoubleXP: true },
-              { week: 'W7', xp: 1100 },
-              { week: 'W8', xp: 1220 },
-            ]}
-            currentXP={profile.xp}
-            nextLevelXP={profile.nextLevelXp}
-            currentLevel={profile.level}
-          />
-        </div>
-
-        {/* 3. Achievement Progress */}
-        <div>
-          <h3 className="text-sm text-gray-300 mb-3 flex items-center gap-2">
-            <Award className="w-4 h-4 text-blue-400" />
-            Achievement Progress
-          </h3>
-          <AchievementCompletion
-            categories={[
-              { name: 'Productivity', unlocked: 8, total: 10, icon: Target, color: 'text-blue-400' },
-              { name: 'Energy', unlocked: 5, total: 8, icon: Zap, color: 'text-yellow-400' },
-              { name: 'Focus', unlocked: 6, total: 9, icon: Mountain, color: 'text-purple-400' },
-              { name: 'Team', unlocked: 4, total: 6, icon: Users, color: 'text-green-400' },
-              { name: 'Streak', unlocked: 7, total: 8, icon: Flame, color: 'text-orange-400' },
-            ]}
-          />
-        </div>
-
-        {/* 4. Daily Engagement */}
-        <div>
-          <h3 className="text-sm text-gray-300 mb-3 flex items-center gap-2">
-            <Calendar className="w-4 h-4 text-cyan-400" />
-            Daily Engagement
-          </h3>
-          <DailyEngagement
-            dailyData={Array.from({ length: 30 }, (_, i) => ({
-              day: `${i + 1}`,
-              tasksCompleted: Math.floor(Math.random() * 6) + 3,
-              goalMet: Math.random() > 0.3,
-              dailyGoal: 6,
-            }))}
-          />
-        </div>
-      </div>
-    ),
-  };
-  
   // Show message if gamification is disabled
   if (!gamificationEnabled) {
     return (
-      <DashboardLayout aiInsightsContent={aiInsightsContent}>
-        <div className="flex-1 overflow-auto hide-scrollbar p-6">
+      <div className="flex-1 overflow-auto hide-scrollbar p-6">
           <div className="flex items-center justify-center min-h-[60vh]">
             <div className="text-center max-w-md">
               <div className="w-20 h-20 bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -169,12 +79,11 @@ export function GamificationHubPageV2() {
             </div>
           </div>
         </div>
-      </DashboardLayout>
+      
     );
   }
   
   return (
-    <DashboardLayout aiInsightsContent={aiInsightsContent}>
       <div className="flex-1 overflow-auto hide-scrollbar p-6 space-y-6">
         {/* Celebration Animations */}
         <AnimatePresence>
@@ -535,6 +444,6 @@ export function GamificationHubPageV2() {
           </TabsContent>
         </Tabs>
       </div>
-    </DashboardLayout>
+    
   );
 }

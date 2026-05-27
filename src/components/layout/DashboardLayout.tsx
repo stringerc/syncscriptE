@@ -1,4 +1,4 @@
-import { useState, ReactNode, useEffect, useRef } from 'react';
+import { useState, ReactNode, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import { Sidebar } from '../Sidebar';
 import { MobileNav } from '../MobileNav';
@@ -138,14 +138,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     setIsWorkstreamCanvasView(urlWantsWorkstream);
   }, [location.pathname, location.search]);
 
-  useEffect(() => {
-    const handleWorkspaceMode = (event: Event) => {
-      const custom = event as CustomEvent<{ mode?: string }>;
-      setIsWorkstreamCanvasView(custom.detail?.mode === 'workstream');
-    };
-    window.addEventListener('syncscript:workspace-mode', handleWorkspaceMode as EventListener);
-    return () => window.removeEventListener('syncscript:workspace-mode', handleWorkspaceMode as EventListener);
-  }, []);
+
 
   // Safety guard: recover from rare stuck "pointer-events: none" states
   // caused by modal/overlay teardown races, which can make the dashboard unclickable.
@@ -167,12 +160,16 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       }
     };
 
-    const scheduleEnsure = () => {
-      requestAnimationFrame(() => {
-        ensurePointerInteractivity();
-      });
-      window.setTimeout(ensurePointerInteractivity, 120);
-    };
+  let rafId = 0;
+  let timerId = 0;
+  const scheduleEnsure = () => {
+    cancelAnimationFrame(rafId);
+    clearTimeout(timerId);
+    rafId = requestAnimationFrame(() => {
+      ensurePointerInteractivity();
+    });
+    timerId = window.setTimeout(ensurePointerInteractivity, 120);
+  };
 
     ensurePointerInteractivity();
     const observer = new MutationObserver(() => scheduleEnsure());

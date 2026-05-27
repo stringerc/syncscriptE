@@ -67,8 +67,6 @@ import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
-import { DashboardLayout } from '../layout/DashboardLayout';
-import { getPageInsights } from '../../utils/insights-config';
 import { AnimatedAvatar } from '../AnimatedAvatar';
 import { Event, Task, Script } from '../../utils/event-task-types';
 import { sampleTeamMembers, createEmptyEvent } from '../../utils/sample-event-data';
@@ -2022,264 +2020,6 @@ export function CalendarEventsPage() {
   };
 
   // Dynamic AI Insights based on current view
-  const getDynamicInsights = () => {
-    const baseConfig = getPageInsights('/calendar');
-    
-    if (currentView === 'day') {
-      // Day view - ALL graphs show TODAY's data only
-      return {
-        ...baseConfig,
-        title: `${currentDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })} - Daily Insights`,
-        visualizations: [
-          // Graph 1: Today's hourly meeting distribution (condensed to 5 hours)
-          {
-            type: 'meetingHoursByDay' as const,
-            data: [
-              { day: '9AM', hours: 1.0, label: '9AM' },
-              { day: '11AM', hours: 1.0, label: '11AM' },
-              { day: '1PM', hours: 0.5, label: '1PM' },
-              { day: '2PM', hours: 1.5, label: '2PM' },
-              { day: '4PM', hours: 0.5, label: '4PM' },
-            ],
-            label: '📊 Today\'s Meeting Hours by Time',
-          },
-          // Graph 2: Today's productivity vs meetings (hourly overlay)
-          {
-            type: 'productivityVsMeetings' as const,
-            data: {
-              hours: ['8AM', '9AM', '10AM', '11AM', '12PM', '1PM', '2PM', '3PM', '4PM', '5PM', '6PM'],
-              productivity: [60, 75, 90, 85, 70, 55, 85, 88, 80, 65, 50],
-              meetings: [20, 40, 65, 70, 50, 30, 75, 80, 60, 35, 20],
-            },
-            label: '⚡ Today: Productivity vs Meetings (Hourly)',
-          },
-          // Graph 3: Today's focus time (single bar showing hours available)
-          {
-            type: 'focusTimeAvailability' as const,
-            data: [
-              { day: 'Today', focusHours: 4.5, hasFocusBlock: true, label: 'Today' },
-            ],
-            goal: 2.0,
-            daysWithFocus: 1,
-            label: '🎯 Today\'s Focus Time Available',
-          },
-          // Graph 4: Today's meetings by type
-          {
-            type: 'meetingsByType' as const,
-            data: [
-              { type: '1:1', value: 40, color: '#10b981' },
-              { type: 'Small (2-5)', value: 35, color: '#3b82f6' },
-              { type: 'Medium (6-14)', value: 15, color: '#f59e0b' },
-              { type: 'Large (15+)', value: 10, color: '#ef4444' },
-            ],
-            label: '👥 Today\'s Meetings by Type',
-          },
-          // Graph 5: Today's meeting intensity (hourly breakdown - 7 hours)
-          {
-            type: 'hourlyIntensity' as const,
-            data: [
-              { hour: '9AM', intensity: 3 },
-              { hour: '10AM', intensity: 7 },
-              { hour: '11AM', intensity: 5 },
-              { hour: '1PM', intensity: 2 },
-              { hour: '2PM', intensity: 8 },
-              { hour: '3PM', intensity: 6 },
-              { hour: '4PM', intensity: 4 },
-            ],
-            label: '📅 Today\'s Meeting Intensity by Hour',
-          },
-          // Graph 6: Team comparison (if applicable)
-          {
-            type: 'teamCalendarLoad' as const,
-            data: {
-              userMeetingHours: 4.5,
-              teamAverage: 3.8,
-              metric: 'Meeting Hours Today'
-            },
-            label: '👥 Team vs You - Today',
-            hasTeam: true,
-          },
-        ],
-      };
-    } else if (currentView === 'week') {
-      // Week view - ALL graphs show THIS WEEK's data
-      return {
-        ...baseConfig,
-        title: 'This Week - Weekly Insights',
-        visualizations: [
-          // Graph 1: This week's meeting hours by day
-          {
-            type: 'meetingHoursByDay' as const,
-            data: [
-              { day: 'Mon', hours: 4.5, label: 'Mon' },
-              { day: 'Tue', hours: 5.5, label: 'Tue' },
-              { day: 'Wed', hours: 4.8, label: 'Wed' },
-              { day: 'Thu', hours: 5.2, label: 'Thu' },
-              { day: 'Fri', hours: 3.2, label: 'Fri' },
-            ],
-            label: '📊 Meeting Hours by Day (This Week)',
-          },
-          // Graph 2: This week's productivity vs meetings (by day)
-          {
-            type: 'productivityVsMeetings' as const,
-            data: {
-              hours: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
-              productivity: [75, 82, 88, 85, 72, 65, 60],
-              meetings: [40, 50, 55, 52, 35, 20, 15],
-            },
-            label: '⚡ This Week: Productivity vs Meetings',
-          },
-          // Graph 3: This week's focus time availability (daily breakdown)
-          {
-            type: 'focusTimeAvailability' as const,
-            data: [
-              { day: 'Mon', focusHours: 3.5, hasFocusBlock: true, label: 'Mon' },
-              { day: 'Tue', focusHours: 1.5, hasFocusBlock: false, label: 'Tue' },
-              { day: 'Wed', focusHours: 4.0, hasFocusBlock: true, label: 'Wed' },
-              { day: 'Thu', focusHours: 2.5, hasFocusBlock: true, label: 'Thu' },
-              { day: 'Fri', focusHours: 5.0, hasFocusBlock: true, label: 'Fri' },
-            ],
-            goal: 2.0,
-            daysWithFocus: 4,
-            label: '🎯 Focus Time This Week (2+ Hour Blocks)',
-          },
-          // Graph 4: This week's meetings by type
-          {
-            type: 'meetingsByType' as const,
-            data: [
-              { type: '1:1', value: 35, color: '#10b981' },
-              { type: 'Small (2-5)', value: 30, color: '#3b82f6' },
-              { type: 'Medium (6-14)', value: 20, color: '#f59e0b' },
-              { type: 'Large (15+)', value: 15, color: '#ef4444' },
-            ],
-            label: '👥 This Week\'s Meetings by Type',
-          },
-          // Graph 5: This week's meeting intensity (7-day heatmap)
-          {
-            type: 'calendarHeatmap' as const,
-            data: [
-              { date: 20, intensity: 5 }, // Mon
-              { date: 21, intensity: 7 }, // Tue
-              { date: 22, intensity: 6 }, // Wed (today)
-              { date: 23, intensity: 8 }, // Thu
-              { date: 24, intensity: 4 }, // Fri
-            ],
-            month: currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
-            label: '📅 This Week\'s Meeting Intensity',
-          },
-          // Graph 6: Team comparison for the week
-          {
-            type: 'teamCalendarLoad' as const,
-            data: {
-              userMeetingHours: 23.2,
-              teamAverage: 19.5,
-              metric: 'Meeting Hours This Week'
-            },
-            label: '👥 Team vs You - This Week',
-            hasTeam: true,
-          },
-        ],
-      };
-    } else {
-      // Month view - ALL graphs show THIS MONTH's data
-      const monthName = currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-      return {
-        ...baseConfig,
-        title: `${monthName} - Monthly Overview`,
-        visualizations: [
-          // Graph 1: This month's meeting hours by week
-          {
-            type: 'meetingHoursByDay' as const,
-            data: [
-              { day: 'Week 1', hours: 18.5, label: 'Week 1' },
-              { day: 'Week 2', hours: 22.5, label: 'Week 2' },
-              { day: 'Week 3', hours: 20.8, label: 'Week 3' },
-              { day: 'Week 4', hours: 23.2, label: 'Week 4' },
-            ],
-            label: '📊 Meeting Hours by Week (This Month)',
-          },
-          // Graph 2: This month's productivity vs meetings (aggregated by week)
-          {
-            type: 'productivityVsMeetings' as const,
-            data: {
-              hours: ['Week 1', 'Week 2', 'Week 3', 'Week 4'],
-              productivity: [75, 82, 88, 85],
-              meetings: [40, 50, 45, 55],
-            },
-            label: '⚡ This Month: Productivity vs Meetings',
-          },
-          // Graph 3: This month's focus time by week
-          {
-            type: 'focusTimeAvailability' as const,
-            data: [
-              { day: 'Week 1', focusHours: 15.5, hasFocusBlock: true, label: 'Week 1' },
-              { day: 'Week 2', focusHours: 12.5, hasFocusBlock: true, label: 'Week 2' },
-              { day: 'Week 3', focusHours: 16.0, hasFocusBlock: true, label: 'Week 3' },
-              { day: 'Week 4', focusHours: 14.5, hasFocusBlock: true, label: 'Week 4' },
-            ],
-            goal: 10.0,
-            daysWithFocus: 4,
-            label: '🎯 Focus Time This Month (Weekly Totals)',
-          },
-          // Graph 4: This month's meetings by type
-          {
-            type: 'meetingsByType' as const,
-            data: [
-              { type: '1:1', value: 32, color: '#10b981' },
-              { type: 'Small (2-5)', value: 28, color: '#3b82f6' },
-              { type: 'Medium (6-14)', value: 22, color: '#f59e0b' },
-              { type: 'Large (15+)', value: 18, color: '#ef4444' },
-            ],
-            label: '👥 This Month\'s Meetings by Type',
-          },
-          // Graph 5: This month's meeting intensity heatmap (all days)
-          {
-            type: 'calendarHeatmap' as const,
-            data: [
-              { date: 1, intensity: 3 },
-              { date: 2, intensity: 5 },
-              { date: 3, intensity: 4 },
-              { date: 4, intensity: 2 },
-              { date: 5, intensity: 1 },
-              { date: 8, intensity: 6 },
-              { date: 9, intensity: 7 },
-              { date: 10, intensity: 5 },
-              { date: 11, intensity: 4 },
-              { date: 12, intensity: 2 },
-              { date: 15, intensity: 5 },
-              { date: 16, intensity: 8 },
-              { date: 17, intensity: 6 },
-              { date: 18, intensity: 5 },
-              { date: 19, intensity: 3 },
-              { date: 22, intensity: 7 },
-              { date: 23, intensity: 9 },
-              { date: 24, intensity: 6 },
-              { date: 25, intensity: 4 },
-              { date: 26, intensity: 2 },
-              { date: 29, intensity: 5 },
-              { date: 30, intensity: 4 },
-            ],
-            month: monthName,
-            label: '📅 This Month\'s Meeting Intensity Heatmap',
-          },
-          // Graph 6: Team comparison for the month
-          {
-            type: 'teamCalendarLoad' as const,
-            data: {
-              userMeetingHours: 85.0,
-              teamAverage: 78.0,
-              metric: 'Meeting Hours This Month'
-            },
-            label: '👥 Team vs You - This Month',
-            hasTeam: true,
-          },
-        ],
-      };
-    }
-  };
-
-  const aiInsightsContent = getDynamicInsights();
-
   // Navigation handlers
   const handlePrevious = () => {
     const newDate = new Date(currentDate);
@@ -2324,8 +2064,8 @@ export function CalendarEventsPage() {
   };
 
   return (
-    <DashboardLayout aiInsightsContent={aiInsightsContent}>
-      <motion.div 
+    <>
+    <motion.div 
         className="flex min-w-0 flex-col gap-6"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -3064,8 +2804,8 @@ export function CalendarEventsPage() {
         />
       )} */}
       
-    </DashboardLayout>
-  );
+    </>
+    );
 }
 
 // Get events for a specific date from the events array

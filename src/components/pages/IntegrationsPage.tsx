@@ -12,8 +12,6 @@ import { Badge } from '../ui/badge';
 import { Progress } from '../ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { Switch } from '../ui/switch';
-import { DashboardLayout } from '../layout/DashboardLayout';
-import { AIInsightsContent } from '../AIInsightsSectionOriginal';
 import { toast } from 'sonner';
 import { OAuthConnector, OAUTH_PROVIDERS } from '../integrations/OAuthConnector';
 import { CalendarImportDialog } from '../integrations/CalendarImportDialog';
@@ -36,115 +34,6 @@ export function IntegrationsPage() {
   const handleImportClick = (provider: 'google_calendar' | 'outlook_calendar') => {
     setImportProvider(provider);
     setShowImportDialog(true);
-  };
-
-  // AI Insights with INTEGRATION USAGE & HEALTH VISUALIZATIONS
-  // Research: Platform monitoring best practices (Moesif, DreamFactory)
-  const aiInsightsContent: AIInsightsContent = {
-    title: 'Integration Health',
-    mode: 'custom',
-    customContent: (
-      <div className="space-y-6">
-        {/* 1. Integration Usage Pie Chart */}
-        <div>
-          <h3 className="text-sm text-gray-300 mb-3 flex items-center gap-2">
-            <Activity className="w-4 h-4 text-teal-400" />
-            Usage by Source
-          </h3>
-          <IntegrationUsagePie
-            integrations={[
-              { name: 'Gmail', percentage: 40, count: 156, color: '#ef4444' },
-              { name: 'Slack', percentage: 35, count: 137, color: '#3b82f6' },
-              { name: 'Calendar', percentage: 25, count: 98, color: '#10b981' },
-              { name: 'Notion', percentage: 0, count: 0, color: '#a855f7' },
-            ]}
-          />
-        </div>
-
-        {/* 2. Sync Success Rate Gauge */}
-        <div>
-          <h3 className="text-sm text-gray-300 mb-3 flex items-center gap-2">
-            <Check className="w-4 h-4 text-emerald-400" />
-            Sync Health
-          </h3>
-          <SyncSuccessRate
-            successRate={99.5}
-            totalSyncs={2847}
-            failedSyncs={14}
-            periodDays={7}
-          />
-        </div>
-
-        {/* 3. Automated vs Manual Tasks */}
-        <div>
-          <h3 className="text-sm text-gray-300 mb-3 flex items-center gap-2">
-            <Zap className="w-4 h-4 text-purple-400" />
-            Automation Impact
-          </h3>
-          <AutomatedVsManual
-            weeklyData={[
-              { week: 'W1', automated: 42, manual: 18 },
-              { week: 'W2', automated: 48, manual: 15 },
-              { week: 'W3', automated: 55, manual: 12 },
-              { week: 'W4', automated: 52, manual: 14 },
-              { week: 'W5', automated: 58, manual: 11 },
-              { week: 'W6', automated: 61, manual: 10 },
-              { week: 'W7', automated: 64, manual: 9 },
-              { week: 'W8', automated: 67, manual: 8 },
-            ]}
-          />
-        </div>
-
-        {/* 4. Integration Latency */}
-        <div>
-          <h3 className="text-sm text-gray-300 mb-3 flex items-center gap-2">
-            <Clock className="w-4 h-4 text-cyan-400" />
-            Response Times
-          </h3>
-          <IntegrationLatency
-            integrationData={[
-              { name: 'Gmail', avgLatency: 245, trend: 'stable' },
-              { name: 'Slack', avgLatency: 180, trend: 'down' },
-              { name: 'Google Calendar', avgLatency: 310, trend: 'stable' },
-              { name: 'Notion', avgLatency: 420, trend: 'up' },
-            ]}
-          />
-        </div>
-
-        {/* 5. New Integration Recommendations */}
-        <div>
-          <h3 className="text-sm text-gray-300 mb-3 flex items-center gap-2">
-            <TrendingUp className="w-4 h-4 text-blue-400" />
-            Suggested Integrations
-          </h3>
-          <IntegrationRecommendations
-            recommendations={[
-              {
-                name: 'Zoom',
-                icon: '📹',
-                reason: 'You schedule many meetings. Auto-capture meeting notes and action items.',
-                estimatedBenefit: '+30% efficiency',
-                confidence: 92,
-              },
-              {
-                name: 'Asana',
-                icon: '✅',
-                reason: 'Sync project tasks automatically. Teams with project trackers complete 15% more tasks on time.',
-                estimatedBenefit: '+15% completion',
-                confidence: 85,
-              },
-              {
-                name: 'Trello',
-                icon: '📋',
-                reason: 'Visualize workflows and sync cards as tasks seamlessly.',
-                estimatedBenefit: '+20% organization',
-                confidence: 78,
-              },
-            ]}
-          />
-        </div>
-      </div>
-    ),
   };
 
   const integrations = [
@@ -324,8 +213,8 @@ export function IntegrationsPage() {
   };
 
   return (
-    <DashboardLayout aiInsightsContent={aiInsightsContent}>
-      <div className="flex-1 overflow-auto hide-scrollbar p-6 space-y-6">
+  <>
+    <div className="flex-1 overflow-auto hide-scrollbar p-6 space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
@@ -743,6 +632,6 @@ export function IntegrationsPage() {
         )}
 
       </div>
-    </DashboardLayout>
-  );
+  </>
+      );
 }

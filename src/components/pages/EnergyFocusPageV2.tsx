@@ -66,9 +66,7 @@ import {
 } from '../ui/tooltip';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
-import { DashboardLayout } from '../layout/DashboardLayout';
 import { StartFocusDialog } from '../QuickActionsDialogs';
-import { PAGE_INSIGHTS_CONFIG } from '../../utils/insights-config';
 import { useEnergy } from '../../contexts/EnergyContext';
 import { getReadinessPercentFromTotalEnergy } from '../../hooks/useCurrentReadiness';
 import { COLOR_LEVELS } from '../../utils/energy-system';
@@ -91,8 +89,6 @@ export function EnergyFocusPage() {
   const [selectedTimeframe, setSelectedTimeframe] = useState<'today' | 'week' | 'month'>('today');
   const [graphTimeframe, setGraphTimeframe] = useState<'day' | 'week' | 'month' | 'year'>('week');
 
-  // AI Insights
-  const aiInsightsContent = PAGE_INSIGHTS_CONFIG.energy;
 
   // Safe energy values with defaults
   const totalEnergy = energy.totalEnergy || 0;
@@ -309,8 +305,8 @@ export function EnergyFocusPage() {
   }, []);
 
   return (
-    <DashboardLayout aiInsightsContent={aiInsightsContent}>
-      <div className="flex-1 overflow-auto hide-scrollbar p-6 space-y-8">
+  <>
+    <div className="flex-1 overflow-auto hide-scrollbar p-6 space-y-8">
         
         {/* ═════════════════════════════════════════════════════════════════════
             HEADER - Clean, Minimal
@@ -2126,6 +2122,6 @@ export function EnergyFocusPage() {
         open={isFocusDialogOpen}
         onOpenChange={setIsFocusDialogOpen}
       />
-    </DashboardLayout>
+  </>
   );
 }

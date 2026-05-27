@@ -21,8 +21,6 @@ import {
 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
-import { DashboardLayout } from '../layout/DashboardLayout';
-import { AIInsightsContent } from '../AIInsightsSection';
 import { CompletionAnalyticsDashboard } from '../analytics/CompletionAnalyticsDashboard';
 import { AnalyticsTestPanel } from '../analytics/AnalyticsTestPanel';
 import { BehaviorInsightsPanel } from '../analytics/BehaviorInsightsPanel';
@@ -57,156 +55,9 @@ export function AnalyticsInsightsPage() {
   const { goals } = useGoals();
   const { energyLogs } = useEnergy();
 
-  // AI Insights for Analytics & Insights - Comprehensive Dashboard
-  // Research: 10-15 charts optimal (Chartio analysis of 90,000 dashboards)
-  const aiInsightsContent: AIInsightsContent = {
-    title: 'Analytics Dashboard',
-    mode: 'custom',
-    customContent: (
-      <div className="space-y-6">
-        {/* 1. Productivity Over Time */}
-        <div>
-          <h3 className="text-sm text-gray-300 mb-3 flex items-center gap-2">
-            <TrendingUp className="w-4 h-4 text-emerald-400" />
-            Productivity Trend (6 Months)
-          </h3>
-          <ProductivityOverTime
-            data={[
-              { month: 'Jan', productivity: 68, tasksCompleted: 45, goalsAchieved: 3 },
-              { month: 'Feb', productivity: 72, tasksCompleted: 52, goalsAchieved: 4 },
-              { month: 'Mar', productivity: 78, tasksCompleted: 58, goalsAchieved: 5 },
-              { month: 'Apr', productivity: 82, tasksCompleted: 64, goalsAchieved: 5 },
-              { month: 'May', productivity: 88, tasksCompleted: 71, goalsAchieved: 6 },
-              { month: 'Jun', productivity: 94, tasksCompleted: 78, goalsAchieved: 7 },
-            ]}
-          />
-        </div>
-
-        {/* 2. Tasks Created vs Completed */}
-        <div>
-          <h3 className="text-sm text-gray-300 mb-3 flex items-center gap-2">
-            <CheckCircle2 className="w-4 h-4 text-blue-400" />
-            Tasks: Created vs Completed
-          </h3>
-          <TasksCreatedVsCompleted
-            data={[
-              { week: 'W1', created: 18, completed: 15 },
-              { week: 'W2', created: 22, completed: 20 },
-              { week: 'W3', created: 19, completed: 21 },
-              { week: 'W4', created: 20, completed: 22 },
-              { week: 'W5', created: 17, completed: 19 },
-              { week: 'W6', created: 21, completed: 23 },
-            ]}
-          />
-        </div>
-
-        {/* 3. Focus vs Distraction Time */}
-        <div>
-          <h3 className="text-sm text-gray-300 mb-3 flex items-center gap-2">
-            <Brain className="w-4 h-4 text-purple-400" />
-            Focus vs Distraction Time
-          </h3>
-          <FocusVsDistraction
-            data={[
-              { day: 'Mon', focusTime: 5.2, distractionTime: 2.8 },
-              { day: 'Tue', focusTime: 6.1, distractionTime: 1.9 },
-              { day: 'Wed', focusTime: 5.5, distractionTime: 2.5 },
-              { day: 'Thu', focusTime: 6.3, distractionTime: 1.7 },
-              { day: 'Fri', focusTime: 4.8, distractionTime: 3.2 },
-            ]}
-          />
-        </div>
-
-        {/* 4. Energy & Output Correlation */}
-        <div>
-          <h3 className="text-sm text-gray-300 mb-3 flex items-center gap-2">
-            <Zap className="w-4 h-4 text-amber-400" />
-            Energy vs Output Correlation
-          </h3>
-          <EnergyOutputCorrelation
-            data={[
-              { day: 'Day 1', energy: 68, tasksCompleted: 12 },
-              { day: 'Day 2', energy: 82, tasksCompleted: 18 },
-              { day: 'Day 3', energy: 75, tasksCompleted: 15 },
-              { day: 'Day 4', energy: 91, tasksCompleted: 22 },
-              { day: 'Day 5', energy: 65, tasksCompleted: 11 },
-              { day: 'Day 6', energy: 88, tasksCompleted: 20 },
-              { day: 'Day 7', energy: 72, tasksCompleted: 14 },
-              { day: 'Day 8', energy: 85, tasksCompleted: 19 },
-              { day: 'Day 9', energy: 78, tasksCompleted: 16 },
-              { day: 'Day 10', energy: 94, tasksCompleted: 24 },
-            ]}
-          />
-        </div>
-
-        {/* 5. Activity Heatmap */}
-        <div>
-          <h3 className="text-sm text-gray-300 mb-3 flex items-center gap-2">
-            <Calendar className="w-4 h-4 text-cyan-400" />
-            Activity Heatmap (12 Weeks)
-          </h3>
-          <ActivityHeatmap
-            data={[
-              { week: 1, days: [20, 75, 82, 78, 85, 72, 25] },
-              { week: 2, days: [18, 80, 85, 82, 88, 75, 22] },
-              { week: 3, days: [15, 72, 78, 75, 82, 70, 20] },
-              { week: 4, days: [22, 85, 88, 85, 90, 78, 28] },
-              { week: 5, days: [25, 78, 82, 80, 85, 72, 30] },
-              { week: 6, days: [20, 82, 88, 85, 92, 80, 25] },
-              { week: 7, days: [18, 85, 90, 88, 95, 82, 28] },
-              { week: 8, days: [22, 80, 85, 82, 88, 78, 30] },
-              { week: 9, days: [25, 88, 92, 88, 94, 85, 32] },
-              { week: 10, days: [20, 85, 90, 85, 92, 80, 28] },
-              { week: 11, days: [22, 90, 94, 90, 96, 88, 35] },
-              { week: 12, days: [25, 88, 92, 88, 94, 85, 30] },
-            ]}
-          />
-        </div>
-
-        {/* 6. Top Productivity Factors */}
-        <div>
-          <h3 className="text-sm text-gray-300 mb-3 flex items-center gap-2">
-            <Target className="w-4 h-4 text-green-400" />
-            Top Productivity Factors
-          </h3>
-          <TopProductivityFactors
-            data={[
-              { factor: '≥7 hours sleep', impact: 28, confidence: 'high' },
-              { factor: 'Exercise days', impact: 22, confidence: 'high' },
-              { factor: 'No meetings before noon', impact: 18, confidence: 'medium' },
-              { factor: 'Pomodoro technique used', impact: 15, confidence: 'medium' },
-              { factor: 'Morning routine completed', impact: 12, confidence: 'high' },
-            ]}
-          />
-        </div>
-
-        {/* 7. Forecast/Predictive Chart */}
-        <div>
-          <h3 className="text-sm text-gray-300 mb-3 flex items-center gap-2">
-            <Activity className="w-4 h-4 text-purple-400" />
-            Performance Forecast
-          </h3>
-          <ForecastChart
-            historicalData={[
-              { week: 'W-3', actual: 18 },
-              { week: 'W-2', actual: 20 },
-              { week: 'W-1', actual: 22 },
-              { week: 'Now', actual: 23 },
-            ]}
-            forecastData={[
-              { week: 'W+1', predicted: 24, confidence: { min: 22, max: 26 } },
-              { week: 'W+2', predicted: 25, confidence: { min: 23, max: 27 } },
-              { week: 'W+3', predicted: 26, confidence: { min: 24, max: 28 } },
-            ]}
-          />
-        </div>
-      </div>
-    ),
-  };
-
   return (
-    <DashboardLayout aiInsightsContent={aiInsightsContent}>
-      {/* Roadmap Overlay - Full Screen Block */}
+    <>
+    {/* Roadmap Overlay - Full Screen Block */}
       <div className="absolute inset-0 z-50 bg-[#1a1d24]/95 backdrop-blur-sm flex items-center justify-center">
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
@@ -748,6 +599,6 @@ export function AnalyticsInsightsPage() {
           </TabsContent>
         </Tabs>
       </div>
-    </DashboardLayout>
-  );
+    </>
+      );
 }

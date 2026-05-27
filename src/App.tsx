@@ -162,7 +162,9 @@ function DashboardProviders({ children }: { children: ReactNode }) {
 function DashboardShell() {
   return (
     <DashboardProviders>
-      <Outlet />
+      <DashboardLayout>
+        <Outlet />
+      </DashboardLayout>
     </DashboardProviders>
   );
 }
@@ -286,7 +288,7 @@ function AppContent() {
                   <Route path="scripts-templates" element={<ProtectedRoute><ScriptsTemplatesPage /></ProtectedRoute>} />
                   <Route path="team-scripts" element={<ProtectedRoute><TeamScriptsPage /></ProtectedRoute>} />
                   <Route path="settings" element={
-                    <ProtectedRoute><DashboardLayout><SettingsPage /></DashboardLayout></ProtectedRoute>
+                    <ProtectedRoute><SettingsPage /></ProtectedRoute>
                   } />
                   <Route path="onboarding" element={<ProtectedRoute><OnboardingPage /></ProtectedRoute>} />
                   <Route path="permission-testing" element={<PermissionTestingDashboard />} />

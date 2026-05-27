@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": []
+  },
+  "mcpServers": {
+    "gitnexus": {
+      "command": "npx",
+      "args": ["gitnexus", "mcp"]
+    }
+  }
+}

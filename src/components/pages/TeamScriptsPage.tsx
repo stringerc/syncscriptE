@@ -23,7 +23,6 @@ import {
   Sparkles,
   Target,
 } from 'lucide-react';
-import { DashboardLayout } from '../layout/DashboardLayout';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
@@ -39,7 +38,6 @@ import { useTeamScripts } from '../../hooks/useTeamScripts';
 import { useTeam } from '../../contexts/TeamContext';
 import { TeamScriptCard } from '../team/TeamScriptCard';
 import { TeamScript } from '../../utils/team-script-integration';
-import { PAGE_INSIGHTS_CONFIG } from '../../utils/insights-config';
 
 export function TeamScriptsPage() {
   const {
@@ -124,11 +122,9 @@ export function TeamScriptsPage() {
   const avgRating =
     allScripts.reduce((sum, s) => sum + s.rating, 0) / totalScripts || 0;
 
-  const aiInsightsContent = PAGE_INSIGHTS_CONFIG.scripts || null;
-
   return (
-    <DashboardLayout aiInsightsContent={aiInsightsContent}>
-      <div className="flex-1 overflow-auto hide-scrollbar p-6 space-y-6">
+  <>
+    <div className="flex-1 overflow-auto hide-scrollbar p-6 space-y-6">
         {/* Header */}
         <div className="flex items-start justify-between">
           <div>
@@ -247,8 +243,8 @@ export function TeamScriptsPage() {
           </TabsContent>
         </Tabs>
       </div>
-    </DashboardLayout>
-  );
+  </>
+      );
 }
 
 // Scripts List Component

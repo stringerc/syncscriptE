@@ -9,7 +9,6 @@ import {
   AlertTriangle, TrendingDown, CheckCircle2, Clock,
   Target, Flame, Brain, RefreshCw, Eye, EyeOff
 } from 'lucide-react';
-import { DashboardLayout } from '../layout/DashboardLayout';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { Input } from '../ui/input';
@@ -18,7 +17,6 @@ import { useTeam } from '../../contexts/TeamContext';
 import { CreateTeamDialog } from '../team/CreateTeamDialog';
 import { TeamCard } from '../team/TeamCard';
 import { TeamDetailView } from '../team/TeamDetailView';
-import { PAGE_INSIGHTS_CONFIG } from '../../utils/insights-config';
 import { CollaborationView } from '../team/CollaborationView';
 import { IndividualProfileView } from '../IndividualProfileView';
 
@@ -183,11 +181,9 @@ export function TeamPage() {
     });
   };
 
-  const aiInsightsContent = PAGE_INSIGHTS_CONFIG.team;
-
   return (
-    <DashboardLayout aiInsightsContent={aiInsightsContent}>
-      <div className="flex-1 overflow-auto hide-scrollbar p-6 space-y-6">
+  <>
+    <div className="flex-1 overflow-auto hide-scrollbar p-6 space-y-6">
         {activeTeam ? (
           // Team Detail View
           <TeamDetailView 
@@ -820,6 +816,6 @@ export function TeamPage() {
           onClose={() => setIsCreateDialogOpen(false)}
         />
       </div>
-    </DashboardLayout>
-  );
+  </>
+      );
 }

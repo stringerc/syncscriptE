@@ -37,7 +37,6 @@ import { EnhancedGoalCard } from '../EnhancedGoalCard';
 import { SuccessMetricsDashboard } from '../SuccessMetricsDashboard';
 import { useResonance } from '../../hooks/useResonance';
 import { ErrorBoundary } from '../ErrorBoundary';
-import { DashboardLayout } from '../layout/DashboardLayout';
 import { useTasks } from '../../hooks/useTasks';
 // PHASE 1: Unified system imports
 import { useGoals } from '../../hooks/useGoals';
@@ -793,212 +792,6 @@ export function ProjectsPage() {
     }
   };
 
-  // AI Insights specific to Tasks tab - Research-backed visualizations + AI Suggestions
-  const tasksAIInsightsContent: AIInsightsContent = {
-    title: 'Tasks AI Insights',
-    mode: 'custom',
-    customContent: (
-      <div className="space-y-4">
-        {/* AI Task Suggestions Card */}
-        <AISuggestionsCard 
-          onTaskCreated={(task) => {
-            console.log('[AI Insights] Task created from AI suggestion:', task);
-          }}
-        />
-        
-        {/* Visualizations placeholder - could add back if needed */}
-        <div className="text-xs text-gray-500 text-center py-2">
-          Data visualizations available
-        </div>
-      </div>
-    ),
-    insights: [],
-    visualizations: [
-      // 1. Task Status Distribution (Pie/Bar Chart)
-      {
-        type: 'taskStatusDistribution' as const,
-        data: [
-          { status: 'Completed', count: 45, percentage: 60, color: '#10b981' },
-          { status: 'Pending', count: 22, percentage: 29, color: '#f59e0b' },
-          { status: 'Overdue', count: 8, percentage: 11, color: '#ef4444' },
-        ],
-        label: '📊 Task Status Distribution',
-      },
-      // 2. On-Time vs Overdue Tasks
-      {
-        type: 'onTimeVsOverdue' as const,
-        data: {
-          onTime: 42,
-          overdue: 8,
-          total: 50,
-          onTimePercentage: 84,
-          weeklyBreakdown: [
-            { week: 'Week 1', onTime: 10, overdue: 2 },
-            { week: 'Week 2', onTime: 12, overdue: 1 },
-            { week: 'Week 3', onTime: 11, overdue: 3 },
-            { week: 'Week 4', onTime: 9, overdue: 2 },
-          ]
-        },
-        label: '⏰ On-Time vs Overdue Performance',
-      },
-      // 3. Task Priority Breakdown
-      {
-        type: 'taskPriorityBreakdown' as const,
-        data: [
-          { priority: 'High', count: 18, pending: 8, completed: 10, color: '#ef4444' },
-          { priority: 'Medium', count: 32, pending: 12, completed: 20, color: '#f59e0b' },
-          { priority: 'Low', count: 25, pending: 10, completed: 15, color: '#10b981' },
-        ],
-        label: '🎯 Task Priority Breakdown',
-      },
-      // 4. Workload by Person or Project
-      {
-        type: 'workloadByProject' as const,
-        data: [
-          { name: 'Product Dev', completed: 22, pending: 8, total: 30, color: '#06b6d4' },
-          { name: 'Marketing', completed: 15, pending: 5, total: 20, color: '#8b5cf6' },
-          { name: 'Operations', completed: 12, pending: 6, total: 18, color: '#10b981' },
-          { name: 'Customer Success', completed: 18, pending: 4, total: 22, color: '#f59e0b' },
-          { name: 'Design', completed: 10, pending: 5, total: 15, color: '#3b82f6' },
-        ],
-        label: '👥 Workload by Project',
-      },
-    ],
-  };
-
-  // AI Insights specific to Goals tab - Research-backed visualizations + AI Goal Suggestions
-  const goalsAIInsightsContent: AIInsightsContent = {
-    title: 'Goals AI Insights',
-    mode: 'custom',
-    customContent: (
-      <div className="space-y-4">
-        {/* AI Goal Suggestions Card */}
-        <AIGoalSuggestionsCard 
-          onGoalCreated={(goal) => {
-            console.log('[AI Insights] Goal created from AI suggestion:', goal);
-          }}
-        />
-        
-        {/* Visualizations placeholder - could add back if needed */}
-        <div className="text-xs text-gray-500 text-center py-2">
-          Data visualizations available
-        </div>
-      </div>
-    ),
-    insights: [],
-    visualizations: [
-      // 1. Goal Progress Over Time (Actual vs Expected)
-      {
-        type: 'goalProgressOverTime' as const,
-        data: {
-          goals: [
-            { name: 'Launch Product Beta', actual: 75, expected: 65, color: '#a855f7' },
-            { name: 'Increase Revenue 20%', actual: 82, expected: 80, color: '#06b6d4' },
-            { name: 'Improve Team Productivity', actual: 58, expected: 70, color: '#10b981' },
-            { name: 'Complete Certification', actual: 90, expected: 75, color: '#f59e0b' },
-          ],
-        },
-        label: '📈 Goal Progress Over Time',
-      },
-      // 2. Goal Health / Summary Gauge
-      {
-        type: 'goalHealthGauge' as const,
-        data: {
-          totalGoals: 12,
-          activeGoals: 8,
-          completedGoals: 4,
-          overallProgress: 67,
-          onTrack: 6,
-          atRisk: 2,
-        },
-        label: '🎯 Goal Health Summary',
-      },
-      // 3. Goals by Status (Pie Chart)
-      {
-        type: 'goalsByStatus' as const,
-        data: [
-          { status: 'On Track', count: 6, percentage: 50, color: '#10b981' },
-          { status: 'Ahead', count: 2, percentage: 17, color: '#06b6d4' },
-          { status: 'At Risk', count: 3, percentage: 25, color: '#f59e0b' },
-          { status: 'Behind', count: 1, percentage: 8, color: '#ef4444' },
-        ],
-        label: '📊 Goals by Status',
-      },
-      // 4. Goals Achieved (Tasks Removed)
-      {
-        type: 'goalsAchievedVsTasks' as const,
-        data: {
-          goalsSet: 12,
-          goalsAchieved: 8,
-          quarterlyData: [
-            { quarter: 'Q1 2024', set: 10, achieved: 7 },
-            { quarter: 'Q2 2024', set: 12, achieved: 9 },
-            { quarter: 'Q3 2024', set: 11, achieved: 8 },
-            { quarter: 'Q4 2024', set: 12, achieved: 8 },
-          ],
-          categories: [
-            { name: 'Professional', achieved: 3, color: '#a855f7' },
-            { name: 'Health', achieved: 2, color: '#10b981' },
-            { name: 'Financial', achieved: 2, color: '#06b6d4' },
-            { name: 'Personal', achieved: 1, color: '#f59e0b' },
-          ],
-        },
-        label: '🎯 Goals Achieved',
-      },
-      // 5. Goal Milestones / Timeline
-      {
-        type: 'goalMilestonesTimeline' as const,
-        data: {
-          goals: [
-            {
-              name: 'Q1 Revenue Target',
-              progress: 85,
-              dueDate: 'Mar 31',
-              daysLeft: 15,
-              status: 'on-track' as const,
-              color: '#10b981',
-              milestones: [
-                { name: 'Setup', completed: true },
-                { name: 'Launch', completed: true },
-                { name: 'Optimize', completed: false },
-              ],
-            },
-            {
-              name: 'Team Expansion',
-              progress: 45,
-              dueDate: 'Apr 15',
-              daysLeft: 30,
-              status: 'at-risk' as const,
-              color: '#f59e0b',
-              milestones: [
-                { name: 'Job Postings', completed: true },
-                { name: 'Interviews', completed: false },
-                { name: 'Onboarding', completed: false },
-              ],
-            },
-            {
-              name: 'Product Feature Release',
-              progress: 92,
-              dueDate: 'Mar 20',
-              daysLeft: 5,
-              status: 'ahead' as const,
-              color: '#06b6d4',
-              milestones: [
-                { name: 'Design', completed: true },
-                { name: 'Development', completed: true },
-                { name: 'Testing', completed: true },
-                { name: 'Deploy', completed: false },
-              ],
-            },
-          ],
-        },
-        label: '📅 Goal Milestones & Timeline',
-      },
-    ],
-  };
-
-  // Select AI insights based on active view
-  const aiInsightsContent = activeView === 'goals' ? goalsAIInsightsContent : tasksAIInsightsContent;
 
   useEffect(() => {
     window.dispatchEvent(
@@ -1006,18 +799,11 @@ export function ProjectsPage() {
         detail: { mode: activeView === 'workstream' ? 'workstream' : 'default' },
       }),
     );
-    return () => {
-      window.dispatchEvent(
-        new CustomEvent('syncscript:workspace-mode', {
-          detail: { mode: 'default' },
-        }),
-      );
-    };
   }, [activeView]);
 
   return (
-    <DashboardLayout>
-      <motion.div 
+    <motion.div
+  data-layout="tasks-surface" 
         className={`flex-1 min-w-0 overflow-x-hidden hide-scrollbar ${activeView === 'workstream' ? 'flex h-full min-h-0 flex-col overflow-hidden p-2' : 'overflow-y-auto space-y-6'}`}
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -1929,8 +1715,7 @@ export function ProjectsPage() {
           </DialogContent>
         </Dialog>
       </motion.div>
-    </DashboardLayout>
-  );
+      );
 }
 
 interface Task {
@@ -4122,3 +3907,5 @@ function GoalManagementSection({ onCreateGoal, setIsVoiceToGoalOpen, setIsAIGoal
     </div>
   );
 }
+
+export { ProjectsPage as TasksGoalsPage };

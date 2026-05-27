@@ -9,7 +9,6 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import logoImage from 'figma:asset/914d5787f554946c037cbfbb2cf65fcc0de06278.png';
 import { navigationLinks } from '../utils/navigation';
-import { navigateWithHardFallback } from '../utils/navigateWithHardFallback';
 import { useAI } from '../contexts/AIContext';
 
 export function MobileNav() {
@@ -45,7 +44,7 @@ export function MobileNav() {
   ];
 
   const handleNavClick = (item: typeof navItems[0]) => {
-    navigateWithHardFallback(navigate, item.path);
+    navigate(item.path);
     setIsDrawerOpen(false);
   };
 
@@ -60,7 +59,7 @@ export function MobileNav() {
           {/* Dashboard */}
           <button
             type="button"
-            onClick={() => navigateWithHardFallback(navigate, navigationLinks.sidebar.dashboard)}
+            onClick={() => navigate(navigationLinks.sidebar.dashboard)}
             className={`flex flex-col items-center justify-center gap-0.5 py-2 px-1 rounded-lg transition-all min-h-[60px] ${
               location.pathname === navigationLinks.sidebar.dashboard
                 ? 'text-teal-400 bg-teal-600/20'
@@ -74,7 +73,7 @@ export function MobileNav() {
           {/* Tasks */}
           <button
             type="button"
-            onClick={() => navigateWithHardFallback(navigate, navigationLinks.sidebar.tasks)}
+            onClick={() => navigate(navigationLinks.sidebar.tasks)}
             className={`flex flex-col items-center justify-center gap-0.5 py-2 px-1 rounded-lg transition-all min-h-[60px] ${
               location.pathname === navigationLinks.sidebar.tasks
                 ? 'text-teal-400 bg-teal-600/20'
@@ -88,7 +87,7 @@ export function MobileNav() {
           {/* Calendar */}
           <button
             type="button"
-            onClick={() => navigateWithHardFallback(navigate, navigationLinks.sidebar.calendar)}
+            onClick={() => navigate(navigationLinks.sidebar.calendar)}
             className={`flex flex-col items-center justify-center gap-0.5 py-2 px-1 rounded-lg transition-all min-h-[60px] ${
               location.pathname === navigationLinks.sidebar.calendar
                 ? 'text-teal-400 bg-teal-600/20'
@@ -102,7 +101,7 @@ export function MobileNav() {
           {/* AI */}
           <button
             type="button"
-            onClick={() => navigateWithHardFallback(navigate, navigationLinks.sidebar.ai)}
+            onClick={() => navigate(navigationLinks.sidebar.ai)}
             className={`relative flex flex-col items-center justify-center gap-0.5 py-2 px-1 rounded-lg transition-all min-h-[60px] ${
               location.pathname === navigationLinks.sidebar.ai
                 ? 'text-teal-400 bg-teal-600/20'
@@ -198,7 +197,7 @@ export function MobileNav() {
                 <button
                   type="button"
                   onClick={() => {
-                    navigateWithHardFallback(navigate, navigationLinks.sidebar.settings);
+                    navigate(navigationLinks.sidebar.settings);
                     setIsDrawerOpen(false);
                   }}
                   className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${

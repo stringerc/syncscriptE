@@ -22,8 +22,6 @@ import { Textarea } from '../ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Separator } from '../ui/separator';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
-import { DashboardLayout } from '../layout/DashboardLayout';
-import { AIInsightsContent } from '../AIInsightsSection';
 import { ResonanceBadge } from '../ResonanceBadge';
 import {
   AutomationUsageTrend,
@@ -445,146 +443,6 @@ export function ScriptsTemplatesPage() {
     { id: 'reporting', label: 'Reporting & Docs', count: scripts.filter(s => s.category === 'reporting').length },
   ];
 
-  // AI Insights with AUTOMATION ANALYTICS
-  const aiInsightsContent: AIInsightsContent = {
-    title: 'Automation Analytics',
-    mode: 'custom',
-    customContent: (
-      <div className="space-y-6">
-        <div>
-          <h3 className="text-sm text-gray-300 mb-3 flex items-center gap-2">
-            <TrendingUp className="w-4 h-4 text-purple-400" />
-            Automation Growth
-          </h3>
-          <AutomationUsageTrend />
-        </div>
-
-        <div>
-          <h3 className="text-sm text-gray-300 mb-3 flex items-center gap-2">
-            <Clock className="w-4 h-4 text-amber-400" />
-            Time Saved
-          </h3>
-          <TimeSavedEstimate />
-        </div>
-
-        <div>
-          <h3 className="text-sm text-gray-300 mb-3 flex items-center gap-2">
-            <Star className="w-4 h-4 text-yellow-400" />
-            Top Community Scripts
-          </h3>
-          <TopCommunityScripts />
-        </div>
-
-        <div>
-          <h3 className="text-sm text-gray-300 mb-3 flex items-center gap-2">
-            <Sparkles className="w-4 h-4 text-cyan-400" />
-            Your Automation Mix
-          </h3>
-          <ScriptCategories />
-        </div>
-
-        <div>
-          <h3 className="text-sm text-gray-300 mb-3 flex items-center gap-2">
-            <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-            Reliability Score
-          </h3>
-          <ScriptSuccessRate />
-        </div>
-      </div>
-    ),
-  };
-
-  // Filter scripts with enhanced search
-  const filteredScripts = scripts
-    .filter((script) => {
-      const matchesCategory = selectedCategory === 'all' || script.category === selectedCategory;
-      const matchesSource = selectedSource === 'all' || 
-        (selectedSource === 'system' && script.authorType === 'system') ||
-        (selectedSource === 'community' && script.authorType === 'community');
-      
-      // Use enhanced search
-      const matchesSearch = searchQuery === '' || EnhancedSearch.advancedSearch(
-        [script],
-        searchQuery,
-        ['name', 'description', 'tags']
-      ).length > 0;
-      
-      const matchesRating = script.rating >= minRating;
-      const matchesSaved = !showSavedOnly || savedScripts.includes(script.id);
-      return matchesCategory && matchesSource && matchesSearch && matchesRating && matchesSaved;
-    })
-    .sort((a, b) => {
-      if (sortBy === 'popular') return b.uses - a.uses;
-      if (sortBy === 'rating') return b.rating - a.rating;
-      return 0; // recent
-    });
-
-  const handleScriptClick = (script: Script) => {
-    // Track view analytics
-    ScriptAnalyticsTracker.trackEvent({
-      scriptId: script.id,
-      scriptName: script.name,
-      action: 'view'
-    });
-    
-    setSelectedScript(script);
-    setIsDetailModalOpen(true);
-    setShowPersonalization(false);
-    setIsEditing(false);
-    
-    // Update stats
-    const analytics = ScriptAnalyticsTracker.getAnalytics();
-    setUsageStats(prev => ({
-      ...prev,
-      totalViews: analytics.totalViews
-    }));
-  };
-
-  const handleAdaptToResonance = () => {
-    if (selectedScript?.adaptableParams) {
-      // Use real adaptation engine
-      const adaptationResult = AdaptationEngine.adaptScript(
-        selectedScript.adaptableParams,
-        preferences,
-        selectedScript.category
-      );
-      
-      setAdaptedParams(adaptationResult.params);
-      setShowPersonalization(true);
-      
-      toast.success('Resonance Adaptation Applied!', {
-        description: adaptationResult.overallExplanation,
-        duration: 5000
-      });
-    }
-  };
-
-  const handleImportAsIs = () => {
-    if (selectedScript) {
-      // Track import analytics
-      ScriptAnalyticsTracker.trackEvent({
-        scriptId: selectedScript.id,
-        scriptName: selectedScript.name,
-        action: 'import',
-        adaptationType: 'none'
-      });
-      
-      toast.success('Script Imported!', {
-        description: `${selectedScript.name} added to your workspace`
-      });
-      
-      // Update stats
-      const analytics = ScriptAnalyticsTracker.getAnalytics();
-      const timeSaved = ScriptAnalyticsTracker.getTotalTimeSaved();
-      setUsageStats({
-        totalViews: analytics.totalViews,
-        totalImports: analytics.totalImports,
-        timeSaved
-      });
-    }
-    setIsDetailModalOpen(false);
-  };
-
   const handleImportPersonalized = () => {
     if (selectedScript) {
       // Track import with resonance adaptation
@@ -628,8 +486,8 @@ export function ScriptsTemplatesPage() {
   };
 
   return (
-    <DashboardLayout aiInsightsContent={aiInsightsContent}>
-      <motion.div
+  <>
+    <motion.div
         className="space-y-6"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -1373,6 +1231,6 @@ export function ScriptsTemplatesPage() {
         open={isPreferencesDialogOpen}
         onOpenChange={setIsPreferencesDialogOpen}
       />
-    </DashboardLayout>
-  );
+  </>
+      );
 }
