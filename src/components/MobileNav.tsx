@@ -26,7 +26,7 @@ export function MobileNav() {
 
   const navItems = [
     { icon: LayoutDashboard, label: 'Dashboard', id: 'Dashboard', path: navigationLinks.sidebar.dashboard },
-    { icon: Target, label: 'Tasks', id: 'Tasks', path: navigationLinks.sidebar.tasks },
+    { icon: Target, label: 'Projects', id: 'Projects', path: navigationLinks.sidebar.tasks },
     { icon: Calendar, label: 'Calendar', id: 'Calendar', path: navigationLinks.sidebar.calendar },
     { icon: DollarSign, label: 'Financials', id: 'Financials', path: navigationLinks.sidebar.financials },
     { icon: Mail, label: 'Email', id: 'Email', path: navigationLinks.sidebar.email },

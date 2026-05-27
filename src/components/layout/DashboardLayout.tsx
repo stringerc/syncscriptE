@@ -162,6 +162,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
   let rafId = 0;
   let timerId = 0;
+  let maxDelayTimer = 0;
   const scheduleEnsure = () => {
     cancelAnimationFrame(rafId);
     clearTimeout(timerId);
@@ -169,6 +170,13 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       ensurePointerInteractivity();
     });
     timerId = window.setTimeout(ensurePointerInteractivity, 120);
+    // Guarantee recovery within 500ms even if mutations never stop
+    if (!maxDelayTimer) {
+      maxDelayTimer = window.setTimeout(() => {
+        maxDelayTimer = 0;
+        ensurePointerInteractivity();
+      }, 500);
+    }
   };
 
     ensurePointerInteractivity();
@@ -182,12 +190,18 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     document.addEventListener('visibilitychange', scheduleEnsure);
     window.addEventListener('focus', scheduleEnsure);
     window.addEventListener('pageshow', scheduleEnsure);
+  // Force recovery on any click attempt — prevents pointer-events:none from
+  // blocking navigation even if the MutationObserver debounce is starved
+  const forceRecoverOnInteract = () => { ensurePointerInteractivity(); };
+  document.addEventListener('pointerdown', forceRecoverOnInteract, true);
 
     return () => {
       observer.disconnect();
       document.removeEventListener('visibilitychange', scheduleEnsure);
       window.removeEventListener('focus', scheduleEnsure);
       window.removeEventListener('pageshow', scheduleEnsure);
+    document.removeEventListener('pointerdown', forceRecoverOnInteract, true);
+    clearTimeout(maxDelayTimer);
       ensurePointerInteractivity();
     };
   }, []);
